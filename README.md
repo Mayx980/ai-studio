@@ -6,7 +6,7 @@
 
 ## 文档入口
 
-- [AIGC视频生成平台PRD V1.0](intent/prd.md)：Issue #4 确认的完整正文。
+- [AIGC视频生成平台PRD V1.0](intent/prd.md)：基于 Issue #4 归档稿，含后续对话确认的本地需求修订。
 - [PRD 内容索引](intent/outline.md)：业务对象、规则、场景及待确认项导航。
 - [文档入库计划](.wf-prod/plans/issue-4/plan.md)：本次归档范围与验证安排。
 - [Issue #4](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/4)：需求正文与本次文档交付范围。
