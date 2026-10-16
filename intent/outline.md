@@ -35,9 +35,9 @@
 | BR-favorites | 文本、参数及媒体收藏 | 7. 个人资产与收藏 | SC-reuse |
 | BR-reference | 引用与配置整体应用 | 8. 引用与撤销恢复 | SC-reuse |
 | BR-undo | 画布编辑撤销边界 | 8.3 撤销与恢复 | SC-node-creation |
-| BR-composition | 手动编排及来源更新 | 9.1 创建成片 | SC-composition |
-| BR-audio | 配音、字幕与背景音乐 | 9.3 配音与字幕 | SC-composition |
-| BR-export | 时长检查、导出与历史版本 | 9.5 时长匹配 | SC-composition |
+| BR-composition | 手动编排及来源更新 | 9.1 创建成片<br>9.2 来源变化 | SC-composition |
+| BR-audio | 配音、字幕与背景音乐 | 9.3 配音与字幕<br>9.4 背景音乐及原声 | SC-composition |
+| BR-export | 时长检查、导出与历史版本 | 9.5 时长匹配<br>9.6 导出与版本 | SC-composition |
 | BR-task | 后台执行、停止与重试 | 10. 任务、异常与数据保留 | SC-task |
 | BR-recycle | 30 天回收站及引用保护 | 10.3 回收站 | SC-reuse |
 
