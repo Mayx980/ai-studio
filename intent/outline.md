@@ -59,6 +59,8 @@
 | ID | 问题 | 状态 | 待谁确认 |
 |---|---|---|---|
 | Q-agent | Agent 流程中未执行步骤及待回答问题的恢复 | open | 产品、技术评估 |
+| Q-document-export | PDF字体排版、Excel长文本及角色描述补充列导出效果 | open | 产品、技术评估 |
+| Q-download | 批量打包、命名、容量、数量及下载有效期 | open | 产品、技术评估 |
 | Q-document | 文档读取格式、大小及还原范围 | open | 产品、技术评估 |
 | Q-model | 模型准确标识与实际能力 | open | 技术评估 |
 | Q-audio | Seed Audio1.0 接口及中英文配音、音乐能力验证 | open | 产品、技术评估 |
@@ -67,7 +69,7 @@
 | Q-performance | 生成、预览、导出耗时 | open | 产品、技术评估 |
 | Q-template | 是否保留纯节点示例 | open | 产品负责人 |
 | Q-compatibility | 本地旧项目兼容范围 | open | 产品、技术评估 |
-| Q-retention | 内容、历史导出与离职处理 | open | 产品负责人 |
+| Q-retention | 未保存媒体、下载准备文件、文档导出与离职处理 | open | 产品负责人 |
 
 ## 修订记录
 
