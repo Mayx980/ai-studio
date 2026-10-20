@@ -91,10 +91,10 @@ const nav = [
         v-else-if="s.page === 'projects'"
       /><Assets v-else />
     </main>
-    <ModelSettings v-if="port.models" /><TextContextMenu /><CreationModal
-      v-if="s.modal"
-      :key="s.modalRevision"
-    /><transition name="toast"
+    <CreationModal v-if="s.editorOpen" forced-kind="script-editor" /><ModelSettings
+      v-if="port.models"
+    /><TextContextMenu /><CreationModal v-if="s.modal" :key="s.modalRevision" /><transition
+      name="toast"
       ><div v-if="s.toast" class="toast-message" role="status">
         <Icon name="check" />{{ s.toast }}
       </div></transition

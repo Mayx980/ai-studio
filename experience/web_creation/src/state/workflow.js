@@ -557,7 +557,7 @@ export function extendWorkflow(p, seedRows) {
               ...(/音频|配音|音乐/.test(text) ? ['音频'] : [])
             ]
       let previous
-      ;[...new Set(types)].forEach((type, i) => {
+      ;[...new Set(types)].forEach(type => {
         let id
         if (type === '脚本' && s.nodes.some(n => n.type === '脚本'))
           id = s.nodes.find(n => n.type === '脚本').id

@@ -3,6 +3,8 @@ import { computed, ref, onMounted, onUnmounted, nextTick, watch, onUpdated } fro
 import { useCreation } from '@/ports/creation'
 import Icon from '../components/CreationIcon.vue'
 import ProductScene from '../components/ProductScene.vue'
+import ReferenceChip from '../components/ReferenceChip.vue'
+import MentionInput from '../components/MentionInput.vue'
 const p = useCreation(),
   s = p.state
 const keys = [
@@ -23,45 +25,93 @@ const contextMenu = ref(null),
 const sessionMenu = ref(false),
   showAgent = ref(true),
   canvas = ref(null)
+function rowPoint(rowId, kind = 'source') {
+  const el = canvas.value?.querySelector(`[data-row-${kind}="${rowId}"]`),
+    script = s.nodes.find(n => n.type === '脚本')
+  if (el && canvas.value) {
+    const e = el.getBoundingClientRect(),
+      v = canvas.value.getBoundingClientRect()
+    return {
+      x: (e.left + e.width / 2 - v.left + canvas.value.scrollLeft) / (s.zoom / 100),
+      y: (e.top + e.height / 2 - v.top + canvas.value.scrollTop) / (s.zoom / 100)
+    }
+  }
+  return {
+    x: (script?.x || 0) + (script?.width || 1046) - (kind === 'target' ? 180 : 20),
+    y: (script?.y || 0) + 146 + s.rows.findIndex(r => r.id === rowId) * 102
+  }
+}
+const geometryRevision = ref(0)
 const edges = computed(() => {
-  const source = s.nodes.find(n => n.type === '脚本')
-  if (!source) return []
-  return s.nodes
-    .filter(n => n.rowId && p.row(n.rowId))
-    .map(n => {
-      const x = source.x + (source.width || 1046),
-        y = source.y + 146 + s.rows.findIndex(r => r.id === n.rowId) * 102
+  geometryRevision.value
+  return s.nodes.flatMap(n =>
+    p.rowIds(n).map(rowId => {
+      const a = rowPoint(rowId)
       return {
-        id: 'row-' + n.id,
+        id: 'row-' + n.id + '-' + rowId,
         nodeId: n.id,
+        rowId,
         rowEdge: true,
-        path: `M ${x} ${y} C ${x + 50} ${y}, ${n.x - 70} ${n.y + 88}, ${n.x} ${n.y + 88}`
+        path: `M ${a.x} ${a.y} C ${a.x + 60} ${a.y}, ${n.x - 70} ${n.y + 80}, ${n.x} ${n.y + 80}`
       }
     })
+  )
 })
-const nodeEdges = computed(() =>
-  s.connections
-    .map(c => {
-      const a = s.nodes.find(n => n.id === c.source),
-        b = s.nodes.find(n => n.id === c.target)
-      if (!a || !b) return null
-      const x = a.x + (a.type === '脚本' ? a.width || 1046 : 320),
-        y = a.y + 80
-      return {
-        id: c.id,
-        path: `M ${x} ${y} C ${x + 90} ${y}, ${b.x - 90} ${b.y + 80}, ${b.x} ${b.y + 80}`
-      }
-    })
-    .filter(Boolean)
-)
+const nodeEdges = computed(() => {
+  geometryRevision.value
+  return s.connections.flatMap(c => {
+    const a = s.nodes.find(n => n.id === c.source),
+      b = s.nodes.find(n => n.id === c.target)
+    if (!a || !b) return []
+    const x = a.x + (a.type === '脚本' ? a.width || 1046 : 320),
+      y = a.y + 80
+    const targets = c.rowIds?.length
+      ? c.rowIds.map(id => ({ id, ...rowPoint(id, 'target') }))
+      : [{ x: b.x, y: b.y + 80 }]
+    return targets.map(point => ({
+      id: c.id,
+      visualId: c.id + (point.id || ''),
+      assignedRowId: point.id,
+      path: `M ${x} ${y} C ${x + 90} ${y}, ${point.x - 90} ${point.y}, ${point.x} ${point.y}`
+    }))
+  })
+})
 const temporaryEdge = computed(() => {
-  const a = s.nodes.find(n => n.id === s.linkSource)
-  if (!a || !linkPoint.value) return ''
-  const x = a.x + (a.type === '脚本' ? a.width || 1046 : 320),
-    y = a.y + 80
-  return `M ${x} ${y} C ${x + 70} ${y}, ${linkPoint.value.x - 70} ${linkPoint.value.y}, ${linkPoint.value.x} ${linkPoint.value.y}`
+  if (!linkPoint.value) return ''
+  let a
+  if (s.reverseLinkTarget) {
+    const n = s.nodes.find(n => n.id === s.reverseLinkTarget)
+    if (n) a = { x: n.x, y: n.y + 80 }
+  } else if (s.linkRowSource) a = rowPoint(s.linkRowSource)
+  else {
+    const n = s.nodes.find(n => n.id === s.linkSource)
+    if (n) a = { x: n.x + (n.type === '脚本' ? n.width || 1046 : 320), y: n.y + 80 }
+  }
+  if (!a) return ''
+  return `M ${a.x} ${a.y} C ${a.x + 60} ${a.y}, ${linkPoint.value.x - 60} ${linkPoint.value.y}, ${linkPoint.value.x} ${linkPoint.value.y}`
 })
+function openReference(n, a) {
+  if (n.type === '脚本' && a.type === '图片') {
+    p.attachReference(a, n.id)
+    return
+  }
+  if (a.kind === 'row') p.openModal('row-reference', { node: n, rowId: a.rowId })
+  else p.openModal('asset-detail', a)
+}
+function updateGeometry() {
+  geometryRevision.value++
+}
+watch(
+  () =>
+    s.nodes
+      .map(n => [n.id, n.x, n.y, n.width, n.tableHeight])
+      .flat()
+      .join(',') + s.rows.map(r => r.id).join(','),
+  () => nextTick(updateGeometry),
+  { flush: 'post' }
+)
 function updateViewport() {
+  geometryRevision.value++
   if (!canvas.value) return
   const z = s.zoom / 100
   s.viewport = {
@@ -76,7 +126,9 @@ function observeNodes() {
   if (!nodeObserver) return
   canvas.value?.querySelectorAll('[data-node-id]').forEach(el => nodeObserver.observe(el))
 }
-onUpdated(observeNodes)
+onUpdated(() => {
+  observeNodes()
+})
 function trackBlank(e) {
   if (e.target.closest('.canvas-node')) return
   const b = canvas.value.getBoundingClientRect()
@@ -112,11 +164,18 @@ function createNode(type) {
         ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
     )
 }
-function startLink(e, n) {
+function beginWire(e, { sourceId, rowId, targetId }) {
   if (s.readonly || s.interactionMode === 'hand') return
   e.preventDefault()
-  s.linkSource = n.id
+  e.stopPropagation()
+  s.linkSource = sourceId || null
+  s.linkRowSource = rowId || null
+  s.reverseLinkTarget = targetId || null
+  let moved = false
+  const ox = e.clientX,
+    oy = e.clientY
   const move = ev => {
+    if (Math.abs(ev.clientX - ox) + Math.abs(ev.clientY - oy) > 4) moved = true
     const b = canvas.value.getBoundingClientRect()
     linkPoint.value = {
       x: (ev.clientX - b.left + canvas.value.scrollLeft) / (s.zoom / 100),
@@ -127,19 +186,70 @@ function startLink(e, n) {
   const end = ev => {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', end)
-    const target = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('[data-node-id]')
-      ?.dataset.nodeId
-    if (target && target !== n.id) p.connectNodes(n.id, target)
+    const el = document.elementFromPoint(ev.clientX, ev.clientY),
+      node = el?.closest('[data-node-id]')?.dataset.nodeId,
+      rowTarget = el?.closest('[data-row-target]')?.dataset.rowTarget,
+      rowSource = el?.closest('[data-row-source]')?.dataset.rowSource
+    if (moved) {
+      if (targetId) {
+        if (rowSource) p.connect(rowSource, targetId)
+        else if (node && node !== targetId) p.connectNodes(node, targetId)
+      } else if (sourceId && rowTarget) p.connectImageToRow(sourceId, rowTarget)
+      else if (rowId && node && node !== s.nodes.find(n => n.type === '脚本')?.id)
+        p.connect(rowId, node)
+      else if (sourceId && node && node !== sourceId) p.connectNodes(sourceId, node)
+      s.linkSource = null
+      s.linkRowSource = null
+      s.reverseLinkTarget = null
+    }
     linkPoint.value = null
+    updateGeometry()
   }
   window.addEventListener('pointermove', move)
   window.addEventListener('pointerup', end)
 }
+function startLink(e, n) {
+  if (s.reverseLinkTarget) {
+    e.preventDefault()
+    e.stopPropagation()
+    return
+  }
+  beginWire(e, { sourceId: n.id })
+}
+function startReverse(e, n) {
+  if (s.linkSource || s.linkRowSource) {
+    e.preventDefault()
+    e.stopPropagation()
+    return
+  }
+  beginWire(e, { targetId: n.id })
+}
+function startRowLink(e, row) {
+  beginWire(e, { rowId: row.id })
+}
 function endLink(n) {
+  if (s.linkSource && s.linkSource !== n.id) p.connectNodes(s.linkSource, n.id)
+  else if (s.linkRowSource) p.connect(s.linkRowSource, n.id)
+  else return
+  s.linkSource = null
+  s.linkRowSource = null
+  s.reverseLinkTarget = null
+  updateGeometry()
+}
+function sourceClick(n) {
+  if (s.reverseLinkTarget && s.reverseLinkTarget !== n.id) {
+    p.connectNodes(n.id, s.reverseLinkTarget)
+    s.reverseLinkTarget = null
+    s.linkSource = null
+  }
+  updateGeometry()
+}
+function rowInput(row) {
   if (s.linkSource) {
-    p.connectNodes(s.linkSource, n.id)
-    linkPoint.value = null
-  } else p.notify('从上游节点右侧连接点拖到这里，或先点击上游连接点')
+    p.connectImageToRow(s.linkSource, row.id)
+    s.linkSource = null
+  } else p.openModal('reference', { for: 'row', rowId: row.id })
+  updateGeometry()
 }
 function zoomAt(value, x, y) {
   const el = canvas.value
@@ -176,6 +286,8 @@ function dismissMenu(e) {
   contextMenu.value = null
   if (e.key === 'Escape') {
     s.linkSource = null
+    s.linkRowSource = null
+    s.reverseLinkTarget = null
     linkPoint.value = null
   }
 }
@@ -426,7 +538,7 @@ function reset() {
             </defs>
             <path
               v-for="e in [...edges, ...nodeEdges]"
-              :key="e.id"
+              :key="e.visualId || e.id"
               :d="e.path"
               @contextmenu="edgeMenu($event, e)"
               class="connection-path"
@@ -436,7 +548,7 @@ function reset() {
             />
             <path
               v-for="e in [...edges, ...nodeEdges]"
-              :key="'hit-' + e.id"
+              :key="'hit-' + (e.visualId || e.id)"
               :d="e.path"
               class="connection-hit"
               @contextmenu="edgeMenu($event, e)"
@@ -473,7 +585,7 @@ function reset() {
               :title="'连接到' + n.name"
               :aria-label="'连接到' + n.name"
               :class="{ linking: s.linkSource && s.linkSource !== n.id }"
-              @pointerdown.stop
+              @pointerdown.stop="startReverse($event, n)"
               @click.stop="endLink(n)"
             ></button
             ><button
@@ -481,7 +593,7 @@ function reset() {
               :title="'从' + n.name + '连线'"
               :aria-label="'从' + n.name + '连线'"
               @pointerdown.stop="startLink($event, n)"
-              @click.stop
+              @click.stop="sourceClick(n)"
             ></button>
             <header class="node-header">
               <span class="node-type-icon" :class="n.type"
@@ -510,6 +622,7 @@ function reset() {
               </div>
               <div
                 class="script-table-scroll"
+                @scroll="updateGeometry"
                 :style="{ height: (n.tableHeight || 365) + 'px', maxHeight: 'none' }"
               >
                 <table class="script-table">
@@ -527,7 +640,13 @@ function reset() {
                           "
                         />
                       </th>
-                      <th v-for="c in s.columns" :key="c">{{ c }}</th>
+                      <th
+                        v-for="c in s.columns"
+                        :key="c"
+                        :class="{ 'row-reference-heading': c === '引用' }"
+                      >
+                        {{ c }}
+                      </th>
                       <th class="row-outlet-heading">连接</th>
                     </tr>
                   </thead>
@@ -552,9 +671,31 @@ function reset() {
                         }}</span>
                         <p v-else :title="row[key]">{{ row[key] || '—' }}</p>
                       </td>
+                      <td class="row-reference-cell">
+                        <button
+                          class="row-image-inlet"
+                          :data-row-target="row.id"
+                          :title="'为镜头' + row.number + '连接或引用图片'"
+                          :aria-label="'为镜头' + row.number + '引用图片'"
+                          @pointerdown.stop
+                          @click.stop="rowInput(row)"
+                        >
+                          <Icon name="image" :size="12" /></button
+                        ><ReferenceChip
+                          v-for="a in p.rowImages(row.id)"
+                          :key="a.id"
+                          :asset="a"
+                          @remove="p.removeRowImage(row.id, a)"
+                          @open="p.openModal('asset-detail', a)"
+                        /><span v-if="!p.rowImages(row.id).length" class="row-reference-empty"
+                          >添加参考图</span
+                        >
+                      </td>
                       <td class="row-outlet-cell">
                         <button
                           class="row-outlet"
+                          :data-row-source="row.id"
+                          @pointerdown.stop="startRowLink($event, row)"
                           :aria-label="'连接镜头' + row.number"
                           :title="'连接镜头' + row.number + '到下游节点'"
                           @click.stop="s.pendingRow = s.pendingRow === row.id ? null : row.id"
@@ -564,7 +705,7 @@ function reset() {
                       </td>
                     </tr>
                     <tr v-if="!s.rows.length">
-                      <td colspan="12" class="table-empty">
+                      <td colspan="13" class="table-empty">
                         输入故事或引用资料，生成你的第一份分镜。
                       </td>
                     </tr>
@@ -573,26 +714,27 @@ function reset() {
               </div>
               <div class="script-inline-input">
                 <div class="reference-pills">
-                  <span v-for="ref in p.upstream(n)" :key="ref.id" class="input-reference-card"
-                    ><span :title="ref.text">{{ ref.name }}</span
-                    ><button title="取消引用" @click="p.removeConnection(ref.id)">×</button></span
-                  ><span v-for="(a, i) in s.references" :key="a.id" class="input-reference-card"
-                    >{{ a.name
-                    }}<button
-                      title="取消引用"
-                      :aria-label="'取消引用' + a.name"
-                      @click="s.references.splice(i, 1)"
-                    >
-                      ×
-                    </button></span
-                  >
+                  <ReferenceChip
+                    v-for="a in p.inputReferences(n)"
+                    :key="a.key"
+                    :asset="a"
+                    @remove="p.removeInputReference(n.id, a)"
+                    @open="openReference(n, a)"
+                  /><ReferenceChip
+                    v-for="(a, i) in s.references"
+                    :key="a.id"
+                    :asset="a"
+                    @remove="s.references.splice(i, 1)"
+                    @open="p.openModal('asset-detail', a)"
+                  />
                 </div>
-                <textarea
+                <MentionInput
                   v-model="s.prompt"
-                  aria-label="脚本节点输入"
-                  placeholder="输入故事情节、目标设定与风格；已引用有效内容时可留空…"
+                  :node-id="n.id"
+                  label="脚本节点输入"
+                  placeholder="输入故事情节、目标和风格，输入 @ 引用内容…"
                   :disabled="s.readonly"
-                ></textarea>
+                />
                 <div class="script-inline-tools">
                   <button title="引用" @click="p.openModal('reference', { for: 'script' })">
                     <Icon name="attach" :size="15" /></button
@@ -637,7 +779,7 @@ function reset() {
                   class="actual-audio"
                   :src="n.mediaUrl"
                   controls
-                />
+                ></audio>
                 <div v-else-if="n.type === '音频'" class="audio-result">
                   <Icon name="audio" :size="26" />
                   <div class="audio-wave">
@@ -661,7 +803,7 @@ function reset() {
                   :poster="n.poster"
                   controls
                   preload="metadata"
-                /><ProductScene v-else :variant="n.scene" /><button
+                ></video><ProductScene v-else :variant="n.scene" /><button
                   v-if="n.type === '视频'"
                   class="video-play"
                   title="播放预览"
@@ -704,60 +846,27 @@ function reset() {
                 </button>
               </div>
               <div class="node-input">
-                <div
-                  v-if="n.rowId || n.refs?.length || p.upstream(n).length"
-                  class="input-references"
-                >
-                  <span v-if="n.rowId" class="input-reference-card"
-                    ><button
-                      class="reference-label"
-                      :title="p.referenceText(n)"
-                      @click="p.openModal('row-reference', { node: n })"
-                    >
-                      <Icon name="script" :size="13" />镜头 {{ p.row(n.rowId)?.number }}</button
-                    ><button
-                      class="remove-reference"
-                      title="取消引用"
-                      :aria-label="'取消镜头引用' + n.name"
-                      @click="p.removeReference(n.id, 'row')"
-                    >
-                      ×
-                    </button></span
-                  ><span v-for="ref in p.upstream(n)" :key="ref.id" class="input-reference-card"
-                    ><span :title="ref.text || '等待上游内容就绪'"
-                      ><Icon :name="nodeIcons[ref.type]" :size="12" />{{ ref.name }} ·
-                      {{ ref.text ? '版本 ' + ref.version : '待就绪' }}</span
-                    ><button
-                      class="remove-reference"
-                      title="取消引用并断开连线"
-                      :aria-label="'取消上游引用' + ref.name"
-                      @click="p.removeConnection(ref.id)"
-                    >
-                      ×
-                    </button></span
-                  ><span v-for="(ref, i) in n.refs" :key="i" class="input-reference-card"
-                    ><span :title="ref"><Icon name="attach" :size="12" />{{ ref }}</span
-                    ><button
-                      class="remove-reference"
-                      title="取消引用"
-                      :aria-label="'取消引用' + ref"
-                      @click="p.removeReference(n.id, i)"
-                    >
-                      ×
-                    </button></span
-                  >
+                <div v-if="p.inputReferences(n).length" class="input-references">
+                  <ReferenceChip
+                    v-for="a in p.inputReferences(n)"
+                    :key="a.key"
+                    :asset="a"
+                    @remove="p.removeInputReference(n.id, a)"
+                    @open="openReference(n, a)"
+                  />
                 </div>
-                <textarea
-                  :value="n.prompt"
-                  :aria-label="n.name + '提示词'"
+                <MentionInput
+                  :model-value="n.prompt"
+                  :node-id="n.id"
+                  :label="n.name + '提示词'"
                   :placeholder="
-                    n.rowId
-                      ? '添加补充要求，或直接使用已引用的分镜内容…'
-                      : '输入目标设定与风格，或引用参考内容…'
+                    p.inputReferences(n).length
+                      ? '添加要求或输入 @ 引用更多内容…'
+                      : '输入目标设定与风格，输入 @ 引用内容…'
                   "
                   :disabled="s.readonly"
-                  @input="p.setNode(n.id, 'prompt', $event.target.value)"
-                ></textarea>
+                  @update:model-value="p.setNode(n.id, 'prompt', $event)"
+                />
                 <div class="node-input-tools">
                   <button title="引用" @click="p.openModal('reference', { for: 'node', node: n })">
                     <Icon name="attach" :size="14" /></button
@@ -780,7 +889,7 @@ function reset() {
                     "
                   >
                     <Icon name="save" :size="14" /></button
-                  ><span v-if="n.rowId">已引用 1 行</span>
+                  ><span v-if="p.rowIds(n).length">已引用 {{ p.rowIds(n).length }} 行</span>
                 </div>
               </div>
               <div v-if="n.type === '视频'" class="video-mode">
@@ -790,14 +899,17 @@ function reset() {
                   @change="p.setNode(n.id, 'mode', $event.target.value)"
                 >
                   <option>图生视频</option>
-                  <option>文生视频</option></select
+                  <option>文生视频</option>
+                  <option>参考图生视频</option></select
                 ><button
-                  v-if="n.mode === '图生视频'"
+                  v-if="n.mode !== '文生视频'"
                   :class="{ confirmed: n.imageConfirmed }"
                   @click="p.referenceImage(n.id)"
                 >
                   <Icon :name="n.imageConfirmed ? 'check' : 'image'" :size="13" />{{
-                    n.imageConfirmed ? '图片版本已确认' : '选择并确认图片'
+                    n.imageConfirmed
+                      ? '已确认 ' + (n.confirmedImages?.length || 1) + ' 张图片'
+                      : '选择并确认图片'
                   }}
                 </button>
               </div>
@@ -833,7 +945,9 @@ function reset() {
                 {{
                   n.mode === '文生视频'
                     ? '文生模式仅发送文本，不发送图片参考'
-                    : '图生模式采用已确认的单张实际图片'
+                    : n.confirmedImages?.length > 1
+                      ? '参考图模式采用已确认的 ' + n.confirmedImages.length + ' 张图片'
+                      : '图生模式采用已确认的单张实际图片'
                 }}
               </p>
               <div class="node-controls">
@@ -887,14 +1001,15 @@ function reset() {
             >
               <Icon :name="nodeIcons[t]" />{{ t }}节点<Icon name="plus" :size="14" />
             </button>
-            <div class="popover-label">或连接到已有节点</div>
+            <div class="popover-label">或连接到已有节点（可连接多个）</div>
             <button
               v-for="n in s.nodes.filter(n => n.type !== '脚本')"
               :key="n.id"
               @click="p.connect(s.pendingRow, n.id)"
             >
-              <Icon :name="nodeIcons[n.type]" />{{ n.name }}
-            </button>
+              <Icon :name="nodeIcons[n.type]" />{{ n.name
+              }}<span v-if="p.rowIds(n).includes(s.pendingRow)">✓</span></button
+            ><button class="primary-button" @click="s.pendingRow = null">完成连接</button>
           </div>
         </div>
         <div v-if="!s.nodes.length && !s.loading" class="canvas-state">
@@ -1047,8 +1162,8 @@ function reset() {
           @click="
             () => {
               contextMenu.edge.rowEdge
-                ? p.disconnectRow(contextMenu.edge.nodeId)
-                : p.removeConnection(contextMenu.edge.id)
+                ? p.disconnectRow(contextMenu.edge.nodeId, contextMenu.edge.rowId)
+                : p.removeConnection(contextMenu.edge.id, contextMenu.edge.assignedRowId)
               contextMenu = null
             }
           "

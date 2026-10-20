@@ -164,3 +164,39 @@ test('视频图生模式按原适配器上传实际图片并使用首帧', async
   t.mock.timers.tick(15000)
   assert.equal((await pending).outputs[0].mediaType, 'video')
 })
+test('视频多图采用参考素材模式并发送全部参考图', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  let submitted = false
+  const pending = callModel(
+    {
+      kind: 'video',
+      apiKey: key,
+      request: {
+        model: 'wan3Video',
+        prompt: '多角度产品',
+        mode: ['imageReference:10', 'videoReference:5'],
+        images: [
+          { type: 'url', url: 'https://example.com/a.png' },
+          { type: 'url', url: 'https://example.com/b.png' }
+        ]
+      }
+    },
+    undefined,
+    async (url, options) => {
+      if (String(url).includes('video-synthesis')) {
+        const body = JSON.parse(options.body)
+        assert.equal(body.input.media.length, 2)
+        assert.ok(body.input.media.every(m => m.type === 'reference_image'))
+        submitted = true
+        return json({ output: { task_id: 'multi-image-job' } })
+      }
+      return json({
+        output: { task_status: 'SUCCEEDED', video_url: 'https://example.com/output.mp4' }
+      })
+    }
+  )
+  await new Promise(setImmediate)
+  t.mock.timers.tick(15000)
+  assert.equal((await pending).outputs.length, 1)
+  assert.ok(submitted)
+})

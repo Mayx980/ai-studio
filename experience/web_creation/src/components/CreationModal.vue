@@ -4,10 +4,13 @@ import { useCreation } from '@/ports/creation'
 import Icon from './CreationIcon.vue'
 import ProductScene from './ProductScene.vue'
 import MediaCover from './MediaCover.vue'
+import ReferenceChip from './ReferenceChip.vue'
+import MentionInput from './MentionInput.vue'
+const props = defineProps({ forcedKind: String })
 const p = useCreation(),
   s = p.state,
-  d = s.modalData || {},
-  kind = s.modal
+  d = props.forcedKind ? {} : s.modalData || {},
+  kind = props.forcedKind || s.modal
 const form = reactive({
   name: d.name || '',
   type: d.type || '提示词',
@@ -27,7 +30,26 @@ const text = ref(d.node?.text || d.node?.prompt || ''),
   feedback = reactive({ version: '脚本初稿', status: '待确认', opinion: '' }),
   saved = ref(false),
   onlyAvailable = ref(false)
-const optimizedPreview = ref(d.node?.prompt || ''),
+const pendingRowDelete = ref(null),
+  selectedRows = ref([...(d.rowIds || [])]),
+  selectedImages = ref([...(d.node?.confirmedImages || [])])
+function toggleImage(asset) {
+  const index = selectedImages.value.findIndex(a => a.id === asset.id)
+  if (index >= 0) selectedImages.value.splice(index, 1)
+  else if (selectedImages.value.length >= 10) s.error = '最多选择10张图片'
+  else selectedImages.value.push(asset)
+}
+function saveImages() {
+  if (p.confirmImages(d.node.id, selectedImages.value)) p.closeModal()
+}
+function saveRows() {
+  if (p.assignImageToRows(d.asset, selectedRows.value, d.targetId)) p.closeModal()
+}
+function deleteEditorRow() {
+  p.removeRow(pendingRowDelete.value.id)
+  pendingRowDelete.value = null
+}
+const optimizedPreview = ref(d.node?.prompt?.trim() ? d.node.prompt : p.referenceText(d.node)),
   optimizing = ref(false)
 async function optimize() {
   if (!input.value.trim() || optimizing.value) return
@@ -67,25 +89,22 @@ const currentMaterials = computed(() => {
                 .map(a => ({ ...a, sourceNodeId: undefined, name: x.name + ' / ' + a.name }))
             )
   return all.filter(
-    a => (!d.node || a.sourceNodeId !== d.node.id) && (!d.confirmImage || a.type === '图片')
+    a =>
+      (!d.node || a.sourceNodeId !== d.node.id) &&
+      (!(d.confirmImage || d.for === 'row') || a.type === '图片')
   )
 })
 function chooseReference(a) {
   if (d.confirmImage) {
-    if (a.sourceNodeId && !p.connectNodes(a.sourceNodeId, d.node.id)) return
-    if (!a.sourceNodeId && !a.outputs?.length) {
-      p.notify('这份素材没有实际图片内容')
-      return
-    }
-    d.node.imageConfirmed = true
-    d.node.confirmedImage = {
-      sourceNodeId: a.sourceNodeId,
-      version: a.version,
-      outputs: a.outputs,
-      outputIndex: a.outputIndex || 0
-    }
-    p.closeModal()
-    p.notify('已确认图片版本 ' + (a.version || 1))
+    toggleImage(a)
+    return
+  }
+  if (d.for === 'row') {
+    const script = s.nodes.find(n => n.type === '脚本')
+    const current = a.sourceNodeId
+      ? s.connections.find(c => c.source === a.sourceNodeId && c.target === script?.id)?.rowIds
+      : s.rows.filter(r => r.imageRefs?.some(x => x.id === a.id)).map(r => r.id)
+    if (p.assignImageToRows(a, [...(current || []), d.rowId], script?.id)) p.closeModal()
     return
   }
   reference(a)
@@ -124,6 +143,7 @@ const outputs = computed(() =>
 const title = computed(
   () =>
     ({
+      'row-assignment': '选择应用镜头',
       parameters: '生成参数',
       save: '保存为资产',
       reference: '引用内容',
@@ -154,7 +174,7 @@ function toggleTag(t) {
 }
 function reference(a) {
   if (d.for === 'node') {
-    p.applyAsset(a, d.node.id)
+    if (p.attachReference(a, d.node.id) && s.modal === 'reference') p.closeModal()
     return
   }
   s.references.push(a)
@@ -167,7 +187,11 @@ function saveText() {
   p.closeModal()
   p.notify('正文已保存')
 }
-function close() {
+function close(origin) {
+  if (kind === 'script-editor') {
+    if (origin === 'header') s.editorOpen = false
+    return
+  }
   if (
     kind === 'text-editor' &&
     text.value !== (d.node?.text || '') &&
@@ -181,7 +205,7 @@ function printPreview() {
 }
 </script>
 <template>
-  <div class="modal-backdrop" @click.self="close()" @keydown.esc="close()">
+  <div class="modal-backdrop" @click.self="close('backdrop')" @keydown.esc="close('keyboard')">
     <section
       class="modal"
       role="dialog"
@@ -209,7 +233,7 @@ function printPreview() {
           <div v-if="kind === 'text-editor' && saved" class="export-menu">
             <button @click="printPreview()">导出为PDF格式</button>
           </div>
-          <button class="icon-button" title="关闭" @click="close()">
+          <button class="icon-button" title="关闭" @click="close('header')">
             <Icon name="close" :size="22" />
           </button>
         </div>
@@ -276,6 +300,34 @@ function printPreview() {
               <p v-if="s.error" class="field-error" role="alert">{{ s.error }}</p>
             </div>
           </div></template
+        ><template v-else-if="kind === 'row-assignment'"
+          ><div class="row-assignment-asset">
+            <ReferenceChip :asset="d.asset" :removable="false" />
+          </div>
+          <p class="help-copy">选择图片要应用的镜头。图片会显示在脚本输入框和选中行的“引用”列。</p>
+          <label v-if="s.rows.length" class="checkbox-label"
+            ><input
+              type="checkbox"
+              aria-label="选择全部镜头"
+              :checked="selectedRows.length === s.rows.length"
+              @change="selectedRows = $event.target.checked ? s.rows.map(r => r.id) : []"
+            />全部镜头</label
+          >
+          <div class="row-assignment-list">
+            <label v-for="row in s.rows" :key="row.id"
+              ><input
+                v-model="selectedRows"
+                type="checkbox"
+                :value="row.id"
+                :aria-label="'应用到镜头' + row.number"
+              /><b>镜头 {{ row.number }}</b
+              ><span>{{ row.visual }}</span></label
+            >
+          </div>
+          <p v-if="!s.rows.length" class="help-copy">
+            尚无分镜：先作为脚本整体参考，生成分镜后可点击参考卡片设置镜头。
+          </p>
+          <p v-if="s.error" class="field-error">{{ s.error }}</p></template
         ><template v-else-if="kind === 'reference'"
           ><div class="filter-tabs reference-tabs">
             <button
@@ -288,8 +340,25 @@ function printPreview() {
             </button>
           </div>
           <p class="help-copy">仅显示你有权限访问的内容。引用不会自动生成。</p>
+          <div v-if="d.confirmImage" class="selected-image-strip">
+            <span>已选 {{ selectedImages.length }} / 10</span
+            ><ReferenceChip
+              v-for="a in selectedImages"
+              :key="a.id"
+              :asset="a"
+              @remove="toggleImage(a)"
+            /><small>{{ selectedImages.length > 1 ? '多图参考生成' : '单图生视频' }}</small>
+          </div>
           <div class="reference-list">
-            <button v-for="a in currentMaterials" :key="a.id" @click="chooseReference(a)">
+            <button
+              v-for="a in currentMaterials"
+              :key="a.id"
+              :class="{
+                'image-choice-selected': d.confirmImage && selectedImages.some(x => x.id === a.id)
+              }"
+              :aria-pressed="d.confirmImage ? selectedImages.some(x => x.id === a.id) : undefined"
+              @click="chooseReference(a)"
+            >
               <div class="reference-thumb"><MediaCover :asset="a" /></div>
               <div>
                 <b>{{ a.name }}</b
@@ -299,7 +368,10 @@ function printPreview() {
                 >
                 <p v-if="a.text">{{ a.text }}</p>
               </div>
-              <Icon name="plus" :size="18" />
+              <Icon
+                :name="d.confirmImage && selectedImages.some(x => x.id === a.id) ? 'check' : 'plus'"
+                :size="18"
+              />
             </button>
           </div>
           <div v-if="!currentMaterials.length" class="empty-panel">
@@ -308,12 +380,13 @@ function printPreview() {
           </div></template
         ><template v-else-if="kind === 'script-input'"
           ><label>故事与创作要求</label
-          ><textarea
+          ><MentionInput
+            :node-id="s.nodes.find(n => n.type === '脚本')?.id"
             v-model="s.prompt"
             rows="5"
-            aria-label="脚本输入"
+            label="脚本输入"
             placeholder="输入故事情节与风格；已有有效参考时，这里可以为空。"
-          ></textarea>
+          />
           <div class="reference-pills">
             <span v-for="a in s.references" :key="a.id"
               ><Icon name="attach" :size="12" />{{ a.name }}</span
@@ -359,12 +432,26 @@ function printPreview() {
                       @input="p.editRow(row.id, key, $event.target.value)"
                     ></textarea>
                   </td>
+                  <td class="editor-row-references">
+                    <ReferenceChip
+                      v-for="a in p.rowImages(row.id)"
+                      :key="a.id"
+                      :asset="a"
+                      @remove="p.removeRowImage(row.id, a)"
+                    /><button
+                      class="subtle-button"
+                      :title="'为镜头' + row.number + '引用图片'"
+                      @click="p.openModal('reference', { for: 'row', rowId: row.id })"
+                    >
+                      <Icon name="plus" :size="13" />引用图片
+                    </button>
+                  </td>
                   <td>
                     <button class="icon-button" title="上移镜头" @click="p.moveRow(row.id, -1)">
                       ↑</button
                     ><button class="icon-button" title="下移镜头" @click="p.moveRow(row.id, 1)">
                       ↓</button
-                    ><button class="icon-button" title="删除镜头" @click="p.deleteRow(row.id)">
+                    ><button class="icon-button" title="删除镜头" @click="pendingRowDelete = row">
                       <Icon name="trash" :size="16" />
                     </button>
                   </td>
@@ -461,9 +548,13 @@ function printPreview() {
             ><span v-for="t in d.tags" :key="t">{{ t }}</span>
           </div></template
         ><template v-else-if="kind === 'row-reference'"
-          ><span class="eyebrow">镜头 {{ p.row(d.node.rowId)?.number }} · {{ s.projectName }}</span>
+          ><span class="eyebrow"
+            >镜头 {{ p.row(d.rowId || d.node.rowId)?.number }} · {{ s.projectName }}</span
+          >
           <h3>正在引用这一行的内容</h3>
-          <p class="reference-full-text">{{ p.referenceText(d.node) }}</p>
+          <p class="reference-full-text">
+            {{ d.rowId ? p.rowText(p.row(d.rowId)) : p.referenceText(d.node) }}
+          </p>
           <p class="help-copy">
             内容作为来源参考，不会覆盖节点中的手写输入。生成时固定当前版本。
           </p></template
@@ -620,6 +711,14 @@ function printPreview() {
               <tbody>
                 <tr v-for="row in s.rows" :key="row.id">
                   <td v-for="key in keys" :key="key">{{ row[key] }}</td>
+                  <td>
+                    {{
+                      p
+                        .rowImages(row.id)
+                        .map(a => a.name)
+                        .join('、')
+                    }}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -666,7 +765,7 @@ function printPreview() {
         <span v-if="kind === 'save'" class="footer-note"
           ><Icon name="folder" :size="13" />仅自己可见</span
         ><span v-else class="footer-note"></span
-        ><button class="secondary-button" @click="close()">
+        ><button v-if="kind !== 'script-editor'" class="secondary-button" @click="close('footer')">
           {{
             [
               'guide',
@@ -681,7 +780,21 @@ function printPreview() {
               : '取消'
           }}</button
         ><button
-          v-if="kind === 'parameters'"
+          v-if="kind === 'row-assignment'"
+          class="primary-button"
+          :disabled="s.rows.length > 0 && !selectedRows.length"
+          @click="saveRows()"
+        >
+          确认应用</button
+        ><button
+          v-else-if="kind === 'reference' && d.confirmImage"
+          class="primary-button"
+          :disabled="!selectedImages.length"
+          @click="saveImages()"
+        >
+          确认并保存</button
+        ><button
+          v-else-if="kind === 'parameters'"
           class="primary-button"
           :disabled="s.readonly"
           @click="saveParams()"
@@ -697,12 +810,6 @@ function printPreview() {
           <Icon name="spark" :size="15" />生成分镜</button
         ><button v-else-if="kind === 'text-editor'" class="primary-button" @click="saveText()">
           确定</button
-        ><button
-          v-else-if="kind === 'script-editor'"
-          class="primary-button"
-          @click="p.closeModal()"
-        >
-          完成编辑</button
         ><button
           v-else-if="kind === 'confirm'"
           class="primary-button"
@@ -799,5 +906,25 @@ function printPreview() {
         </button>
       </footer>
     </section>
+    <div
+      v-if="pendingRowDelete"
+      class="modal-backdrop row-delete-overlay"
+      @click.self="pendingRowDelete = null"
+      @keydown.esc.stop="pendingRowDelete = null"
+    >
+      <section class="modal" role="dialog" aria-modal="true" aria-label="确认删除镜头">
+        <header class="modal-header">
+          <h2>删除镜头 {{ pendingRowDelete.number }}？</h2>
+        </header>
+        <div class="modal-content">
+          <p>仅删除该行及其连接，下游节点、输入和已有生成结果会保留。</p>
+        </div>
+        <footer class="modal-footer">
+          <span class="footer-note"></span
+          ><button class="secondary-button" @click="pendingRowDelete = null">取消</button
+          ><button class="primary-button danger" @click="deleteEditorRow()">确定删除</button>
+        </footer>
+      </section>
+    </div>
   </div>
 </template>

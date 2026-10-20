@@ -1,9 +1,84 @@
-import {chromium} from '@playwright/test';import assert from 'node:assert/strict';
-const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||chromium.executablePath(),headless:true,args:['--no-sandbox']});const page=await browser.newPage({viewport:{width:1600,height:1100}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('http://127.0.0.1:5173');
-await page.getByRole('button',{name:'我的项目',exact:true}).click();assert.equal(await page.locator('.projects-page').count(),1);await page.screenshot({path:'/tmp/ai-studio-projects-v3.png'});await page.getByRole('button',{name:'开始创作 创建新的视频项目'}).click();await page.locator('.modal input').fill('耳机新品宣传');await page.locator('.modal-footer').getByRole('button',{name:/^确定/}).click();await page.getByRole('button',{name:'收起助手'}).click();await page.locator('.workspace-toolbar').getByRole('button',{name:'文字',exact:true}).click();const textNode=page.locator('.canvas-node').first();let b=await textNode.boundingBox();assert.ok(b.y>100&&b.y<600);const h=await textNode.locator('.node-header').boundingBox();const before=await textNode.evaluate(el=>el.offsetLeft);await page.mouse.move(h.x+100,h.y+20);await page.mouse.down();await page.mouse.move(h.x+160,h.y+80,{steps:8});await page.mouse.up();assert.ok(await textNode.evaluate(el=>el.offsetLeft)>before);await textNode.locator('textarea').fill('耳机降噪，清晨通勤，电影感');
-await page.locator('.workspace-toolbar').getByRole('button',{name:'脚本',exact:true}).click();const script=page.locator('.script-node');await script.getByRole('textbox',{name:'脚本节点输入',exact:true}).fill('第一版：耳机降噪通勤故事');await script.getByTitle('生成分镜脚本',{exact:true}).click();assert.equal(await page.locator('.script-table tbody tr').count(),3);await script.getByRole('textbox',{name:'脚本节点输入',exact:true}).fill('第二版：运动耳机跑步活动');await script.getByTitle('生成分镜脚本',{exact:true}).click();await page.locator('.modal-footer').getByRole('button',{name:/^确定/}).click();assert.match(await page.locator('.script-table tbody').innerText(),/运动耳机/);
-await page.locator('.workspace-toolbar').getByRole('button',{name:'图片',exact:true}).click();const image=page.locator('.media-node').filter({has:page.locator('.node-mini-tag',{hasText:'图片'})}).first();await textNode.locator('.node-outlet').click();await image.locator('.node-inlet').click();assert.equal(await image.locator('.input-reference-card').count(),1);
-await image.getByRole('button',{name:/生成参数$/}).click();await page.getByRole('combobox',{name:'画质',exact:true}).selectOption('高品质');await page.getByRole('combobox',{name:'生成数量',exact:true}).selectOption('2');await page.getByRole('button',{name:'保存参数',exact:true}).click();assert.match(await image.locator('.parameter-summary').innerText(),/高品质/);await image.locator('.node-generate').click();await page.locator('.modal-footer').getByRole('button',{name:'确认',exact:true}).click();await page.waitForTimeout(850);
-await textNode.getByTitle('引用',{exact:true}).click();await page.locator('.reference-tabs').getByRole('button',{name:'当前画布',exact:true}).click();assert.match(await page.locator('.reference-list').innerText(),/图片节点/);await page.getByRole('button',{name:'取消',exact:true}).click();
-const view=page.locator('.canvas-viewport');await view.dispatchEvent('wheel',{deltaY:-30,ctrlKey:true,clientX:700,clientY:400});await page.waitForTimeout(150);assert.match(await page.locator('.canvas-bottom-toolbar').innerText(),/127%/);await page.screenshot({path:'/tmp/ai-studio-workspace-v3.png'});
-await page.getByRole('button',{name:'我的项目',exact:true}).click();assert.match(await page.locator('.projects-page').innerText(),/耳机新品宣传/);await page.getByRole('button',{name:'灵感创作',exact:true}).click();await page.getByRole('textbox',{name:'创作需求',exact:true}).fill('制作一支咖啡宣传视频');await page.getByRole('button',{name:'开始创作',exact:true}).click();assert.equal(await page.locator('.canvas-node').count(),4);assert.match(await page.locator('.agent-messages').innerText(),/创建 4 个节点/);await page.getByRole('textbox',{name:'与Agent对话',exact:true}).fill('添加一个音频节点');await page.getByTitle('发送',{exact:true}).click();await page.waitForTimeout(500);assert.equal(await page.locator('.canvas-node').count(),5);assert.deepEqual(errors,[]);console.log('通过：项目创建/切换、文字节点落点与移动、分镜重生成确认、普通节点连线自动引用、参数保存、实时媒体引用、触控板缩放事件及助手编排。');await browser.close();
+import { chromium } from '@playwright/test'
+import assert from 'node:assert/strict'
+const browser = await chromium.launch({
+  executablePath: process.env.CHROMIUM_PATH || chromium.executablePath(),
+  headless: true,
+  args: ['--no-sandbox']
+})
+const page = await browser.newPage({ viewport: { width: 1600, height: 1100 } })
+const errors = []
+page.on('pageerror', e => errors.push(e.message))
+await page.goto('http://127.0.0.1:5173')
+await page.getByRole('button', { name: '我的项目', exact: true }).click()
+assert.equal(await page.locator('.projects-page').count(), 1)
+await page.screenshot({ path: '/tmp/ai-studio-projects-v3.png' })
+await page.getByRole('button', { name: '开始创作 创建新的视频项目' }).click()
+await page.locator('.modal input').fill('耳机新品宣传')
+await page.locator('.modal-footer').getByRole('button', { name: /^确定/ }).click()
+await page.getByRole('button', { name: '收起助手' }).click()
+await page.locator('.workspace-toolbar').getByRole('button', { name: '文字', exact: true }).click()
+const textNode = page.locator('.canvas-node').first()
+let b = await textNode.boundingBox()
+assert.ok(b.y > 100 && b.y < 600)
+const h = await textNode.locator('.node-header').boundingBox()
+const before = await textNode.evaluate(el => el.offsetLeft)
+await page.mouse.move(h.x + 100, h.y + 20)
+await page.mouse.down()
+await page.mouse.move(h.x + 160, h.y + 80, { steps: 8 })
+await page.mouse.up()
+assert.ok((await textNode.evaluate(el => el.offsetLeft)) > before)
+await textNode.locator('textarea').fill('耳机降噪，清晨通勤，电影感')
+await page.locator('.workspace-toolbar').getByRole('button', { name: '脚本', exact: true }).click()
+const script = page.locator('.script-node')
+await script
+  .getByRole('textbox', { name: '脚本节点输入', exact: true })
+  .fill('第一版：耳机降噪通勤故事')
+await script.getByTitle('生成分镜脚本', { exact: true }).click()
+assert.equal(await page.locator('.script-table tbody tr').count(), 3)
+await script
+  .getByRole('textbox', { name: '脚本节点输入', exact: true })
+  .fill('第二版：运动耳机跑步活动')
+await script.getByTitle('生成分镜脚本', { exact: true }).click()
+await page.locator('.modal-footer').getByRole('button', { name: /^确定/ }).click()
+assert.match(await page.locator('.script-table tbody').innerText(), /运动耳机/)
+await page.locator('.workspace-toolbar').getByRole('button', { name: '图片', exact: true }).click()
+const image = page
+  .locator('.media-node')
+  .filter({ has: page.locator('.node-mini-tag', { hasText: '图片' }) })
+  .first()
+await textNode.locator('.node-outlet').click()
+await image.locator('.node-inlet').click()
+assert.equal(await image.locator('.reference-chip').count(), 1)
+await image.getByRole('button', { name: /生成参数$/ }).click()
+await page.getByRole('combobox', { name: '画质', exact: true }).selectOption('高品质')
+await page.getByRole('combobox', { name: '生成数量', exact: true }).selectOption('2')
+await page.getByRole('button', { name: '保存参数', exact: true }).click()
+assert.match(await image.locator('.parameter-summary').innerText(), /高品质/)
+await image.locator('.node-generate').click()
+await page.locator('.modal-footer').getByRole('button', { name: '确认', exact: true }).click()
+await page.waitForTimeout(850)
+await textNode.getByTitle('引用', { exact: true }).click()
+await page.locator('.reference-tabs').getByRole('button', { name: '当前画布', exact: true }).click()
+assert.match(await page.locator('.reference-list').innerText(), /图片节点/)
+await page.getByRole('button', { name: '取消', exact: true }).click()
+const view = page.locator('.canvas-viewport')
+await view.dispatchEvent('wheel', { deltaY: -30, ctrlKey: true, clientX: 700, clientY: 400 })
+await page.waitForTimeout(150)
+assert.match(await page.locator('.canvas-bottom-toolbar').innerText(), /127%/)
+await page.screenshot({ path: '/tmp/ai-studio-workspace-v3.png' })
+await page.getByRole('button', { name: '我的项目', exact: true }).click()
+assert.match(await page.locator('.projects-page').innerText(), /耳机新品宣传/)
+await page.getByRole('button', { name: '灵感创作', exact: true }).click()
+await page.getByRole('textbox', { name: '创作需求', exact: true }).fill('制作一支咖啡宣传视频')
+await page.getByRole('button', { name: '开始创作', exact: true }).click()
+assert.equal(await page.locator('.canvas-node').count(), 4)
+assert.match(await page.locator('.agent-messages').innerText(), /创建 4 个节点/)
+await page.getByRole('textbox', { name: '与Agent对话', exact: true }).fill('添加一个音频节点')
+await page.getByTitle('发送', { exact: true }).click()
+await page.waitForTimeout(500)
+assert.equal(await page.locator('.canvas-node').count(), 5)
+assert.deepEqual(errors, [])
+console.log(
+  '通过：项目创建/切换、文字节点落点与移动、分镜重生成确认、普通节点连线自动引用、参数保存、实时媒体引用、触控板缩放事件及助手编排。'
+)
+await browser.close()

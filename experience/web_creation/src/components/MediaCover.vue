@@ -25,11 +25,11 @@ function firstFrame(e) {
         playsinline
         preload="auto"
         @loadedmetadata="firstFrame"
-        @error="failed = true" /><audio
+        @error="failed = true" ></video><audio
         v-else-if="asset.type === '音频'"
         :src="asset.mediaUrl"
         controls
-        preload="metadata" /><img
+        preload="metadata" ></audio><img
         v-else
         :src="asset.mediaUrl"
         :alt="asset.name || '参考图片'"

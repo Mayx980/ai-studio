@@ -108,7 +108,14 @@ export function createConnectedPort() {
       const rows = parseShots(result.text)
       revision++
       s.rows = rows.map((r, i) => ({ ...r, id: 'real-shot-' + revision + '-' + i }))
-      s.nodes.filter(n => n.rowId).forEach(n => (n.rowId = null))
+      s.nodes.forEach(n => {
+        n.rowId = null
+        n.rowRefs = []
+        if (n.type === '脚本') n.version = revision
+      })
+      s.connections.forEach(c => {
+        if (c.rowIds) c.rowIds = []
+      })
       s.selectedRows = []
       s.scriptRevision = revision
       p.closeModal()
@@ -179,17 +186,12 @@ export function createConnectedPort() {
         '将真实调用供应商并可能产生费用。'
       )
   }
-  function references(n) {
-    return s.connections
-      .filter(c => c.target === n.id)
-      .map(c => s.nodes.find(x => x.id === c.source))
-      .filter(Boolean)
-  }
   function media(n, type) {
-    return [
-      ...references(n).filter(x => x.type === type && x.status === 'success'),
-      ...(n.assetRefs || []).filter(x => x.type === type)
-    ].flatMap(x => (x.outputs?.length ? [x.outputs[x.outputIndex || 0]] : []))
+    return p
+      .inputReferences(n)
+      .filter(a => a.type === type)
+      .flatMap(a => (a.outputs?.length ? [a.outputs[a.outputIndex || 0]] : []))
+      .filter((a, i, all) => all.findIndex(b => (b.url || b.data) === (a.url || a.data)) === i)
   }
   function outputUrl(output) {
     return output.type === 'url' ? output.url : 'data:' + output.mimeType + ';base64,' + output.data
@@ -227,15 +229,31 @@ export function createConnectedPort() {
           images: media(n, '图片')
         }
       if (kind === 'video') {
-        const mode = n.mode === '文生视频' ? 'text' : 'singleImage'
-        const images =
-          mode === 'singleImage'
-            ? n.confirmedImage?.outputs?.length
-              ? [n.confirmedImage.outputs[n.confirmedImage.outputIndex || 0]]
-              : media(n, '图片')
+        const chosen = n.confirmedImages?.length
+          ? n.confirmedImages
+          : n.confirmedImage
+            ? [n.confirmedImage]
             : []
-        if (mode === 'singleImage' && (!n.imageConfirmed || images.length !== 1))
-          throw new Error('图生视频必须选择并确认一张实际图片，示例封面不能作为真实参考')
+        const images =
+          n.mode === '文生视频'
+            ? []
+            : chosen.length
+              ? chosen.flatMap(a => (a.outputs?.length ? [a.outputs[a.outputIndex || 0]] : []))
+              : media(n, '图片')
+        if (
+          n.mode !== '文生视频' &&
+          (!n.imageConfirmed ||
+            !images.length ||
+            images.length > 10 ||
+            (chosen.length && images.length !== chosen.length))
+        )
+          throw new Error('请确认1到10张实际图片，示例封面不能用于真实生成')
+        const mode =
+          n.mode === '文生视频'
+            ? 'text'
+            : images.length === 1
+              ? 'singleImage'
+              : ['imageReference:10', 'videoReference:5']
         request = {
           model: 'wan3Video',
           prompt,

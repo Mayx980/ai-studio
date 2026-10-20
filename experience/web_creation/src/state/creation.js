@@ -1,4 +1,5 @@
 import { extendWorkflow } from './workflow'
+import { extendReferences } from './references'
 import { reactive } from 'vue'
 const columns = [
   '镜头号',
@@ -393,7 +394,8 @@ export function createWorkspace(scenario = 'default') {
     },
     toggleRow(id) {
       const i = state.selectedRows.indexOf(id)
-      i < 0 ? state.selectedRows.push(id) : state.selectedRows.splice(i, 1)
+      if (i < 0) state.selectedRows.push(id)
+      else state.selectedRows.splice(i, 1)
     },
     deleteRow(id) {
       port.openModal('confirm', {
@@ -589,5 +591,6 @@ export function createWorkspace(scenario = 'default') {
     }
   }
   extendWorkflow(port, seedRows)
+  extendReferences(port)
   return port
 }
