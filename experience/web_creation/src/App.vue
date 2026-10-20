@@ -7,6 +7,7 @@ import Assets from './views/Assets.vue'
 import Projects from './views/Projects.vue'
 import TextContextMenu from './components/TextContextMenu.vue'
 import CreationModal from './components/CreationModal.vue'
+import ModelSettings from './components/ModelSettings.vue'
 import Icon from './components/CreationIcon.vue'
 const port = useCreation(),
   s = port.state
@@ -29,11 +30,13 @@ const nav = [
         ><strong>AI Studio<span>创作空间</span></strong></button
       ><button
         class="new-project"
-        @click="($event) => {
-          s.prompt = ''
-          s.references = []
-          port.go('home')
-        }"
+        @click="
+          $event => {
+            s.prompt = ''
+            s.references = []
+            port.go('home')
+          }
+        "
       >
         <Icon name="plus" />新建创作
       </button>
@@ -57,6 +60,14 @@ const nav = [
       ><button class="recent-link" @click="port.openProject('品牌开放日 · 活动预热')">
         <i class="project-dot green"></i><span>品牌开放日 · 活动预热</span>
       </button>
+      <button
+        v-if="port.models"
+        class="model-settings-button"
+        title="模型接入设置"
+        @click="port.models.open = true"
+      >
+        <Icon name="settings" :size="17" />真实模型设置
+      </button>
       <div class="sidebar-bottom">
         <div class="workspace-note">
           <Icon name="folder" />
@@ -70,14 +81,20 @@ const nav = [
       </div>
     </aside>
     <main class="app-main">
+      <div v-if="port.isConnected" class="connected-banner">
+        <span>真实模型联调 · 当前输入与引用会提交至所选供应商</span
+        ><button @click="port.models.open = true">设置 API Key</button>
+      </div>
       <component :is="port.scenarioNavigator" v-if="port.scenarioNavigator" /><Home
         v-if="s.page === 'home'"
       /><Workspace v-else-if="s.page === 'workspace'" /><Projects
         v-else-if="s.page === 'projects'"
       /><Assets v-else />
     </main>
-    <TextContextMenu /><CreationModal v-if="s.modal" :key="s.modalRevision" /><transition
-      name="toast"
+    <ModelSettings v-if="port.models" /><TextContextMenu /><CreationModal
+      v-if="s.modal"
+      :key="s.modalRevision"
+    /><transition name="toast"
       ><div v-if="s.toast" class="toast-message" role="status">
         <Icon name="check" />{{ s.toast }}
       </div></transition

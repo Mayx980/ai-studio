@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { useCreation } from '@/ports/creation'
 import Icon from './CreationIcon.vue'
 import ProductScene from './ProductScene.vue'
+import MediaCover from './MediaCover.vue'
 const p = useCreation(),
   s = p.state,
   d = s.modalData || {},
@@ -13,7 +14,11 @@ const form = reactive({
   text: d.text || '',
   category: '风格',
   tags: [],
-  scene: d.scene || 'amber'
+  scene: d.scene || 'amber',
+  mediaUrl: d.mediaUrl,
+  poster: d.poster,
+  mediaMime: d.mediaMime,
+  outputs: d.outputs
 })
 const text = ref(d.node?.text || d.node?.prompt || ''),
   input = ref(''),
@@ -24,18 +29,28 @@ const text = ref(d.node?.text || d.node?.prompt || ''),
   onlyAvailable = ref(false)
 const optimizedPreview = ref(d.node?.prompt || ''),
   optimizing = ref(false)
-function optimize() {
+async function optimize() {
   if (!input.value.trim() || optimizing.value) return
   optimizing.value = true
-  setTimeout(() => {
-    optimizedPreview.value =
-      (optimizedPreview.value.trim() || p.referenceText(d.node)) +
-      '。' +
-      input.value.trim() +
-      '；明确画面主体、光线与构图，保持内容连贯。'
+  s.error = ''
+  try {
+    if (p.optimizePrompt)
+      optimizedPreview.value = await p.optimizePrompt(optimizedPreview.value, input.value)
+    else {
+      await new Promise(resolve => setTimeout(resolve, 500))
+      optimizedPreview.value =
+        (optimizedPreview.value.trim() || p.referenceText(d.node)) +
+        '。' +
+        input.value.trim() +
+        '；明确画面主体、光线与构图，保持内容连贯。'
+    }
+  } catch (e) {
+    s.error = e.message
+  } finally {
     optimizing.value = false
-  }, 500)
+  }
 }
+
 const parameterDraft = reactive({ ...p.params(d.node || {}) }),
   ratioDraft = ref(d.node?.ratio || '16:9')
 const currentMaterials = computed(() => {
@@ -57,15 +72,25 @@ const currentMaterials = computed(() => {
 })
 function chooseReference(a) {
   if (d.confirmImage) {
-    if (p.connectNodes(a.sourceNodeId, d.node.id)) {
-      d.node.imageConfirmed = true
-      p.closeModal()
-      p.notify('已确认图片版本 ' + a.version)
+    if (a.sourceNodeId && !p.connectNodes(a.sourceNodeId, d.node.id)) return
+    if (!a.sourceNodeId && !a.outputs?.length) {
+      p.notify('这份素材没有实际图片内容')
+      return
     }
+    d.node.imageConfirmed = true
+    d.node.confirmedImage = {
+      sourceNodeId: a.sourceNodeId,
+      version: a.version,
+      outputs: a.outputs,
+      outputIndex: a.outputIndex || 0
+    }
+    p.closeModal()
+    p.notify('已确认图片版本 ' + (a.version || 1))
     return
   }
   reference(a)
 }
+
 function saveParams() {
   if (s.readonly) return
   Object.assign(p.params(d.node), parameterDraft)
@@ -201,7 +226,7 @@ function printPreview() {
                   placeholder="输入要保存的提示词"
                 ></textarea>
               </div>
-              <ProductScene v-else :variant="form.scene" />
+              <MediaCover v-else :asset="form" />
               <div class="preview-meta">
                 <b>{{ d.name || '当前提示词' }}</b
                 ><small>{{ form.type }} · 来自当前项目</small>
@@ -218,10 +243,14 @@ function printPreview() {
                 /><button
                   class="ai-name"
                   title="AI生成名称"
-                  @click="($event) => {
-                    form.name =
-                      form.type === '提示词' ? '自然晨光 · 商业摄影提示词' : '琥珀香水 · 产品主视觉'
-                  }"
+                  @click="
+                    $event => {
+                      form.name =
+                        form.type === '提示词'
+                          ? '自然晨光 · 商业摄影提示词'
+                          : '琥珀香水 · 产品主视觉'
+                    }
+                  "
                 >
                   <Icon name="spark" :size="15" />
                 </button>
@@ -261,13 +290,7 @@ function printPreview() {
           <p class="help-copy">仅显示你有权限访问的内容。引用不会自动生成。</p>
           <div class="reference-list">
             <button v-for="a in currentMaterials" :key="a.id" @click="chooseReference(a)">
-              <div class="reference-thumb">
-                <Icon
-                  v-if="['提示词', '文字', '文档', '音频'].includes(a.type)"
-                  :name="a.type === '音频' ? 'audio' : 'text'"
-                  :size="25"
-                /><ProductScene v-else small />
-              </div>
+              <div class="reference-thumb"><MediaCover :asset="a" /></div>
               <div>
                 <b>{{ a.name }}</b
                 ><span
@@ -304,14 +327,16 @@ function printPreview() {
             ><input
               type="file"
               accept=".pdf,.docx,.xlsx,.csv,.txt"
-              @change="($event) => {
-                s.references.push({
-                  id: 'file-' + Date.now(),
-                  name: $event.target.files[0]?.name || '文件',
-                  type: '文档'
-                })
-                p.notify('已选择文件，当前原型仅演示解析确认流程')
-              }"
+              @change="
+                $event => {
+                  s.references.push({
+                    id: 'file-' + Date.now(),
+                    name: $event.target.files[0]?.name || '文件',
+                    type: '文档'
+                  })
+                  p.notify('已选择文件，当前原型仅演示解析确认流程')
+                }
+              "
           /></label>
           <p class="help-copy">脚本节点只生成分镜表，图片与视频由连接的下游节点生成。</p>
           <p v-if="s.error" class="field-error">{{ s.error }}</p></template
@@ -404,7 +429,8 @@ function printPreview() {
                 : d.description
             }}
           </p>
-          <p v-if="d.action === 'generate'" class="help-copy">
+          <p v-if="s.error" class="field-error" role="alert">{{ s.error }}</p>
+          <p v-if="d.action === 'generate' && !p.isConnected" class="help-copy">
             当前为交互预览，生成状态与结果使用模拟数据。
           </p></template
         ><template v-else-if="['rename-project', 'rename-session', 'new-project'].includes(kind)"
@@ -428,7 +454,7 @@ function printPreview() {
           <p class="help-copy">提示词只应用文本，保留模型、参数和参考媒体。</p></template
         ><template v-else-if="kind === 'asset-detail'"
           ><div v-if="d.type === '提示词'" class="asset-detail-prompt">{{ d.text }}</div>
-          <ProductScene v-else :variant="d.scene" />
+          <MediaCover v-else :asset="d" />
           <h3>{{ d.name }}</h3>
           <div class="asset-tags">
             <span>{{ d.category }}</span
@@ -458,8 +484,13 @@ function printPreview() {
                 </select></label
               ><label
                 >清晰度<select v-model="parameterDraft.resolution" aria-label="清晰度">
-                  <option>720P</option>
-                  <option>1080P</option>
+                  <template v-if="!p.isConnected || d.node.type === '视频'"
+                    ><option>720P</option>
+                    <option>1080P</option></template
+                  ><template v-if="p.isConnected && d.node.type === '图片'"
+                    ><option>1K</option>
+                    <option>auto</option></template
+                  >
                   <option v-if="d.node.type === '图片'">2K</option>
                 </select></label
               ></template
@@ -507,7 +538,11 @@ function printPreview() {
             >
           </div>
           <p class="help-copy">
-            当前为参数交互示意，可选范围待公司模型接口核对。保存参数不会自动生成。
+            {{
+              p.isConnected
+                ? '参数由所提供的适配器校验。图片画质、背景及音色作为文字要求；音频时长仅为期望。'
+                : '当前为参数交互示意，可选范围待公司模型接口核对。'
+            }}保存参数不会自动生成。
           </p></template
         ><template v-else-if="kind === 'optimize'"
           ><label>提示词预览 <span class="optional">可直接编辑</span></label
@@ -533,7 +568,9 @@ function printPreview() {
             <Icon name="spark" :size="15" />{{ optimizing ? '生成中…' : '生成' }}
           </button>
           <p class="help-copy">
-            当前为模拟优化。生成仅更新预览，点击“生成并应用”才替换节点输入；不会发起媒体生成。
+            {{
+              p.isConnected ? '将调用真实文本模型优化。' : '当前为模拟优化。'
+            }}生成仅更新预览，点击“生成并应用”才替换节点输入；不会发起媒体生成。
           </p></template
         ><template v-else-if="kind === 'tasks'"
           ><div v-if="!s.tasks.length" class="empty-panel">
@@ -596,14 +633,16 @@ function printPreview() {
             v-for="name in ['夏日序曲 · 香水新品宣传', '品牌开放日 · 活动预热']"
             :key="name"
             class="project-list-item"
-            @click="($event) => {
-              p.openProject(name)
-              p.closeModal()
-            }"
+            @click="
+              $event => {
+                p.openProject(name)
+                p.closeModal()
+              }
+            "
           >
             <Icon name="folder" />{{ name }}<Icon name="arrow" /></button></template
         ><template v-else-if="kind === 'media-preview'"
-          ><ProductScene :variant="d.scene" />
+          ><MediaCover :asset="d" />
           <p class="help-copy">视频播放效果示意，真实预览将在接入生成服务后提供。</p></template
         ><template v-else
           ><div class="guide-steps">
@@ -664,8 +703,15 @@ function printPreview() {
           @click="p.closeModal()"
         >
           完成编辑</button
-        ><button v-else-if="kind === 'confirm'" class="primary-button" @click="p.confirm()">
-          {{ d.action === 'script' ? '确定' : '确认' }}</button
+        ><button
+          v-else-if="kind === 'confirm'"
+          class="primary-button"
+          :disabled="s.scriptGenerating"
+          @click="d.action === 'script' ? p.confirmScriptGeneration() : p.confirm()"
+        >
+          {{
+            s.scriptGenerating ? '生成中…' : d.action === 'script' ? '确定并重新生成' : '确认'
+          }}</button
         ><button
           v-else-if="kind === 'delete-session'"
           class="primary-button danger"
@@ -694,50 +740,60 @@ function printPreview() {
           v-else-if="kind === 'rename-project' || kind === 'new-project'"
           class="primary-button"
           :disabled="!input.trim()"
-          @click="($event) => {
-            kind === 'new-project' ? p.newProject(input) : (s.projectName = input)
-            p.closeModal()
-          }"
+          @click="
+            $event => {
+              kind === 'new-project' ? p.newProject(input) : (s.projectName = input)
+              p.closeModal()
+            }
+          "
         >
           确定</button
         ><button
           v-else-if="kind === 'rename-session'"
           class="primary-button"
           :disabled="!input.trim()"
-          @click="($event) => {
-            p.renameSession(input)
-            p.closeModal()
-          }"
+          @click="
+            $event => {
+              p.renameSession(input)
+              p.closeModal()
+            }
+          "
         >
           确定</button
         ><button
           v-else-if="kind === 'question'"
           class="primary-button"
           :disabled="!input"
-          @click="($event) => {
-            s.messages.push({ role: 'user', text: '视觉风格：' + input })
-            p.closeModal()
-          }"
+          @click="
+            $event => {
+              s.messages.push({ role: 'user', text: '视觉风格：' + input })
+              p.closeModal()
+            }
+          "
         >
           提交选择</button
         ><button
           v-else-if="kind === 'feedback'"
           class="primary-button"
-          @click="($event) => {
-            p.notify('已记录线下确认意见（交互预览）')
-            p.closeModal()
-          }"
+          @click="
+            $event => {
+              p.notify('已记录线下确认意见（交互预览）')
+              p.closeModal()
+            }
+          "
         >
           保存记录</button
         ><button
           v-else-if="kind === 'optimize'"
           class="primary-button"
           :disabled="optimizing || !optimizedPreview.trim() || s.readonly"
-          @click="($event) => {
-            p.setNode(d.node.id, 'prompt', optimizedPreview)
-            p.notify('已应用预览提示词')
-            p.closeModal()
-          }"
+          @click="
+            $event => {
+              p.setNode(d.node.id, 'prompt', optimizedPreview)
+              p.notify('已应用预览提示词')
+              p.closeModal()
+            }
+          "
         >
           生成并应用
         </button>

@@ -2,6 +2,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { createScenario } from './creation'
 afterEach(() => vi.useRealTimers())
 describe('画布体验回归', () => {
+  it('右键指定位置也必须避让已存在及放大的节点',()=>{const p=createScenario('empty');const a=p.addNode('脚本',undefined,{x:50,y:50});const source=p.state.nodes.find(n=>n.id===a);source.width=1600;source.boundsWidth=1600;source.boundsHeight=1100;const id=p.addNode('文字',undefined,{x:80,y:80}),node=p.state.nodes.find(n=>n.id===id);expect(node.x>=source.x+1600||node.y>=source.y+1100).toBe(true)})
+
   it('空画布的新文字节点落在可视范围并可移动', () => {
     const p = createScenario('empty')
     p.state.viewport = { x: 200, y: 300, width: 900, height: 700 }

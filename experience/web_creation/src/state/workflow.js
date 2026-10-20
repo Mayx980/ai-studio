@@ -88,6 +88,11 @@ export function extendWorkflow(p, seedRows) {
         type: n.type === '脚本' ? '文档' : n.type,
         text: value(n),
         scene: n.scene,
+        mediaUrl: n.mediaUrl,
+        poster: n.poster,
+        mediaMime: n.mediaMime,
+        outputs: n.outputs,
+        outputIndex: n.outputIndex || 0,
         version: n.version || 1
       }))
   }
@@ -102,9 +107,82 @@ export function extendWorkflow(p, seedRows) {
     }
     return !reaches(target)
   }
+  const oldSave = p.saveAsset
   const oldConfirm = p.confirm,
     oldRemove = p.removeReference
   Object.assign(p, {
+    async pasteImages(files, position) {
+      if (s.readonly) return
+      let count = 0
+      for (const file of files) {
+        if (!/^image\/(png|jpeg|webp|gif|bmp)$/i.test(file.type)) {
+          p.notify('仅支持 PNG、JPEG、WebP、GIF、BMP 图片')
+          continue
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          p.notify('粘贴图片不能超过10MB')
+          continue
+        }
+        const bytes=new Uint8Array(await file.arrayBuffer()),chunks=[]
+        for(let offset=0;offset<bytes.length;offset+=32768)chunks.push(String.fromCharCode(...bytes.subarray(offset,offset+32768)))
+        const url='data:'+file.type+';base64,'+btoa(chunks.join(''))
+        const id = p.addNode('图片', undefined, position)
+        if (!id) continue
+        const n = s.nodes.find(n => n.id === id)
+        Object.assign(n, {
+          name: file.name || '粘贴的图片',
+          status: 'success',
+          version: 1,
+          origin: 'pasted',
+          mediaUrl: url,
+          mediaMime: file.type,
+          outputs: [
+            { mediaType: 'image', type: 'base64', mimeType: file.type, data: url.split(',')[1] }
+          ]
+        })
+        count++
+      }
+      if (count) p.notify('已粘贴 ' + count + ' 张图片，可连线或作为当前画布引用')
+    },
+    async pasteClipboard(position) {
+      try {
+        const items = await navigator.clipboard.read()
+        const files = []
+        for (const item of items) {
+          const type = item.types.find(t => t.startsWith('image/'))
+          if (type) files.push(new File([await item.getType(type)], '粘贴图片.png', { type }))
+        }
+        if (files.length) {
+          await p.pasteImages(files, position)
+          return
+        }
+      } catch {}
+      if (s.clipboard) {
+        p.pasteNode(position.x, position.y)
+        return
+      }
+      p.notify('请在画布按 Ctrl/Cmd+V 粘贴剪贴板图片')
+    },
+    pasteNode(x, y) {
+      if (s.readonly || !s.clipboard) return
+      const source = copy(s.clipboard)
+      const id = p.addNode(source.type, source.rowId, { x, y })
+      if (!id) return
+      const target = s.nodes.find(n => n.id === id),
+        position = { x: target.x, y: target.y }
+      Object.assign(target, source, { id, name: source.name + ' 副本', ...position })
+    },
+    saveAsset(data) {
+      const before = s.assets.length
+      oldSave(data)
+      if (s.assets.length > before)
+        Object.assign(s.assets[0], {
+          mediaUrl: data.mediaUrl,
+          poster: data.poster,
+          mediaMime: data.mediaMime,
+          outputs: data.outputs
+        })
+    },
     params,
     materials,
     saveProject,
@@ -185,26 +263,36 @@ export function extendWorkflow(p, seedRows) {
       }
       const i = s.nodes.length,
         id = type === '脚本' ? 'script' : 'node-' + serial++
-      let spawn = position
-      if (!spawn) {
-        const width = type === '脚本' ? 1046 : 320,
-          height = type === '脚本' ? 800 : 470
-        for (let slot = 0; slot < 150; slot++) {
-          const x = Math.max(30, s.viewport.x + 50 + (slot % 4) * 370),
-            y = Math.max(30, s.viewport.y + 50 + Math.floor(slot / 4) * 510)
-          if (
-            !s.nodes.some(
-              other =>
-                x < other.x + (other.type === '脚本' ? other.width || 1046 : 320) + 35 &&
-                x + width + 35 > other.x &&
-                y < other.y + (other.type === '脚本' ? 800 : 470) + 35 &&
-                y + height + 35 > other.y
-            )
-          ) {
-            spawn = { x, y }
-            break
-          }
+      const width = type === '脚本' ? 1046 : 320,
+        height = type === '脚本' ? 800 : 470
+      const preferred = position || s.mouseBlank || { x: s.viewport.x + 50, y: s.viewport.y + 50 }
+      const occupied = (x, y) =>
+        s.nodes.some(
+          other =>
+            x <
+              other.x +
+                (other.boundsWidth || (other.type === '脚本' ? other.width || 1046 : 320)) +
+                32 &&
+            x + width + 32 > other.x &&
+            y <
+              other.y +
+                (other.boundsHeight ||
+                  (other.type === '脚本' ? (other.tableHeight || 365) + 300 : 470)) +
+                32 &&
+            y + height + 32 > other.y
+        )
+      let spawn = null
+      for (let slot = 0; slot < 500; slot++) {
+        const x = Math.max(30, preferred.x + (slot % 5) * 370),
+          y = Math.max(30, preferred.y + Math.floor(slot / 5) * 510)
+        if (!occupied(x, y)) {
+          spawn = { x, y }
+          break
         }
+      }
+      if (!spawn) {
+        const bottom = Math.max(30, ...s.nodes.map(other => other.y + (other.boundsHeight || 900)))
+        spawn = { x: Math.max(30, preferred.x), y: bottom + 60 }
       }
       const n = {
         id,
@@ -241,8 +329,19 @@ export function extendWorkflow(p, seedRows) {
       s.linkSource = null
       return true
     },
+    disconnectRow(nodeId) {
+      if (s.readonly) return
+      const n = s.nodes.find(n => n.id === nodeId)
+      if (n) n.rowId = null
+    },
     removeConnection(id) {
       if (s.readonly) return
+      const c = s.connections.find(c => c.id === id)
+      const n = s.nodes.find(n => n.id === c?.target)
+      if (n?.confirmedImage?.sourceNodeId === c?.source) {
+        n.imageConfirmed = false
+        n.confirmedImage = null
+      }
       s.connections = s.connections.filter(c => c.id !== id)
     },
     upstream(n) {
@@ -282,7 +381,7 @@ export function extendWorkflow(p, seedRows) {
       return [...lines, ...p.upstream(n).map(x => x.name + '：' + x.text)].join('\n')
     },
     generateScript() {
-      if (s.readonly) return
+      if (s.readonly || s.scriptGenerating) return
       const upstream = s.nodes
         .filter(n => n.type === '脚本')
         .flatMap(n => p.upstream(n))
@@ -305,18 +404,28 @@ export function extendWorkflow(p, seedRows) {
       p.performScript(text)
     },
     performScript(text = s.prompt) {
-      s.nodes.filter(n => n.rowId).forEach(n => (n.rowId = null))
-      s.rows = rowsFor(text)
-      s.selectedRows = []
-      s.scriptRevision = revision
-      p.closeModal()
-      p.notify('已生成第 ' + revision + ' 版分镜（模拟内容）')
+      if (s.readonly || s.scriptGenerating) return
+      s.scriptGenerating = true
+      try {
+        s.nodes.filter(n => n.rowId).forEach(n => (n.rowId = null))
+        s.rows = rowsFor(text)
+        s.selectedRows = []
+        s.scriptRevision = revision
+        p.closeModal()
+        p.notify('已生成第 ' + revision + ' 版分镜（模拟内容）')
+      } finally {
+        s.scriptGenerating = false
+      }
+    },
+    confirmScriptGeneration() {
+      const text = s.modalData?.scriptText ?? s.prompt
+      return p.performScript(text)
     },
     confirm() {
       const d = s.modalData
       if (s.readonly) return
       if (d?.action === 'script') {
-        p.performScript(d.scriptText)
+        p.confirmScriptGeneration()
         return
       }
       if (d?.action === 'delete-node')
@@ -497,7 +606,10 @@ export function extendWorkflow(p, seedRows) {
       }, 400)
     },
     removeReference(id, index) {
+      const n = s.nodes.find(n => n.id === id),
+        name = typeof index === 'number' ? n?.refs[index] : null
       oldRemove(id, index)
+      if (n && name) n.assetRefs = (n.assetRefs || []).filter(a => a.name !== name)
     }
   })
   if (s.scenario === 'empty') s.projects = []

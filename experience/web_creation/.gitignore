@@ -31,3 +31,5 @@ auto-imports.d.ts
 *.sw?
 # 离线插件包
 *.vsix
+
+dist-connected

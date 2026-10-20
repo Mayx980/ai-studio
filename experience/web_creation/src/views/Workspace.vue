@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted, nextTick, watch, onUpdated } from 'vue'
 import { useCreation } from '@/ports/creation'
 import Icon from '../components/CreationIcon.vue'
 import ProductScene from '../components/ProductScene.vue'
@@ -32,7 +32,9 @@ const edges = computed(() => {
       const x = source.x + (source.width || 1046),
         y = source.y + 146 + s.rows.findIndex(r => r.id === n.rowId) * 102
       return {
-        id: n.id,
+        id: 'row-' + n.id,
+        nodeId: n.id,
+        rowEdge: true,
         path: `M ${x} ${y} C ${x + 50} ${y}, ${n.x - 70} ${n.y + 88}, ${n.x} ${n.y + 88}`
       }
     })
@@ -67,6 +69,37 @@ function updateViewport() {
     y: canvas.value.scrollTop / z,
     width: canvas.value.clientWidth / z,
     height: canvas.value.clientHeight / z
+  }
+}
+let nodeObserver
+function observeNodes() {
+  if (!nodeObserver) return
+  canvas.value?.querySelectorAll('[data-node-id]').forEach(el => nodeObserver.observe(el))
+}
+onUpdated(observeNodes)
+function trackBlank(e) {
+  if (e.target.closest('.canvas-node')) return
+  const b = canvas.value.getBoundingClientRect()
+  s.mouseBlank = {
+    x: (e.clientX - b.left + canvas.value.scrollLeft) / (s.zoom / 100),
+    y: (e.clientY - b.top + canvas.value.scrollTop) / (s.zoom / 100)
+  }
+}
+async function pasteCanvas(e) {
+  if (e.target.closest('textarea,input,[contenteditable=true]')) return
+  const files = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith('image/'))
+  if (files.length) {
+    e.preventDefault()
+    await p.pasteImages(files, s.mouseBlank || { x: s.viewport.x + 50, y: s.viewport.y + 50 })
+  }
+}
+function edgeMenu(e, edge) {
+  e.preventDefault()
+  e.stopPropagation()
+  contextMenu.value = {
+    x: Math.min(e.clientX, window.innerWidth - 210),
+    y: Math.min(e.clientY, window.innerHeight - 150),
+    edge
   }
 }
 function createNode(type) {
@@ -147,16 +180,44 @@ function dismissMenu(e) {
   }
 }
 onMounted(() => {
+  nodeObserver = new ResizeObserver(entries => {
+    for (const entry of entries) {
+      const n = s.nodes.find(n => n.id === entry.target.dataset.nodeId)
+      if (n) {
+        if (Math.abs((n.boundsWidth || 0) - entry.contentRect.width) > 1)
+          n.boundsWidth = entry.contentRect.width
+        if (Math.abs((n.boundsHeight || 0) - entry.contentRect.height) > 1)
+          n.boundsHeight = entry.contentRect.height
+      }
+    }
+  })
+  observeNodes()
+  document.addEventListener('paste', pasteCanvas)
   document.addEventListener('pointerdown', dismissMenu)
   document.addEventListener('keydown', dismissMenu)
   canvas.value?.addEventListener('wheel', wheelZoom, { passive: false })
   canvas.value?.addEventListener('gesturestart', gestureStart, { passive: false })
   canvas.value?.addEventListener('gesturechange', gestureChange, { passive: false })
   updateViewport()
-  if (s.autoFit) { nextTick(reset); s.autoFit = false }
+  if (s.autoFit) {
+    nextTick(reset)
+    s.autoFit = false
+  }
 })
-watch(() => s.autoFit, value => { if(value) nextTick(() => { reset(); s.autoFit=false }) }, {flush:'post'})
+watch(
+  () => s.autoFit,
+  value => {
+    if (value)
+      nextTick(() => {
+        reset()
+        s.autoFit = false
+      })
+  },
+  { flush: 'post' }
+)
 onUnmounted(() => {
+  nodeObserver?.disconnect()
+  document.removeEventListener('paste', pasteCanvas)
   document.removeEventListener('pointerdown', dismissMenu)
   document.removeEventListener('keydown', dismissMenu)
   canvas.value?.removeEventListener('wheel', wheelZoom)
@@ -168,7 +229,7 @@ function drag(e, n) {
     e.button !== 0 ||
     s.readonly ||
     s.interactionMode === 'hand' ||
-    e.target.closest('button,input,textarea,select,a')
+    e.target.closest('button,input,textarea,select,a,video,audio')
   )
     return
   const x = e.clientX,
@@ -225,32 +286,16 @@ function menu(e, n) {
   }
 }
 function addAt(type) {
-  if (type === '脚本') {
-    if (s.nodes.some(n => n.type === '脚本')) {
-      p.notify('当前已有脚本节点')
-      contextMenu.value = null
-      return
-    }
-    s.nodes.push({
-      id: 'script',
-      type: '脚本',
-      name: '分镜脚本',
-      x: contextMenu.value.canvasX,
-      y: contextMenu.value.canvasY
-    })
-  } else {
-    const id = p.addNode(type)
-    if (id) p.moveNode(id, contextMenu.value.canvasX, contextMenu.value.canvasY)
-  }
+  p.addNode(type, undefined, { x: contextMenu.value.canvasX, y: contextMenu.value.canvasY })
   contextMenu.value = null
 }
+
 function saveNode(n) {
   if (n.type === '脚本') {
     p.notify('脚本表格可导出 Excel；个人资产保存图片、视频、音频和提示词')
     return
   }
-  if (n.status === 'success' && n.type !== '文字')
-    p.openModal('save', { type: n.type, name: n.name, scene: n.scene })
+  if (n.status === 'success' && n.type !== '文字') p.openModal('save', { ...n, type: n.type })
   else
     p.openModal('save', {
       type: '提示词',
@@ -357,6 +402,8 @@ function reset() {
         :class="{ 'hand-mode': s.interactionMode === 'hand' }"
         @pointerdown="pan"
         @scroll="updateViewport"
+        @pointermove="trackBlank"
+        tabindex="0"
         @contextmenu="menu($event, null)"
       >
         <div v-if="s.loading" class="canvas-state">
@@ -381,9 +428,18 @@ function reset() {
               v-for="e in [...edges, ...nodeEdges]"
               :key="e.id"
               :d="e.path"
+              @contextmenu="edgeMenu($event, e)"
+              class="connection-path"
               stroke="url(#edgeGradient)"
               stroke-width="1.8"
               fill="none"
+            />
+            <path
+              v-for="e in [...edges, ...nodeEdges]"
+              :key="'hit-' + e.id"
+              :d="e.path"
+              class="connection-hit"
+              @contextmenu="edgeMenu($event, e)"
             />
             <path
               v-if="temporaryEdge"
@@ -433,12 +489,13 @@ function reset() {
               ><strong>{{ n.name }}</strong
               ><span class="node-mini-tag">{{ n.type }}</span
               ><button
+                v-if="n.type === '脚本'"
                 class="icon-button"
-                :title="n.type === '脚本' ? '编辑分镜表' : '删除节点'"
+                title="编辑分镜表"
                 @pointerdown.stop
-                @click.stop="n.type === '脚本' ? p.openModal('script-editor') : p.deleteNode(n.id)"
+                @click.stop="p.openModal('script-editor')"
               >
-                <Icon :name="n.type === '脚本' ? 'expand' : 'more'" :size="16" />
+                <Icon name="expand" :size="16" />
               </button>
             </header>
             <template v-if="n.type === '脚本'"
@@ -463,9 +520,11 @@ function reset() {
                           type="checkbox"
                           aria-label="全选镜头"
                           :checked="s.rows.length > 0 && s.selectedRows.length === s.rows.length"
-                          @change="($event) => {
-                            s.selectedRows = $event.target.checked ? s.rows.map(x => x.id) : []
-                          }"
+                          @change="
+                            $event => {
+                              s.selectedRows = $event.target.checked ? s.rows.map(x => x.id) : []
+                            }
+                          "
                         />
                       </th>
                       <th v-for="c in s.columns" :key="c">{{ c }}</th>
@@ -572,8 +631,14 @@ function reset() {
                 <div class="spinner"></div>
                 <b>正在生成创作结果</b><span>当前输入和参考版本已固定</span>
               </div>
-              <div v-else-if="n.status === 'success'" class="node-media">
-                <div v-if="n.type === '音频'" class="audio-result">
+              <div v-else-if="n.status === 'success' && n.type !== '文字'" class="node-media">
+                <audio
+                  v-if="n.type === '音频' && n.mediaUrl"
+                  class="actual-audio"
+                  :src="n.mediaUrl"
+                  controls
+                />
+                <div v-else-if="n.type === '音频'" class="audio-result">
                   <Icon name="audio" :size="26" />
                   <div class="audio-wave">
                     <i
@@ -584,7 +649,19 @@ function reset() {
                   </div>
                   <span>Seed Audio · 模拟音频结果</span>
                 </div>
-                <ProductScene v-else :variant="n.scene" /><button
+                <img
+                  v-else-if="n.type === '图片' && n.mediaUrl"
+                  class="actual-media"
+                  :src="n.mediaUrl"
+                  :alt="n.name"
+                /><video
+                  v-else-if="n.type === '视频' && n.mediaUrl"
+                  class="actual-media"
+                  :src="n.mediaUrl"
+                  :poster="n.poster"
+                  controls
+                  preload="metadata"
+                /><ProductScene v-else :variant="n.scene" /><button
                   v-if="n.type === '视频'"
                   class="video-play"
                   title="播放预览"
@@ -596,10 +673,7 @@ function reset() {
                   }}<span>版本 {{ n.version || 1 }}</span></span
                 >
                 <div class="media-hover-actions">
-                  <button
-                    title="保存为资产"
-                    @click="p.openModal('save', { type: n.type, name: n.name, scene: n.scene })"
-                  >
+                  <button title="保存为资产" @click="p.openModal('save', { ...n, type: n.type })">
                     <Icon name="save" :size="15" /></button
                   ><button title="下载素材" @click="p.openModal('download', { node: n })">
                     <Icon name="download" :size="15" />
@@ -618,6 +692,17 @@ function reset() {
                 >
               </div>
               <p v-if="n.stale" class="node-stale">来源已更新 · 原结果保留</p>
+              <p v-if="n.lastError" class="field-error node-error">{{ n.lastError }}</p>
+              <div v-if="n.outputs?.length > 1" class="output-selector">
+                <button
+                  v-for="(output, i) in n.outputs"
+                  :key="i"
+                  :class="{ active: n.outputIndex === i }"
+                  @click="p.selectOutput?.(n.id, i)"
+                >
+                  结果 {{ i + 1 }}
+                </button>
+              </div>
               <div class="node-input">
                 <div
                   v-if="n.rowId || n.refs?.length || p.upstream(n).length"
@@ -684,13 +769,15 @@ function reset() {
                     <Icon name="spark" :size="14" /></button
                   ><button
                     title="保存提示词为资产"
-                    @click="($event) => {
-                      p.openModal('save', {
-                        type: '提示词',
-                        text: n.prompt || p.referenceText(n),
-                        name: ''
-                      })
-                    }"
+                    @click="
+                      $event => {
+                        p.openModal('save', {
+                          type: '提示词',
+                          text: n.prompt || p.referenceText(n),
+                          name: ''
+                        })
+                      }
+                    "
                   >
                     <Icon name="save" :size="14" /></button
                   ><span v-if="n.rowId">已引用 1 行</span>
@@ -742,6 +829,13 @@ function reset() {
                   ><Icon name="settings" :size="13" />
                 </button>
               </div>
+              <p v-if="p.isConnected && n.type === '视频'" class="node-mode-hint">
+                {{
+                  n.mode === '文生视频'
+                    ? '文生模式仅发送文本，不发送图片参考'
+                    : '图生模式采用已确认的单张实际图片'
+                }}
+              </p>
               <div class="node-controls">
                 <span class="node-model"
                   >{{
@@ -755,16 +849,22 @@ function reset() {
                   }}<Icon name="down" :size="11" /></span
                 ><button
                   class="node-generate"
-                  :title="n.type === '文字' ? '编辑文本' : '生成' + n.type"
+                  :title="n.type === '文字' && !p.isConnected ? '编辑文本' : '生成' + n.type"
                   :disabled="n.status === 'running' || s.readonly"
-                  @click="($event) => {
-                    n.type === '文字'
-                      ? p.openModal('text-editor', { node: n })
-                      : p.requestGenerate(n.id)
-                  }"
+                  @click="
+                    $event => {
+                      n.type === '文字' && !p.isConnected
+                        ? p.openModal('text-editor', { node: n })
+                        : p.requestGenerate(n.id)
+                    }
+                  "
                 >
                   <Icon name="spark" :size="14" />{{
-                    n.type === '文字' ? '编辑' : n.status === 'success' ? '再生成' : '生成'
+                    n.type === '文字' && !p.isConnected
+                      ? '编辑'
+                      : n.status === 'success'
+                        ? '再生成'
+                        : '生成'
                   }}
                 </button>
               </div></template
@@ -831,17 +931,21 @@ function reset() {
           </button>
           <div v-if="sessionMenu" class="session-menu">
             <button
-              @click="($event) => {
-                p.openModal('rename-session')
-                sessionMenu = false
-              }"
+              @click="
+                $event => {
+                  p.openModal('rename-session')
+                  sessionMenu = false
+                }
+              "
             >
               重命名会话</button
             ><button
-              @click="($event) => {
-                p.openModal('delete-session')
-                sessionMenu = false
-              }"
+              @click="
+                $event => {
+                  p.openModal('delete-session')
+                  sessionMenu = false
+                }
+              "
             >
               删除会话
             </button>
@@ -872,10 +976,12 @@ function reset() {
               ><span>引用镜头 01 · 保留已有内容</span
               ><button
                 class="primary-button"
-                @click="($event) => {
-                  p.acceptPlan()
-                  m.plan = false
-                }"
+                @click="
+                  $event => {
+                    p.acceptPlan()
+                    m.plan = false
+                  }
+                "
               >
                 确认创建<Icon name="arrow" :size="13" />
               </button>
@@ -919,7 +1025,13 @@ function reset() {
             </button>
           </div>
         </div>
-        <p class="agent-disclaimer">场景助手演示 · 媒体生成前确认范围</p>
+        <p class="agent-disclaimer">
+          {{
+            p.isConnected
+              ? '规则编排助手 · 生成将真实调用模型'
+              : '场景助手演示 · 媒体生成前确认范围'
+          }}
+        </p>
       </aside>
     </div>
     <div
@@ -929,32 +1041,50 @@ function reset() {
       role="menu"
       @pointerdown.stop
     >
-      <template v-if="contextMenu.node"
+      <template v-if="contextMenu.edge"
+        ><button
+          role="menuitem"
+          @click="
+            () => {
+              contextMenu.edge.rowEdge
+                ? p.disconnectRow(contextMenu.edge.nodeId)
+                : p.removeConnection(contextMenu.edge.id)
+              contextMenu = null
+            }
+          "
+        >
+          <Icon name="close" :size="15" />取消连线
+        </button></template
+      ><template v-else-if="contextMenu.node"
         ><div class="context-caption">{{ contextMenu.node.name }}</div>
         <button
           role="menuitem"
           :disabled="s.readonly"
-          @click="($event) => {
-            p.deleteNode(contextMenu.node.id)
-            contextMenu = null
-          }"
+          @click="
+            $event => {
+              p.deleteNode(contextMenu.node.id)
+              contextMenu = null
+            }
+          "
         >
           <Icon name="trash" :size="15" />删除节点</button
         ><button role="menuitem" :disabled="s.readonly" @click="saveNode(contextMenu.node)">
           <Icon name="save" :size="15" />保存到我的资产</button
         ><button
           role="menuitem"
-          @click="($event) => {
-            p.copyNode(contextMenu.node.id)
-            contextMenu = null
-          }"
+          @click="
+            $event => {
+              p.copyNode(contextMenu.node.id)
+              contextMenu = null
+            }
+          "
         >
           <Icon name="layers" :size="15" />复制节点
         </button></template
       >
-      <div class="context-caption">添加节点</div>
+      <div v-if="!contextMenu.edge" class="context-caption">添加节点</div>
       <button
-        v-for="[type, icon] in Object.entries(nodeIcons)"
+        v-for="[type, icon] in contextMenu.edge ? [] : Object.entries(nodeIcons)"
         :key="type"
         role="menuitem"
         :disabled="s.readonly"
@@ -962,14 +1092,16 @@ function reset() {
       >
         <Icon :name="icon" :size="15" />添加{{ type }}节点</button
       ><button
-        v-if="!contextMenu.node"
+        v-if="!contextMenu.node && !contextMenu.edge"
         role="menuitem"
         title="粘贴已复制的节点"
-        :disabled="!s.clipboard || s.readonly"
-        @click="($event) => {
-          p.pasteNode(contextMenu.canvasX, contextMenu.canvasY)
-          contextMenu = null
-        }"
+        :disabled="s.readonly"
+        @click="
+          $event => {
+            p.pasteClipboard({ x: contextMenu.canvasX, y: contextMenu.canvasY })
+            contextMenu = null
+          }
+        "
       >
         <Icon name="attach" :size="15" />粘贴
       </button>

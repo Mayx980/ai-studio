@@ -1,32 +1,28 @@
-# AI Studio 创作空间交互原型
+# AI Studio 创作空间
 
-基于 AI生成视频平台PRD V3.0 的桌面 Web 原型，采用 Vue 3、Vite 和深色画布。页面通过稳定 Port 访问数据；构建期分别选择场景数据或待接入的生产适配器。
+基于《AI生成视频平台PRD V3.0》的深色 Web 创作原型，Vue 3 + Vite。需要 Node 24、pnpm。
 
-在仓库根目录启动唯一 Preview：
+## UIUX 场景预览
 
+在仓库根运行：
 ```bash
 python3 experience/preview/start.py --entity web_creation --runtime local --port 5173
 ```
+打开 `http://127.0.0.1:5173`，状态导航在 `/_uiux`；按 Ctrl-C 或加 `--down` 停止。此入口只使用场景数据。
 
-打开 `http://127.0.0.1:5173`。场景导航在 `/_uiux`，可选择 loading、empty、error、paging、permission、form-validation。停止入口按 Ctrl-C，或运行同一命令加 `--down`。需 Node 24 和 pnpm；入口安装锁定依赖。不需要业务服务或密钥。
-
-核心演示：打开最近项目，在分镜表右侧点击每行连接点；可连接多个下游节点。点击分镜卡片右上角进入完整表编辑、调整顺序；资产页保存提示词时可设置名称、单选位置、多选标签。图片节点右键保存资产；生成和覆盖操作先确认。下载清单要求显式跳过缺失镜头。
-
-项目数据仅在当前页面内存中保存，刷新重置。模型调用、文件解析、媒体播放、PDF/Excel 导出和素材打包均为交互示意，不会产生真实服务调用或文件；页面明确提示这些边界。正式 SSO、持久化、真实任务、完整 Agent 工具与生成能力尚未接入。
-
-检查：
+## 独立真实模型联调（本次用户另行授权）
 
 ```bash
 cd experience/web_creation
-corepack pnpm test
-corepack pnpm build
-corepack pnpm build:scenario
+corepack pnpm models
 ```
+打开 `http://127.0.0.1:5174`，在“真实模型设置”输入四类服务的 Key。详情见 [模型联调说明](model-connect/README.md)。四个上传适配器由本地中转调用；Key 仅在当前页面内存和本次请求中使用，不保存到项目、浏览器存储或文件。
 
-两种构建都执行模块图及最终产物隔离检查。浏览器流程脚本 `browser-check.mjs` 需要运行中的本地 Preview 与 Chromium，可通过 `CHROMIUM_PATH` 指定浏览器路径。
+## 交互与边界
 
-本轮体验补充：侧栏“我的项目”进入独立卡片页，含项目名、上次打开时间和封面；创建卡可新建空项目。灵感入口按场景规则自动创建并连接节点，助手也可按文字指令补节点或整理布局。节点右侧出口可拖到另一节点，或先点击出口再点入口；下游参考区展示上游内容，可取消以断开连线。引用面板实时展示当前画布已就绪内容和版本。
+支持项目卡片、抓手/移动、捏合缩放、图片粘贴、节点和分镜行连线、右键断开、实时参考封面、个人资产、优化预览应用与参数摘要。节点只从右键菜单删除。重新生成分镜采用当前输入，确认成功后替换旧表；失败保留原表和输入。
+项目数据保留在本次浏览器会话中，刷新重置。助手编排仍为规则演示；PDF/Excel、真实文件下载和服务端持久化未接入。真实模型入口的成功状态只由供应商响应产生；结果URL可能失效。
 
-画布支持抓手平移、节点拖动、触控板捏合缩放（普通双指滑动仍用于平移）。图片、视频、音频节点的参数摘要可打开参数面板。选中文字后右键可复制、剪切、粘贴；浏览器剪贴板权限不足时提示使用系统快捷键。
+## 验证
 
-新增体验回归脚本为 `experience-check.mjs` 和 `clipboard-check.mjs`。这些脚本验证原型交互，不代表模型接入或真实生成验收。
+在本目录执行 `corepack pnpm test`、`corepack pnpm test:models`、`corepack pnpm build`、`corepack pnpm build:scenario`、`corepack pnpm build:connected`。三个构建分别输出并执行隔离检查。浏览器回归脚本需要启动对应入口和 Chromium，可用 `CHROMIUM_PATH` 指定浏览器。`connected-check.mjs` 使用替身供应商响应验证界面，不能证明供应商实测成功。

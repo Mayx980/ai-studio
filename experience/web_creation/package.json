@@ -26,7 +26,10 @@
     "preview": "vite preview",
     "scenario": "vite --mode scenario",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "models": "vite --mode connected --host 127.0.0.1 --port 5174",
+    "build:connected": "vite build --mode connected && node scripts/check-isolation.mjs --mode connected",
+    "test:models": "node --test model-connect/gateway.test.mjs"
   },
   "dependencies": {
     "@tanstack/vue-table": "9.2.4",
