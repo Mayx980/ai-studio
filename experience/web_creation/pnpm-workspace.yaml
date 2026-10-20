@@ -1,0 +1,14 @@
+packages:
+  - .
+
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+
+allowBuilds:
+  esbuild: true
+  sharp: true
+  # core-js postinstall 仅打印赞助信息，无构建必要；不决策会被 pnpm 报 ERR_PNPM_IGNORED_BUILDS
+  core-js: false
+  # reka-ui 的 Vue 2/3 compatibility package 需执行一次本地版本选择脚本
+  vue-demi: true

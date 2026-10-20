@@ -1,0 +1,84 @@
+{
+  "schema": "coding-standard.scaffold-execution/v1",
+  "toolchains": ["bash", "docker", "git", "node", "pnpm", "python3", "tar"],
+  "scripts": [
+    {
+      "path": "build.sh",
+      "role": "build",
+      "network": true,
+      "writes": ["code-unit-files"]
+    },
+    {
+      "path": "package.sh",
+      "role": "generator",
+      "network": false,
+      "writes": ["code-unit-files", "explicit-output"]
+    },
+    {
+      "path": "image-smoke.sh",
+      "role": "check",
+      "network": false,
+      "writes": []
+    },
+    {
+      "path": "ci.sh",
+      "role": "check",
+      "network": true,
+      "writes": ["code-unit-files"]
+    },
+    {
+      "path": "scripts/asset-optimize.mjs",
+      "role": "generator",
+      "network": false,
+      "writes": ["code-unit-files"]
+    },
+    {
+      "path": "scripts/bundle-check.mjs",
+      "role": "check",
+      "network": false,
+      "writes": []
+    },
+    {
+      "path": "scripts/check-console.mjs",
+      "role": "check",
+      "network": false,
+      "writes": []
+    },
+    {
+      "path": "scripts/fe-composition.mjs",
+      "role": "build-helper",
+      "network": false,
+      "writes": []
+    },
+    {
+      "path": "scripts/font-subset.mjs",
+      "role": "generator",
+      "network": false,
+      "writes": ["code-unit-files"]
+    },
+    {
+      "path": "scripts/prebuild-check.mjs",
+      "role": "check",
+      "network": false,
+      "writes": []
+    },
+    {
+      "path": "scripts/production-dependency-audit.mjs",
+      "role": "check",
+      "network": true,
+      "writes": []
+    },
+    {
+      "path": "scripts/terminal-isolation.mjs",
+      "role": "check",
+      "network": false,
+      "writes": []
+    },
+    {
+      "path": "scripts/vite-uiux-id.mjs",
+      "role": "build-helper",
+      "network": false,
+      "writes": []
+    }
+  ]
+}

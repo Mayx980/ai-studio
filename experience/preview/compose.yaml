@@ -1,0 +1,75 @@
+{
+  "x-wf-prod": {
+    "schema": "wf-prod.experience_preview_compose",
+    "schema_version": 1
+  },
+  "services": {
+    "preview_web_creation": {
+      "image": "node:24-bookworm",
+      "init": true,
+      "working_dir": "/workspace/experience/web_creation",
+      "command": [
+        "bash",
+        "-euo",
+        "pipefail",
+        "-c",
+        "if (($$# == 0)); then\n  printf '%s\\n' 'experience-preview-supervisor: 缺少 Preview command' >&2\n  exit 64\nfi\ncommand_name=$${1##*/}\ncommand_name=$${command_name,,}\nenable_corepack_command() {\n  local manager=$$1\n  local preview_bin=$${COREPACK_HOME:-/var/cache/preview/corepack}/bin\n  mkdir -p \"$$preview_bin\" || {\n    status=$$?\n    printf 'experience-preview-supervisor: %s shim目录准备失败：exit=%s\\n' \"$$manager\" \"$$status\" >&2\n    exit \"$$status\"\n  }\n  corepack enable --install-directory \"$$preview_bin\" \"$$manager\" || {\n    status=$$?\n    printf 'experience-preview-supervisor: %s shim准备失败：exit=%s\\n' \"$$manager\" \"$$status\" >&2\n    exit \"$$status\"\n  }\n  PATH=\"$$preview_bin:$$PATH\"\n  export PATH\n}\ncase \"$$command_name\" in\n  pnpm|pnpm.bat|pnpm.cmd|pnpm.exe)\n    if [[ ! -f pnpm-lock.yaml ]]; then\n      printf '%s\\n' 'experience-preview-supervisor: pnpm Preview command 缺少 working directory 内的 pnpm lockfile' >&2\n      exit 64\n    fi\n    corepack pnpm install --frozen-lockfile || {\n      status=$$?\n      printf 'experience-preview-supervisor: pnpm 依赖安装失败：exit=%s\\n' \"$$status\" >&2\n      exit \"$$status\"\n    }\n    enable_corepack_command pnpm\n    ;;\n  npm|npm.bat|npm.cmd|npm.exe)\n    if [[ ! -f package-lock.json && ! -f npm-shrinkwrap.json ]]; then\n      printf '%s\\n' 'experience-preview-supervisor: npm Preview command 缺少 working directory 内的 npm lockfile' >&2\n      exit 64\n    fi\n    npm ci || {\n      status=$$?\n      printf 'experience-preview-supervisor: npm 依赖安装失败：exit=%s\\n' \"$$status\" >&2\n      exit \"$$status\"\n    }\n    ;;\n  yarn|yarn.bat|yarn.cmd|yarn.exe)\n    if [[ ! -f yarn.lock ]]; then\n      printf '%s\\n' 'experience-preview-supervisor: yarn Preview command 缺少 working directory 内的 yarn lockfile' >&2\n      exit 64\n    fi\n    corepack yarn install --immutable || {\n      status=$$?\n      printf 'experience-preview-supervisor: yarn 依赖安装失败：exit=%s\\n' \"$$status\" >&2\n      exit \"$$status\"\n    }\n    enable_corepack_command yarn\n    ;;\nesac\nif ! command -v -- \"$$1\" >/dev/null 2>&1; then\n  printf 'experience-preview-supervisor: Preview command 不存在：%s\\n' \"$$1\" >&2\n  exit 127\nfi\nexec \"$$@\"\n",
+        "experience-preview-supervisor",
+        "pnpm",
+        "scenario",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "5173"
+      ],
+      "environment": {
+        "CHOKIDAR_USEPOLLING": "true",
+        "COREPACK_HOME": "/var/cache/preview/corepack",
+        "EXPERIENCE_HEALTHCHECK_PATH": "/",
+        "EXPERIENCE_PREVIEW": "1",
+        "EXPERIENCE_SCENARIO": "${PREVIEW_SCENARIO:?experience/preview/start.py 必须注入 PREVIEW_SCENARIO}",
+        "HOME": "/tmp/preview-home",
+        "HOST": "0.0.0.0",
+        "NO_PROXY": "*",
+        "NPM_CONFIG_CACHE": "/var/cache/preview/npm-cache",
+        "PNPM_CONFIG_STORE_DIR": "/var/cache/preview/pnpm-store",
+        "PORT": "5173",
+        "VITE_EXPERIENCE_SCENARIO": "${PREVIEW_SCENARIO:?experience/preview/start.py 必须注入 PREVIEW_SCENARIO}",
+        "WATCHPACK_POLLING": "true"
+      },
+      "labels": {
+        "wf-prod.preview.entity": "web_creation",
+        "wf-prod.preview.health-path": "/"
+      },
+      "read_only": true,
+      "tmpfs": [
+        "/tmp:rw,nosuid,size=512m"
+      ],
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "${PREVIEW_REPO_ROOT:?experience/preview/start.py 必须注入 PREVIEW_REPO_ROOT}",
+          "target": "/workspace",
+          "read_only": true
+        },
+        {
+          "type": "volume",
+          "source": "preview_web_creation_node_modules",
+          "target": "/workspace/experience/web_creation/node_modules"
+        },
+        {
+          "type": "volume",
+          "source": "preview_web_creation_pm_cache",
+          "target": "/var/cache/preview"
+        }
+      ],
+      "ports": [
+        "127.0.0.1:${PREVIEW_PORT:-}:5173"
+      ]
+    }
+  },
+  "volumes": {
+    "preview_web_creation_node_modules": {},
+    "preview_web_creation_pm_cache": {}
+  }
+}

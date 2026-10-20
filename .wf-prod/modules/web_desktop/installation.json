@@ -1,0 +1,684 @@
+{
+  "content_digest": "sha256:2ac1b70bc0ec639d0868f6335fdfb591250e1606269ef09da97b4e30dbe8a80f",
+  "managed_files": [
+    {
+      "executable": false,
+      "path": "experience/web_creation/.coding-standard/scaffolds/web-desktop-scaffold.json",
+      "sha256": "sha256:46ef9ded7398f0f76ac15dae6ebc1deeb74f25ef9eb76ff7576b5b64237348ee"
+    },
+    {
+      "executable": true,
+      "path": "experience/web_creation/.env.development",
+      "sha256": "sha256:454e3d8dc33445eafc55179cee1fa7e355657e64fba577327bedecb75dbac57a"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/.eslintrc-auto-import.json",
+      "sha256": "sha256:f7dbe82b47110baaa0cf68391117c5eed02837fa6caa6bfa4576205f2aec050f"
+    },
+    {
+      "executable": true,
+      "path": "experience/web_creation/.gitignore",
+      "sha256": "sha256:1c5703af9e11eb34e59b055a81353b6297e743b254f24a1f308e49a6db319080"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/README.md",
+      "sha256": "sha256:fb93930856a83528a7f618c372f93145d1e8789eda029081121c394dcb8b0890"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/components.json",
+      "sha256": "sha256:af3816619fbcc0b900c92e7233cd590e3836394228030e53b1d0abef2e456cec"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/docs/README.md",
+      "sha256": "sha256:adc0e7d2e240e68feb16e6ec76d0dcd99ce33cb4a22c4612d991d95687dc9872"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/docs/changelog/README.md",
+      "sha256": "sha256:31b760a02a012106daa9916db98fbaaf2c10a60d0ca02a4ca612da5e9f8f8ed4"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/docs/project-map/README.md",
+      "sha256": "sha256:7d8fd098364a1da45e37c3890f16393b0646b16213a1350c5844469807783167"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/docs/standards/README.md",
+      "sha256": "sha256:5c001db36510630a5e06220befd43d7809da5c61c7b99bc105c833833fc848e4"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/docs/standards/engineering.md",
+      "sha256": "sha256:4257d83a666ea77ef8cb7c4b21a198cec986b4a25f794b7e6e68ac79c4c87f99"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/docs/standards/ui.md",
+      "sha256": "sha256:6c5886462e10c7b6c3502cf8c07e66b076c3c54ab2c251be5cf50a6f1734c714"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/docs/standards/workflow-compatibility.md",
+      "sha256": "sha256:25c44e4d03e982e803f0e2c21f0cbd8850c05406e509c1c47e782f1483144ad9"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/eslint.config.js",
+      "sha256": "sha256:6389888b0b9bee72543856c622119bde265a6f75ff806a61fa44f6ae8b73aff1"
+    },
+    {
+      "executable": true,
+      "path": "experience/web_creation/index.html",
+      "sha256": "sha256:9d4c0b91190be8cea86a2ed0bcc51f79b7c7262273eddebcc5e511dd7737fc3a"
+    },
+    {
+      "executable": true,
+      "path": "experience/web_creation/jsconfig.json",
+      "sha256": "sha256:a9c466873ed71f63213371064dbe58a9aebc0e0c1fbc110df7641451f0c44c6b"
+    },
+    {
+      "executable": true,
+      "path": "experience/web_creation/package.json",
+      "sha256": "sha256:47dbc0c58aafff9b9bbc7f296083b5736d26c114099428a291a9e5135f194dd8"
+    },
+    {
+      "executable": true,
+      "path": "experience/web_creation/pnpm-lock.yaml",
+      "sha256": "sha256:dc85fe5b5e7b5407fc3758b1d62cc07734047fc85ad87f76a5bfa1abf6e740e0"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/pnpm-workspace.yaml",
+      "sha256": "sha256:ec4d97802315a3940b2335c1c2fdb73bacd6d8d896f64607e4f817ff60e0905a"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/prettier.config.cjs",
+      "sha256": "sha256:5d400d7629a2c8aa6b823a96ab4ba060306ef840e07dee0c45406f0a0c9e15da"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/public/config.js",
+      "sha256": "sha256:57902c1dd42dff7590da5858c8249e3754c17727e4f150a79ce6a9d83d486972"
+    },
+    {
+      "executable": true,
+      "path": "experience/web_creation/public/favicon.ico",
+      "sha256": "sha256:99cb5dcfaeaf1aa125c6951f0140d6ec9c4c9266a23b008662e8f6963ffd7ff9"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/scripts/asset-optimize.mjs",
+      "sha256": "sha256:58769b50e20783e2c4bfef043039e92859ce53f94d464c7018089e6391569ec4"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/scripts/font-subset.mjs",
+      "sha256": "sha256:19eae4d862b73827fc716ecd90f62832b432da27081cf1b653f0f8e751afaf86"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/App.vue",
+      "sha256": "sha256:4c62f66e7f8bdb5567de571ba40c28499a59b11df76aeb013d606451ab1b4f08"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/adapters/production/auth.js",
+      "sha256": "sha256:f3261a00ec50b6fb66a26b40e4c736ee4b8fec02c72bbfc4d0eab6994009ce31"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/adapters/production/contract.js",
+      "sha256": "sha256:2c79013d1f5e0d0738e77074def2e02aa5ac7beda81c2ffede01c28e4945a76c"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/adapters/production/examples.js",
+      "sha256": "sha256:ffde8eb01735c64e1089fe4b25ae0f77b14bbb4b033aad6447da720a246ba442"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/apis/modules/auth.js",
+      "sha256": "sha256:9998db6001fab33da85ce6054d3c10ffba8853afbac1a323527491e2d8085bd2"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/apis/modules/examples.js",
+      "sha256": "sha256:42bf15a054d12d27eba325a995a32a0dc7676cb635e717ba5c993b1fd5c61982"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/apis/request.js",
+      "sha256": "sha256:0bafdad1e1116c07dc8b45553f479172324baeab410f4e6af338529d36149b65"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/assets/images/.gitkeep",
+      "sha256": "sha256:01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/auth-bg.vue",
+      "sha256": "sha256:e74219db598549a920108bb66ae93f088052f6e6a4c75519863fb1368ea06f17"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/cascader-model.js",
+      "sha256": "sha256:8d1ebab1fadbd539d181d7edda826bc1d8bdc38e1029e6862c963b08b37076ef"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/cascader.vue",
+      "sha256": "sha256:9f0ae56176b8be3cdcba7b25231a8e9285afd00ace79e96fd40385cffc6676b3"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/check-version.vue",
+      "sha256": "sha256:1835787aaec5ab4a692d649f5ed07bfe3389d8be2a2bd779428386ad1565104c"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/choice-select.vue",
+      "sha256": "sha256:797c1e75c87627eadfcd7345f0b68d1f964349a21aee8e0dde98a048945b73cf"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/common-confirm-model.js",
+      "sha256": "sha256:8dd85faaab2541cd7abb80f8430c97d75a0b48c1c527115826a172c929645461"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/common-confirm.vue",
+      "sha256": "sha256:708c50fff0178982a2a827fb25f04b7db592a52c5da549927f386b8a16b99323"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/date-range-model.js",
+      "sha256": "sha256:97974de9198a37a63b925c07faea70888f412af5da3cbb97a892ade024476b4c"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/date-range.vue",
+      "sha256": "sha256:ef8946823292d0096399fe20c17037c6e7b2112f9767743196a0ee431c257cb6"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/empty-state.vue",
+      "sha256": "sha256:2264f3e97d5753f0400717f876ba5f013b9ae3b9f25927d5ac5ff0e9045c94af"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/error-state.vue",
+      "sha256": "sha256:d3b87e8748700d9e525f8364849df16d4f24cdaf873bc7b7c045e2265dc5a084"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/page-panel.vue",
+      "sha256": "sha256:7d93a22a919b443025af40cda3a296cdef5ff03373476128e504187f6f841a40"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/pro-table.vue",
+      "sha256": "sha256:ea98a3740f4a40f960d2d375bf8d1c50b78b7e1e6aed68fd19da36ae76419f04"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/query-filter-field.vue",
+      "sha256": "sha256:46dbcdf94fd008d0fdbc704ec0ec7a94e2488dc0c2abdf5716aba4cc7e890bb3"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/query-filter-model.js",
+      "sha256": "sha256:b540a1690e28c042d26d773d0667458000a35c99f31b699b4b9cce26188d5572"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/query-filter.vue",
+      "sha256": "sha256:750939fd3bc2c45ccdae83a83794b22f63265df7cda694e7737efaef34562097"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/status-dot.vue",
+      "sha256": "sha256:05b253323daf923d5d4989726873322980cb7a77d99110ad40a24a5da7048597"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/switch-lang.vue",
+      "sha256": "sha256:8d74da19a8244cd03866e8c56164a96cddfb0ec199a1a8d4ca73713d824a1586"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/switch-theme.vue",
+      "sha256": "sha256:bba413d99ba2fac969a651adde35c39e9223a6348ceab2578c9f2029e2c72d5c"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/table-row-action.vue",
+      "sha256": "sha256:bb3499bcb659778830e5fdde7ee7a669e5254e669836ac8641847a7db9ba4fab"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/table-row-actions.vue",
+      "sha256": "sha256:3bcc55bc5624598b51c7cf46cb2b12e603f599c4efc508f4b76502ff5bab8661"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/tree-select-model.js",
+      "sha256": "sha256:775d5c12dcb22602ef372baa6dc92c5f61e0537f20a033dcea80151343545f91"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/tree-select.vue",
+      "sha256": "sha256:f3fdd020d50cceaff2bb7ff9bdc2952ab4c0f61a95e4fa13f8562dd59c538fe2"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/common/src/components/common/view-type-switch.vue",
+      "sha256": "sha256:3c8960f65b0e0c8a97aceb9170b4ec5b251ece277445a160ac2be9d7781b2e0b"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/layout/src/components/layout/layout-breadcrumb.vue",
+      "sha256": "sha256:691bd041e384867edb0a9c8d5996725663226b255a221a78675aeb184a66f8e7"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/layout/src/components/layout/layout-header.vue",
+      "sha256": "sha256:2b755d38e7d2c94f53439c9bd34118274edbd4d56fe9362a0254afb93fb0bbf8"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/layout/src/components/layout/layout-sider-drawer.vue",
+      "sha256": "sha256:e6e380c5ebe5f746c377853d90711e28fb1ef0ac745e67889f48f471cccecdc5"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/layout/src/components/layout/layout-sider-item.vue",
+      "sha256": "sha256:acea2a255239a0d66dc8689b11d2a273e1698514c6a96f73c03e57e1830a7041"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/layout/src/components/layout/layout-sider.vue",
+      "sha256": "sha256:5120ac86f7649f34af271ef32a82d77e0d23b0aa76b357109ff3de116e17e1c4"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/alert/Alert.vue",
+      "sha256": "sha256:23dcecd20b8701ffa67e16a64cee15c113ec47708464f77d511d0b9e92751791"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/alert/index.js",
+      "sha256": "sha256:1fec9025a8cc85212d310d0b01a9b8a3993bfd8f5383beb83414574f41d0a35c"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/badge/Badge.vue",
+      "sha256": "sha256:54a3476c10cc6c9d6f38302640a96567cd9a629bf0043dd56263f00d28ca627a"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/badge/index.js",
+      "sha256": "sha256:2df1f1961c626b0ce0988098c9885a5c65fc001995d14518b3e5e5cfa3da54bb"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/button/Button.vue",
+      "sha256": "sha256:4156acdbd1c56edb92624df7f3d7f0a589a5528a6fd8ee29b5cdac5dc0ddc84b"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/button/index.js",
+      "sha256": "sha256:d3707af714f67cbe2fdd4b31aa400942acfe684f07f99e2abd00b4b8dd3024d8"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/card/Card.vue",
+      "sha256": "sha256:08320f6cf4cd0018f94ed4b1b643b53523b6de5773927cff811658aec526acc0"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/card/index.js",
+      "sha256": "sha256:6a29dc6a22986ecfc9161bc3c5a4e21a29debc9f6a735fcffa9a2fb1d74bceee"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/checkbox/Checkbox.vue",
+      "sha256": "sha256:96000fc03f4d81081e48fff8a361be5c9a1032ab1be9b801ab61e77ad552c57b"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/checkbox/index.js",
+      "sha256": "sha256:3f056ff60e08e880ac9c0c4eb79c5cfe1f51c08070a38f544ced63dcc42039a5"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/input/Input.vue",
+      "sha256": "sha256:8ef0c54769b11b93e4916f99853a5cab8893facc4a10cfc1d6b5191da7619c08"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/input/index.js",
+      "sha256": "sha256:09ebfb7b7805ec2c311ba2285b6f4ba2592f85244e1abe12c0dc2ac106c10318"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/label/Label.vue",
+      "sha256": "sha256:5bdb124fcc977bf72ee325afc26f5905674a67a5fea565a33434579d11b083be"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/label/index.js",
+      "sha256": "sha256:4f6cdf31660b5464e5f7f888727ad12d39190fb98f3d0ece46ac9f557ca08ef7"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/progress/Progress.vue",
+      "sha256": "sha256:3fbbd296515dbdebd6639f61bd61bc4a6923aab7ccb1a6461d7bfb4ac0f53732"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/progress/index.js",
+      "sha256": "sha256:6c5b2eefc13cc820d3d5959df37f6408e4cbdcb8b343e2952743b2696c278116"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/select/Select.vue",
+      "sha256": "sha256:67a559daf7adbc2f05435a50050d5f58482205444fa4755b39e579a81bdfbcef"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/select/index.js",
+      "sha256": "sha256:f42b12fae551134e76cb40d82be19e69a520ce1a3307b9005469126b176fc84a"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/sheet/Sheet.vue",
+      "sha256": "sha256:c3d5e0328d3cd8a2c3ab4ca1d605531381a76062b087f20f9dabf716ee5910ce"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/sheet/index.js",
+      "sha256": "sha256:8d3a3e0dbaeacaf1dd7816a31c1cf5a681e9532c98122b8f43069e937370ce26"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/skeleton/Skeleton.vue",
+      "sha256": "sha256:2bdbc4b70fcaadd4eb4a8a23596441b428d4305d9452880ce502dea9aefc8b4f"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/skeleton/index.js",
+      "sha256": "sha256:63c46cdea19ddec2f05cca4e8c45d32e04b87a0ec5fdda7277fa6ab3b33051c2"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/textarea/Textarea.vue",
+      "sha256": "sha256:f2faba21c8dd3793384f95818957a150be26436427fed42bb9387f2094e45e57"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/textarea/index.js",
+      "sha256": "sha256:1b7316231e53ee33c5e1536c24066a28655b9ccfeac9ccba5ff90a531ba07cf6"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/toast/ToastHost.vue",
+      "sha256": "sha256:e67d2c96273f61deb159c2a67aa9d31b105243e48c748eb255aea711e083ad42"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/toast/index.js",
+      "sha256": "sha256:190a3c3552ec8023d05621545b62d93c3a8b51cd965d5f2b7409dfc4bfa73810"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/components/ui/src/components/ui/toast/toast.js",
+      "sha256": "sha256:d72625255d948a337a57a734feba9f67d458bdd036b3dcf3991cf0cc25e4d80e"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/composition/production.js",
+      "sha256": "sha256:816dc712286f54070c23f437fbace114ffd6c870b44164d526810a83db3c1702"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/enumeration/routes.js",
+      "sha256": "sha256:af90c8c3e7ce140f2a01a4b6f604f013b9aa351ad3d71d19595c1436d91466c7"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/enumeration/status.js",
+      "sha256": "sha256:851df6be25c7b9bba593a10732375115b214685ed3b62c5ba030c8184588cd04"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/hooks/use-list-view-state.js",
+      "sha256": "sha256:adf1524f2bb802a461ea40ec9c57aa029eeaabf6d577d789120cfa642c803897"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/hooks/use-page-data.js",
+      "sha256": "sha256:12c85db20ddcc6ed93ae7c22e838bf67a5a20e4f51ff00678593148aa76e6df1"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/hooks/use-pagination.js",
+      "sha256": "sha256:7d988c8ca039b0707f048c7afebbe6f9f5a33e7e3b6778b2e57e3af1fb9e213a"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/lib/form.js",
+      "sha256": "sha256:301317f70a33915ab80de6ec72b04463fc89d1a1fa9c43da22a1d8604a32c023"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/lib/utils.js",
+      "sha256": "sha256:a1c334ccec3c689436d9565c6cd0753d56b82950eeacf8941871f51709c18bcf"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/locale/en-US/common.js",
+      "sha256": "sha256:0b665252269dad55c33fe5f3c1b1bc9c97ece517e73aea8bd7dc82358eaebb29"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/locale/en-US/dashboard.js",
+      "sha256": "sha256:f863a7a833405fe0ee394765598d8c8a7a56d1730bda92fb62324343b877641e"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/locale/en-US/examples.js",
+      "sha256": "sha256:740dfb90b4866ed5089405a3b98bf07558041011ed98c29e740711b323a360d8"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/locale/en-US/router.js",
+      "sha256": "sha256:44a88e451f733f270cfe648d5b438a33f62f3ca203a357f247dd3751b9fc5efe"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/locale/index.js",
+      "sha256": "sha256:0a079606a9d1ec5b70bfb2d83f5ab84de6b71ddf34d867831190797a13af7adf"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/locale/zh-CN/common.js",
+      "sha256": "sha256:6b3ad8ebc2c99be2323c6618764bd525baf755ca4196dfe338ab0fcb54d82e69"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/locale/zh-CN/dashboard.js",
+      "sha256": "sha256:04d3eb407abda52dfb545be5468ec38cc725dad229fbc01c47a8daa68176bc42"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/locale/zh-CN/examples.js",
+      "sha256": "sha256:a4aaef41c1fa0c55963b84d0b8ddba3ce8bb9d095f06ce86494a4b2b3c370631"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/locale/zh-CN/router.js",
+      "sha256": "sha256:4ff95dcecea056a36b6e304821d7ef2999fc4b602f93408380bbde13c7a40d1d"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/main.js",
+      "sha256": "sha256:6b6bc88e9b17b795df05b5fdfae96ae5744fac1e215abc029ec1dfa832b13940"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/plugins/dayjs/index.js",
+      "sha256": "sha256:f68f2336a8434893ae44368f2dbb55aabd9a042ab5b41b7d732817bc2e3d75f4"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/plugins/echarts/index.js",
+      "sha256": "sha256:f521d431f39638d5acfd4e026534a64073f30afa9220d7232b97e45ca8113d5d"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/ports/auth.js",
+      "sha256": "sha256:41118f72411de7b5a7c60527c992dd15337caa97b22cf0ab2d6c7d1411582575"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/ports/examples.js",
+      "sha256": "sha256:c895293e9008d604ab995fe0def96140d04d28ee24da42869c5d1eb1f9f9de91"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/routers/index.js",
+      "sha256": "sha256:fdebf308c38f6c3b12fc0163ad9f2dfeb929cfc98b6a52679afd76481c591329"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/routers/interception.js",
+      "sha256": "sha256:c7d68f5fccbe8c57c2fcc3fe63d51cfd61be80dd2e1a046cb6d4c8ba430f5a3e"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/routers/modules/admin.js",
+      "sha256": "sha256:c6bbaa56f35b6da1b21cf2a64b7f2bc3efc56475d42d41d5b4dc55ed2a7a752a"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/routers/routes.js",
+      "sha256": "sha256:fff4e30326d3f498340ca1a2213096eab66d9bad7b2a7a6fcc617264d6bd5465"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/stores/index.js",
+      "sha256": "sha256:16f300f22e47b600b2a9b8524f8a4077c10d1316c60847c26803bdf18df80039"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/stores/modules/auth.js",
+      "sha256": "sha256:db48a38a741c2243b5e926dd422c3c0e3595be4ddaf76c999d6fe2175f1effb5"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/stores/modules/page.js",
+      "sha256": "sha256:1ba992168bf2e1d3a65ed83d86ea076e7ccfeb1292490d2203914ab31f0f17a8"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/styles/apply.css",
+      "sha256": "sha256:c04d8243b8270ad4c44d3ca76a9c213aef2cbb9cad328393bc656d312f2d5c4f"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/styles/design-tokens.js",
+      "sha256": "sha256:681ded6d105243f26c49bb9dd73b8edb24313f4ee70434cdd22f23469d19e93f"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/styles/index.js",
+      "sha256": "sha256:afd0f1588bfeea3dca0d4d75ff9c454b180dc33fd400eb921a92457f96633ef7"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/styles/motion.css",
+      "sha256": "sha256:144daa38ead41418ba06b16db48e6c98a744f3daccd81a0b65285d6247477875"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/utils/time.js",
+      "sha256": "sha256:426209e1b5160bde6dae76afbb7a144af614f814b9d9d17a623af9b90487ccbb"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/views/auth/index.manifest.md",
+      "sha256": "sha256:3ab51cec46a9a5ad96ed938e7443f8e9df0ebe2e1f650b26d9e8f7de38f07876"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/views/auth/index.vue",
+      "sha256": "sha256:454e147f9837c74bc0d66d5f6026ba2c9fc28cf38d44fa640e1b938326108697"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/views/dashboard/index.manifest.md",
+      "sha256": "sha256:12b10055f167df1e48d53552cb2158835c66774fd9c5f4ccf63a0ada6ff72fb4"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/views/dashboard/index.vue",
+      "sha256": "sha256:e655d10887b96449bb7d1129f0d9983a542750820af19b3c27a3999cea6accd3"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/views/examples/form/index.manifest.md",
+      "sha256": "sha256:95641a34dde1b6488490cb6c3b4fef9539a7795fa9a6e764c6892f73593d03fa"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/views/examples/form/index.vue",
+      "sha256": "sha256:1d644d42c209601fca460093eb95f76f2bd149f2e64a778cb162d4568e7ce983"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/views/examples/list/index.manifest.md",
+      "sha256": "sha256:f0b6b7d69dc472d9181fdc07286e9c5a00a0228816f03e820b7bac810d241a19"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/views/examples/list/index.vue",
+      "sha256": "sha256:4e7f8e20ef9601620ef6607690783483b92fa5c62d5ab860f86136b8a7e0a1fb"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/views/examples/statistics/index.manifest.md",
+      "sha256": "sha256:3b3c17cd3cab00493102cf1ec17d2186c8e0e77d4ef060aea9f5a1cdcab4b4cc"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/views/examples/statistics/index.vue",
+      "sha256": "sha256:d2de2b0f3cbbe7d6392cde50f25354f1f595d061c78414ed4cd195df5a1fddd1"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/views/layout/index.manifest.md",
+      "sha256": "sha256:c7a50d04008d5a712719a6ae9f507b253ab593eed78444a9b63cb55972ea7829"
+    },
+    {
+      "executable": false,
+      "path": "experience/web_creation/src/views/layout/index.vue",
+      "sha256": "sha256:7b09035ba6a7210638a9fbe10bb01f68b17051f860da3a3cb96ef9a3adf2ec95"
+    },
+    {
+      "executable": true,
+      "path": "experience/web_creation/vite.config.js",
+      "sha256": "sha256:f40987301ec4139d76b43eeb1f6255216c9efd55e5aaa71a13dbc6ee9c72b3b3"
+    }
+  ],
+  "module_id": "web_desktop",
+  "schema": "wf-prod.module_installation",
+  "schema_version": 1,
+  "version": "2.0.1"
+}

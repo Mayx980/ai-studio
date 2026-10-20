@@ -1,0 +1,1 @@
+{"binding":"standard","code_unit_id":"experience_preview","dependencies":[],"entity_id":null,"entrypoints":["experience/preview/start.py"],"excluded_paths":[],"paths":["experience/preview/"],"provider":null,"schema":"wf-prod.project_facts_code_unit","schema_version":1,"toolchains":["docker","python"]}

@@ -1,0 +1,1 @@
+{"binding":"standard","code_unit_id":"web_creation_ui","dependencies":[],"entity_id":"web_creation","entrypoints":["experience/web_creation/src/main.js"],"excluded_paths":[],"paths":["experience/web_creation/"],"provider":null,"schema":"wf-prod.project_facts_code_unit","schema_version":1,"toolchains":["node","pnpm"]}
