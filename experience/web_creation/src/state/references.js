@@ -149,6 +149,17 @@ export function extendReferences(p) {
       }
       return rawConnect(source, target)
     },
+    connectToRow(source, rowId) {
+      if (s.readonly || !p.row(rowId)) return false
+      const node = s.nodes.find(n => n.id === source),
+        script = s.nodes.find(n => n.type === '脚本')
+      if (!node || node.type === '脚本' || !script) return false
+      if (!rawConnect(source, script.id)) return false
+      const connection = s.connections.find(c => c.source === source && c.target === script.id)
+      connection.rowIds = [...new Set([...(connection.rowIds || []), rowId])]
+      p.notify('已连接上游到镜头 ' + p.row(rowId).number)
+      return true
+    },
     connectImageToRow(source, rowId) {
       const n = s.nodes.find(n => n.id === source)
       if (n?.type !== '图片') {

@@ -189,14 +189,15 @@ const keys = [
   'motionPrompt'
 ]
 const outputRows = computed(() =>
-  s.rows.filter(r => !s.selectedRows.length || s.selectedRows.includes(r.id))
+  d.node ? [] : s.rows.filter(r => !s.selectedRows.length || s.selectedRows.includes(r.id))
 )
 const outputs = computed(() =>
   s.nodes.filter(
     n =>
+      (!d.node || n.id === d.node.id) &&
       n.type !== '脚本' &&
       n.status === 'success' &&
-      (!s.selectedRows.length || s.selectedRows.includes(n.rowId))
+      (d.node || !s.selectedRows.length || p.rowIds(n).some(id => s.selectedRows.includes(id)))
   )
 )
 const title = computed(
@@ -570,7 +571,7 @@ function printPreview() {
               ><span class="ready-status">可下载</span>
             </div>
             <div
-              v-for="row in outputRows.filter(r => !outputs.some(n => n.rowId === r.id))"
+              v-for="row in outputRows.filter(r => !outputs.some(n => p.rowIds(n).includes(r.id)))"
               :key="row.id"
               class="missing-download"
             >
@@ -583,7 +584,11 @@ function printPreview() {
             ><input v-model="onlyAvailable" type="checkbox" />仅下载当前可用素材，跳过缺失项</label
           >
           <p class="help-copy">
-            素材交付清单演示。真实文件打包、命名冲突及下载有效期在正式实现时接入。
+            {{
+              p.localDownloads
+                ? '本地模拟下载：提供可打开的示例图片、视频、音频；多文件打包为ZIP。文件不代表模型生成结果。'
+                : '真实素材下载待正式接入。'
+            }}
           </p></template
         ><template v-else-if="kind === 'confirm' || kind === 'delete-session'"
           ><div class="confirmation-art">
@@ -931,10 +936,12 @@ function printPreview() {
           class="primary-button"
           :disabled="
             s.busy ||
-            (!onlyAvailable && outputRows.some(r => !outputs.some(n => n.rowId === r.id))) ||
+            !p.localDownloads ||
+            (!onlyAvailable &&
+              outputRows.some(r => !outputs.some(n => p.rowIds(n).includes(r.id)))) ||
             !outputs.length
           "
-          @click="p.prepareDownload()"
+          @click="p.prepareDownload(outputs)"
         >
           {{ s.busy ? '正在准备…' : '准备下载' }}</button
         ><button

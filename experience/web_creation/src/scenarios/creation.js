@@ -1,4 +1,8 @@
+import { installLocalMedia } from '../state/local-media'
+import demoVideo from './assets/local-demo.webm?inline'
 import { createWorkspace } from '../state/creation'
 export function createScenario(scenario = 'default') {
-  return createWorkspace(scenario)
+  const p = createWorkspace(scenario)
+  installLocalMedia(p, demoVideo)
+  return p
 }

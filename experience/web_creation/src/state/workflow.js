@@ -123,9 +123,11 @@ export function extendWorkflow(p, seedRows) {
           p.notify('粘贴图片不能超过10MB')
           continue
         }
-        const bytes=new Uint8Array(await file.arrayBuffer()),chunks=[]
-        for(let offset=0;offset<bytes.length;offset+=32768)chunks.push(String.fromCharCode(...bytes.subarray(offset,offset+32768)))
-        const url='data:'+file.type+';base64,'+btoa(chunks.join(''))
+        const bytes = new Uint8Array(await file.arrayBuffer()),
+          chunks = []
+        for (let offset = 0; offset < bytes.length; offset += 32768)
+          chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 32768)))
+        const url = 'data:' + file.type + ';base64,' + btoa(chunks.join(''))
         const id = p.addNode('图片', undefined, position)
         if (!id) continue
         const n = s.nodes.find(n => n.id === id)
@@ -263,7 +265,7 @@ export function extendWorkflow(p, seedRows) {
       }
       const i = s.nodes.length,
         id = type === '脚本' ? 'script' : 'node-' + serial++
-      const width = type === '脚本' ? 1046 : 320,
+      const width = type === '脚本' ? 2600 : 320,
         height = type === '脚本' ? 800 : 470
       const preferred = position || s.mouseBlank || { x: s.viewport.x + 50, y: s.viewport.y + 50 }
       const occupied = (x, y) =>
@@ -271,7 +273,7 @@ export function extendWorkflow(p, seedRows) {
           other =>
             x <
               other.x +
-                (other.boundsWidth || (other.type === '脚本' ? other.width || 1046 : 320)) +
+                (other.boundsWidth || (other.type === '脚本' ? other.width || 2600 : 320)) +
                 32 &&
             x + width + 32 > other.x &&
             y <

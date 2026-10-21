@@ -37,7 +37,7 @@ function rowPoint(rowId, kind = 'source') {
     }
   }
   return {
-    x: (script?.x || 0) + (script?.width || 1046) - (kind === 'target' ? 180 : 20),
+    x: (script?.x || 0) + (script?.width || 2600) - (kind === 'target' ? 180 : 20),
     y: (script?.y || 0) + 146 + s.rows.findIndex(r => r.id === rowId) * 102
   }
 }
@@ -63,7 +63,7 @@ const nodeEdges = computed(() => {
     const a = s.nodes.find(n => n.id === c.source),
       b = s.nodes.find(n => n.id === c.target)
     if (!a || !b) return []
-    const x = a.x + (a.type === '脚本' ? a.width || 1046 : 320),
+    const x = a.x + (a.width || (a.type === '脚本' ? 2600 : 320)),
       y = a.y + 80
     const targets = c.rowIds?.length
       ? c.rowIds.map(id => ({ id, ...rowPoint(id, 'target') }))
@@ -85,7 +85,7 @@ const temporaryEdge = computed(() => {
   } else if (s.linkRowSource) a = rowPoint(s.linkRowSource)
   else {
     const n = s.nodes.find(n => n.id === s.linkSource)
-    if (n) a = { x: n.x + (n.type === '脚本' ? n.width || 1046 : 320), y: n.y + 80 }
+    if (n) a = { x: n.x + (n.width || (n.type === '脚本' ? 2600 : 320)), y: n.y + 80 }
   }
   if (!a) return ''
   return `M ${a.x} ${a.y} C ${a.x + 60} ${a.y}, ${linkPoint.value.x - 60} ${linkPoint.value.y}, ${linkPoint.value.x} ${linkPoint.value.y}`
@@ -194,7 +194,7 @@ function beginWire(e, { sourceId, rowId, targetId }) {
       if (targetId) {
         if (rowSource) p.connect(rowSource, targetId)
         else if (node && node !== targetId) p.connectNodes(node, targetId)
-      } else if (sourceId && rowTarget) p.connectImageToRow(sourceId, rowTarget)
+      } else if (sourceId && rowTarget) p.connectToRow(sourceId, rowTarget)
       else if (rowId && node && node !== s.nodes.find(n => n.type === '脚本')?.id)
         p.connect(rowId, node)
       else if (sourceId && node && node !== sourceId) p.connectNodes(sourceId, node)
@@ -246,7 +246,7 @@ function sourceClick(n) {
 }
 function rowInput(row) {
   if (s.linkSource) {
-    p.connectImageToRow(s.linkSource, row.id)
+    p.connectToRow(s.linkSource, row.id)
     s.linkSource = null
   } else p.openModal('reference', { for: 'row', rowId: row.id })
   updateGeometry()
@@ -454,6 +454,19 @@ function resize(e, n, direction = 'se') {
   window.addEventListener('pointerup', end)
   window.addEventListener('pointercancel', end)
 }
+function playVideo(event, n) {
+  const video = event.currentTarget.closest('.node-media')?.querySelector('video')
+  if (!video) {
+    p.notify('当前视频尚未就绪')
+    return
+  }
+  video
+    .play()
+    .then(() => {
+      event.currentTarget?.blur()
+    })
+    .catch(() => p.notify('播放失败，请使用视频控件重试'))
+}
 function focusNode() {
   canvas.value?.scrollTo({ left: 1000, top: 80, behavior: 'smooth' })
 }
@@ -461,7 +474,7 @@ function reset() {
   if (!canvas.value || !s.nodes.length) return
   const minX = Math.min(...s.nodes.map(n => n.x)),
     minY = Math.min(...s.nodes.map(n => n.y)),
-    right = Math.max(...s.nodes.map(n => n.x + (n.type === '脚本' ? n.width || 1046 : 320))),
+    right = Math.max(...s.nodes.map(n => n.x + (n.width || (n.type === '脚本' ? 2600 : 320)))),
     bottom = Math.max(...s.nodes.map(n => n.y + (n.type === '脚本' ? 800 : 480)))
   s.zoom = Math.max(
     40,
@@ -591,7 +604,7 @@ function reset() {
             :style="{
               left: n.x + 'px',
               top: n.y + 'px',
-              width: n.width ? n.width + 'px' : n.type === '脚本' ? '1046px' : undefined,
+              width: n.width ? n.width + 'px' : n.type === '脚本' ? '2600px' : undefined,
               height: n.height ? n.height + 'px' : undefined
             }"
             @contextmenu="menu($event, n)"
@@ -649,7 +662,7 @@ function reset() {
               <div
                 class="script-table-scroll"
                 @scroll="updateGeometry"
-                :style="{ height: (n.tableHeight || 365) + 'px', maxHeight: 'none' }"
+                :style="{ height: 'auto', maxHeight: 'none' }"
               >
                 <table class="script-table">
                   <thead>
@@ -683,6 +696,16 @@ function reset() {
                       :class="{ chosen: s.selectedRows.includes(row.id) }"
                     >
                       <td class="row-selection">
+                        <button
+                          class="row-image-inlet"
+                          :data-row-target="row.id"
+                          :title="'为镜头' + row.number + '连接或引用图片'"
+                          :aria-label="'为镜头' + row.number + '引用图片'"
+                          @pointerdown.stop
+                          @click.stop="rowInput(row)"
+                        >
+                          <Icon name="image" :size="12" />
+                        </button>
                         <input
                           type="checkbox"
                           :aria-label="'选择镜头' + row.number"
@@ -698,16 +721,7 @@ function reset() {
                         <p v-else :title="row[key]">{{ row[key] || '—' }}</p>
                       </td>
                       <td class="row-reference-cell">
-                        <button
-                          class="row-image-inlet"
-                          :data-row-target="row.id"
-                          :title="'为镜头' + row.number + '连接或引用图片'"
-                          :aria-label="'为镜头' + row.number + '引用图片'"
-                          @pointerdown.stop
-                          @click.stop="rowInput(row)"
-                        >
-                          <Icon name="image" :size="12" /></button
-                        ><ReferenceChip
+                        <ReferenceChip
                           v-for="a in p.rowImages(row.id)"
                           :key="a.id"
                           :asset="a"
@@ -823,18 +837,21 @@ function reset() {
                   :src="n.mediaUrl"
                   :alt="n.name"
                 /><video
-                  v-else-if="n.type === '视频' && n.mediaUrl"
+                  v-else-if="n.type === '视频' && (n.mediaUrl || p.previewMedia?.(n))"
                   class="actual-media"
-                  :src="n.mediaUrl"
+                  :src="n.mediaUrl || p.previewMedia?.(n)"
                   :poster="n.poster"
                   controls
                   preload="metadata"
+                  @play="n.playing = true"
+                  @pause="n.playing = false"
+                  @ended="n.playing = false"
                 ></video
                 ><ProductScene v-else :variant="n.scene" /><button
-                  v-if="n.type === '视频'"
+                  v-if="n.type === '视频' && !n.playing"
                   class="video-play"
                   title="播放预览"
-                  @click="p.openModal('media-preview', n)"
+                  @click.stop="playVideo($event, n)"
                 >
                   <Icon name="play" :size="25" /></button
                 ><span class="image-resolution"

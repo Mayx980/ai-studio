@@ -263,3 +263,16 @@
 .canvas-node.media-node[style*="height"] > .node-input > textarea {flex:1;min-height:70px;}
 .canvas-node .node-header strong {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .canvas-node .node-input-tools,.canvas-node .node-param-summary {flex-wrap:wrap;}
+.text-node-preview {height:150px;box-sizing:border-box;display:flex;flex-direction:column;min-height:150px;flex-shrink:0;}
+.text-node-preview p {margin:0;flex:1;min-height:0;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;}
+.text-node-preview > button {flex-shrink:0;align-self:flex-end;margin-top:8px;}
+.modal .document-preview,.modal textarea[aria-label="文本正文"] {height:300px;max-height:300px;overflow:auto;resize:none;}
+.script-node .script-table-scroll {overflow:visible;max-height:none;}
+.script-node .script-table {width:100%;min-width:0;table-layout:fixed;}
+.script-node .script-table th,.script-node .script-table td {min-width:0!important;white-space:normal;overflow-wrap:anywhere;}
+.script-node .script-table td p {display:block;max-height:none;overflow:visible;-webkit-line-clamp:unset;white-space:pre-wrap;}
+.script-node .script-table .row-selection {width:62px!important;position:relative!important;left:auto;}
+.script-node .row-reference-heading,.script-node .row-reference-cell,.script-node .row-outlet-heading,.script-node .row-outlet-cell {position:static!important;box-shadow:none!important;}
+.script-node .row-selection .row-image-inlet {margin:0 5px 4px 0;}
+.script-node .row-outlet-heading,.script-node .row-outlet-cell {width:47px!important;}
+.script-node .row-reference-heading,.script-node .row-reference-cell {width:160px!important;}
