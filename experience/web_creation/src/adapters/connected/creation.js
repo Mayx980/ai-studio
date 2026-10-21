@@ -75,7 +75,7 @@ export function createConnectedPort() {
         {
           role: 'system',
           content:
-            '你是视频创作提示词编辑。保留原文主体与事实，根据要求优化，仅返回优化后的提示词正文。'
+            '你是视频创作提示词编辑。默认使用简体中文输出，只有用户明确要求其他语言时才切换。保留原文主体与事实，根据要求优化，仅返回优化后的提示词正文。'
         },
         { role: 'user', content: '原文：\n' + current + '\n优化要求：\n' + requirements }
       ]
@@ -100,7 +100,7 @@ export function createConnectedPort() {
           {
             role: 'system',
             content:
-              '根据用户内容生成宣传视频分镜。仅返回JSON数组，不能使用Markdown。每行必须包含number,duration,scale,camera,visual,sound,emotion,environment,imagePrompt,motionPrompt这十个字符串字段。画面和两个提示词必须非空。输出3到8个镜头。'
+              '根据用户内容生成宣传视频分镜。所有自然语言字段默认使用简体中文（JSON字段名保持英文），只有用户明确要求其他语言时才切换。仅返回JSON数组，不能使用Markdown。每行必须包含number,duration,scale,camera,visual,sound,emotion,environment,imagePrompt,motionPrompt这十个字符串字段。画面和两个提示词必须非空。输出3到8个镜头。'
           },
           { role: 'user', content: [text, context, refs].filter(Boolean).join('\n') }
         ]
@@ -215,7 +215,16 @@ export function createConnectedPort() {
     try {
       key(kind)
       let request
-      if (kind === 'text') request = { prompt }
+      if (kind === 'text')
+        request = {
+          messages: [
+            {
+              role: 'system',
+              content: '默认使用简体中文输出正文，只有用户明确要求其他语言时才切换。'
+            },
+            { role: 'user', content: prompt }
+          ]
+        }
       if (kind === 'image')
         request = {
           model: 'qwen-image-3.0-pro',

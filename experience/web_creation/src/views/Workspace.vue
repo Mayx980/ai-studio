@@ -416,26 +416,43 @@ function saveNode(n) {
     })
   contextMenu.value = null
 }
-function resize(e, n) {
+function resize(e, n, direction = 'se') {
   e.preventDefault()
   e.stopPropagation()
   if (s.readonly || s.interactionMode === 'hand') return
+  const el = e.currentTarget.closest('.canvas-node'),
+    box = el.getBoundingClientRect(),
+    zoom = s.zoom / 100
   const x = e.clientX,
     y = e.clientY,
-    w = n.width || 1046,
-    h = n.tableHeight || 365
-  const move = ev =>
-    p.resizeScript(
-      n.id,
-      w + (ev.clientX - x) / (s.zoom / 100),
-      h + (ev.clientY - y) / (s.zoom / 100)
+    w = box.width / zoom,
+    h = box.height / zoom,
+    left = n.x,
+    top = n.y,
+    initialTableHeight = n.tableHeight || 365
+  const minW = n.type === '脚本' ? 600 : 260,
+    minH = n.type === '脚本' ? 380 : 280
+  const move = ev => {
+    const dx = (ev.clientX - x) / zoom,
+      dy = (ev.clientY - y) / zoom
+    n.width = Math.max(minW, w + (direction.includes('w') ? -dx : direction.includes('e') ? dx : 0))
+    n.height = Math.max(
+      minH,
+      h + (direction.includes('n') ? -dy : direction.includes('s') ? dy : 0)
     )
+    n.x = direction.includes('w') ? left + w - n.width : left
+    n.y = direction.includes('n') ? top + h - n.height : top
+    if (n.type === '脚本') n.tableHeight = Math.max(150, n.height - (h - initialTableHeight))
+    updateGeometry()
+  }
   const end = () => {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', end)
+    window.removeEventListener('pointercancel', end)
   }
   window.addEventListener('pointermove', move)
   window.addEventListener('pointerup', end)
+  window.addEventListener('pointercancel', end)
 }
 function focusNode() {
   canvas.value?.scrollTo({ left: 1000, top: 80, behavior: 'smooth' })
@@ -574,12 +591,21 @@ function reset() {
             :style="{
               left: n.x + 'px',
               top: n.y + 'px',
-              width: n.type === '脚本' ? (n.width || 1046) + 'px' : undefined
+              width: n.width ? n.width + 'px' : n.type === '脚本' ? '1046px' : undefined,
+              height: n.height ? n.height + 'px' : undefined
             }"
             @contextmenu="menu($event, n)"
             @pointerdown="drag($event, n)"
             @click="s.selectedNode = n.id"
           >
+            <span
+              v-for="edge in ['n', 'e', 's', 'w', 'ne', 'nw', 'se', 'sw']"
+              :key="edge"
+              class="node-resize-edge"
+              :class="'resize-' + edge"
+              :aria-label="'调整' + n.name + '大小 ' + edge"
+              @pointerdown="resize($event, n, edge)"
+            ></span>
             <button
               class="node-inlet"
               :title="'连接到' + n.name"
@@ -803,7 +829,8 @@ function reset() {
                   :poster="n.poster"
                   controls
                   preload="metadata"
-                ></video><ProductScene v-else :variant="n.scene" /><button
+                ></video
+                ><ProductScene v-else :variant="n.scene" /><button
                   v-if="n.type === '视频'"
                   class="video-play"
                   title="播放预览"

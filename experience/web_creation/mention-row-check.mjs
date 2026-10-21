@@ -49,6 +49,7 @@ await page
   .locator('.mention-panel')
   .getByRole('button', { name: '测试引用图1.png', exact: true })
   .click()
+await page.locator('.mention-panel').getByRole('button', { name: '确定', exact: true }).click()
 assert.equal(await input.inputValue(), '保留要求 ')
 assert.ok(await image.locator('.input-references .reference-chip-cover img').count())
 await input.fill('保留要求 @')
@@ -57,6 +58,7 @@ await page
   .locator('.mention-panel')
   .getByRole('button', { name: '自然晨光 · 摄影提示词', exact: true })
   .click()
+await page.locator('.mention-panel').getByRole('button', { name: '确定', exact: true }).click()
 assert.equal(await input.inputValue(), '保留要求 ')
 assert.match(await image.locator('.input-references').innerText(), /摄影提示词/)
 const script = page.locator('.script-node'),
@@ -84,6 +86,7 @@ await page.keyboard.press('Escape')
 assert.equal(await editor.count(), 1)
 await page.mouse.click(12, 12)
 assert.equal(await editor.count(), 1)
+await editor.getByRole('button', { name: '确定', exact: true }).click()
 await editor.getByTitle('关闭', { exact: true }).click()
 assert.equal(await editor.count(), 0)
 const video = page

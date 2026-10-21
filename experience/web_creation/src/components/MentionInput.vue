@@ -10,6 +10,7 @@ const props = defineProps({
   placeholder: String,
   disabled: Boolean
 })
+const selected = ref([])
 const emit = defineEmits(['update:modelValue']),
   p = useCreation(),
   s = p.state,
@@ -63,7 +64,10 @@ function input(e) {
   const before = value.slice(0, end),
     match = before.match(/@([^@\n]*)$/)
   if (match) {
-    if (!open.value) category.value = ''
+    if (!open.value) {
+      category.value = ''
+      selected.value = []
+    }
     start = end - match[0].length
     query.value = match[1]
     open.value = true
@@ -71,10 +75,19 @@ function input(e) {
   } else open.value = false
 }
 function select(asset) {
-  if (!props.nodeId) return
-  if (!p.attachReference(asset, props.nodeId)) return
-  const value = props.modelValue.slice(0, start) + props.modelValue.slice(end)
-  emit('update:modelValue', value)
+  const i = selected.value.findIndex(a => a.id === asset.id)
+  if (i < 0) selected.value.push(asset)
+  else selected.value.splice(i, 1)
+}
+function confirmSelection() {
+  if (!props.nodeId || !selected.value.length) return
+  const target = s.nodes.find(n => n.id === props.nodeId),
+    pictures = selected.value.filter(a => a.type === '图片')
+  for (const a of selected.value.filter(a => !(target?.type === '脚本' && a.type === '图片')))
+    p.attachReference(a, props.nodeId)
+  if (target?.type === '脚本' && pictures.length)
+    p.openModal('row-assignment', { asset: pictures[0], assets: pictures, targetId: target.id })
+  emit('update:modelValue', props.modelValue.slice(0, start) + props.modelValue.slice(end))
   open.value = false
   nextTick(() => {
     textarea.value?.focus()
@@ -144,7 +157,13 @@ onUnmounted(() => {
       /></label>
       <div v-if="query && !category" class="mention-group">
         <span>搜索结果</span
-        ><button v-for="a in candidates" :key="a.id" :aria-label="a.name" @click="select(a)">
+        ><button
+          v-for="a in candidates"
+          :key="a.id"
+          :aria-label="a.name"
+          :aria-pressed="selected.some(x => x.id === a.id)"
+          @click="select(a)"
+        >
           <span class="mention-thumb"><MediaCover :asset="a" /></span>{{ a.name }}
         </button>
         <p v-if="!candidates.length" class="mention-empty">暂无匹配内容</p>
@@ -155,6 +174,7 @@ onUnmounted(() => {
           v-for="a in referenced.filter(a => !query || a.name.includes(query))"
           :key="a.key"
           :aria-label="a.name"
+          :aria-pressed="selected.some(x => x.id === a.id)"
           @click="select(a)"
         >
           <span class="mention-thumb"><MediaCover :asset="a" /></span>{{ a.name
@@ -169,10 +189,22 @@ onUnmounted(() => {
       <div v-else class="mention-group">
         <button class="mention-back" @click="category = ''">
           ‹ 返回分类 <small>{{ category }}</small></button
-        ><button v-for="a in candidates" :key="a.id" :aria-label="a.name" @click="select(a)">
+        ><button
+          v-for="a in candidates"
+          :key="a.id"
+          :aria-label="a.name"
+          :aria-pressed="selected.some(x => x.id === a.id)"
+          @click="select(a)"
+        >
           <span class="mention-thumb"><MediaCover :asset="a" /></span>{{ a.name }}
         </button>
         <p v-if="!candidates.length" class="mention-empty">暂无匹配内容</p>
+      </div>
+      <div class="mention-confirm">
+        <span>已选 {{ selected.length }} 项</span
+        ><button class="primary-button" :disabled="!selected.length" @click="confirmSelection">
+          确定
+        </button>
       </div>
     </section></Teleport
   >

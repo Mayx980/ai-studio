@@ -30,6 +30,74 @@ const text = ref(d.node?.text || d.node?.prompt || ''),
   feedback = reactive({ version: '脚本初稿', status: '待确认', opinion: '' }),
   saved = ref(false),
   onlyAvailable = ref(false)
+const editorRows = ref(JSON.parse(JSON.stringify(s.rows))),
+  selectedReferences = ref([])
+function toggleReference(a) {
+  const i = selectedReferences.value.findIndex(x => x.id === a.id)
+  if (i < 0) selectedReferences.value.push(a)
+  else selectedReferences.value.splice(i, 1)
+}
+function saveReferences() {
+  const chosen = [...selectedReferences.value]
+  if (d.for === 'row') {
+    const script = s.nodes.find(n => n.type === '脚本')
+    for (const a of chosen) {
+      const current = a.sourceNodeId
+        ? s.connections.find(c => c.source === a.sourceNodeId && c.target === script?.id)?.rowIds
+        : s.rows.filter(r => r.imageRefs?.some(x => x.id === a.id)).map(r => r.id)
+      p.assignImageToRows(a, [...new Set([...(current || []), d.rowId])], script?.id)
+    }
+    p.closeModal()
+  } else if (d.for === 'node') {
+    p.closeModal()
+    const pictures = chosen.filter(a => a.type === '图片')
+    const target = s.nodes.find(n => n.id === d.node.id)
+    for (const a of chosen.filter(a => !(target?.type === '脚本' && a.type === '图片')))
+      p.attachReference(a, d.node.id)
+    if (target?.type === '脚本' && pictures.length)
+      p.openModal('row-assignment', { asset: pictures[0], assets: pictures, targetId: target.id })
+  } else {
+    for (const a of chosen)
+      if (!s.references.some(x => x.id === a.id)) {
+        s.references.push(a)
+        if (d.for === 'agent') s.agentText += ' @' + a.name
+      }
+    p.closeModal()
+  }
+}
+function moveEditorRow(id, offset) {
+  const i = editorRows.value.findIndex(r => r.id === id),
+    j = i + offset
+  if (j < 0 || j >= editorRows.value.length) return
+  const [row] = editorRows.value.splice(i, 1)
+  editorRows.value.splice(j, 0, row)
+}
+function addEditorRow() {
+  editorRows.value.push({
+    id: 'draft-' + Date.now() + '-' + editorRows.value.length,
+    ...Object.fromEntries(
+      keys.map(k => [k, k === 'number' ? String(editorRows.value.length + 1).padStart(2, '0') : ''])
+    )
+  })
+}
+function saveEditor() {
+  if (s.readonly) return
+  for (const row of [...s.rows])
+    if (!editorRows.value.some(r => r.id === row.id)) p.removeRow(row.id)
+  for (const row of editorRows.value)
+    for (const key of keys)
+      if (p.row(row.id)?.[key] !== row[key]) {
+        p.editRow(row.id, key, row[key])
+        s.nodes
+          .filter(n => p.rowIds(n).includes(row.id) && n.status === 'success')
+          .forEach(n => {
+            n.stale = true
+          })
+      }
+  s.rows = editorRows.value.map(r => ({ ...r, imageRefs: p.row(r.id)?.imageRefs || r.imageRefs }))
+  editorRows.value = JSON.parse(JSON.stringify(s.rows))
+  p.notify('分镜修改已保存')
+}
 const pendingRowDelete = ref(null),
   selectedRows = ref([...(d.rowIds || [])]),
   selectedImages = ref([...(d.node?.confirmedImages || [])])
@@ -43,10 +111,12 @@ function saveImages() {
   if (p.confirmImages(d.node.id, selectedImages.value)) p.closeModal()
 }
 function saveRows() {
-  if (p.assignImageToRows(d.asset, selectedRows.value, d.targetId)) p.closeModal()
+  for (const a of d.assets || [d.asset])
+    if (!p.assignImageToRows(a, selectedRows.value, d.targetId)) return
+  p.closeModal()
 }
 function deleteEditorRow() {
-  p.removeRow(pendingRowDelete.value.id)
+  editorRows.value = editorRows.value.filter(r => r.id !== pendingRowDelete.value.id)
   pendingRowDelete.value = null
 }
 const optimizedPreview = ref(d.node?.prompt?.trim() ? d.node.prompt : p.referenceText(d.node)),
@@ -95,19 +165,8 @@ const currentMaterials = computed(() => {
   )
 })
 function chooseReference(a) {
-  if (d.confirmImage) {
-    toggleImage(a)
-    return
-  }
-  if (d.for === 'row') {
-    const script = s.nodes.find(n => n.type === '脚本')
-    const current = a.sourceNodeId
-      ? s.connections.find(c => c.source === a.sourceNodeId && c.target === script?.id)?.rowIds
-      : s.rows.filter(r => r.imageRefs?.some(x => x.id === a.id)).map(r => r.id)
-    if (p.assignImageToRows(a, [...(current || []), d.rowId], script?.id)) p.closeModal()
-    return
-  }
-  reference(a)
+  if (d.confirmImage) toggleImage(a)
+  else toggleReference(a)
 }
 
 function saveParams() {
@@ -172,16 +231,6 @@ const title = computed(
 function toggleTag(t) {
   form.tags.includes(t) ? form.tags.splice(form.tags.indexOf(t), 1) : form.tags.push(t)
 }
-function reference(a) {
-  if (d.for === 'node') {
-    if (p.attachReference(a, d.node.id) && s.modal === 'reference') p.closeModal()
-    return
-  }
-  s.references.push(a)
-  if (d.for === 'agent') s.agentText += ' @' + a.name
-  p.closeModal()
-  p.notify('已引用 ' + a.name)
-}
 function saveText() {
   p.setNode(d.node.id, 'text', text.value)
   p.closeModal()
@@ -189,7 +238,14 @@ function saveText() {
 }
 function close(origin) {
   if (kind === 'script-editor') {
-    if (origin === 'header') s.editorOpen = false
+    if (origin === 'header') {
+      if (
+        JSON.stringify(editorRows.value) !== JSON.stringify(s.rows) &&
+        !window.confirm('分镜修改尚未保存，确定放弃修改？')
+      )
+        return
+      s.editorOpen = false
+    }
     return
   }
   if (
@@ -302,7 +358,12 @@ function printPreview() {
           </div></template
         ><template v-else-if="kind === 'row-assignment'"
           ><div class="row-assignment-asset">
-            <ReferenceChip :asset="d.asset" :removable="false" />
+            <ReferenceChip
+              v-for="a in d.assets || [d.asset]"
+              :key="a.id"
+              :asset="a"
+              :removable="false"
+            />
           </div>
           <p class="help-copy">选择图片要应用的镜头。图片会显示在脚本输入框和选中行的“引用”列。</p>
           <label v-if="s.rows.length" class="checkbox-label"
@@ -340,6 +401,15 @@ function printPreview() {
             </button>
           </div>
           <p class="help-copy">仅显示你有权限访问的内容。引用不会自动生成。</p>
+          <div v-if="!d.confirmImage" class="selected-image-strip">
+            <span>已选 {{ selectedReferences.length }} 项</span
+            ><ReferenceChip
+              v-for="a in selectedReferences"
+              :key="a.id"
+              :asset="a"
+              @remove="toggleReference(a)"
+            />
+          </div>
           <div v-if="d.confirmImage" class="selected-image-strip">
             <span>已选 {{ selectedImages.length }} / 10</span
             ><ReferenceChip
@@ -354,9 +424,14 @@ function printPreview() {
               v-for="a in currentMaterials"
               :key="a.id"
               :class="{
-                'image-choice-selected': d.confirmImage && selectedImages.some(x => x.id === a.id)
+                'image-choice-selected': (d.confirmImage
+                  ? selectedImages
+                  : selectedReferences
+                ).some(x => x.id === a.id)
               }"
-              :aria-pressed="d.confirmImage ? selectedImages.some(x => x.id === a.id) : undefined"
+              :aria-pressed="
+                (d.confirmImage ? selectedImages : selectedReferences).some(x => x.id === a.id)
+              "
               @click="chooseReference(a)"
             >
               <div class="reference-thumb"><MediaCover :asset="a" /></div>
@@ -369,7 +444,11 @@ function printPreview() {
                 <p v-if="a.text">{{ a.text }}</p>
               </div>
               <Icon
-                :name="d.confirmImage && selectedImages.some(x => x.id === a.id) ? 'check' : 'plus'"
+                :name="
+                  (d.confirmImage ? selectedImages : selectedReferences).some(x => x.id === a.id)
+                    ? 'check'
+                    : 'plus'
+                "
                 :size="18"
               />
             </button>
@@ -423,13 +502,12 @@ function printPreview() {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in s.rows" :key="row.id">
+                <tr v-for="row in editorRows" :key="row.id">
                   <td v-for="key in keys" :key="key">
                     <textarea
-                      :value="row[key]"
+                      v-model="row[key]"
                       :aria-label="row.number + ' ' + key"
                       :disabled="s.readonly"
-                      @input="p.editRow(row.id, key, $event.target.value)"
                     ></textarea>
                   </td>
                   <td class="editor-row-references">
@@ -447,9 +525,9 @@ function printPreview() {
                     </button>
                   </td>
                   <td>
-                    <button class="icon-button" title="上移镜头" @click="p.moveRow(row.id, -1)">
+                    <button class="icon-button" title="上移镜头" @click="moveEditorRow(row.id, -1)">
                       ↑</button
-                    ><button class="icon-button" title="下移镜头" @click="p.moveRow(row.id, 1)">
+                    ><button class="icon-button" title="下移镜头" @click="moveEditorRow(row.id, 1)">
                       ↓</button
                     ><button class="icon-button" title="删除镜头" @click="pendingRowDelete = row">
                       <Icon name="trash" :size="16" />
@@ -459,8 +537,10 @@ function printPreview() {
               </tbody>
             </table>
           </div>
-          <p class="help-copy">修改同步到画布，已有下游结果保留。排序和镜头号变化不改变行关联。</p>
-          <button class="secondary-button" @click="p.addRow()">
+          <p class="help-copy">
+            点击“确定”保存表格修改，已有下游结果保留。排序和镜头号变化不改变行关联。
+          </p>
+          <button class="secondary-button" @click="addEditorRow()">
             <Icon name="plus" />添加镜头
           </button></template
         ><template v-else-if="kind === 'text-editor'"
@@ -793,6 +873,20 @@ function printPreview() {
           @click="saveImages()"
         >
           确认并保存</button
+        ><button
+          v-else-if="kind === 'reference'"
+          class="primary-button"
+          :disabled="!selectedReferences.length || s.readonly"
+          @click="saveReferences()"
+        >
+          确定</button
+        ><button
+          v-else-if="kind === 'script-editor'"
+          class="primary-button"
+          :disabled="s.readonly"
+          @click="saveEditor()"
+        >
+          确定</button
         ><button
           v-else-if="kind === 'parameters'"
           class="primary-button"
