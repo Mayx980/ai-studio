@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { computed, reactive, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useCreation } from '@/ports/creation'
 import Icon from './CreationIcon.vue'
 import ProductScene from './ProductScene.vue'
@@ -8,6 +8,7 @@ import ReferenceChip from './ReferenceChip.vue'
 import MentionInput from './MentionInput.vue'
 import MediaParameters from './MediaParameters.vue'
 import { mediaDefaults } from '../state/media-parameters'
+import { fitTextarea as vFitTextarea } from './fit-textarea'
 const props = defineProps({ forcedKind: String })
 const p = useCreation(),
   s = p.state,
@@ -74,8 +75,7 @@ const text = ref(d.node?.text || d.node?.prompt || ''),
   referenceSource = ref(d.confirmImage ? '当前画布' : '个人资产'),
   applyNode = ref(''),
   feedback = reactive({ version: '脚本初稿', status: '待确认', opinion: '' }),
-  saved = ref(false),
-  onlyAvailable = ref(false)
+  saved = ref(false)
 const editorRows = ref(JSON.parse(JSON.stringify(s.rows))),
   selectedReferences = ref([])
 function toggleReference(a) {
@@ -277,10 +277,25 @@ const outputs = computed(() =>
     n =>
       (!d.node || n.id === d.node.id) &&
       n.type !== '脚本' &&
-      n.status === 'success' &&
+      (n.type === '文字' ? n.text?.trim() : n.status === 'success') &&
       (d.node || !s.selectedRows.length || p.rowIds(n).some(id => s.selectedRows.includes(id)))
   )
 )
+const downloadIds = ref([])
+let downloadInitialized = false
+if (kind === 'download')
+  watch(
+    outputs,
+    items => {
+      const ids = items.map(n => n.id)
+      downloadIds.value = downloadInitialized
+        ? downloadIds.value.filter(id => ids.includes(id))
+        : ids
+      downloadInitialized = true
+    },
+    { immediate: true }
+  )
+const selectedOutputs = computed(() => outputs.value.filter(n => downloadIds.value.includes(n.id)))
 const title = computed(
   () =>
     ({
@@ -610,6 +625,7 @@ function printPreview() {
                   <td v-for="key in keys" :key="key">
                     <textarea
                       v-model="row[key]"
+                      v-fit-textarea
                       :aria-label="row.number + ' ' + key"
                       :disabled="s.readonly"
                     ></textarea>
@@ -656,21 +672,19 @@ function printPreview() {
             placeholder="请输入创作目标、受众、核心信息和期望风格…"
           ></textarea>
           <p class="help-copy">点击“确定”保存。导出不代替保存。</p></template
-        ><template v-else-if="kind === 'download'"
-          ><div class="download-summary">
-            <Icon name="download" :size="25" />
-            <div>
-              <b>{{ s.selectedRows.length || s.rows.length }} 个选定镜头</b>
-              <p>下载采用版本，文件名包含镜头号和素材名称。</p>
-            </div>
-          </div>
+        ><template v-else-if="kind === 'download'">
           <div class="download-list">
             <div v-for="n in outputs" :key="n.id">
-              <input type="checkbox" checked disabled :aria-label="'下载' + n.name" /><Icon
-                :name="n.type === '视频' ? 'video' : 'image'"
+              <input
+                v-model="downloadIds"
+                type="checkbox"
+                :value="n.id"
+                :aria-label="'下载' + n.name"
+              /><Icon
+                :name="{ 视频: 'video', 图片: 'image', 音频: 'audio', 文字: 'text' }[n.type]"
               /><span
                 >{{ p.row(n.rowId)?.number || '独立素材' }}_{{ n.name
-                }}<small>版本1 · {{ n.type }}</small></span
+                }}<small>版本{{ n.version || 1 }} · {{ n.type }}</small></span
               ><span class="ready-status">可下载</span>
             </div>
             <div
@@ -683,9 +697,6 @@ function printPreview() {
               ><span>缺失</span>
             </div>
           </div>
-          <label class="checkbox-label"
-            ><input v-model="onlyAvailable" type="checkbox" />仅下载当前可用素材，跳过缺失项</label
-          >
           <p class="help-copy">
             {{
               p.localDownloads
@@ -1089,14 +1100,8 @@ function printPreview() {
         ><button
           v-else-if="kind === 'download'"
           class="primary-button"
-          :disabled="
-            s.busy ||
-            !p.localDownloads ||
-            (!onlyAvailable &&
-              outputRows.some(r => !outputs.some(n => p.rowIds(n).includes(r.id)))) ||
-            !outputs.length
-          "
-          @click="p.prepareDownload(outputs)"
+          :disabled="s.busy || !p.localDownloads || !selectedOutputs.length"
+          @click="p.prepareDownload(selectedOutputs)"
         >
           {{ s.busy ? '正在准备…' : '准备下载' }}</button
         ><button
@@ -1238,5 +1243,26 @@ function printPreview() {
 }
 .guide-generation-images .reference-chip {
   margin: 8px 8px 4px 0;
+}
+</style>
+
+<style>
+.fullscreen-script-editor .editable-table td {
+  vertical-align: top;
+  padding: 5px 7px;
+}
+.fullscreen-script-editor .editable-table textarea {
+  min-height: 30px;
+  height: auto;
+  resize: none;
+  overflow-y: hidden;
+  font: inherit;
+  line-height: 1.5;
+  box-sizing: border-box;
+  padding: 5px;
+}
+.download-list input[type='checkbox'] {
+  accent-color: #b59af4;
+  cursor: pointer;
 }
 </style>

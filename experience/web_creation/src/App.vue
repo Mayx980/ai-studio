@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useCreation } from '@/ports/creation'
 import CanvasLayers from './components/CanvasLayers.vue'
 import Home from './views/Home.vue'
@@ -12,6 +12,16 @@ import ModelSettings from './components/ModelSettings.vue'
 import Icon from './components/CreationIcon.vue'
 const port = useCreation(),
   s = port.state
+const accountMenu = ref(false)
+function outsideAccount(event) {
+  if (!event.target.closest('.user-card,.account-menu')) accountMenu.value = false
+}
+function logout() {
+  accountMenu.value = false
+  port.logout()
+}
+onMounted(() => document.addEventListener('pointerdown', outsideAccount))
+onUnmounted(() => document.removeEventListener('pointerdown', outsideAccount))
 const recentProjects = computed(() =>
   [...s.projects].sort((a, b) => new Date(b.lastOpened) - new Date(a.lastOpened)).slice(0, 5)
 )
@@ -26,6 +36,12 @@ const nav = [
     <Icon name="spark" :size="40" />
     <h1>AI Studio</h1>
     <p>创作服务尚未接入。请使用独立的场景预览入口查看交互设计。</p>
+  </div>
+  <div v-else-if="s.loggedOut" class="demo-logged-out">
+    <Icon name="spark" :size="40" />
+    <h1>已退出登录</h1>
+    <p>当前为模拟登录，未连接公司身份服务。</p>
+    <button class="primary-button" @click="port.loginDemo()">使用演示账号登录</button>
   </div>
   <div v-else class="app-shell">
     <aside
@@ -74,13 +90,16 @@ const nav = [
           <Icon name="settings" :size="17" />真实模型设置
         </button>
       </template>
-      <div class="sidebar-bottom">
-        <div class="workspace-note">
-          <Icon name="folder" />
-          <div><b>我的工作空间</b><span>内容仅自己可见</span></div>
-          <span class="private-dot"></span>
+      <div class="sidebar-bottom" @keydown.esc="accountMenu = false">
+        <div v-if="accountMenu" class="account-menu" role="menu" aria-label="账号菜单">
+          <button role="menuitem" @click="logout()">退出登录</button>
         </div>
-        <button class="user-card" @click="port.notify('公司账号 · 个人内容隔离')">
+        <button
+          class="user-card"
+          aria-haspopup="menu"
+          :aria-expanded="accountMenu"
+          @click="accountMenu = !accountMenu"
+        >
           <span class="avatar">林</span><span><b>林小夏</b><small>品牌市场部</small></span
           ><Icon name="down" />
         </button>
@@ -107,3 +126,49 @@ const nav = [
     >
   </div>
 </template>
+
+<style>
+.sidebar-bottom {
+  position: relative;
+}
+.account-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 100;
+  border: 1px solid #51415f;
+  background: #261e30;
+  border-radius: 9px;
+  box-shadow: 0 8px 25px #0007;
+  padding: 5px;
+}
+.account-menu button {
+  width: 100%;
+  text-align: left;
+  padding: 11px 12px;
+  border-radius: 5px;
+}
+.account-menu button:hover,
+.account-menu button:focus {
+  background: #493455;
+}
+.demo-logged-out {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: #141318;
+  color: #ededf3;
+}
+.demo-logged-out h1 {
+  font-size: 26px;
+  margin: 0;
+}
+.demo-logged-out p {
+  color: #aa9ab7;
+  margin: 0 0 10px;
+}
+</style>

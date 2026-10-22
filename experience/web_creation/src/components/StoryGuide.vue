@@ -5,6 +5,7 @@ import { directionFields } from '../state/story-format'
 import ProductScene from './ProductScene.vue'
 import MediaParameters from './MediaParameters.vue'
 import ReferenceChip from './ReferenceChip.vue'
+import { fitTextarea as vFitTextarea } from './fit-textarea'
 const props = defineProps({ messageIndex: { type: Number, required: true } })
 const p = useCreation(),
   s = p.state
@@ -23,6 +24,20 @@ const columns = [
   ['imagePrompt', '分镜图提示词'],
   ['motionPrompt', '视频运动提示词']
 ]
+const visibleColumns = computed(() =>
+  guide.value.stage === 'shots'
+    ? columns.filter(([key]) => ['number', 'duration', 'visual'].includes(key))
+    : columns
+)
+const smallBubblePosition = computed(() => {
+  const anchor = s.panelAnchor || { left: window.innerWidth / 2, top: 120, bottom: 145 }
+  const width = Math.min(680, window.innerWidth - 32),
+    height = Math.min(550, window.innerHeight - 32)
+  return {
+    left: Math.max(16, Math.min(anchor.left, window.innerWidth - width - 16)) + 'px',
+    top: Math.max(16, Math.min(anchor.bottom + 10, window.innerHeight - height - 16)) + 'px'
+  }
+})
 const active = () => p.currentGuide?.() === guide.value && !s.readonly
 function toggleRow(a, id) {
   a.rowIds = a.rowIds.includes(id) ? a.rowIds.filter(x => x !== id) : [...a.rowIds, id]
@@ -250,7 +265,7 @@ function toggleRow(a, id) {
       </template>
       <template v-else-if="guide.stage === 'shots'">
         <p>选中{{ guide.selection.length }}个镜头</p>
-        <button class="primary-button" @click="fullTable = true">全屏选择镜头</button>
+        <button class="primary-button" @click="fullTable = true">选择镜头</button>
       </template>
       <div v-if="guide.modify" class="guide-plan">
         <label v-if="guide.stage.includes('preview')"
@@ -269,9 +284,10 @@ function toggleRow(a, id) {
     <Teleport to="body">
       <section
         v-if="fullStory && active()"
-        class="guide-full-table"
+        class="guide-small-bubble guide-story-bubble"
+        :style="smallBubblePosition"
         role="dialog"
-        aria-modal="true"
+        :aria-modal="false"
         aria-label="编辑剧情脚本草稿"
       >
         <header>
@@ -290,9 +306,12 @@ function toggleRow(a, id) {
       </section>
       <section
         v-if="fullTable && active()"
-        class="guide-full-table"
+        :class="
+          guide.stage === 'storyboard' ? 'guide-full-table' : 'guide-small-bubble guide-shot-picker'
+        "
+        :style="guide.stage === 'storyboard' ? undefined : smallBubblePosition"
         role="dialog"
-        aria-modal="true"
+        :aria-modal="guide.stage === 'storyboard'"
         aria-label="分镜脚本表格"
       >
         <header>
@@ -304,7 +323,7 @@ function toggleRow(a, id) {
             <thead>
               <tr>
                 <th v-if="guide.stage === 'shots'">选择</th>
-                <th v-for="[key, label] in columns" :key="key">{{ label }}</th>
+                <th v-for="[key, label] in visibleColumns" :key="key">{{ label }}</th>
                 <th>引用</th>
               </tr>
             </thead>
@@ -318,10 +337,11 @@ function toggleRow(a, id) {
                     :aria-label="'选择镜头' + r.number"
                   />
                 </td>
-                <td v-for="[key] in columns" :key="key">
+                <td v-for="[key] in visibleColumns" :key="key">
                   <textarea
                     v-if="guide.stage === 'storyboard'"
                     v-model="r[key]"
+                    v-fit-textarea
                     :aria-label="'镜头' + r.number + key"
                   ></textarea
                   ><span v-else>{{ r[key] }}</span>
@@ -467,15 +487,19 @@ function toggleRow(a, id) {
 .guide-full-table td,
 .guide-full-table th {
   border: 1px solid #51415f;
-  padding: 10px;
-  min-width: 100px;
+  padding: 5px 7px;
+  min-width: 45px;
   white-space: pre-wrap;
 }
 .guide-full-table textarea {
   box-sizing: border-box;
   min-width: 120px;
   width: 100%;
-  min-height: 180px;
+  min-height: 30px;
+  resize: none;
+  overflow-y: hidden;
+  font: inherit;
+  line-height: 1.5;
   background: #26202e;
   color: #ededf3;
   border: 1px solid #655078;
@@ -555,5 +579,89 @@ function toggleRow(a, id) {
   max-height: 200px;
   overflow: auto;
   white-space: pre-wrap;
+}
+</style>
+
+<style>
+.guide-small-bubble {
+  position: fixed;
+  z-index: 1500;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(680px, calc(100vw - 32px));
+  max-height: min(550px, calc(100vh - 32px));
+  background: #261e30;
+  color: #ededf3;
+  border: 1px solid #84619d;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 14px 60px #0009;
+}
+.guide-small-bubble header,
+.guide-small-bubble footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.guide-small-bubble h2 {
+  font-size: 16px;
+  margin: 0;
+}
+.guide-small-bubble footer {
+  font-size: 11px;
+  color: #b6a4c5;
+}
+.guide-story-bubble .guide-expanded-story {
+  height: 300px;
+  min-height: 100px;
+  flex: 0 1 300px;
+  margin: 12px 0;
+  padding: 10px;
+  font-size: 12px;
+  overflow: auto;
+}
+.guide-small-bubble .guide-table-scroll {
+  flex: 0 1 auto;
+  max-height: 380px;
+  margin: 12px 0;
+  overflow: auto;
+}
+.guide-small-bubble table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.guide-small-bubble td,
+.guide-small-bubble th {
+  padding: 6px;
+  border: 1px solid #51415f;
+  vertical-align: top;
+  white-space: pre-wrap;
+}
+.guide-shot-picker td:nth-child(1) {
+  width: 30px;
+}
+.guide-full-table td {
+  vertical-align: top;
+}
+.guide-full-table td:nth-child(1),
+.guide-full-table th:nth-child(1) {
+  width: 55px;
+}
+.guide-full-table td:nth-child(2),
+.guide-full-table th:nth-child(2) {
+  width: 60px;
+}
+.guide-full-table td:nth-child(3),
+.guide-full-table th:nth-child(3) {
+  width: 75px;
+}
+.guide-full-table td:nth-child(1) textarea,
+.guide-full-table td:nth-child(2) textarea,
+.guide-full-table td:nth-child(3) textarea {
+  min-width: 0;
 }
 </style>

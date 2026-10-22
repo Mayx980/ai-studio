@@ -191,6 +191,7 @@ export function installLocalMedia(p, demoVideo) {
   p.localDownloads = true
   p.prepareDownload = async nodes => {
     if (p.state.busy) return
+    nodes = JSON.parse(JSON.stringify(nodes))
     p.state.busy = true
     p.state.error = ''
     try {
@@ -202,7 +203,8 @@ export function installLocalMedia(p, demoVideo) {
               .map(id => p.row(id)?.number)
               .filter(Boolean)
               .join('-') || '独立素材'
-        const ext = n.type === '视频' ? 'webm' : n.type === '音频' ? 'wav' : 'png'
+        const ext =
+          n.type === '视频' ? 'webm' : n.type === '音频' ? 'wav' : n.type === '文字' ? 'txt' : 'png'
         const blob =
           n.type === '视频'
             ? new Blob([Uint8Array.from(atob(demoVideo.split(',')[1]), c => c.charCodeAt(0))], {
@@ -210,7 +212,9 @@ export function installLocalMedia(p, demoVideo) {
               })
             : n.type === '音频'
               ? audioBlob()
-              : await imageBlob(n.name)
+              : n.type === '文字'
+                ? new Blob([n.text || ''], { type: 'text/plain;charset=utf-8' })
+                : await imageBlob(n.name)
         let name =
           (numbers + '_' + n.name + '_v' + (n.version || 1)).replace(/[\\/:*?"<>|]/g, '_') +
           '.' +

@@ -1230,11 +1230,7 @@ function reset() {
                 </button>
               </div>
               <p v-if="n.type === '视频'" class="node-mode-hint">
-                {{
-                  n.mode === '文生视频'
-                    ? '仅发送文字描述'
-                    : '使用已引用图片；输入 @ 可指定场景参考，生成前核对清单（1–10张）'
-                }}
+                {{ n.mode === '文生视频' ? '仅发送文字描述' : '输入@，可以指定参考已引用图片' }}
               </p>
               <div class="node-controls">
                 <select

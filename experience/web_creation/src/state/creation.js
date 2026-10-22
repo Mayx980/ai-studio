@@ -61,6 +61,7 @@ export function createWorkspace(scenario = 'default') {
   const rowCopy = seedRows.map(x => ({ ...x }))
   const state = reactive({
     available: true,
+    loggedOut: false,
     scenario,
     page: 'home',
     modal: null,
@@ -551,6 +552,17 @@ export function createWorkspace(scenario = 'default') {
         text: '已创建并连接图片节点。生成素材前仍需确认模型、参数及输入范围。',
         tool: '创建节点 → 引用镜头01 · 已完成'
       })
+    },
+    logout() {
+      state.loggedOut = true
+      state.modal = null
+      state.editorOpen = false
+      state.storyPreview = null
+      state.toast = ''
+    },
+    loginDemo() {
+      state.loggedOut = false
+      port.go('home')
     },
     switchSession(name) {
       histories[state.activeSession] = state.messages.map(m => ({ ...m }))

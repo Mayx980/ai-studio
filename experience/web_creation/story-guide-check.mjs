@@ -47,7 +47,7 @@ await card
   .click()
 assert.equal(await page.locator('.canvas-node').count(), 5)
 await card.getByRole('button', { name: '选择部分镜头生成视频', exact: true }).click()
-await card.getByRole('button', { name: '全屏选择镜头', exact: true }).click()
+await card.getByRole('button', { name: '选择镜头', exact: true }).click()
 await page
   .getByRole('dialog', { name: '分镜脚本表格' })
   .getByLabel('选择镜头01', { exact: true })
