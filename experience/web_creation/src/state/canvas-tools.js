@@ -43,6 +43,13 @@ export function extendCanvasTools(p) {
     const original = p[method]
     p[method] = (...args) => {
       const result = original(...args)
+      if (method === 'newProject') {
+        const current = s.projects.find(p => p.id === s.projectId)
+        if (current)
+          current.lastOpened = new Date(
+            Math.max(Date.now(), ...s.projects.map(p => Date.parse(p.lastOpened) || 0)) + 1
+          ).toISOString()
+      }
       s.activeScriptId = null
       p.ensureScripts()
       p.resetCanvasHistory?.()
@@ -135,6 +142,24 @@ export function extendCanvasTools(p) {
     }
     s.selectedNode = fresh
     return fresh
+  }
+  s.assets = s.assets.filter(a => ['图片', '视频', '音频'].includes(a.type))
+  if (s.assetType === '提示词') s.assetType = '全部'
+  const saveAsset = p.saveAsset
+  p.saveAsset = data => {
+    if (!['图片', '视频', '音频'].includes(data.type)) {
+      p.notify('个人资产仅支持图片、视频和音频')
+      return false
+    }
+    return saveAsset(data)
+  }
+  const applyAsset = p.applyAsset
+  p.applyAsset = (asset, ...args) => {
+    if (asset.type === '提示词') {
+      p.notify('个人资产仅支持图片、视频和音频')
+      return false
+    }
+    return applyAsset(asset, ...args)
   }
   p.ensureScripts()
   const snapshot = () =>

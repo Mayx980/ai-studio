@@ -22,7 +22,7 @@ function focus(n) {
 <template>
   <section class="canvas-layers" aria-label="画布层级">
     <header>
-      <button class="icon-button" title="返回我的项目" @click="p.go('projects')">
+      <button class="icon-button" title="收起画布层级" @click="s.layersCollapsed = true">
         <Icon name="back" /></button
       ><strong>画布层级</strong><small>{{ s.nodes.length }}</small>
     </header>

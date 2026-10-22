@@ -12,6 +12,9 @@ import ModelSettings from './components/ModelSettings.vue'
 import Icon from './components/CreationIcon.vue'
 const port = useCreation(),
   s = port.state
+const recentProjects = computed(() =>
+  [...s.projects].sort((a, b) => new Date(b.lastOpened) - new Date(a.lastOpened)).slice(0, 5)
+)
 const nav = [
   ['home', 'home', '灵感创作'],
   ['projects', 'layers', '我的项目'],
@@ -25,7 +28,15 @@ const nav = [
     <p>创作服务尚未接入。请使用独立的场景预览入口查看交互设计。</p>
   </div>
   <div v-else class="app-shell">
-    <aside class="main-sidebar" :class="{ 'layers-sidebar': s.page === 'workspace' }">
+    <aside
+      class="main-sidebar"
+      :inert="s.page === 'workspace' && s.layersCollapsed"
+      :aria-hidden="s.page === 'workspace' && s.layersCollapsed"
+      :class="{
+        'layers-sidebar': s.page === 'workspace',
+        'sidebar-collapsed': s.page === 'workspace' && s.layersCollapsed
+      }"
+    >
       <CanvasLayers v-if="s.page === 'workspace'" /><template v-else>
         <button class="brand" @click="port.go('home')">
           <span class="brand-symbol"><Icon name="spark" :size="23" /></span
@@ -54,13 +65,15 @@ const nav = [
           </button>
         </nav>
         <div class="sidebar-section">
-          <span>最近项目</span
-          ><button title="查看全部项目" @click="port.go('home')"><Icon name="more" /></button>
+          <span>最近项目</span>
         </div>
-        <button class="recent-link" @click="port.openProject('夏日序曲 · 香水新品宣传')">
-          <i class="project-dot"></i><span>夏日序曲 · 香水新品宣传</span></button
-        ><button class="recent-link" @click="port.openProject('品牌开放日 · 活动预热')">
-          <i class="project-dot green"></i><span>品牌开放日 · 活动预热</span>
+        <button
+          v-for="project in recentProjects"
+          :key="project.id"
+          class="recent-link"
+          @click="port.openProject(project.id)"
+        >
+          <i class="project-dot"></i><span>{{ project.name }}</span>
         </button>
         <button
           v-if="port.models"

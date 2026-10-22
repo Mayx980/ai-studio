@@ -35,13 +35,13 @@ describe('封面与分镜引用', () => {
     p.closeModal()
     expect(p.state.connections).toHaveLength(0)
   })
-  it('@提示词资产作为参考，不覆盖手写提示词', () => {
+  it('@媒体资产作为参考，不覆盖手写提示词', () => {
     const p = createWorkspace()
     const n = p.state.nodes[1]
     n.prompt = '保留原文'
     p.attachReference(p.state.assets[1], n.id)
     expect(n.prompt).toBe('保留原文')
-    expect(p.referenceText(n)).toContain(p.state.assets[1].text)
+    expect(p.referenceText(n)).toContain(p.state.assets[1].name)
   })
   it('编辑面板在确认对话与删除行后仍保持打开，删除不清除其他行连接', () => {
     const p = createWorkspace()

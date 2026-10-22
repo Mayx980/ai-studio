@@ -35,7 +35,7 @@ const shortcuts = [
   ['复制节点和连线', '⌘ / Ctrl + D'],
   ['生成', '⌘ / Ctrl + Enter'],
   ['新建节点', 'Tab'],
-  ['复制并拖动节点', '⌥ / Alt + 拖动'],
+  ['复制并拖动节点', 'Option / Alt + 拖动'],
   ['删除', 'Delete / Backspace']
 ]
 const sessionMenu = ref(false),
@@ -170,6 +170,29 @@ function edgeMenu(e, edge) {
     edge
   }
 }
+function shortcutStyle() {
+  const a = s.panelAnchor || { right: window.innerWidth / 2, bottom: 115 },
+    left = Math.max(12, Math.min(a.right - 480, window.innerWidth - 492))
+  return {
+    left: left + 'px',
+    top: Math.max(12, Math.min(a.bottom + 12, window.innerHeight - 650)) + 'px',
+    '--bubble-tip': Math.max(22, Math.min(a.right - left - 18, 450)) + 'px'
+  }
+}
+function capturePanelAnchor(e) {
+  const target = e.target.closest('button,select')
+  if (target) {
+    const r = target.getBoundingClientRect()
+    s.panelAnchor = {
+      left: r.left,
+      top: r.top,
+      right: r.right,
+      bottom: r.bottom,
+      width: r.width,
+      height: r.height
+    }
+  }
+}
 function createNode(type) {
   updateViewport()
   addMenu.value = false
@@ -302,6 +325,8 @@ function dismissMenu(e) {
   if (e.type === 'keydown' && e.key !== 'Escape') return
   if (e.type === 'pointerdown' && e.target.closest('.canvas-context-menu')) return
   contextMenu.value = null
+  if (shortcutHelp.value && e.type === 'pointerdown' && !e.target.closest('.shortcut-dialog'))
+    shortcutHelp.value = false
   if (e.key === 'Escape') {
     addMenu.value = false
     s.linkSource = null
@@ -595,7 +620,15 @@ function reset() {
 }
 </script>
 <template>
-  <div class="workspace-page">
+  <div class="workspace-page" @click.capture="capturePanelAnchor">
+    <button
+      v-if="s.layersCollapsed"
+      class="layers-reopen icon-button"
+      title="展开画布层级"
+      @click="s.layersCollapsed = false"
+    >
+      <Icon name="layers" :size="19" />
+    </button>
     <header class="workspace-header">
       <div class="project-breadcrumb">
         <button class="icon-button" title="返回项目" @click="p.go('projects')">
@@ -618,16 +651,6 @@ function reset() {
       </div>
     </header>
     <div class="workspace-toolbar">
-      <div class="canvas-tab"><Icon name="layers" :size="16" />主画布<span>01</span></div>
-      <div class="toolbar-divider"></div>
-      <button
-        v-for="[type, icon] in Object.entries(nodeIcons)"
-        :key="type"
-        :disabled="s.readonly"
-        @click="createNode(type)"
-      >
-        <Icon :name="icon" :size="16" />{{ type }}
-      </button>
       <div class="toolbar-spacer"></div>
       <button class="active-tool" @click="showAgent = !showAgent">
         <Icon name="spark" :size="15" />灵感助手
@@ -1057,8 +1080,7 @@ function reset() {
                   </button>
                 </div>
               </div>
-              <div v-else-if="n.type === '文字'" class="text-node-preview">
-                <p>{{ n.text || '设定创作目标与风格，让灵感在这里展开。' }}</p>
+              <div v-else-if="n.type === '文字'" class="text-node-detail-entry">
                 <button class="subtle-button" @click="p.openModal('text-editor', { node: n })">
                   详情<Icon name="arrow" :size="14" />
                 </button>
@@ -1105,25 +1127,8 @@ function reset() {
                 <div class="node-input-tools">
                   <button title="引用" @click="p.openModal('reference', { for: 'node', node: n })">
                     <Icon name="attach" :size="14" /></button
-                  ><button
-                    v-if="n.type !== '文字'"
-                    title="优化提示词"
-                    @click="p.openModal('optimize', { node: n })"
-                  >
+                  ><button title="优化提示词" @click="p.openModal('optimize', { node: n })">
                     <Icon name="spark" :size="14" /></button
-                  ><button
-                    title="保存提示词为资产"
-                    @click="
-                      $event => {
-                        p.openModal('save', {
-                          type: '提示词',
-                          text: n.prompt || p.referenceText(n),
-                          name: ''
-                        })
-                      }
-                    "
-                  >
-                    <Icon name="save" :size="14" /></button
                   ><span v-if="p.rowIds(n).length">已引用 {{ p.rowIds(n).length }} 行</span>
                 </div>
               </div>
@@ -1186,7 +1191,17 @@ function reset() {
                 }}
               </p>
               <div class="node-controls">
-                <span class="node-model"
+                <select
+                  v-if="n.type === '文字'"
+                  class="node-model model-select"
+                  :value="n.model || 'qwen3.8-flash'"
+                  aria-label="选择文本模型"
+                  :disabled="s.readonly"
+                  @change="p.setNode(n.id, 'model', $event.target.value)"
+                >
+                  <option value="qwen3.8-flash">Qwen Flash</option>
+                  <option value="mock-copy">文案模型（模拟）</option></select
+                ><span v-else class="node-model"
                   >{{
                     n.type === '视频'
                       ? '万相 3.0'
@@ -1418,7 +1433,12 @@ function reset() {
           "
         >
           <Icon name="trash" :size="15" />删除节点</button
-        ><button role="menuitem" :disabled="s.readonly" @click="saveNode(contextMenu.node)">
+        ><button
+          v-if="['图片', '视频', '音频'].includes(contextMenu.node.type)"
+          role="menuitem"
+          :disabled="s.readonly"
+          @click="saveNode(contextMenu.node)"
+        >
           <Icon name="save" :size="15" />保存到我的资产</button
         ><button
           role="menuitem"
@@ -1456,7 +1476,11 @@ function reset() {
         <Icon name="attach" :size="15" />粘贴
       </button>
     </div>
-    <div class="canvas-bottom-toolbar canvas-top-tools" aria-label="画布工具栏">
+    <div
+      class="canvas-bottom-toolbar canvas-top-tools"
+      :style="{ left: showAgent ? 'calc((100% - 310px) / 2)' : '50%' }"
+      aria-label="画布工具栏"
+    >
       <button
         class="icon-button mode-button"
         title="移动工具：V"
@@ -1529,10 +1553,16 @@ function reset() {
     </div>
     <div
       v-if="shortcutHelp"
-      class="modal-backdrop shortcut-overlay"
+      class="modal-backdrop shortcut-overlay bubble-shell"
       @click.self="shortcutHelp = false"
     >
-      <section class="modal shortcut-dialog" role="dialog" aria-label="画布快捷键">
+      <section
+        class="modal shortcut-dialog canvas-bubble"
+        :style="shortcutStyle()"
+        data-side="below"
+        role="dialog"
+        aria-label="画布快捷键"
+      >
         <header class="modal-header">
           <h2>画布快捷键</h2>
           <button class="icon-button" title="关闭快捷键" @click="shortcutHelp = false">

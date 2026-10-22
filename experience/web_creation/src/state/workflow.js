@@ -239,7 +239,9 @@ export function extendWorkflow(p, seedRows) {
       if (!project) return
       s.projectId = project.id
       s.projectName = project.name
-      project.lastOpened = new Date().toISOString()
+      project.lastOpened = new Date(
+        Math.max(Date.now(), ...s.projects.map(p => Date.parse(p.lastOpened) || 0)) + 1
+      ).toISOString()
       const workspace = project.workspace
       if (workspace) Object.assign(s, copy(workspace))
       else

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useCreation } from '@/ports/creation'
 import Icon from './CreationIcon.vue'
 import ProductScene from './ProductScene.vue'
@@ -13,7 +13,7 @@ const p = useCreation(),
   kind = props.forcedKind || s.modal
 const form = reactive({
   name: d.name || '',
-  type: d.type || '提示词',
+  type: d.type || '图片',
   text: d.text || '',
   category: '风格',
   tags: [],
@@ -23,8 +23,52 @@ const form = reactive({
   mediaMime: d.mediaMime,
   outputs: d.outputs
 })
+let panelObserver
+const panelElement = ref(null),
+  bubblePosition = ref({ left: '24px', top: '120px' }),
+  bubbleSide = ref('below')
+const isBubble = s.page === 'workspace' && !['script-editor', 'export'].includes(kind)
+function positionBubble() {
+  if (!isBubble) return
+  const r = panelElement.value?.getBoundingClientRect(),
+    a = s.panelAnchor || { left: window.innerWidth / 2, top: 120, bottom: 145, width: 0 }
+  const width = r?.width || 520,
+    height = Math.min(r?.height || 300, window.innerHeight - 32)
+  const left = Math.max(12, Math.min(a.left, window.innerWidth - width - 12))
+  const below = a.bottom + 12 + height <= window.innerHeight - 12
+  const top = Math.max(
+    12,
+    Math.min(below ? a.bottom + 12 : a.top - height - 12, window.innerHeight - height - 12)
+  )
+  bubbleSide.value = below ? 'below' : 'above'
+  bubblePosition.value = {
+    left: left + 'px',
+    top: top + 'px',
+    '--bubble-tip': Math.max(22, Math.min(a.left + (a.width || 0) / 2 - left, width - 22)) + 'px'
+  }
+}
+function outsideBubble(e) {
+  if (isBubble && !e.target.closest('.canvas-bubble,.mention-panel,.canvas-context-menu'))
+    close('backdrop')
+}
+onMounted(() => {
+  nextTick(positionBubble)
+  if (isBubble) {
+    panelObserver = new ResizeObserver(positionBubble)
+    if (panelElement.value) panelObserver.observe(panelElement.value)
+    document.addEventListener('pointerdown', outsideBubble)
+    window.addEventListener('resize', positionBubble)
+  }
+})
+onUnmounted(() => {
+  panelObserver?.disconnect()
+  document.removeEventListener('pointerdown', outsideBubble)
+  window.removeEventListener('resize', positionBubble)
+})
 const text = ref(d.node?.text || d.node?.prompt || ''),
-  input = ref(''),
+  input = ref(
+    kind === 'rename-project' ? s.projectName : kind === 'rename-session' ? s.activeSession : ''
+  ),
   referenceSource = ref(d.confirmImage ? '当前画布' : '个人资产'),
   applyNode = ref(''),
   feedback = reactive({ version: '脚本初稿', status: '待确认', opinion: '' }),
@@ -267,15 +311,24 @@ function printPreview() {
 }
 </script>
 <template>
-  <div class="modal-backdrop" @click.self="close('backdrop')" @keydown.esc="close('keyboard')">
+  <div
+    class="modal-backdrop"
+    :class="{ 'bubble-shell': isBubble }"
+    @click.self="close('backdrop')"
+    @keydown.esc="close('keyboard')"
+  >
     <section
+      ref="panelElement"
       class="modal"
+      :style="isBubble ? bubblePosition : undefined"
+      :data-side="bubbleSide"
       role="dialog"
-      aria-modal="true"
+      :aria-modal="!isBubble"
       :aria-label="title"
       :class="{
         'wide-modal': ['script-editor', 'export'].includes(kind),
-        'save-modal': kind === 'save'
+        'save-modal': kind === 'save',
+        'canvas-bubble': isBubble
       }"
     >
       <header class="modal-header">
@@ -615,7 +668,9 @@ function printPreview() {
           ><input
             v-model="input"
             autofocus
-            :placeholder="kind === 'rename-session' ? s.activeSession : s.projectName" /></template
+            :placeholder="
+              kind === 'rename-session' ? '请输入会话名称' : '请输入项目名称'
+            " /></template
         ><template v-else-if="kind === 'apply'"
           ><div class="asset-apply-preview">
             <Icon :name="d.type === '提示词' ? 'text' : 'image'" /><b>{{ d.name }}</b>

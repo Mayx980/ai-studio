@@ -308,3 +308,22 @@
 .layer-cover .bottle-neck {top:4px;left:4px;width:5px;height:4px;}
 .layer-cover .bottle-body {top:8px;left:0;width:13px;height:22px;border-radius:3px;border-width:1px;}
 .layer-cover .bottle-shine {width:2px;height:13px;left:2px;top:3px;}
+.app-shell:has(.sidebar-collapsed) .app-main {margin-left:0;width:100%;transition:margin-left .2s,width .2s;}
+.main-sidebar.layers-sidebar {transition:transform .2s;}
+.main-sidebar.layers-sidebar.sidebar-collapsed {transform:translateX(-100%);}
+.layers-reopen {position:absolute;left:12px;top:76px;z-index:22;background:#3d2d4a;border:1px solid #6f5385;border-radius:7px;width:32px;height:32px;}
+.canvas-bottom-toolbar.canvas-top-tools {top:72px;transform:translateX(-50%);}
+.text-node-detail-entry {padding:8px 12px;display:flex;justify-content:flex-end;}
+.project-search {min-width:210px;}.project-search input {min-width:0;width:100%;}
+.model-select {background:#261e31;border:1px solid #51405e;border-radius:5px;padding:4px 6px;max-width:200px;font-size:10px;}
+.model-select option {background:#261e31;color:#e7dbf0;}
+.bubble-shell {background:transparent!important;backdrop-filter:none!important;pointer-events:none;z-index:100!important;}
+.canvas-bubble {pointer-events:auto;position:fixed!important;margin:0!important;max-width:calc(100vw - 24px);width:520px;border-radius:15px!important;border:1px solid #645072!important;box-shadow:0 15px 55px #0007;max-height:calc(100vh - 24px);overflow:visible!important;}
+.canvas-bubble::before {content:'';position:absolute;width:12px;height:12px;left:var(--bubble-tip,28px);background:#241d2d;transform:translateX(-50%) rotate(45deg);border:1px solid #645072;z-index:-1;}
+.canvas-bubble[data-side="below"]::before {top:-7px;border-bottom:none;border-right:none;}
+.canvas-bubble[data-side="above"]::before {bottom:-7px;border-top:none;border-left:none;}
+.canvas-bubble .modal-header {padding:16px 20px;}.canvas-bubble .modal-header h2 {font-size:16px;}
+.canvas-bubble .modal-content {overflow:auto;max-height:calc(100vh - 180px);padding:18px 20px;}
+.canvas-bubble .modal-footer {padding:12px 20px;}
+.canvas-bubble.save-modal {width:640px;}
+.canvas-bubble .save-preview {min-width:0;}

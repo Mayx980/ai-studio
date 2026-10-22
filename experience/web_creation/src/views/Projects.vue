@@ -1,9 +1,16 @@
 <script setup>
+import { computed, ref } from 'vue'
 import { useCreation } from '../ports/creation'
 import Icon from '../components/CreationIcon.vue'
 import ProductScene from '../components/ProductScene.vue'
 const p = useCreation(),
   s = p.state
+const query = ref(''),
+  projects = computed(() =>
+    [...s.projects]
+      .filter(p => p.name.toLowerCase().includes(query.value.trim().toLowerCase()))
+      .sort((a, b) => new Date(b.lastOpened) - new Date(a.lastOpened))
+  )
 function date(value) {
   return new Date(value).toLocaleString('zh-CN', {
     month: '2-digit',
@@ -26,9 +33,12 @@ function date(value) {
           <h1>我的项目</h1>
           <p>回到上一次创作，或从一个新想法开始。</p>
         </div>
-        <button class="primary-button" :disabled="s.readonly" @click="p.openModal('new-project')">
-          <Icon name="plus" :size="16" />新建项目
-        </button>
+        <label class="search-box project-search"
+          ><Icon name="search" :size="16" /><input
+            v-model="query"
+            aria-label="搜索项目"
+            placeholder="请输入项目名"
+        /></label>
       </div>
       <div v-if="s.loading" class="project-grid">
         <div v-for="n in 3" :key="n" class="skeleton project-skeleton"></div>
@@ -44,10 +54,9 @@ function date(value) {
           :disabled="s.readonly"
           @click="p.openModal('new-project')"
         >
-          <span class="create-cover"><Icon name="plus" :size="37" /><b>开始创作</b></span
-          ><span>创建新的视频项目</span></button
+          <span class="create-cover"><Icon name="plus" :size="37" /><b>开始创作</b></span></button
         ><button
-          v-for="project in s.projects"
+          v-for="project in projects"
           :key="project.id"
           class="project-card"
           @click="p.openProject(project.id)"
@@ -74,6 +83,7 @@ function date(value) {
           </div>
         </button>
       </div>
+      <p v-if="query && !projects.length" class="empty-panel">未找到匹配的项目</p>
     </section>
   </div>
 </template>
