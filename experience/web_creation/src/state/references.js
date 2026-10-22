@@ -81,7 +81,8 @@ export function extendReferences(p) {
       s.selectedRows = s.selectedRows.filter(r => r !== id)
     },
     rowImages(rowId) {
-      const script = s.nodes.find(n => n.type === '脚本')
+      const script =
+        p.scriptForRow?.(rowId) || p.activeScript?.() || s.nodes.find(n => n.type === '脚本')
       const linked = s.connections
         .filter(c => c.target === script?.id && c.rowIds?.includes(rowId))
         .map(c => {
@@ -111,8 +112,10 @@ export function extendReferences(p) {
       }
       const script =
         s.nodes.find(n => n.id === targetId && n.type === '脚本') ||
+        p.activeScript?.() ||
         s.nodes.find(n => n.type === '脚本')
       if (!script) return false
+      p.activateScript?.(script.id)
       const selected = [...new Set(rowIds)].filter(id => p.row(id))
       if (s.rows.length && !selected.length) {
         s.error = '请至少选择一个镜头'
@@ -138,6 +141,7 @@ export function extendReferences(p) {
     connectNodes(source, target, options = {}) {
       const a = s.nodes.find(n => n.id === source),
         b = s.nodes.find(n => n.id === target)
+      if (b?.type === '脚本') p.activateScript?.(target)
       if (a?.type === '图片' && b?.type === '脚本' && !options.direct) {
         const existing = s.connections.find(c => c.source === source && c.target === target)
         p.openModal('row-assignment', {
@@ -152,7 +156,8 @@ export function extendReferences(p) {
     connectToRow(source, rowId) {
       if (s.readonly || !p.row(rowId)) return false
       const node = s.nodes.find(n => n.id === source),
-        script = s.nodes.find(n => n.type === '脚本')
+        script =
+          p.scriptForRow?.(rowId) || p.activeScript?.() || s.nodes.find(n => n.type === '脚本')
       if (!node || node.type === '脚本' || !script) return false
       if (!rawConnect(source, script.id)) return false
       const connection = s.connections.find(c => c.source === source && c.target === script.id)
@@ -166,7 +171,7 @@ export function extendReferences(p) {
         p.notify('分镜行的引用入口支持图片节点')
         return false
       }
-      const script = s.nodes.find(n => n.type === '脚本')
+      const script = p.activeScript?.() || s.nodes.find(n => n.type === '脚本')
       const existing = s.connections.find(c => c.source === source && c.target === script?.id)
       return p.assignImageToRows(nodeMaterial(n), [...(existing?.rowIds || []), rowId], script?.id)
     },
@@ -344,13 +349,15 @@ export function extendReferences(p) {
     },
     performScript(text = s.prompt) {
       const before = s.rows
+      const oldIds = new Set(before.map(r => r.id))
       const result = rawPerform(text)
       if (s.rows !== before) {
         for (const n of s.nodes) {
           n.rowRefs = []
           if (n.type === '脚本') n.version = s.scriptRevision || 1
         }
-        for (const c of s.connections) if (c.rowIds) c.rowIds = []
+        for (const c of s.connections)
+          if (c.rowIds) c.rowIds = c.rowIds.filter(id => !oldIds.has(id))
       }
       return result
     },

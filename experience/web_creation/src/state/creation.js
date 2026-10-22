@@ -1,4 +1,5 @@
 import { extendWorkflow } from './workflow'
+import { extendCanvasTools } from './canvas-tools'
 import { extendReferences } from './references'
 import { reactive } from 'vue'
 const columns = [
@@ -592,5 +593,6 @@ export function createWorkspace(scenario = 'default') {
   }
   extendWorkflow(port, seedRows)
   extendReferences(port)
+  extendCanvasTools(port)
   return port
 }

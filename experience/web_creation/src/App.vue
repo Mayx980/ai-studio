@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useCreation } from '@/ports/creation'
+import CanvasLayers from './components/CanvasLayers.vue'
 import Home from './views/Home.vue'
 import Workspace from './views/Workspace.vue'
 import Assets from './views/Assets.vue'
@@ -24,50 +25,52 @@ const nav = [
     <p>创作服务尚未接入。请使用独立的场景预览入口查看交互设计。</p>
   </div>
   <div v-else class="app-shell">
-    <aside class="main-sidebar">
-      <button class="brand" @click="port.go('home')">
-        <span class="brand-symbol"><Icon name="spark" :size="23" /></span
-        ><strong>AI Studio<span>创作空间</span></strong></button
-      ><button
-        class="new-project"
-        @click="
-          $event => {
-            s.prompt = ''
-            s.references = []
-            port.go('home')
-          }
-        "
-      >
-        <Icon name="plus" />新建创作
-      </button>
-      <nav>
-        <button
-          v-for="[id, icon, label] in nav"
-          :key="id"
-          :class="{ active: s.page === id || (id === 'projects' && s.page === 'workspace') }"
-          @click="port.go(id)"
+    <aside class="main-sidebar" :class="{ 'layers-sidebar': s.page === 'workspace' }">
+      <CanvasLayers v-if="s.page === 'workspace'" /><template v-else>
+        <button class="brand" @click="port.go('home')">
+          <span class="brand-symbol"><Icon name="spark" :size="23" /></span
+          ><strong>AI Studio<span>创作空间</span></strong></button
+        ><button
+          class="new-project"
+          @click="
+            $event => {
+              s.prompt = ''
+              s.references = []
+              port.go('home')
+            }
+          "
         >
-          <Icon :name="icon" /><span>{{ label }}</span
-          ><span v-if="id === 'assets'" class="nav-count">{{ s.assets.length }}</span>
+          <Icon name="plus" />新建创作
         </button>
-      </nav>
-      <div class="sidebar-section">
-        <span>最近项目</span
-        ><button title="查看全部项目" @click="port.go('home')"><Icon name="more" /></button>
-      </div>
-      <button class="recent-link" @click="port.openProject('夏日序曲 · 香水新品宣传')">
-        <i class="project-dot"></i><span>夏日序曲 · 香水新品宣传</span></button
-      ><button class="recent-link" @click="port.openProject('品牌开放日 · 活动预热')">
-        <i class="project-dot green"></i><span>品牌开放日 · 活动预热</span>
-      </button>
-      <button
-        v-if="port.models"
-        class="model-settings-button"
-        title="模型接入设置"
-        @click="port.models.open = true"
-      >
-        <Icon name="settings" :size="17" />真实模型设置
-      </button>
+        <nav>
+          <button
+            v-for="[id, icon, label] in nav"
+            :key="id"
+            :class="{ active: s.page === id || (id === 'projects' && s.page === 'workspace') }"
+            @click="port.go(id)"
+          >
+            <Icon :name="icon" /><span>{{ label }}</span
+            ><span v-if="id === 'assets'" class="nav-count">{{ s.assets.length }}</span>
+          </button>
+        </nav>
+        <div class="sidebar-section">
+          <span>最近项目</span
+          ><button title="查看全部项目" @click="port.go('home')"><Icon name="more" /></button>
+        </div>
+        <button class="recent-link" @click="port.openProject('夏日序曲 · 香水新品宣传')">
+          <i class="project-dot"></i><span>夏日序曲 · 香水新品宣传</span></button
+        ><button class="recent-link" @click="port.openProject('品牌开放日 · 活动预热')">
+          <i class="project-dot green"></i><span>品牌开放日 · 活动预热</span>
+        </button>
+        <button
+          v-if="port.models"
+          class="model-settings-button"
+          title="模型接入设置"
+          @click="port.models.open = true"
+        >
+          <Icon name="settings" :size="17" />真实模型设置
+        </button>
+      </template>
       <div class="sidebar-bottom">
         <div class="workspace-note">
           <Icon name="folder" />

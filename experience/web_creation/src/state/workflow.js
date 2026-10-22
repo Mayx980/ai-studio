@@ -78,7 +78,9 @@ export function extendWorkflow(p, seedRows) {
   }
   function materials(nodes = s.nodes, rows = s.rows) {
     const value = n =>
-      n.type === '脚本' ? rows.map(r => r.number + ' ' + r.visual).join('\n') : contents(n)
+      n.type === '脚本'
+        ? (n.rows || rows).map(r => r.number + ' ' + r.visual).join('\n')
+        : contents(n)
     return nodes
       .filter(n => value(n))
       .map(n => ({
@@ -409,7 +411,7 @@ export function extendWorkflow(p, seedRows) {
       if (s.readonly || s.scriptGenerating) return
       s.scriptGenerating = true
       try {
-        s.nodes.filter(n => n.rowId).forEach(n => (n.rowId = null))
+        s.nodes.filter(n => s.rows.some(r => r.id === n.rowId)).forEach(n => (n.rowId = null))
         s.rows = rowsFor(text)
         s.selectedRows = []
         s.scriptRevision = revision
@@ -482,7 +484,9 @@ export function extendWorkflow(p, seedRows) {
             ? '万相 3.0'
             : n.type === '音频'
               ? 'Seed Audio1.0'
-              : '千问图像生成 3.0 Pro') +
+              : n.type === '文字'
+                ? 'qwen3.8-flash'
+                : '千问图像生成 3.0 Pro') +
           ' · ' +
           (n.type === '音频'
             ? cfg.voice + ' / ' + cfg.format
@@ -562,7 +566,7 @@ export function extendWorkflow(p, seedRows) {
       ;[...new Set(types)].forEach(type => {
         let id
         if (type === '脚本' && s.nodes.some(n => n.type === '脚本'))
-          id = s.nodes.find(n => n.type === '脚本').id
+          id = (p.activeScript?.() || s.nodes.find(n => n.type === '脚本')).id
         else id = ensure(type, cursorX, y)
         if (!id) return
         cursorX += type === '脚本' ? 1140 : 410

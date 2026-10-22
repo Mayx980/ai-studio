@@ -40,7 +40,7 @@ function toggleReference(a) {
 function saveReferences() {
   const chosen = [...selectedReferences.value]
   if (d.for === 'row') {
-    const script = s.nodes.find(n => n.type === '脚本')
+    const script = p.activeScript?.() || s.nodes.find(n => n.type === '脚本')
     for (const a of chosen) {
       const current = a.sourceNodeId
         ? s.connections.find(c => c.source === a.sourceNodeId && c.target === script?.id)?.rowIds
@@ -189,7 +189,12 @@ const keys = [
   'motionPrompt'
 ]
 const outputRows = computed(() =>
-  d.node ? [] : s.rows.filter(r => !s.selectedRows.length || s.selectedRows.includes(r.id))
+  d.node
+    ? []
+    : s.nodes
+        .filter(n => n.type === '脚本')
+        .flatMap(n => p.scriptRows(n))
+        .filter(r => !s.selectedRows.length || s.selectedRows.includes(r.id))
 )
 const outputs = computed(() =>
   s.nodes.filter(
@@ -461,7 +466,7 @@ function printPreview() {
         ><template v-else-if="kind === 'script-input'"
           ><label>故事与创作要求</label
           ><MentionInput
-            :node-id="s.nodes.find(n => n.type === '脚本')?.id"
+            :node-id="(p.activeScript?.() || s.nodes.find(n => n.type === '脚本'))?.id"
             v-model="s.prompt"
             rows="5"
             label="脚本输入"

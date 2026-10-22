@@ -87,7 +87,7 @@ export function createConnectedPort() {
     s.error = ''
     try {
       key('text')
-      const script = s.nodes.find(n => n.type === '脚本')
+      const script = p.activeScript?.() || s.nodes.find(n => n.type === '脚本')
       const context = script ? p.referenceText(script) : ''
       const refs = s.references.map(a => a.text || '').join('\n')
       if (!text?.trim() && !context.trim() && !refs.trim())

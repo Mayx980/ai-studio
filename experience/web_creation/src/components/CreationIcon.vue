@@ -1,5 +1,58 @@
 <script setup>
-defineProps({name:String,size:{type:Number,default:18}})
-const paths={spark:'m12 3 2.3 6.7L21 12l-6.7 2.3L12 21l-2.3-6.7L3 12l6.7-2.3L12 3',home:'m3 10 9-7 9 7v10H3V10 M9 20v-7h6v7',folder:'M3 6h7l2 2h9v12H3V6',grid:'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',plus:'M12 5v14 M5 12h14',arrow:'M5 12h14 m-6-6 6 6-6 6',down:'m6 9 6 6 6-6',image:'M3 4h18v16H3z m0 12 5-5 7 7 3-3 3 3 M15 8h.01',video:'M3 5h13v14H3z m13 5 5-3v10l-5-3',audio:'M9 18V5l11-2v13 M9 16c-7-3-9 7-2 5l2-3 M20 14c-7-3-9 7-2 5l2-3',text:'M5 5h14 M12 5v15 M8 20h8',script:'M4 3h16v18H4z M8 8h8 M8 12h8 M8 16h5',download:'M12 3v12 m-5-5 5 5 5-5 M4 16v5h16v-5',search:'M16 16l5 5 M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16',more:'M5 12h.01 M12 12h.01 M19 12h.01',close:'m5 5 14 14 M19 5 5 19',check:'m5 12 4 4L19 6',link:'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2 M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2',send:'m3 3 18 9-18 9 4-9-4-9 M7 12h14',clock:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 7v6l4 2',settings:'M4 6h16 M4 12h16 M4 18h16 M8 3v6 M16 9v6 M9 15v6',play:'m8 4 12 8-12 8V4',trash:'M3 6h18 M8 6V3h8v3 M5 6l1 15h12l1-15 M10 10v7 M14 10v7',expand:'M8 3H3v5 M16 3h5v5 M3 16v5h5 M21 16v5h-5',back:'m14 5-7 7 7 7',attach:'m8 12 7-7a3 3 0 0 1 4 4l-9 9a5 5 0 0 1-7-7l9-9',save:'M3 3h15l3 3v15H3z M7 3v6h10V3 M7 21v-8h10v8',undo:'M8 4 3 9l5 5 M3 9h11a7 7 0 0 1 0 14',help:'M9 8a3 3 0 1 1 5 3l-2 2 M12 17h.01 M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20',layers:'m12 2 10 5-10 5L2 7l10-5 M2 12l10 5 10-5 M2 17l10 5 10-5',edit:'m15 4 5 5 M4 20l5-1L21 7l-5-5L4 14v6',upload:'M12 16V3 m-5 5 5-5 5 5 M4 16v5h16v-5'}
+defineProps({ name: String, size: { type: Number, default: 18 } })
+const paths = {
+  move: 'm4 3 16 9-7 1-3 7-6-17 M14 14l6 6',
+  hand: 'M8 12V5a2 2 0 0 1 4 0v7 M12 10V3a2 2 0 0 1 4 0v10 M16 11V6a2 2 0 0 1 4 0v10c0 4-3 6-7 6-3 0-4-1-6-4l-4-6a2 2 0 0 1 3-2l2 2',
+  minus: 'M5 12h14',
+  redo: 'm16 4 5 5-5 5 M21 9H10a7 7 0 0 0 0 14',
+  keyboard: 'M3 5h18v14H3z M6 9h1 M10 9h1 M14 9h1 M18 9h.01 M6 13h1 M10 13h1 M14 13h1 M7 16h10',
+  locate: 'M12 3v3 M12 18v3 M3 12h3 M18 12h3 M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12',
+  spark: 'm12 3 2.3 6.7L21 12l-6.7 2.3L12 21l-2.3-6.7L3 12l6.7-2.3L12 3',
+  home: 'm3 10 9-7 9 7v10H3V10 M9 20v-7h6v7',
+  folder: 'M3 6h7l2 2h9v12H3V6',
+  grid: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
+  plus: 'M12 5v14 M5 12h14',
+  arrow: 'M5 12h14 m-6-6 6 6-6 6',
+  down: 'm6 9 6 6 6-6',
+  image: 'M3 4h18v16H3z m0 12 5-5 7 7 3-3 3 3 M15 8h.01',
+  video: 'M3 5h13v14H3z m13 5 5-3v10l-5-3',
+  audio: 'M9 18V5l11-2v13 M9 16c-7-3-9 7-2 5l2-3 M20 14c-7-3-9 7-2 5l2-3',
+  text: 'M5 5h14 M12 5v15 M8 20h8',
+  script: 'M4 3h16v18H4z M8 8h8 M8 12h8 M8 16h5',
+  download: 'M12 3v12 m-5-5 5 5 5-5 M4 16v5h16v-5',
+  search: 'M16 16l5 5 M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16',
+  more: 'M5 12h.01 M12 12h.01 M19 12h.01',
+  close: 'm5 5 14 14 M19 5 5 19',
+  check: 'm5 12 4 4L19 6',
+  link: 'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2 M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2',
+  send: 'm3 3 18 9-18 9 4-9-4-9 M7 12h14',
+  clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 7v6l4 2',
+  settings: 'M4 6h16 M4 12h16 M4 18h16 M8 3v6 M16 9v6 M9 15v6',
+  play: 'm8 4 12 8-12 8V4',
+  trash: 'M3 6h18 M8 6V3h8v3 M5 6l1 15h12l1-15 M10 10v7 M14 10v7',
+  expand: 'M8 3H3v5 M16 3h5v5 M3 16v5h5 M21 16v5h-5',
+  back: 'm14 5-7 7 7 7',
+  attach: 'm8 12 7-7a3 3 0 0 1 4 4l-9 9a5 5 0 0 1-7-7l9-9',
+  save: 'M3 3h15l3 3v15H3z M7 3v6h10V3 M7 21v-8h10v8',
+  undo: 'M8 4 3 9l5 5 M3 9h11a7 7 0 0 1 0 14',
+  help: 'M9 8a3 3 0 1 1 5 3l-2 2 M12 17h.01 M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20',
+  layers: 'm12 2 10 5-10 5L2 7l10-5 M2 12l10 5 10-5 M2 17l10 5 10-5',
+  edit: 'm15 4 5 5 M4 20l5-1L21 7l-5-5L4 14v6',
+  upload: 'M12 16V3 m-5 5 5-5 5 5 M4 16v5h16v-5'
+}
 </script>
-<template><svg :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="paths[name]||paths.spark"/></svg></template>
+<template>
+  <svg
+    :width="size"
+    :height="size"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.65"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path :d="paths[name] || paths.spark" />
+  </svg>
+</template>

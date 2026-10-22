@@ -22,12 +22,28 @@ const keys = [
 const nodeIcons = { 文字: 'text', 图片: 'image', 视频: 'video', 音频: 'audio', 脚本: 'script' }
 const contextMenu = ref(null),
   linkPoint = ref(null)
+const addMenu = ref(false),
+  shortcutHelp = ref(false)
+const shortcuts = [
+  ['移动工具', 'V'],
+  ['抓手工具', 'H'],
+  ['放大', '⌘ / Ctrl + +'],
+  ['缩小', '⌘ / Ctrl + -'],
+  ['适应画布', '⌘ / Ctrl + 0'],
+  ['撤销', '⌘ / Ctrl + Z'],
+  ['重做', '⌘ / Ctrl + Shift + Z'],
+  ['复制节点和连线', '⌘ / Ctrl + D'],
+  ['生成', '⌘ / Ctrl + Enter'],
+  ['新建节点', 'Tab'],
+  ['复制并拖动节点', '⌥ / Alt + 拖动'],
+  ['删除', 'Delete / Backspace']
+]
 const sessionMenu = ref(false),
   showAgent = ref(true),
   canvas = ref(null)
 function rowPoint(rowId, kind = 'source') {
   const el = canvas.value?.querySelector(`[data-row-${kind}="${rowId}"]`),
-    script = s.nodes.find(n => n.type === '脚本')
+    script = p.scriptForRow(rowId) || p.activeScript()
   if (el && canvas.value) {
     const e = el.getBoundingClientRect(),
       v = canvas.value.getBoundingClientRect()
@@ -156,6 +172,7 @@ function edgeMenu(e, edge) {
 }
 function createNode(type) {
   updateViewport()
+  addMenu.value = false
   const id = p.addNode(type)
   if (id)
     nextTick(() =>
@@ -245,6 +262,7 @@ function sourceClick(n) {
   updateGeometry()
 }
 function rowInput(row) {
+  p.activateScript(p.scriptForRow(row.id)?.id)
   if (s.linkSource) {
     p.connectToRow(s.linkSource, row.id)
     s.linkSource = null
@@ -255,7 +273,7 @@ function zoomAt(value, x, y) {
   const el = canvas.value
   if (!el) return
   const before = s.zoom / 100,
-    next = Math.max(40, Math.min(180, value)) / 100,
+    next = Math.max(10, Math.min(180, value)) / 100,
     px = (el.scrollLeft + x) / before,
     py = (el.scrollTop + y) / before
   s.zoom = Math.round(next * 100)
@@ -285,6 +303,7 @@ function dismissMenu(e) {
   if (e.type === 'pointerdown' && e.target.closest('.canvas-context-menu')) return
   contextMenu.value = null
   if (e.key === 'Escape') {
+    addMenu.value = false
     s.linkSource = null
     s.linkRowSource = null
     s.reverseLinkTarget = null
@@ -304,6 +323,7 @@ onMounted(() => {
     }
   })
   observeNodes()
+  document.addEventListener('keydown', canvasShortcuts)
   document.addEventListener('paste', pasteCanvas)
   document.addEventListener('pointerdown', dismissMenu)
   document.addEventListener('keydown', dismissMenu)
@@ -329,6 +349,7 @@ watch(
 )
 onUnmounted(() => {
   nodeObserver?.disconnect()
+  document.removeEventListener('keydown', canvasShortcuts)
   document.removeEventListener('paste', pasteCanvas)
   document.removeEventListener('pointerdown', dismissMenu)
   document.removeEventListener('keydown', dismissMenu)
@@ -344,13 +365,31 @@ function drag(e, n) {
     e.target.closest('button,input,textarea,select,a,video,audio')
   )
     return
-  const x = e.clientX,
+  p.beginHistoryGesture()
+  s.selectedNode = n.id
+  let moving = n,
+    cloned = false
+  const duplicate = e.altKey,
+    x = e.clientX,
     y = e.clientY,
     ox = n.x,
     oy = n.y
-  const move = ev =>
-    p.moveNode(n.id, ox + (ev.clientX - x) / (s.zoom / 100), oy + (ev.clientY - y) / (s.zoom / 100))
+  const move = ev => {
+    if (duplicate && !cloned) {
+      if (Math.abs(ev.clientX - x) + Math.abs(ev.clientY - y) < 4) return
+      const id = p.duplicateNode(n.id, true)
+      if (!id) return
+      moving = s.nodes.find(item => item.id === id)
+      cloned = true
+    }
+    p.moveNode(
+      moving.id,
+      ox + (ev.clientX - x) / (s.zoom / 100),
+      oy + (ev.clientY - y) / (s.zoom / 100)
+    )
+  }
   const end = () => {
+    p.endHistoryGesture()
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', end)
   }
@@ -376,6 +415,7 @@ function pan(e) {
     el.scrollTop = top - (ev.clientY - y)
   }
   const end = () => {
+    p.commitHistory()
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', end)
   }
@@ -420,6 +460,7 @@ function resize(e, n, direction = 'se') {
   e.preventDefault()
   e.stopPropagation()
   if (s.readonly || s.interactionMode === 'hand') return
+  p.beginHistoryGesture()
   const el = e.currentTarget.closest('.canvas-node'),
     box = el.getBoundingClientRect(),
     zoom = s.zoom / 100
@@ -446,6 +487,7 @@ function resize(e, n, direction = 'se') {
     updateGeometry()
   }
   const end = () => {
+    p.endHistoryGesture()
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', end)
     window.removeEventListener('pointercancel', end)
@@ -467,8 +509,65 @@ function playVideo(event, n) {
     })
     .catch(() => p.notify('播放失败，请使用视频控件重试'))
 }
-function focusNode() {
-  canvas.value?.scrollTo({ left: 1000, top: 80, behavior: 'smooth' })
+function focusNode(n) {
+  if (!canvas.value || !n) return
+  const z = s.zoom / 100
+  canvas.value.scrollTo({
+    left: Math.max(
+      0,
+      n.x * z -
+        (canvas.value.clientWidth - Math.min((n.width || 320) * z, canvas.value.clientWidth)) / 2
+    ),
+    top: Math.max(0, n.y * z - 90),
+    behavior: 'smooth'
+  })
+}
+watch(
+  () => s.focusRequest,
+  request => {
+    if (request) nextTick(() => focusNode(s.nodes.find(n => n.id === request.id)))
+  }
+)
+function canvasShortcuts(e) {
+  const editing = e.target.closest('textarea,input,select,[contenteditable=true]')
+  const cmd = e.metaKey || e.ctrlKey,
+    key = e.key.toLowerCase(),
+    node = s.nodes.find(n => n.id === s.selectedNode)
+  if (s.modal || s.editorOpen || shortcutHelp.value) {
+    if (e.key === 'Escape') shortcutHelp.value = false
+    return
+  }
+  if (editing) {
+    if (cmd && e.key === 'Enter' && node && !s.readonly && e.target.closest('.canvas-node')) {
+      e.preventDefault()
+      generateSelected(node)
+    }
+    return
+  }
+  if (cmd && ['+', '=', '-', '0', 'z', 'd', 'enter'].includes(key)) {
+    e.preventDefault()
+    if (['+', '='].includes(key)) s.zoom = Math.min(150, s.zoom + 10)
+    else if (key === '-') s.zoom = Math.max(10, s.zoom - 10)
+    else if (key === '0') reset()
+    else if (key === 'z') e.shiftKey ? p.redo() : p.undo()
+    else if (key === 'd' && node) p.duplicateNode(node.id)
+    else if (key === 'enter' && node) generateSelected(node)
+    return
+  }
+  if (key === 'tab' && e.target.closest('.canvas-add-menu')) return
+  if (!cmd && !e.altKey && ['v', 'h', 'tab', 'delete', 'backspace'].includes(key)) {
+    e.preventDefault()
+    if (key === 'v') s.interactionMode = 'move'
+    else if (key === 'h') s.interactionMode = 'hand'
+    else if (key === 'tab') addMenu.value = !addMenu.value
+    else if (node && !s.readonly) p.deleteNode(node.id)
+  }
+}
+function generateSelected(node) {
+  if (node.type === '脚本') {
+    p.activateScript(node.id)
+    p.generateScript()
+  } else p.requestGenerate(node.id)
 }
 function reset() {
   if (!canvas.value || !s.nodes.length) return
@@ -477,7 +576,7 @@ function reset() {
     right = Math.max(...s.nodes.map(n => n.x + (n.width || (n.type === '脚本' ? 2600 : 320)))),
     bottom = Math.max(...s.nodes.map(n => n.y + (n.type === '脚本' ? 800 : 480)))
   s.zoom = Math.max(
-    40,
+    10,
     Math.min(
       100,
       Math.floor(
@@ -530,9 +629,7 @@ function reset() {
         <Icon :name="icon" :size="16" />{{ type }}
       </button>
       <div class="toolbar-spacer"></div>
-      <button @click="p.openModal('reference', { for: 'canvas' })">
-        <Icon name="attach" :size="15" />引用</button
-      ><button class="active-tool" @click="showAgent = !showAgent">
+      <button class="active-tool" @click="showAgent = !showAgent">
         <Icon name="spark" :size="15" />灵感助手
       </button>
     </div>
@@ -558,7 +655,19 @@ function reset() {
           <p>已有节点和素材仍然保留。</p>
           <button class="secondary-button" @click="p.retry()">重新加载</button>
         </div>
-        <div v-else class="canvas-stage" :style="{ transform: `scale(${s.zoom / 100})` }">
+        <div
+          v-else
+          class="canvas-stage"
+          :style="{
+            transform: `scale(${s.zoom / 100})`,
+            width:
+              Math.max(
+                6000,
+                ...s.nodes.map(n => n.x + (n.width || (n.type === '脚本' ? 2600 : 320)) + 300)
+              ) + 'px',
+            height: Math.max(3000, ...s.nodes.map(n => n.y + (n.height || 800) + 300)) + 'px'
+          }"
+        >
           <svg class="edge-layer" width="5000" height="2800" aria-label="镜头行连接">
             <defs>
               <linearGradient id="edgeGradient">
@@ -609,7 +718,12 @@ function reset() {
             }"
             @contextmenu="menu($event, n)"
             @pointerdown="drag($event, n)"
-            @click="s.selectedNode = n.id"
+            @click="
+              $event => {
+                if (!$event.altKey) s.selectedNode = n.id
+                n.type === '脚本' && p.activateScript(n.id)
+              }
+            "
           >
             <span
               v-for="edge in ['n', 'e', 's', 'w', 'ne', 'nw', 'se', 'sw']"
@@ -638,13 +752,27 @@ function reset() {
               <span class="node-type-icon" :class="n.type"
                 ><Icon :name="nodeIcons[n.type]" :size="16" /></span
               ><strong>{{ n.name }}</strong
-              ><span class="node-mini-tag">{{ n.type }}</span
+              ><button
+                class="icon-button node-mini-tag node-delete"
+                title="删除"
+                :aria-label="'删除' + n.name"
+                :disabled="s.readonly"
+                @pointerdown.stop
+                @click.stop="p.deleteNode(n.id)"
+              >
+                <span class="sr-only">{{ n.type }}</span
+                ><Icon name="trash" :size="14" /></button
               ><button
                 v-if="n.type === '脚本'"
                 class="icon-button"
                 title="编辑分镜表"
                 @pointerdown.stop
-                @click.stop="p.openModal('script-editor')"
+                @click.stop="
+                  $event => {
+                    p.activateScript(n.id)
+                    p.openModal('script-editor')
+                  }
+                "
               >
                 <Icon name="expand" :size="16" />
               </button>
@@ -652,10 +780,18 @@ function reset() {
             <template v-if="n.type === '脚本'"
               ><div class="script-caption">
                 <span
-                  ><i class="status-dot"></i>{{ s.rows.length }} 个镜头<span class="muted">
+                  ><i class="status-dot"></i>{{ p.scriptRows(n).length }} 个镜头<span class="muted">
                     · 每行独立连接下游节点</span
                   ></span
-                ><button class="subtle-button" @click="p.exportPreview('excel')">
+                ><button
+                  class="subtle-button"
+                  @click="
+                    $event => {
+                      p.activateScript(n.id)
+                      p.exportPreview('excel')
+                    }
+                  "
+                >
                   <Icon name="download" :size="14" />Excel
                 </button>
               </div>
@@ -671,10 +807,15 @@ function reset() {
                         <input
                           type="checkbox"
                           aria-label="全选镜头"
-                          :checked="s.rows.length > 0 && s.selectedRows.length === s.rows.length"
+                          :checked="
+                            p.scriptRows(n).length > 0 &&
+                            s.selectedRows.length === p.scriptRows(n).length
+                          "
                           @change="
                             $event => {
-                              s.selectedRows = $event.target.checked ? s.rows.map(x => x.id) : []
+                              s.selectedRows = $event.target.checked
+                                ? p.scriptRows(n).map(x => x.id)
+                                : []
                             }
                           "
                         />
@@ -691,7 +832,7 @@ function reset() {
                   </thead>
                   <tbody>
                     <tr
-                      v-for="row in s.rows"
+                      v-for="row in p.scriptRows(n)"
                       :key="row.id"
                       :class="{ chosen: s.selectedRows.includes(row.id) }"
                     >
@@ -738,13 +879,18 @@ function reset() {
                           @pointerdown.stop="startRowLink($event, row)"
                           :aria-label="'连接镜头' + row.number"
                           :title="'连接镜头' + row.number + '到下游节点'"
-                          @click.stop="s.pendingRow = s.pendingRow === row.id ? null : row.id"
+                          @click.stop="
+                            $event => {
+                              p.activateScript(n.id)
+                              s.pendingRow = s.pendingRow === row.id ? null : row.id
+                            }
+                          "
                         >
                           <Icon name="plus" :size="13" />
                         </button>
                       </td>
                     </tr>
-                    <tr v-if="!s.rows.length">
+                    <tr v-if="!p.scriptRows(n).length">
                       <td colspan="13" class="table-empty">
                         输入故事或引用资料，生成你的第一份分镜。
                       </td>
@@ -769,23 +915,51 @@ function reset() {
                   />
                 </div>
                 <MentionInput
-                  v-model="s.prompt"
+                  :model-value="n.prompt || ''"
+                  @update:model-value="
+                    value => {
+                      p.activateScript(n.id)
+                      s.prompt = n.prompt = value
+                    }
+                  "
                   :node-id="n.id"
                   label="脚本节点输入"
                   placeholder="输入故事情节、目标和风格，输入 @ 引用内容…"
                   :disabled="s.readonly"
                 />
                 <div class="script-inline-tools">
-                  <button title="引用" @click="p.openModal('reference', { for: 'script' })">
+                  <button
+                    title="引用"
+                    @click="
+                      $event => {
+                        p.activateScript(n.id)
+                        p.openModal('reference', { for: 'script' })
+                      }
+                    "
+                  >
                     <Icon name="attach" :size="15" /></button
-                  ><button title="上传文件或表格" @click="p.openModal('script-input')">
+                  ><button
+                    title="上传文件或表格"
+                    @click="
+                      $event => {
+                        p.activateScript(n.id)
+                        p.openModal('script-input')
+                      }
+                    "
+                  >
                     <Icon name="upload" :size="15" /></button
                   ><span>Qwen 3.8 Flash</span
                   ><button
                     class="primary-button"
                     title="生成分镜脚本"
                     :disabled="s.readonly"
-                    @click="p.generateScript()"
+                    @click="
+                      $event => {
+                        p.activateScript(n.id)
+                        s.prompt = n.prompt || ''
+                        p.generateScript()
+                      }
+                    "
                   >
                     <Icon name="spark" :size="14" />生成分镜
                   </button>
@@ -793,10 +967,27 @@ function reset() {
                 <p v-if="s.error && !s.modal" class="field-error">{{ s.error }}</p>
               </div>
               <div class="script-footer">
-                <button class="subtle-button" :disabled="s.readonly" @click="p.addRow()">
+                <button
+                  class="subtle-button"
+                  :disabled="s.readonly"
+                  @click="
+                    $event => {
+                      p.activateScript(n.id)
+                      p.addRow()
+                    }
+                  "
+                >
                   <Icon name="plus" :size="15" />添加镜头</button
                 ><span><Icon name="link" :size="13" />点击行右侧连接点，将内容引用到节点</span
-                ><button class="subtle-button" @click="p.openModal('script-input')">
+                ><button
+                  class="subtle-button"
+                  @click="
+                    $event => {
+                      p.activateScript(n.id)
+                      p.openModal('script-input')
+                    }
+                  "
+                >
                   输入与引用<Icon name="arrow" :size="14" />
                 </button>
               </div>
@@ -1032,8 +1223,8 @@ function reset() {
             v-if="s.pendingRow"
             class="connect-popover"
             :style="{
-              left: '1100px',
-              top: 225 + s.rows.findIndex(r => r.id === s.pendingRow) * 102 + 'px'
+              left: rowPoint(s.pendingRow).x + 18 + 'px',
+              top: rowPoint(s.pendingRow).y + 'px'
             }"
           >
             <span class="eyebrow">引用镜头 {{ p.row(s.pendingRow)?.number }}</span>
@@ -1265,38 +1456,99 @@ function reset() {
         <Icon name="attach" :size="15" />粘贴
       </button>
     </div>
-    <div class="canvas-bottom-toolbar">
+    <div class="canvas-bottom-toolbar canvas-top-tools" aria-label="画布工具栏">
       <button
         class="icon-button mode-button"
-        title="移动：选择并拖动节点"
+        title="移动工具：V"
         aria-label="移动模式"
         :aria-pressed="s.interactionMode === 'move'"
         :class="{ active: s.interactionMode === 'move' }"
         @click="s.interactionMode = 'move'"
       >
-        ↖</button
-      ><button
+        <Icon name="move" :size="18" />
+      </button>
+      <button
         class="icon-button mode-button"
-        title="抓手：拖动画布"
+        title="抓手工具：H"
         aria-label="抓手模式"
         :aria-pressed="s.interactionMode === 'hand'"
         :class="{ active: s.interactionMode === 'hand' }"
         @click="s.interactionMode = 'hand'"
       >
-        ✋</button
-      ><span class="toolbar-divider"></span
-      ><button class="icon-button" title="撤销" @click="p.notify('当前没有可撤销的编辑')">
-        <Icon name="undo" :size="16" /></button
-      ><span class="toolbar-divider"></span
-      ><button class="icon-button" title="缩小" @click="s.zoom = Math.max(50, s.zoom - 10)">
-        −</button
+        <Icon name="hand" :size="18" />
+      </button>
+      <span class="toolbar-divider"></span>
+      <button
+        class="icon-button"
+        title="撤销：⌘Z"
+        :disabled="!p.history.canUndo || s.readonly"
+        @click="p.undo()"
+      >
+        <Icon name="undo" :size="17" />
+      </button>
+      <button
+        class="icon-button"
+        title="重做：⌘⇧Z"
+        :disabled="!p.history.canRedo || s.readonly"
+        @click="p.redo()"
+      >
+        <Icon name="redo" :size="17" />
+      </button>
+      <span class="toolbar-divider"></span>
+      <button class="icon-button" title="缩小" @click="s.zoom = Math.max(10, s.zoom - 10)">
+        <Icon name="minus" :size="16" /></button
       ><span>{{ s.zoom }}%</span
       ><button class="icon-button" title="放大" @click="s.zoom = Math.min(150, s.zoom + 10)">
-        +</button
-      ><span class="toolbar-divider"></span
-      ><button class="icon-button" title="适应画布" @click="reset()">
-        <Icon name="expand" :size="16" />
+        <Icon name="plus" :size="16" />
       </button>
+      <button class="icon-button" title="适应画布：⌘0" @click="reset()">
+        <Icon name="expand" :size="17" />
+      </button>
+      <span class="toolbar-divider"></span>
+      <button
+        class="icon-button"
+        title="添加节点：Tab"
+        :aria-expanded="addMenu"
+        :disabled="s.readonly"
+        @click="addMenu = !addMenu"
+      >
+        <Icon name="plus" :size="18" /></button
+      ><button class="icon-button" title="快捷键" @click="shortcutHelp = true">
+        <Icon name="keyboard" :size="19" />
+      </button>
+    </div>
+    <div v-if="addMenu" class="canvas-add-menu" role="menu" aria-label="添加节点">
+      <button
+        v-for="[type, icon] in Object.entries(nodeIcons)"
+        :key="type"
+        role="menuitem"
+        @click="createNode(type)"
+      >
+        <Icon :name="icon" :size="17" />{{ type }}节点
+      </button>
+    </div>
+    <div
+      v-if="shortcutHelp"
+      class="modal-backdrop shortcut-overlay"
+      @click.self="shortcutHelp = false"
+    >
+      <section class="modal shortcut-dialog" role="dialog" aria-label="画布快捷键">
+        <header class="modal-header">
+          <h2>画布快捷键</h2>
+          <button class="icon-button" title="关闭快捷键" @click="shortcutHelp = false">
+            <Icon name="close" />
+          </button>
+        </header>
+        <div class="modal-content">
+          <p class="help-copy">
+            Mac 使用 ⌘ / ⌥，Windows 使用 Ctrl / Alt。编辑文字时保留系统快捷键。
+          </p>
+          <div v-for="[label, key] in shortcuts" :key="label" class="shortcut-row">
+            <span>{{ label }}</span
+            ><kbd>{{ key }}</kbd>
+          </div>
+        </div>
+      </section>
     </div>
     <div class="canvas-position-note">无限画布<span>双指滑动平移 · 双指捏合缩放</span></div>
   </div>
