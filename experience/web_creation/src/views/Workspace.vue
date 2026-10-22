@@ -644,7 +644,6 @@ function reset() {
           <Icon name="clock" />任务<span v-if="s.tasks.length" class="tiny-count">{{
             s.tasks.length
           }}</span></button
-        ><button class="secondary-button" @click="p.openModal('feedback')">确认与反馈</button
         ><button class="primary-button" @click="p.openModal('download')">
           <Icon name="download" :size="16" />下载素材
         </button>
@@ -1000,18 +999,7 @@ function reset() {
                     }
                   "
                 >
-                  <Icon name="plus" :size="15" />添加镜头</button
-                ><span><Icon name="link" :size="13" />点击行右侧连接点，将内容引用到节点</span
-                ><button
-                  class="subtle-button"
-                  @click="
-                    $event => {
-                      p.activateScript(n.id)
-                      p.openModal('script-input')
-                    }
-                  "
-                >
-                  输入与引用<Icon name="arrow" :size="14" />
+                  <Icon name="plus" :size="15" />添加镜头
                 </button>
               </div>
               <button
@@ -1366,15 +1354,18 @@ function reset() {
         </div>
         <div class="agent-composer">
           <div v-if="s.references.length" class="reference-pills">
-            <span v-for="(ref, i) in s.references" :key="ref.id" class="input-reference-card"
-              >{{ ref.name
-              }}<button title="取消引用" @click="s.references.splice(i, 1)">×</button></span
-            >
+            <ReferenceChip
+              v-for="a in s.references"
+              :key="a.id"
+              :asset="a"
+              @remove="s.references = s.references.filter(x => x.id !== a.id)"
+              @open="p.openModal('asset-detail', a)"
+            />
           </div>
           <textarea
             v-model="s.agentText"
             aria-label="与Agent对话"
-            placeholder="告诉我你的想法，或 @ 引用内容…"
+            placeholder="告诉我你的想法，或从下方选择引用内容"
             @keydown.ctrl.enter="p.sendAgent()"
           ></textarea>
           <div>

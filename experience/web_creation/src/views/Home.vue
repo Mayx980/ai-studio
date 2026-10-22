@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useCreation } from '@/ports/creation'
 import Icon from '../components/CreationIcon.vue'
+import ReferenceChip from '../components/ReferenceChip.vue'
 import ProductScene from '../components/ProductScene.vue'
 const p = useCreation(),
   s = p.state
@@ -24,22 +25,22 @@ const ideas = ['为产品写一份宣传脚本', '把活动方案变成分镜', 
       <p class="hero-description">与 AI 一起构思、编写分镜、生成素材，让创作自然发生。</p>
       <div class="inspiration-box">
         <div class="prompt-label">今天，你想创作什么？</div>
-        <textarea
-          v-model="s.prompt"
-          aria-label="创作需求"
-          placeholder="描述你的创作目标、产品亮点与期望风格，或引用已有素材…"
-          @keydown.ctrl.enter="p.start()"
-        ></textarea>
-        <div v-if="s.references.length" class="reference-pills">
-          <span v-for="a in s.references" :key="a.id"
-            ><Icon :name="a.type === '提示词' ? 'text' : 'image'" :size="13" />{{ a.name
-            }}<button
-              title="移除引用"
-              @click="s.references = s.references.filter(x => x.id !== a.id)"
-            >
-              ×
-            </button></span
-          >
+        <div class="home-reference-input">
+          <div v-if="s.references.length" class="reference-pills">
+            <ReferenceChip
+              v-for="a in s.references"
+              :key="a.id"
+              :asset="a"
+              @remove="s.references = s.references.filter(x => x.id !== a.id)"
+              @open="p.openModal('asset-detail', a)"
+            />
+          </div>
+          <textarea
+            v-model="s.prompt"
+            aria-label="创作需求"
+            placeholder="描述你的创作目标、产品亮点与期望风格，或引用已有素材…"
+            @keydown.ctrl.enter="p.start()"
+          ></textarea>
         </div>
         <div class="inspiration-footer">
           <button class="reference-button" @click="p.openModal('reference', { for: 'home' })">

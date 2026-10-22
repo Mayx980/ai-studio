@@ -1,3 +1,8 @@
+import worksheetTemplate from './export-templates/worksheet.xml?raw'
+import contentTypes from './export-templates/content-types.xml?raw'
+import rootRelationships from './export-templates/relationships.xml?raw'
+import workbookTemplate from './export-templates/workbook.xml?raw'
+import workbookRelationships from './export-templates/workbook-relationships.xml?raw'
 const encoder = new TextEncoder()
 function crc32(bytes) {
   let c = -1
@@ -104,6 +109,85 @@ function audioBlob() {
 }
 export function installLocalMedia(p, demoVideo) {
   p.previewMedia = n => n.mediaUrl || (n.type === '视频' && n.status === 'success' ? demoVideo : '')
+  p.exportSpreadsheet = (rows = p.state.rows) => {
+    const escape = value =>
+      String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+    const keys = [
+      'number',
+      'duration',
+      'scale',
+      'camera',
+      'visual',
+      'sound',
+      'emotion',
+      'environment',
+      'imagePrompt',
+      'motionPrompt'
+    ]
+    const table = [
+      p.state.columns,
+      ...rows.map(row => [
+        ...keys.map(k => row[k] || ''),
+        p
+          .rowImages(row.id)
+          .map(a => a.name)
+          .join('、')
+      ])
+    ]
+    const column = i => {
+      let result = ''
+      for (i++; i; i = Math.floor((i - 1) / 26))
+        result = String.fromCharCode(65 + ((i - 1) % 26)) + result
+      return result
+    }
+    const sheet = worksheetTemplate.replace(
+      '__ROWS__',
+      table
+        .map(
+          (row, i) =>
+            '<row r="' +
+            (i + 1) +
+            '">' +
+            row
+              .map(
+                (value, j) =>
+                  '<c r="' +
+                  column(j) +
+                  (i + 1) +
+                  '" t="inlineStr"><is><t xml:space="preserve">' +
+                  escape(value) +
+                  '</t></is></c>'
+              )
+              .join('') +
+            '</row>'
+        )
+        .join('')
+    )
+    const files = {
+      '[Content_Types].xml': contentTypes,
+      '_rels/.rels': rootRelationships,
+      'xl/workbook.xml': workbookTemplate,
+      'xl/_rels/workbook.xml.rels': workbookRelationships,
+      'xl/worksheets/sheet1.xml': sheet
+    }
+
+    save(
+      new Blob(
+        [
+          zipFiles(
+            Object.entries(files).map(([name, text]) => ({ name, bytes: encoder.encode(text) }))
+          )
+        ],
+        { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+      ),
+      (p.state.projectName + '_分镜脚本').replace(/[\\/:*?"<>|]/g, '_') + '.xlsx'
+    )
+    p.notify('已导出当前分镜Excel表格')
+  }
   p.localDownloads = true
   p.prepareDownload = async nodes => {
     if (p.state.busy) return

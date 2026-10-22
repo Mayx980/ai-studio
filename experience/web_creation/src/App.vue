@@ -41,16 +41,7 @@ const nav = [
         <button class="brand" @click="port.go('home')">
           <span class="brand-symbol"><Icon name="spark" :size="23" /></span
           ><strong>AI Studio<span>创作空间</span></strong></button
-        ><button
-          class="new-project"
-          @click="
-            $event => {
-              s.prompt = ''
-              s.references = []
-              port.go('home')
-            }
-          "
-        >
+        ><button class="new-project" @click="port.openModal('new-project')">
           <Icon name="plus" />新建创作
         </button>
         <nav>
@@ -60,8 +51,7 @@ const nav = [
             :class="{ active: s.page === id || (id === 'projects' && s.page === 'workspace') }"
             @click="port.go(id)"
           >
-            <Icon :name="icon" /><span>{{ label }}</span
-            ><span v-if="id === 'assets'" class="nav-count">{{ s.assets.length }}</span>
+            <Icon :name="icon" /><span>{{ label }}</span>
           </button>
         </nav>
         <div class="sidebar-section">

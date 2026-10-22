@@ -1,5 +1,7 @@
 import { reactive, watch } from 'vue'
+import { readLocalReferences } from './local-references'
 export function extendCanvasTools(p) {
+  p.readLocalReferences = readLocalReferences
   const s = p.state,
     copy = x => JSON.parse(JSON.stringify(x))
   let serial = 0

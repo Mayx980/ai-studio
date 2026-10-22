@@ -104,7 +104,6 @@ function saveReferences() {
     for (const a of chosen)
       if (!s.references.some(x => x.id === a.id)) {
         s.references.push(a)
-        if (d.for === 'agent') s.agentText += ' @' + a.name
       }
     p.closeModal()
   }
@@ -189,7 +188,32 @@ async function optimize() {
 
 const parameterDraft = reactive({ ...p.params(d.node || {}) }),
   ratioDraft = ref(d.node?.ratio || '16:9')
+const localMaterials = ref([]),
+  uploading = ref(false),
+  uploadError = ref('')
+const supportsLocal =
+  kind === 'reference' && (d.node?.type === '文字' || ['agent', 'home'].includes(d.for))
+async function uploadReferences(event, script = false) {
+  if (s.readonly) return
+  uploading.value = true
+  uploadError.value = ''
+  try {
+    const selection = await p.readLocalReferences(event.target.files)
+    localMaterials.value.push(...selection.accepted)
+    if (script) s.references.push(...selection.accepted)
+    else
+      for (const a of selection.accepted)
+        if (!selectedReferences.value.some(x => x.id === a.id)) selectedReferences.value.push(a)
+    uploadError.value = selection.errors.join('；')
+  } catch {
+    uploadError.value = '读取失败，请重新选择文件'
+  } finally {
+    uploading.value = false
+    event.target.value = ''
+  }
+}
 const currentMaterials = computed(() => {
+  if (referenceSource.value === '本地上传') return localMaterials.value
   const all =
     referenceSource.value === '个人资产'
       ? s.assets
@@ -451,7 +475,9 @@ function printPreview() {
         ><template v-else-if="kind === 'reference'"
           ><div class="filter-tabs reference-tabs">
             <button
-              v-for="t in ['当前画布', '其他项目', '个人资产']"
+              v-for="t in supportsLocal
+                ? ['本地上传', '当前画布', '其他项目', '个人资产']
+                : ['当前画布', '其他项目', '个人资产']"
               :key="t"
               :class="{ active: referenceSource === t }"
               @click="referenceSource = t"
@@ -459,7 +485,24 @@ function printPreview() {
               {{ t }}
             </button>
           </div>
-          <p class="help-copy">仅显示你有权限访问的内容。引用不会自动生成。</p>
+          <label
+            v-if="supportsLocal && referenceSource === '本地上传'"
+            class="upload-zone local-reference-upload"
+            ><Icon name="upload" :size="23" /><b>上传本地文件</b
+            ><span>Markdown、Word、PDF、图片；最多10个。图片10MB，Markdown 2MB，其他文档20MB。</span
+            ><span class="file-picker-label">{{ uploading ? '读取中…' : '选择文件' }}</span
+            ><input
+              class="sr-only"
+              type="file"
+              multiple
+              :disabled="uploading || s.readonly"
+              aria-label="上传本地引用"
+              accept=".md,.doc,.docx,.pdf,image/png,image/jpeg,image/webp,image/gif,image/bmp"
+              @change="uploadReferences($event)"
+            /><small>Markdown读取本地正文；Word/PDF正文解析为模拟，不会调用真实模型。</small></label
+          >
+          <p v-if="uploadError" class="field-error" role="alert">{{ uploadError }}</p>
+          <p class="help-copy">仅显示你有权限访问的内容。引用不会自动生成，点击“确定”后应用。</p>
           <div v-if="!d.confirmImage" class="selected-image-strip">
             <span>已选 {{ selectedReferences.length }} 项</span
             ><ReferenceChip
@@ -501,6 +544,7 @@ function printPreview() {
                   <template v-if="a.version"> · 版本 {{ a.version }}</template></span
                 >
                 <p v-if="a.text">{{ a.text }}</p>
+                <small v-if="a.readStatus">{{ a.readStatus }}</small>
               </div>
               <Icon
                 :name="
@@ -534,21 +578,18 @@ function printPreview() {
             <Icon name="attach" />引用内容</button
           ><label class="upload-zone"
             ><Icon name="upload" :size="25" /><b>上传文件或表格</b
-            ><span>文档与表格解析结果将在确认后应用</span
+            ><span>文件作为参考，Word/PDF/表格正文解析为模拟</span
+            ><span class="file-picker-label">选择文件</span
             ><input
+              class="sr-only"
               type="file"
-              accept=".pdf,.docx,.xlsx,.csv,.txt"
-              @change="
-                $event => {
-                  s.references.push({
-                    id: 'file-' + Date.now(),
-                    name: $event.target.files[0]?.name || '文件',
-                    type: '文档'
-                  })
-                  p.notify('已选择文件，当前原型仅演示解析确认流程')
-                }
-              "
-          /></label>
+              multiple
+              aria-label="上传脚本参考文件"
+              accept=".md,.pdf,.doc,.docx,.xlsx,.csv,.txt,image/*"
+              @change="uploadReferences($event, true)"
+            /><small v-if="localMaterials.length">已选择 {{ localMaterials.length }} 个文件</small
+            ><small v-if="uploadError">{{ uploadError }}</small></label
+          >
           <p class="help-copy">脚本节点只生成分镜表，图片与视频由连接的下游节点生成。</p>
           <p v-if="s.error" class="field-error">{{ s.error }}</p></template
         ><template v-else-if="kind === 'script-editor'"
@@ -845,7 +886,13 @@ function printPreview() {
           ></textarea>
           <p class="help-copy">记录不会自动发起返工生成，新版本不继承旧确认结果。</p></template
         ><template v-else-if="kind === 'export'"
-          ><p class="help-copy">导出内容预览。当前原型不生成真实 PDF／Excel 文件。</p>
+          ><p class="help-copy">
+            {{
+              d.kind === 'excel'
+                ? '预览当前分镜，点击“导出”生成本地Excel文件。'
+                : '导出内容预览，PDF排版尚未接入。'
+            }}
+          </p>
           <div v-if="d.kind === 'excel'" class="table-editor-scroll">
             <table class="script-table">
               <thead>
@@ -941,7 +988,7 @@ function printPreview() {
         ><button
           v-else-if="kind === 'reference'"
           class="primary-button"
-          :disabled="!selectedReferences.length || s.readonly"
+          :disabled="!selectedReferences.length || s.readonly || uploading"
           @click="saveReferences()"
         >
           确定</button
@@ -991,6 +1038,13 @@ function printPreview() {
           @click="p.applyAsset(d, applyNode)"
         >
           引用</button
+        ><button
+          v-else-if="kind === 'export' && d.kind === 'excel'"
+          class="primary-button"
+          :disabled="!p.exportSpreadsheet || !s.rows.length"
+          @click="p.exportSpreadsheet(s.rows)"
+        >
+          导出</button
         ><button
           v-else-if="kind === 'download'"
           class="primary-button"
