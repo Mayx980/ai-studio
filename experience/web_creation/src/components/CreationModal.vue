@@ -6,6 +6,8 @@ import ProductScene from './ProductScene.vue'
 import MediaCover from './MediaCover.vue'
 import ReferenceChip from './ReferenceChip.vue'
 import MentionInput from './MentionInput.vue'
+import MediaParameters from './MediaParameters.vue'
+import { mediaDefaults } from '../state/media-parameters'
 const props = defineProps({ forcedKind: String })
 const p = useCreation(),
   s = p.state,
@@ -186,7 +188,12 @@ async function optimize() {
   }
 }
 
-const parameterDraft = reactive({ ...p.params(d.node || {}) }),
+const parameterDraft = reactive({
+    ...mediaDefaults(d.node?.type),
+    ...p.params(d.node || {}),
+    ratio: d.node?.ratio || '16:9',
+    model: d.node?.model || mediaDefaults(d.node?.type).model
+  }),
   ratioDraft = ref(d.node?.ratio || '16:9')
 const localMaterials = ref([]),
   uploading = ref(false),
@@ -240,7 +247,8 @@ function chooseReference(a) {
 function saveParams() {
   if (s.readonly) return
   Object.assign(p.params(d.node), parameterDraft)
-  p.setNode(d.node.id, 'ratio', ratioDraft.value)
+  p.setNode(d.node.id, 'ratio', d.node.type === '音频' ? ratioDraft.value : parameterDraft.ratio)
+  if (d.node.type !== '音频') p.setNode(d.node.id, 'model', parameterDraft.model)
   p.closeModal()
   p.notify('参数已保存，未发起生成')
 }
@@ -351,6 +359,7 @@ function printPreview() {
       :aria-label="title"
       :class="{
         'wide-modal': ['script-editor', 'export'].includes(kind),
+        'fullscreen-script-editor': kind === 'script-editor',
         'save-modal': kind === 'save',
         'canvas-bubble': isBubble
       }"
@@ -502,10 +511,9 @@ function printPreview() {
             /><small>Markdown读取本地正文；Word/PDF正文解析为模拟，不会调用真实模型。</small></label
           >
           <p v-if="uploadError" class="field-error" role="alert">{{ uploadError }}</p>
-          <p class="help-copy">仅显示你有权限访问的内容。引用不会自动生成，点击“确定”后应用。</p>
-          <div v-if="!d.confirmImage" class="selected-image-strip">
-            <span>已选 {{ selectedReferences.length }} 项</span
-            ><ReferenceChip
+          <p class="help-copy">仅显示你有权限访问的内容，点击“确定”后应用。</p>
+          <div v-if="!d.confirmImage && selectedReferences.length" class="selected-image-strip">
+            <ReferenceChip
               v-for="a in selectedReferences"
               :key="a.id"
               :asset="a"
@@ -555,11 +563,7 @@ function printPreview() {
                 :size="18"
               />
             </button>
-          </div>
-          <div v-if="!currentMaterials.length" class="empty-panel">
-            <h3>暂无可引用内容</h3>
-            <p>文本节点填写正文，媒体节点生成成功后，将实时出现在这里。</p>
-          </div></template
+          </div> </template
         ><template v-else-if="kind === 'script-input'"
           ><label>故事与创作要求</label
           ><MentionInput
@@ -703,7 +707,31 @@ function printPreview() {
           <p v-if="s.error" class="field-error" role="alert">{{ s.error }}</p>
           <p v-if="d.action === 'generate' && !p.isConnected" class="help-copy">
             当前为交互预览，生成状态与结果使用模拟数据。
-          </p></template
+          </p>
+          <div
+            v-if="kind === 'confirm' && d.action === 'generate'"
+            class="generation-reference-review"
+          >
+            <b>本次图片参考 · {{ d.referenceImages?.length || 0 }} 张</b>
+            <p v-if="d.referenceImages?.length" class="help-copy">
+              已按来源和版本去重。可移除不需要的图片。
+            </p>
+            <ReferenceChip
+              v-for="a in d.referenceImages"
+              :key="a.sourceNodeId || a.id"
+              :asset="a"
+              @remove="p.removeImageReference(d.nodeId, a)"
+            />
+            <p
+              v-if="
+                s.nodes.find(n => n.id === d.nodeId)?.type === '视频' &&
+                s.nodes.find(n => n.id === d.nodeId)?.mode !== '文生视频'
+              "
+              class="help-copy"
+            >
+              1张采用单图输入，2–10张作为多图参考；界面统一称图生视频。
+            </p>
+          </div></template
         ><template v-else-if="['rename-project', 'rename-session', 'new-project'].includes(kind)"
           ><label>{{ kind === 'rename-session' ? '会话名称' : '项目名称' }}</label
           ><input
@@ -745,7 +773,14 @@ function printPreview() {
             内容作为来源参考，不会覆盖节点中的手写输入。生成时固定当前版本。
           </p></template
         ><template v-else-if="kind === 'parameters'"
-          ><div class="parameter-grid">
+          ><MediaParameters
+            v-if="d.node.type !== '音频'"
+            :type="d.node.type"
+            :model-value="parameterDraft"
+            :connected="p.isConnected"
+            @update:model-value="Object.assign(parameterDraft, $event)"
+          />
+          <div v-else class="parameter-grid">
             <template v-if="d.node.type !== '音频'"
               ><label
                 >比例<select v-model="ratioDraft" aria-label="参数比例">
@@ -1019,7 +1054,13 @@ function printPreview() {
         ><button
           v-else-if="kind === 'confirm'"
           class="primary-button"
-          :disabled="s.scriptGenerating"
+          :disabled="
+            s.scriptGenerating ||
+            (d.action === 'generate' &&
+              s.nodes.find(n => n.id === d.nodeId)?.type === '视频' &&
+              s.nodes.find(n => n.id === d.nodeId)?.mode !== '文生视频' &&
+              (!d.referenceImages?.length || d.referenceImages.length > 10))
+          "
           @click="d.action === 'script' ? p.confirmScriptGeneration() : p.confirm()"
         >
           {{
@@ -1064,7 +1105,7 @@ function printPreview() {
           :disabled="!input.trim()"
           @click="
             $event => {
-              kind === 'new-project' ? p.newProject(input) : (s.projectName = input)
+              kind === 'new-project' ? p.newProject(input) : p.renameProject(input)
               p.closeModal()
             }
           "
@@ -1143,3 +1184,59 @@ function printPreview() {
     </div>
   </div>
 </template>
+
+<style>
+.modal.fullscreen-script-editor {
+  position: fixed;
+  inset: 12px;
+  width: auto;
+  max-width: none;
+  height: calc(100vh - 24px);
+  max-height: none;
+}
+.fullscreen-script-editor .modal-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.fullscreen-script-editor .table-editor-scroll {
+  flex: 1;
+  max-height: none;
+  overflow: auto;
+}
+</style>
+<style>
+.generation-reference-review {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #50405f;
+}
+.generation-reference-review .reference-chip-remove,
+.guide-generation-images .reference-chip-remove {
+  opacity: 1;
+  pointer-events: auto;
+}
+.story-guide .reference-chip-remove {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  height: 18px;
+  line-height: 16px;
+}
+.story-guide .reference-chip-open {
+  min-height: 26px;
+  margin: 0;
+  padding: 4px 7px 4px 4px;
+  line-height: 1.3;
+}
+.guide-generation-images > div {
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid #4a3c56;
+  border-radius: 8px;
+}
+.guide-generation-images .reference-chip {
+  margin: 8px 8px 4px 0;
+}
+</style>

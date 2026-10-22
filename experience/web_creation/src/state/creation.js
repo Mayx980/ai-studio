@@ -1,3 +1,4 @@
+import { uniqueName, extendNaming } from './naming'
 import { extendWorkflow } from './workflow'
 import { extendCanvasTools } from './canvas-tools'
 import { extendReferences } from './references'
@@ -558,12 +559,16 @@ export function createWorkspace(scenario = 'default') {
     },
     newSession() {
       histories[state.activeSession] = state.messages.map(m => ({ ...m }))
-      state.sessions.push('新对话 ' + (state.sessions.length + 1))
+      state.sessions.push(uniqueName('新对话', state.sessions))
       state.activeSession = state.sessions.at(-1)
       state.messages = []
     },
     renameSession(name) {
       if (name.trim()) {
+        name = uniqueName(
+          name,
+          state.sessions.filter(x => x !== state.activeSession)
+        )
         state.sessions = state.sessions.map(x => (x === state.activeSession ? name : x))
         histories[name] = histories[state.activeSession]
         state.activeSession = name
@@ -594,5 +599,6 @@ export function createWorkspace(scenario = 'default') {
   extendWorkflow(port, seedRows)
   extendReferences(port)
   extendCanvasTools(port)
+  extendNaming(port)
   return port
 }

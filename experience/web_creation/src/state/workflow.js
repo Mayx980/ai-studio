@@ -468,11 +468,7 @@ export function extendWorkflow(p, seedRows) {
       const n = s.nodes.find(x => x.id === id)
       if (!n || s.readonly) return
       const up = p.upstream(n)
-      if (n.type === '视频' && n.mode === '图生视频' && !n.imageConfirmed) {
-        p.notify('请先选择并确认图片版本')
-        return
-      }
-      if (!n.prompt?.trim() && !n.rowId && !n.refs?.length && !up.some(x => x.text)) {
+      if (!n.prompt?.trim() && !p.inputReferences(n).length && !up.some(x => x.text)) {
         p.notify('请输入提示词或引用已就绪内容')
         return
       }
@@ -507,7 +503,8 @@ export function extendWorkflow(p, seedRows) {
         prompt: n.prompt,
         references: p.referenceText(n),
         params: params(n),
-        refs: n.refs
+        refs: n.refs,
+        images: n.type === '视频' && n.mode === '文生视频' ? [] : p.referenceImages(n)
       })
       n.status = 'running'
       const task = { id: 'task-' + serial++, name: n.name, status: '生成中' }
@@ -524,7 +521,7 @@ export function extendWorkflow(p, seedRows) {
       p.openModal('reference', {
         for: 'node',
         node: s.nodes.find(n => n.id === id),
-        confirmImage: true
+        confirmImage: false
       })
     },
     buildWorkflow(text, initial = false) {

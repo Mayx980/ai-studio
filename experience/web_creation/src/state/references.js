@@ -1,3 +1,4 @@
+import { uniqueImages, imageIdentity } from './image-references'
 export function extendReferences(p) {
   const s = p.state
   s.columns = [...s.columns.slice(0, 10), '引用']
@@ -37,16 +38,46 @@ export function extendReferences(p) {
       }
       return rawOpen(type, data)
     },
+    referenceImages(n) {
+      return uniqueImages(p.inputReferences(n))
+    },
+    removeImageReference(nodeId, asset) {
+      const n = s.nodes.find(a => a.id === nodeId)
+      if (!n || s.readonly) return
+      const matches = p
+        .inputReferences(n)
+        .filter(a => a.type === '图片' && imageIdentity(a) === imageIdentity(asset))
+      for (const a of matches) p.removeInputReference(nodeId, a)
+      if (s.modalData?.action === 'generate' && s.modalData.nodeId === nodeId) {
+        s.modalData.referenceImages = p.referenceImages(n)
+        s.modalData.generationPrompt = n.prompt
+        s.modalData.generationReferenceText = p.referenceText(n)
+      }
+    },
     requestGenerate(id) {
       const n = s.nodes.find(n => n.id === id)
-      if (n?.type === '视频' && n.mode !== '文生视频') {
-        if (!n.imageConfirmed) {
-          p.notify('请先选择并确认图片')
+      if (!n || s.readonly) return
+      if (n.type === '视频' && n.mode !== '文生视频') {
+        n.mode = '图生视频'
+        const images = p.referenceImages(n)
+        if (!images.length || images.length > 10) {
+          p.notify('图生视频需引用1到10张图片，请在引用区添加或删减')
           return
         }
-        n.mode = n.confirmedImages?.length > 1 ? '参考图生视频' : '图生视频'
       }
-      return rawRequest(id)
+      const result = rawRequest(id)
+      if (s.modalData?.action === 'generate' && s.modalData.nodeId === id) {
+        s.modalData.referenceImages =
+          n.type === '视频' && n.mode === '文生视频' ? [] : p.referenceImages(n)
+        s.modalData.generationPrompt = n.prompt
+        s.modalData.generationReferenceText = p.referenceText(n)
+        s.modalData.generationConfig = JSON.stringify({
+          params: p.params(n),
+          ratio: n.ratio,
+          mode: n.mode
+        })
+      }
+      return result
     },
     rowIds: ids,
     connect(rowId, nodeId) {
@@ -189,7 +220,7 @@ export function extendReferences(p) {
         n.confirmedImages = remaining
         n.confirmedImage = remaining[0] || null
         n.imageConfirmed = remaining.length > 0
-        if (n.mode !== '文生视频') n.mode = remaining.length > 1 ? '参考图生视频' : '图生视频'
+        if (n.mode !== '文生视频') n.mode = '图生视频'
       }
     },
     attachReference(asset, nodeId) {
@@ -239,21 +270,14 @@ export function extendReferences(p) {
       for (const c of s.connections.filter(c => c.target === n.id)) {
         const source = s.nodes.find(x => x.id === c.source)
         if (source) {
-          const confirmed = n.imageConfirmed
-            ? n.confirmedImages?.find(a => a.sourceNodeId === source.id)
-            : null
           result.push({
             ...nodeMaterial(source),
-            ...confirmed,
             key: 'edge:' + c.id,
             bindingId: c.id,
             kind: 'upstream'
           })
         }
       }
-      for (const a of n.confirmedImages || [])
-        if (n.imageConfirmed && !a.sourceNodeId)
-          result.push({ ...a, key: 'confirmed:' + a.id, kind: 'confirmed' })
       for (const a of n.assetRefs || []) result.push({ ...a, key: 'asset:' + a.id, kind: 'asset' })
       for (const [i, name] of (n.refs || []).entries()) {
         if (result.some(a => a.name === name)) continue
@@ -311,8 +335,7 @@ export function extendReferences(p) {
         n.confirmedImages = n.confirmedImages.filter(a => a.id !== asset.id)
         n.confirmedImage = n.confirmedImages[0] || null
         n.imageConfirmed = n.confirmedImages.length > 0
-        if (n.mode !== '文生视频')
-          n.mode = n.confirmedImages.length > 1 ? '参考图生视频' : '图生视频'
+        if (n.mode !== '文生视频') n.mode = '图生视频'
       } else if (asset.kind === 'asset')
         n.assetRefs = (n.assetRefs || []).filter(a => a.id !== asset.id)
       else p.removeReference(nodeId, asset.index)
@@ -343,7 +366,12 @@ export function extendReferences(p) {
       )
       n.confirmedImage = n.confirmedImages[0]
       n.imageConfirmed = true
-      n.mode = assets.length > 1 ? '参考图生视频' : '图生视频'
+      n.mode = '图生视频'
+      n.generationKind = assets.length > 1 ? 'reference' : 'single'
+      for (const a of assets.filter(a => !a.sourceNodeId)) {
+        n.assetRefs ||= []
+        if (!n.assetRefs.some(x => x.id === a.id)) n.assetRefs.push(copy(a))
+      }
       p.notify('已确认 ' + assets.length + ' 张图片 · ' + n.mode)
       return true
     },
@@ -362,6 +390,35 @@ export function extendReferences(p) {
       return result
     },
     confirm() {
+      const d = s.modalData
+      if (d?.action === 'generate') {
+        const n = s.nodes.find(a => a.id === d.nodeId)
+        if (!n || s.readonly) return
+        const images = n.type === '视频' && n.mode === '文生视频' ? [] : p.referenceImages(n)
+        if (n.type === '视频' && n.mode !== '文生视频' && (!images.length || images.length > 10)) {
+          p.notify('请保留1到10张参考图片')
+          return
+        }
+        if (
+          d.generationConfig !== undefined &&
+          (d.generationPrompt !== n.prompt ||
+            d.generationReferenceText !== p.referenceText(n) ||
+            d.generationConfig !==
+              JSON.stringify({ params: p.params(n), ratio: n.ratio, mode: n.mode }) ||
+            images.map(imageIdentity).join('|') !==
+              (d.referenceImages || []).map(imageIdentity).join('|'))
+        ) {
+          p.notify('生成输入或参考已更新，请重新核对并确认')
+          p.requestGenerate(n.id)
+          return
+        }
+        if (n.type === '视频') {
+          n.confirmedImages = copy(images)
+          n.confirmedImage = n.confirmedImages[0] || null
+          n.imageConfirmed = images.length > 0
+          n.generationKind = images.length > 1 ? 'reference' : 'single'
+        }
+      }
       if (s.modalData?.action === 'delete-row') {
         p.removeRow(s.modalData.id)
         p.closeModal()
@@ -370,4 +427,17 @@ export function extendReferences(p) {
       return rawConfirm()
     }
   })
+  const removeInput = p.removeInputReference
+  p.removeInputReference = (id, asset) => {
+    removeInput(id, asset)
+    const n = s.nodes.find(a => a.id === id)
+    if (
+      n &&
+      asset.type === '图片' &&
+      !p.referenceImages(n).some(a => imageIdentity(a) === imageIdentity(asset))
+    )
+      n.prompt = (n.prompt || '').replaceAll('@' + asset.name, (match, offset, text) =>
+        p.referenceImages(n).some(a => text.startsWith('@' + a.name, offset)) ? match : ''
+      )
+  }
 }

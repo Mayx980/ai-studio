@@ -54,11 +54,11 @@ describe('封面与分镜引用', () => {
     expect(p.rowIds(p.state.nodes[1])).toEqual(['shot-b'])
     expect(p.state.nodes[1].status).toBe('success')
   })
-  it('确认多图后切换参考图模式，超过10张不提交', () => {
+  it('多图统一显示图生视频并记录多图策略，超过10张不提交', () => {
     const p = createWorkspace()
     const asset = p.materials().find(a => a.type === '图片')
     expect(p.confirmImages('video-1', [asset, { ...asset, id: 'another' }])).toBe(true)
-    expect(p.state.nodes[2].mode).toBe('参考图生视频')
+    expect(p.state.nodes[2].mode).toBe('图生视频')
     expect(p.state.nodes[2].confirmedImages).toHaveLength(2)
     expect(
       p.confirmImages(

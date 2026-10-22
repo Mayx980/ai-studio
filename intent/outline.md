@@ -30,11 +30,11 @@
 | BR-document | 文档创作及 Office／PDF 读取 | 3.7 文档创作与读取 | SC-node-creation |
 | BR-script | 完整分镜表、参考生成、按行连接及Excel导出 | 5.8 脚本节点（分镜） | SC-node-creation |
 | BR-canvas | 画布编辑与保存 | 4. 节点画布 | SC-node-creation |
-| BR-node | 节点、粘贴、参数及手动生成 | 5. 五类节点创作 | SC-node-creation |
+| BR-node | 五类节点、去重命名、共享参数及手动生成 | 5. 五类节点创作 | SC-node-creation |
 | BR-model | 模型配置及能力校验 | 6.1 模型 | SC-node-creation |
 | BR-connection | 连线依赖与限制 | 6.2 连线 | SC-node-creation |
 | BR-assets | 手动保存、分类标签、具体版本与独立保留 | 7.2 个人资产 | SC-reuse |
-| BR-reference | 媒体、提示词及分镜行引用与版本保留 | 8. 引用与撤销恢复 | SC-reuse |
+| BR-reference | 媒体与分镜行引用、图片@标签及生成版本快照 | 8. 引用与撤销恢复 | SC-reuse |
 | BR-undo | 画布编辑撤销边界 | 8.2 撤销与恢复 | SC-node-creation |
 | BR-feedback | 线下确认、反馈与返工 | 9.3 来源版本与返工<br>9.4 线下确认与反馈记录 | SC-delivery |
 | BR-text-export | 结构化剧情生成预览、确定保存与PDF导出 | 5.2 文本节点交互与 PDF 导出 | SC-node-creation |

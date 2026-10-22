@@ -7,6 +7,7 @@ import ReferenceChip from '../components/ReferenceChip.vue'
 import MentionInput from '../components/MentionInput.vue'
 import StoryGuide from '../components/StoryGuide.vue'
 import StoryPreview from '../components/StoryPreview.vue'
+import { modelName } from '../state/media-parameters'
 const p = useCreation(),
   s = p.state
 const keys = [
@@ -42,7 +43,52 @@ const shortcuts = [
 ]
 const sessionMenu = ref(false),
   showAgent = ref(true),
-  canvas = ref(null)
+  canvas = ref(null),
+  agentWidth = ref(460),
+  agentHeight = ref(null)
+let cleanupAgentResize = () => {}
+let suppressScriptClickUntil = 0
+function resizeAgent(e, corner = false) {
+  cleanupAgentResize()
+  e.preventDefault()
+  const panel = e.currentTarget.closest('.agent-panel'),
+    rect = panel.getBoundingClientRect()
+  const startX = e.clientX,
+    startY = e.clientY
+  const move = event => {
+    const available = panel.parentElement.clientWidth
+    agentWidth.value = Math.max(
+      Math.min(340, available - 180),
+      Math.min(available - 180, rect.width + startX - event.clientX)
+    )
+    if (corner)
+      agentHeight.value = Math.max(
+        360,
+        Math.min(panel.parentElement.clientHeight, rect.height + event.clientY - startY)
+      )
+  }
+  const end = () => {
+    window.removeEventListener('pointermove', move)
+    window.removeEventListener('pointerup', end)
+    window.removeEventListener('pointercancel', end)
+  }
+  cleanupAgentResize = end
+  window.addEventListener('pointermove', move)
+  window.addEventListener('pointerup', end, { once: true })
+  window.addEventListener('pointercancel', end, { once: true })
+}
+function openScript(e, n) {
+  p.activateScript(n.id)
+  if (Date.now() < suppressScriptClickUntil) return
+  if (
+    e.target.closest(
+      'button,input,textarea,select,[contenteditable],.node-port,.node-resize-edge,.script-resize-handle'
+    )
+  )
+    return
+  if (s.interactionMode === 'hand' || e.altKey) return
+  p.openModal('script-editor')
+}
 function rowPoint(rowId, kind = 'source') {
   const el = canvas.value?.querySelector(`[data-row-${kind}="${rowId}"]`),
     script = p.scriptForRow(rowId) || p.activeScript()
@@ -375,6 +421,7 @@ watch(
   { flush: 'post' }
 )
 onUnmounted(() => {
+  cleanupAgentResize()
   nodeObserver?.disconnect()
   document.removeEventListener('keydown', canvasShortcuts)
   document.removeEventListener('paste', pasteCanvas)
@@ -402,6 +449,8 @@ function drag(e, n) {
     ox = n.x,
     oy = n.y
   const move = ev => {
+    if (Math.abs(ev.clientX - x) + Math.abs(ev.clientY - y) > 4)
+      suppressScriptClickUntil = Date.now() + 400
     if (duplicate && !cloned) {
       if (Math.abs(ev.clientX - x) + Math.abs(ev.clientY - y) < 4) return
       const id = p.duplicateNode(n.id, true)
@@ -622,7 +671,11 @@ function reset() {
 }
 </script>
 <template>
-  <div class="workspace-page" @click.capture="capturePanelAnchor">
+  <div
+    class="workspace-page"
+    :style="{ '--agent-width': agentWidth + 'px' }"
+    @click.capture="capturePanelAnchor"
+  >
     <button
       v-if="s.layersCollapsed"
       class="layers-reopen icon-button"
@@ -745,7 +798,7 @@ function reset() {
             @click="
               $event => {
                 if (!$event.altKey) s.selectedNode = n.id
-                n.type === '脚本' && p.activateScript(n.id)
+                if (n.type === '脚本') openScript($event, n)
               }
             "
           >
@@ -1071,7 +1124,15 @@ function reset() {
                 </div>
               </div>
               <div v-else-if="n.type === '文字'" class="text-node-detail-entry">
-                <p v-if="n.text" class="confirmed-story-content">{{ n.text }}</p>
+                <textarea
+                  class="confirmed-story-content direct-story-input"
+                  :value="n.text"
+                  :aria-label="n.name + '剧情正文'"
+                  placeholder="直接输入完整剧情脚本，或在下方输入创意后生成"
+                  :disabled="s.readonly"
+                  @input="p.setNode(n.id, 'text', $event.target.value)"
+                  @pointerdown.stop
+                ></textarea>
                 <button class="subtle-button" @click="p.openModal('text-editor', { node: n })">
                   详情<Icon name="arrow" :size="14" />
                 </button>
@@ -1135,18 +1196,10 @@ function reset() {
                 >
                   <option>图生视频</option>
                   <option>文生视频</option>
-                  <option>参考图生视频</option></select
-                ><button
-                  v-if="n.mode !== '文生视频'"
-                  :class="{ confirmed: n.imageConfirmed }"
-                  @click="p.referenceImage(n.id)"
+                </select>
+                <span v-if="n.mode !== '文生视频'" class="video-reference-count"
+                  >引用 {{ p.referenceImages(n).length }} 张图片</span
                 >
-                  <Icon :name="n.imageConfirmed ? 'check' : 'image'" :size="13" />{{
-                    n.imageConfirmed
-                      ? '已确认 ' + (n.confirmedImages?.length || 1) + ' 张图片'
-                      : '选择并确认图片'
-                  }}
-                </button>
               </div>
               <div v-if="n.type !== '文字'" class="parameter-summary">
                 <button
@@ -1176,13 +1229,11 @@ function reset() {
                   ><Icon name="settings" :size="13" />
                 </button>
               </div>
-              <p v-if="p.isConnected && n.type === '视频'" class="node-mode-hint">
+              <p v-if="n.type === '视频'" class="node-mode-hint">
                 {{
                   n.mode === '文生视频'
-                    ? '文生模式仅发送文本，不发送图片参考'
-                    : n.confirmedImages?.length > 1
-                      ? '参考图模式采用已确认的 ' + n.confirmedImages.length + ' 张图片'
-                      : '图生模式采用已确认的单张实际图片'
+                    ? '仅发送文字描述'
+                    : '使用已引用图片；输入 @ 可指定场景参考，生成前核对清单（1–10张）'
                 }}
               </p>
               <div class="node-controls">
@@ -1197,14 +1248,7 @@ function reset() {
                   <option value="qwen3.8-flash">Qwen Flash</option>
                   <option value="mock-copy">文案模型（模拟）</option></select
                 ><span v-else class="node-model"
-                  >{{
-                    n.type === '视频'
-                      ? '万相 3.0'
-                      : n.type === '音频'
-                        ? 'Seed Audio1.0'
-                        : n.type === '文字'
-                          ? 'Qwen Flash'
-                          : '千问图像 3.0'
+                  >{{ n.type === '音频' ? 'Seed Audio1.0' : modelName(n.type, n.model)
                   }}<Icon name="down" :size="11" /></span
                 ><button
                   class="node-generate"
@@ -1256,7 +1300,29 @@ function reset() {
           </button>
         </div>
       </section>
-      <aside v-if="showAgent" class="agent-panel">
+      <aside
+        v-if="showAgent"
+        class="agent-panel"
+        :style="{ width: agentWidth + 'px', height: agentHeight ? agentHeight + 'px' : '100%' }"
+      >
+        <div
+          class="agent-width-handle"
+          role="separator"
+          aria-label="调整助手宽度"
+          aria-orientation="vertical"
+          tabindex="0"
+          @pointerdown="resizeAgent($event)"
+          @keydown.left.prevent="agentWidth = Math.min(900, agentWidth + 20)"
+          @keydown.right.prevent="agentWidth = Math.max(340, agentWidth - 20)"
+        ></div>
+        <button
+          class="agent-corner-handle"
+          title="拖拽调整助手大小"
+          aria-label="调整助手大小"
+          @pointerdown="resizeAgent($event, true)"
+        >
+          ⌟
+        </button>
         <header>
           <span class="agent-avatar"><Icon name="spark" :size="18" /></span>
           <div><strong>灵感助手</strong><small>一起把想法变成画面</small></div>
@@ -1465,7 +1531,9 @@ function reset() {
     <StoryPreview />
     <div
       class="canvas-bottom-toolbar canvas-top-tools"
-      :style="{ left: showAgent ? 'calc((100% - 310px) / 2)' : '50%' }"
+      :style="{
+        left: showAgent ? 'calc((100% - min(var(--agent-width), calc(100% - 180px))) / 2)' : '50%'
+      }"
       aria-label="画布工具栏"
     >
       <button
@@ -1552,7 +1620,7 @@ function reset() {
         </header>
         <div class="modal-content">
           <p class="help-copy">
-            Mac 使用 ⌘ / ⌥，Windows 使用 Ctrl / Alt。编辑文字时保留系统快捷键。
+            Mac 使用 ⌘ / Option，Windows 使用 Ctrl / Alt。编辑文字时保留系统快捷键。
           </p>
           <div v-for="[label, key] in shortcuts" :key="label" class="shortcut-row">
             <span>{{ label }}</span
@@ -1579,5 +1647,83 @@ function reset() {
 }
 .text-node-detail-entry:has(.confirmed-story-content) {
   display: block;
+}
+</style>
+
+<style>
+.workspace-body {
+  min-width: 0;
+}
+.canvas-viewport {
+  min-width: 0;
+}
+.agent-panel {
+  position: relative;
+  align-self: flex-start;
+  max-width: calc(100% - 180px);
+  max-height: 100%;
+  min-height: 360px;
+  box-sizing: border-box;
+}
+.agent-width-handle {
+  position: absolute;
+  inset: 0 auto 0 -5px;
+  width: 10px;
+  cursor: ew-resize;
+  z-index: 5;
+}
+.agent-width-handle:hover,
+.agent-width-handle:focus {
+  background: #b59af455;
+}
+.agent-corner-handle {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 6;
+  width: 20px;
+  height: 20px;
+  cursor: nesw-resize;
+  color: #b59af4;
+}
+.agent-panel .agent-messages {
+  min-height: 0;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+.agent-panel .agent-composer {
+  flex-shrink: 0;
+}
+.story-guide .guide-field {
+  margin: 6px 0;
+}
+.story-guide .guide-plan {
+  padding: 10px;
+  margin: 8px 0;
+}
+.story-guide .shared-media-parameters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.story-guide .shared-media-parameters label {
+  margin: 0;
+}
+.direct-story-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 130px;
+  height: 200px;
+  resize: vertical;
+  background: #211c29;
+  border: 1px solid #51415f;
+  border-radius: 8px;
+  font: 12px/1.7 inherit;
+  color: #ededf3;
+  white-space: pre-wrap;
+}
+.agent-panel .story-guide .guide-story {
+  height: 280px;
 }
 </style>

@@ -19,11 +19,13 @@ await card.locator('[class="guide-plan"]').first().waitFor()
 assert.equal(await page.locator('.canvas-node').count(), 0)
 assert.equal(await page.getByRole('button', { name: '缩小', exact: true }).count(), 0)
 await card.getByRole('button', { name: '选择此方案' }).first().click()
-await card
-  .getByLabel('剧情脚本草稿')
+await card.getByRole('button', { name: '展开编辑剧情脚本', exact: true }).click()
+await page
+  .getByLabel('剧情脚本草稿', { exact: true })
   .fill(
     '一、故事定义\n咖啡新品故事\n二、剧情结构\n开场：咖啡豆醒来\n推进：研磨冲泡\n收束：端起咖啡\n三、创作约束层\n不得添加健康承诺\n四、制作设计\n30秒，电影感'
   )
+await page.getByRole('button', { name: '保存草稿，返回确认', exact: true }).click()
 await card
   .getByRole('button', { name: '确定剧情脚本，创建并保存文字节点，进入下一步', exact: true })
   .click()
@@ -69,7 +71,7 @@ assert.equal(await page.locator('.story-preview-bubble').count(), 0)
 await text.getByRole('button', { name: '再生成', exact: true }).click({ force: true })
 await page.getByLabel('编辑剧情脚本预览', { exact: true }).fill('确认后的剧情')
 await page.getByRole('button', { name: '确定并保存文字节点', exact: true }).click()
-assert.ok((await text.innerText()).includes('确认后的剧情'))
+assert.equal(await text.locator('.direct-story-input').inputValue(), '确认后的剧情')
 await page.screenshot({ path: '/tmp/story-guide-final.png', fullPage: true })
 assert.deepEqual(errors, [])
 assert.equal(

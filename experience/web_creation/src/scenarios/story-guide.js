@@ -1,3 +1,5 @@
+import { uniqueImages, imageIdentity } from '../state/image-references'
+import { mediaDefaults } from '../state/media-parameters'
 import { directionFields, inferDirection, storyDraft } from '../state/story-format'
 const copy = value => JSON.parse(JSON.stringify(value))
 export function installStoryGuide(p) {
@@ -9,8 +11,33 @@ export function installStoryGuide(p) {
   const node = (type, name, data) => {
     const id = p.addNode(type)
     const n = s.nodes.find(n => n.id === id)
-    if (n) Object.assign(n, { name, status: 'success', version: 1 }, data)
+    if (n)
+      Object.assign(
+        n,
+        {
+          name: p.uniqueName(
+            name,
+            s.nodes.filter(a => a.id !== id)
+          ),
+          status: 'success',
+          version: 1
+        },
+        data
+      )
     return n
+  }
+  const expandOutputs = g => {
+    const used = s.nodes.map(n => ({ name: n.name })),
+      expanded = []
+    for (const item of g.preview)
+      for (let i = 0; i < Number(g.params.count || 1); i++) {
+        const value = copy(item)
+        value.name = p.uniqueName(item.name, used)
+        used.push({ name: value.name })
+        value.outputKey = item.id + ':' + i
+        expanded.push(value)
+      }
+    g.preview = expanded
   }
   p.beginGuide = text => {
     if (s.readonly) return
@@ -28,7 +55,7 @@ export function installStoryGuide(p) {
       rows: [],
       prompts: [],
       selection: [],
-      params: { model: '模拟图像模型', ratio: '16:9', quality: '高清', duration: '5秒' },
+      params: mediaDefaults('图片'),
       revision: '',
       error: '',
       scriptId: '',
@@ -70,6 +97,28 @@ export function installStoryGuide(p) {
       }
     ]
     g.stage = 'plans'
+  }
+  p.guideParseDirection = g => {
+    if (!editable(g)) return
+    const parsed = inferDirection(g.brief.input)
+    for (const [key] of directionFields) if (parsed[key]) g.brief[key] = parsed[key]
+    g.editKnown = true
+  }
+  p.guideOtherPlans = g => {
+    if (!editable(g) || !g.planRequest?.trim()) {
+      g.error = '请填写方案修改要求'
+      return
+    }
+    const request = g.planRequest.trim()
+    p.guidePlans(g)
+    g.plans = g.plans.map((plan, index) => ({
+      ...plan,
+      name: `${plan.name} · 调整${index + 1}`,
+      outline: request + '；' + plan.outline,
+      reason: `根据你的修改要求“${request}”调整。` + plan.reason
+    }))
+    g.error = ''
+    g.otherPlan = false
   }
   p.guideChoosePlan = (g, index) => {
     if (!editable(g) || g.stage !== 'plans') return
@@ -178,7 +227,7 @@ export function installStoryGuide(p) {
     }
     g.error = ''
     g.stage = 'image-config'
-    g.params.model = '模拟图像模型'
+    g.params = { ...mediaDefaults('图片'), ratio: g.brief.ratio }
     g.params.ratio = g.brief.ratio
   }
   p.guideSyncPrompts = (g, sync) => {
@@ -237,6 +286,7 @@ export function installStoryGuide(p) {
         params: copy(g.params),
         revision: 0
       }))
+    expandOutputs(g)
     g.stage = 'image-preview'
   }
   p.guideAcceptImages = g => {
@@ -276,6 +326,19 @@ export function installStoryGuide(p) {
       g.selection = []
     }
   }
+  p.guideRowReferences = (g, id) => {
+    const refs = p
+      .rowImages(id)
+      .filter(a => a.type !== '图片' || !(g.excludedImages?.[id] || []).includes(imageIdentity(a)))
+    return [...refs.filter(a => a.type !== '图片'), ...uniqueImages(refs)]
+  }
+  p.guideRowImages = (g, id) => uniqueImages(p.guideRowReferences(g, id))
+  p.guideRemoveImage = (g, id, a) => {
+    if (!editable(g)) return
+    g.excludedImages ||= {}
+    g.excludedImages[id] ||= []
+    g.excludedImages[id].push(imageIdentity(a))
+  }
   p.guideVideoConfig = g => {
     if (!editable(g) || !g.selection.length) {
       g.error = '请至少选择一个镜头'
@@ -283,10 +346,15 @@ export function installStoryGuide(p) {
     }
     g.error = ''
     g.stage = 'video-config'
-    g.params.model = '模拟视频模型'
+    g.params = { ...mediaDefaults('视频'), ratio: g.brief.ratio }
   }
   p.guideGenerateVideos = g => {
     if (!editable(g) || g.stage !== 'video-config') return
+    if (g.selection.some(id => p.guideRowImages(g, id).length > 10)) {
+      g.error = '每个镜头最多引用10张图片，请先删减'
+      return
+    }
+    g.error = ''
     g.preview = g.rows
       .filter(r => g.selection.includes(r.id))
       .map(r => ({
@@ -306,15 +374,22 @@ export function installStoryGuide(p) {
           r.environment,
           r.imagePrompt,
           r.motionPrompt,
-          ...p.rowImages(r.id).map(a => [a.name, a.text].filter(Boolean).join('：'))
+          ...p.guideRowReferences(g, r.id).map(a => [a.name, a.text].filter(Boolean).join('：'))
         ].join('\n'),
         params: {
           ...copy(g.params),
           duration: g.params.duration === '按分镜时长' ? r.duration : g.params.duration
         },
-        references: copy(p.rowImages(r.id)),
+        references: copy(p.guideRowReferences(g, r.id)),
+        excludedRowMedia: p
+          .rowImages(r.id)
+          .filter(
+            a => a.type === '图片' && (g.excludedImages?.[r.id] || []).includes(imageIdentity(a))
+          )
+          .map(a => 'row-media:' + r.id + ':' + a.id),
         revision: 0
       }))
+    expandOutputs(g)
     g.stage = 'video-preview'
   }
   p.guideAcceptVideos = g => {
@@ -331,7 +406,9 @@ export function installStoryGuide(p) {
         rowRefs: [a.id],
         ...a.params,
         mode: a.references?.some(r => r.type === '图片') ? '图生视频' : '文生视频',
-        guideReferences: a.references
+        guideReferences: a.references,
+        generationKind: uniqueImages(a.references || []).length > 1 ? 'reference' : 'single',
+        excludedRowMedia: a.excludedRowMedia
       })
       p.connect(a.id, n.id)
     }

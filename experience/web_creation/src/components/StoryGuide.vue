@@ -3,11 +3,14 @@ import { ref, computed } from 'vue'
 import { useCreation } from '@/ports/creation'
 import { directionFields } from '../state/story-format'
 import ProductScene from './ProductScene.vue'
+import MediaParameters from './MediaParameters.vue'
+import ReferenceChip from './ReferenceChip.vue'
 const props = defineProps({ messageIndex: { type: Number, required: true } })
 const p = useCreation(),
   s = p.state
 const guide = computed(() => s.messages[props.messageIndex].guide)
-const fullTable = ref(false)
+const fullTable = ref(false),
+  fullStory = ref(false)
 const columns = [
   ['number', '镜头号'],
   ['duration', '时长'],
@@ -53,8 +56,8 @@ function toggleRow(a, id) {
           <p v-for="[key, label] in directionFields.filter(([key]) => guide.known[key])" :key="key">
             {{ label }}：{{ guide.brief[key] }}
           </p>
-          <button class="secondary-button" @click="guide.editKnown = !guide.editKnown">
-            {{ guide.editKnown ? '收起已识别信息' : '调整已识别信息' }}
+          <button class="secondary-button" @click="p.guideParseDirection(guide)">
+            解析现有信息并覆盖到下列表单中
           </button>
         </div>
         <div
@@ -86,15 +89,23 @@ function toggleRow(a, id) {
             选择此方案
           </button>
         </article>
+        <button class="secondary-button" @click="guide.otherPlan = true">
+          其他方案，修改要求填写到下方表单
+        </button>
+        <div v-if="guide.otherPlan" class="guide-plan">
+          <label
+            >方案修改要求<textarea
+              v-model="guide.planRequest"
+              placeholder="描述新的创意方向或需要调整之处"
+            ></textarea></label
+          ><button class="primary-button" @click="p.guideOtherPlans(guide)">重新生成方案</button>
+        </div>
       </template>
       <template v-else-if="guide.stage === 'story'">
-        <label
-          >剧情脚本（可直接编辑）<textarea
-            v-model="guide.story"
-            class="guide-story"
-            aria-label="剧情脚本草稿"
-          ></textarea>
-        </label>
+        <div class="guide-story-summary">
+          {{ guide.story.slice(0, 500) }}{{ guide.story.length > 500 ? '…' : '' }}
+        </div>
+        <button class="secondary-button" @click="fullStory = true">展开编辑剧情脚本</button>
         <button class="secondary-button" @click="guide.modify = true">修改剧情脚本</button>
         <button class="primary-button" @click="p.guideConfirmStory(guide)">
           确定剧情脚本，创建并保存文字节点，进入下一步
@@ -102,30 +113,26 @@ function toggleRow(a, id) {
       </template>
       <template v-else-if="guide.stage === 'storyboard'">
         <p>分镜草稿 · {{ guide.rows.length }} 个镜头，点击展开可编辑完整表格。</p>
-        <div class="guide-inline-table">
+        <div class="guide-compact-table">
           <table>
             <thead>
               <tr>
-                <th v-for="[key, label] in columns" :key="key">{{ label }}</th>
-                <th>引用</th>
+                <th>镜头</th>
+                <th>时长</th>
+                <th>画面</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="r in guide.rows" :key="r.id">
-                <td v-for="[key] in columns" :key="key">
-                  <textarea v-model="r[key]" :aria-label="'草稿镜头' + r.number + key"></textarea>
-                </td>
-                <td>
-                  {{
-                    p
-                      .rowImages(r.id)
-                      .map(a => a.name)
-                      .join('、') || '待确认后关联'
-                  }}
-                </td>
+              <tr v-for="r in guide.rows.slice(0, 3)" :key="r.id">
+                <td>{{ r.number }}</td>
+                <td>{{ r.duration }}</td>
+                <td>{{ r.visual.slice(0, 80) }}</td>
               </tr>
             </tbody>
           </table>
+          <small v-if="guide.rows.length > 3"
+            >另有{{ guide.rows.length - 3 }}个镜头，展开查看。</small
+          >
         </div>
         <button class="secondary-button" @click="fullTable = true">展开分镜表并编辑</button>
         <button class="secondary-button" @click="guide.modify = true">修改分镜脚本</button>
@@ -170,33 +177,28 @@ function toggleRow(a, id) {
         >
       </template>
       <template v-else-if="guide.stage === 'image-config' || guide.stage === 'video-config'">
-        <label
-          >模型<select v-model="guide.params.model">
-            <option>{{ guide.stage === 'image-config' ? '模拟图像模型' : '模拟视频模型' }}</option>
-            <option>模拟高质量模型</option>
-          </select></label
-        >
-        <label
-          >画面比例<select v-model="guide.params.ratio">
-            <option>16:9</option>
-            <option>9:16</option>
-            <option>1:1</option>
-            <option>4:3</option>
-          </select></label
-        >
-        <label
-          >清晰度<select v-model="guide.params.quality">
-            <option>高清</option>
-            <option>超清</option>
-          </select></label
-        >
-        <label v-if="guide.stage === 'video-config'"
-          >每个镜头视频时长<select v-model="guide.params.duration">
-            <option>5秒</option>
-            <option>10秒</option>
-            <option>按分镜时长</option>
-          </select></label
-        >
+        <MediaParameters
+          v-model="guide.params"
+          :type="guide.stage === 'image-config' ? '图片' : '视频'"
+          :connected="p.isConnected"
+        />
+        <div v-if="guide.stage === 'video-config'" class="guide-generation-images">
+          <div v-for="r in guide.rows.filter(r => guide.selection.includes(r.id))" :key="r.id">
+            <b
+              >镜头{{ r.number }} ·
+              {{ p.guideRowImages(guide, r.id).length ? '图生视频' : '文生视频' }}</b
+            >
+            <div>
+              <ReferenceChip
+                v-for="a in p.guideRowImages(guide, r.id)"
+                :key="a.sourceNodeId || a.id"
+                :asset="a"
+                @remove="p.guideRemoveImage(guide, r.id, a)"
+              />
+            </div>
+            <small>{{ p.guideRowImages(guide, r.id).length }}张图片，已去重，最多10张</small>
+          </div>
+        </div>
         <p>本地模拟结果用于交互预览，参数会保存到对应节点。</p>
         <button
           v-if="guide.stage === 'image-config'"
@@ -210,7 +212,7 @@ function toggleRow(a, id) {
         </button>
       </template>
       <template v-else-if="guide.stage === 'image-preview' || guide.stage === 'video-preview'">
-        <article v-for="a in guide.preview" :key="a.id" class="guide-plan">
+        <article v-for="a in guide.preview" :key="a.outputKey || a.id" class="guide-plan">
           <b>{{ a.name }}</b
           ><small v-if="a.revision"> · 已修改{{ a.revision }}次</small>
           <video
@@ -221,7 +223,10 @@ function toggleRow(a, id) {
           ></video>
           <ProductScene v-else :variant="a.scene" />
           <small>本地示例素材，仅演示预览交互。</small>
-          <p>{{ a.prompt }}</p>
+          <details>
+            <summary>查看生成输入</summary>
+            <p>{{ a.prompt }}</p>
+          </details>
         </article>
         <button class="secondary-button" @click="guide.modify = true">
           {{ guide.stage === 'image-preview' ? '修改图片' : '调整视频内容' }}
@@ -262,6 +267,27 @@ function toggleRow(a, id) {
       <p v-if="guide.error" role="alert">{{ guide.error }}</p>
     </fieldset>
     <Teleport to="body">
+      <section
+        v-if="fullStory && active()"
+        class="guide-full-table"
+        role="dialog"
+        aria-modal="true"
+        aria-label="编辑剧情脚本草稿"
+      >
+        <header>
+          <h2>剧情脚本草稿</h2>
+          <button class="secondary-button" @click="fullStory = false">返回</button>
+        </header>
+        <textarea
+          v-model="guide.story"
+          class="guide-expanded-story"
+          aria-label="剧情脚本草稿"
+        ></textarea>
+        <footer>
+          <span>仅编辑草稿，回到对话确认后才保存节点。</span
+          ><button class="primary-button" @click="fullStory = false">保存草稿，返回确认</button>
+        </footer>
+      </section>
       <section
         v-if="fullTable && active()"
         class="guide-full-table"
@@ -483,5 +509,51 @@ function toggleRow(a, id) {
   min-height: 100px;
   resize: vertical;
   margin: 0;
+}
+</style>
+
+<style>
+.guide-story-summary {
+  white-space: pre-wrap;
+  max-height: 210px;
+  overflow: hidden;
+  color: #cbbfda;
+  margin: 10px 0;
+}
+.guide-compact-table {
+  overflow: auto;
+  margin: 10px 0;
+}
+.guide-compact-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.guide-compact-table td,
+.guide-compact-table th {
+  padding: 6px;
+  border: 1px solid #47384f;
+  text-align: left;
+}
+.guide-expanded-story {
+  flex: 1;
+  min-height: 0;
+  margin: 18px 0;
+  resize: none;
+  background: #19171f;
+  color: #ededf3;
+  border: 1px solid #604e72;
+  border-radius: 9px;
+  padding: 16px;
+  font: 14px/1.8 inherit;
+}
+.story-guide details summary {
+  cursor: pointer;
+  color: #c4a7e8;
+}
+.story-guide details p {
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
 }
 </style>

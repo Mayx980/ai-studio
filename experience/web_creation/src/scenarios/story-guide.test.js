@@ -110,3 +110,31 @@ describe('分阶段创作确认', () => {
     expect(g.stage).toBe('done')
   })
 })
+
+describe('方案与共享媒体数量', () => {
+  it('其他方案按要求重新出方案，不创建节点；解析按钮只覆盖可识别字段', () => {
+    const [p, g] = guide()
+    g.planRequest = '换成幽默的日常故事'
+    p.guideOtherPlans(g)
+    expect(g.plans[0].outline).toContain('幽默')
+    expect(p.state.nodes).toHaveLength(0)
+    g.stage = 'direction'
+    g.brief.purpose = '手改'
+    p.guideParseDirection(g)
+    expect(g.brief.purpose).toBe('产品宣传')
+    expect(g.editKnown).toBe(true)
+  })
+  it('助手按共享数量生成多个具名预览，保存后命名不重复', () => {
+    const [p, g] = guide()
+    p.guideChoosePlan(g, 0)
+    p.guideConfirmStory(g)
+    p.guideConfirmStoryboard(g)
+    p.guideImageConfig(g, 'all')
+    g.params.count = 2
+    p.guideGenerateImages(g)
+    expect(g.preview).toHaveLength(6)
+    expect(new Set(g.preview.map(a => a.name)).size).toBe(6)
+    p.guideAcceptImages(g)
+    expect(p.state.nodes.filter(n => n.type === '图片')).toHaveLength(6)
+  })
+})
