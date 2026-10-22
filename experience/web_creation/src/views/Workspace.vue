@@ -5,6 +5,8 @@ import Icon from '../components/CreationIcon.vue'
 import ProductScene from '../components/ProductScene.vue'
 import ReferenceChip from '../components/ReferenceChip.vue'
 import MentionInput from '../components/MentionInput.vue'
+import StoryGuide from '../components/StoryGuide.vue'
+import StoryPreview from '../components/StoryPreview.vue'
 const p = useCreation(),
   s = p.state
 const keys = [
@@ -1069,6 +1071,7 @@ function reset() {
                 </div>
               </div>
               <div v-else-if="n.type === '文字'" class="text-node-detail-entry">
+                <p v-if="n.text" class="confirmed-story-content">{{ n.text }}</p>
                 <button class="subtle-button" @click="p.openModal('text-editor', { node: n })">
                   详情<Icon name="arrow" :size="14" />
                 </button>
@@ -1115,7 +1118,11 @@ function reset() {
                 <div class="node-input-tools">
                   <button title="引用" @click="p.openModal('reference', { for: 'node', node: n })">
                     <Icon name="attach" :size="14" /></button
-                  ><button title="优化提示词" @click="p.openModal('optimize', { node: n })">
+                  ><button
+                    v-if="n.type !== '文字'"
+                    title="优化提示词"
+                    @click="p.openModal('optimize', { node: n })"
+                  >
                     <Icon name="spark" :size="14" /></button
                   ><span v-if="p.rowIds(n).length">已引用 {{ p.rowIds(n).length }} 行</span>
                 </div>
@@ -1201,23 +1208,10 @@ function reset() {
                   }}<Icon name="down" :size="11" /></span
                 ><button
                   class="node-generate"
-                  :title="n.type === '文字' && !p.isConnected ? '编辑文本' : '生成' + n.type"
-                  :disabled="n.status === 'running' || s.readonly"
-                  @click="
-                    $event => {
-                      n.type === '文字' && !p.isConnected
-                        ? p.openModal('text-editor', { node: n })
-                        : p.requestGenerate(n.id)
-                    }
-                  "
+                  :title="'生成' + n.type"
+                  @click="p.requestGenerate(n.id)"
                 >
-                  <Icon name="spark" :size="14" />{{
-                    n.type === '文字' && !p.isConnected
-                      ? '编辑'
-                      : n.status === 'success'
-                        ? '再生成'
-                        : '生成'
-                  }}
+                  <Icon name="spark" :size="14" />{{ n.status === 'success' ? '再生成' : '生成' }}
                 </button>
               </div></template
             >
@@ -1313,6 +1307,7 @@ function reset() {
               }}
             </div>
             <p>{{ m.text }}</p>
+            <StoryGuide v-if="m.guide" :message-index="i" />
             <button
               v-if="m.role === 'user'"
               class="message-edit"
@@ -1343,7 +1338,7 @@ function reset() {
           <div v-if="s.busy" class="typing-dots">
             <i></i><i></i><i></i><span>正在整理思路…</span>
           </div>
-          <div class="agent-suggestion">
+          <div v-if="!p.currentGuide?.()" class="agent-suggestion">
             <span>接下来可以试试</span
             ><button @click="s.agentText = '为镜头01创建一个图片节点'">
               为分镜创建图片节点<Icon name="arrow" :size="13" /></button
@@ -1467,6 +1462,7 @@ function reset() {
         <Icon name="attach" :size="15" />粘贴
       </button>
     </div>
+    <StoryPreview />
     <div
       class="canvas-bottom-toolbar canvas-top-tools"
       :style="{ left: showAgent ? 'calc((100% - 310px) / 2)' : '50%' }"
@@ -1510,12 +1506,6 @@ function reset() {
         <Icon name="redo" :size="17" />
       </button>
       <span class="toolbar-divider"></span>
-      <button class="icon-button" title="缩小" @click="s.zoom = Math.max(10, s.zoom - 10)">
-        <Icon name="minus" :size="16" /></button
-      ><span>{{ s.zoom }}%</span
-      ><button class="icon-button" title="放大" @click="s.zoom = Math.min(150, s.zoom + 10)">
-        <Icon name="plus" :size="16" />
-      </button>
       <button class="icon-button" title="适应画布：⌘0" @click="reset()">
         <Icon name="expand" :size="17" />
       </button>
@@ -1574,3 +1564,20 @@ function reset() {
     <div class="canvas-position-note">无限画布<span>双指滑动平移 · 双指捏合缩放</span></div>
   </div>
 </template>
+
+<style>
+.confirmed-story-content {
+  white-space: pre-wrap;
+  max-height: 280px;
+  overflow: auto;
+  line-height: 1.7;
+  font-size: 12px;
+  padding: 12px;
+  margin: 0;
+  color: #e1d8ea;
+  user-select: text;
+}
+.text-node-detail-entry:has(.confirmed-story-content) {
+  display: block;
+}
+</style>

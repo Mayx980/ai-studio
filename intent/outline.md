@@ -26,7 +26,7 @@
 | BR-isolation | 统一登录与个人内容隔离 | 2. 用户、权限与资料边界 | SC-access |
 | BR-material | 资料外发与产品准确性 | 2.3 资料使用范围 | SC-node-creation |
 | BR-project | 项目创建、复制与画幅 | 3.3 项目约定 | SC-node-creation, SC-delivery |
-| BR-agent | 灵感入口、会话、结构化提问、画布和资产操作 | 3.4～3.6 | SC-node-creation |
+| BR-agent | 灵感入口、方向补全、推荐方案、剧情/分镜/媒体逐阶段确认及画布操作 | 3.4～3.6 | SC-node-creation |
 | BR-document | 文档创作及 Office／PDF 读取 | 3.7 文档创作与读取 | SC-node-creation |
 | BR-script | 完整分镜表、参考生成、按行连接及Excel导出 | 5.8 脚本节点（分镜） | SC-node-creation |
 | BR-canvas | 画布编辑与保存 | 4. 节点画布 | SC-node-creation |
@@ -37,7 +37,7 @@
 | BR-reference | 媒体、提示词及分镜行引用与版本保留 | 8. 引用与撤销恢复 | SC-reuse |
 | BR-undo | 画布编辑撤销边界 | 8.2 撤销与恢复 | SC-node-creation |
 | BR-feedback | 线下确认、反馈与返工 | 9.3 来源版本与返工<br>9.4 线下确认与反馈记录 | SC-delivery |
-| BR-text-export | 文本编辑、确定保存与PDF导出 | 5.2 文本节点交互与 PDF 导出 | SC-node-creation |
+| BR-text-export | 结构化剧情生成预览、确定保存与PDF导出 | 5.2 文本节点交互与 PDF 导出 | SC-node-creation |
 | BR-export | 单素材及按镜头批量下载 | 9.1 单素材下载<br>9.2 按选定镜头批量下载 | SC-delivery |
 | BR-task | 后台执行、停止与重试 | 10. 任务、异常与数据保留 | SC-task |
 | BR-recycle | 30 天回收站及引用保护 | 10.3 回收站 | SC-reuse |
