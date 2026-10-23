@@ -1,3 +1,4 @@
+import { installConnectedGuide } from './guide'
 import { reactive } from 'vue'
 import { createWorkspace } from '../../state/creation'
 const fields = [
@@ -68,6 +69,12 @@ export function createConnectedPort() {
   p.clearModelKeys = () => {
     for (const kind of ['text', 'image', 'video', 'audio']) p.models[kind] = ''
     p.notify('已清除本页面的 API Key')
+  }
+  const logout = p.logout
+  p.logout = () => {
+    p.clearModelKeys()
+    p.models.open = false
+    logout()
   }
   p.optimizePrompt = async (current, requirements) => {
     const result = await run('text', {
@@ -310,5 +317,7 @@ export function createConnectedPort() {
       p.notify(e.message)
     }
   }
+  p.previewMedia = n => n.mediaUrl || ''
+  installConnectedGuide(p, run, parseShots)
   return p
 }

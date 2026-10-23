@@ -26,7 +26,13 @@ const placement = computed(() => {
         ×
       </button>
     </header>
-    <p>模拟整理结果，可手动编辑。确定后才更新文字节点。</p>
+    <p>
+      {{
+        p.isConnected
+          ? '真实模型返回草稿，可手动编辑。确定后才更新文字节点。'
+          : '模拟整理结果，可手动编辑。确定后才更新文字节点。'
+      }}
+    </p>
     <textarea v-model="s.storyPreview.text" aria-label="编辑剧情脚本预览"></textarea>
     <footer>
       <button class="secondary-button" @click="s.storyPreview = null">取消</button

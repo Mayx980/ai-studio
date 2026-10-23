@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useCreation } from '@/ports/creation'
 import { directionFields } from '../state/story-format'
 import ProductScene from './ProductScene.vue'
+import MediaCover from './MediaCover.vue'
 import MediaParameters from './MediaParameters.vue'
 import ReferenceChip from './ReferenceChip.vue'
 import { fitTextarea as vFitTextarea } from './fit-textarea'
@@ -46,13 +47,15 @@ function toggleRow(a, id) {
 <template>
   <section class="story-guide" :data-stage="guide.stage">
     <small
-      >模拟创作 ·
+      >{{ p.isConnected ? '真实模型' : '模拟创作' }} ·
       {{
         {
           direction: '确认方向',
           plans: '方案选择',
           story: '剧情脚本',
           storyboard: '分镜设计',
+          'storyboard-pending': '生成分镜',
+          'prompts-pending': '提取素材提示词',
           prompts: '素材提示词',
           'image-config': '生图参数',
           'image-preview': '图片预览',
@@ -64,7 +67,8 @@ function toggleRow(a, id) {
         }[guide.stage]
       }}</small
     >
-    <fieldset :disabled="!active()">
+    <p v-if="guide.busy" role="status">{{ guide.activity }}，请稍候…</p>
+    <fieldset :disabled="!active() || guide.busy">
       <template v-if="guide.stage === 'direction'">
         <div v-if="directionFields.some(([key]) => guide.known[key])" class="guide-plan">
           <b>已识别的方向</b>
@@ -95,6 +99,18 @@ function toggleRow(a, id) {
         </label>
         <button class="primary-button" @click="p.guidePlans(guide)">确认方向，查看方案</button>
       </template>
+      <template v-else-if="guide.stage === 'storyboard-pending'"
+        ><p>剧情已保存。分镜由真实模型生成，失败会保留已保存剧情。</p>
+        <button class="primary-button" @click="p.guideRetryStoryboard(guide)">
+          按当前剧情生成分镜
+        </button></template
+      >
+      <template v-else-if="guide.stage === 'prompts-pending'"
+        ><p>分镜已保存。提取实际角色、道具及场景提示词。</p>
+        <button class="primary-button" @click="p.guideRetryPrompts(guide)">
+          按当前分镜提取提示词
+        </button></template
+      >
       <template v-else-if="guide.stage === 'plans'">
         <article v-for="(plan, index) in guide.plans" :key="plan.name" class="guide-plan">
           <b>{{ index + 1 }}. {{ plan.name }}</b>
@@ -214,7 +230,16 @@ function toggleRow(a, id) {
             <small>{{ p.guideRowImages(guide, r.id).length }}张图片，已去重，最多10张</small>
           </div>
         </div>
-        <p>本地模拟结果用于交互预览，参数会保存到对应节点。</p>
+        <p>
+          {{
+            p.isConnected
+              ? '点击生成将提交本批次请求，可能产生供应商费用。结果先预览，确认后才保存节点。'
+              : '本地模拟结果用于交互预览，参数会保存到对应节点。'
+          }}
+        </p>
+        <p v-if="p.isConnected" class="help-copy">
+          图片模型最多3张参考图；视频最多10张参考图。当前视频适配器不支持音频文件参考，请将音效要求写入文字。
+        </p>
         <button
           v-if="guide.stage === 'image-config'"
           class="primary-button"
@@ -227,6 +252,28 @@ function toggleRow(a, id) {
         </button>
       </template>
       <template v-else-if="guide.stage === 'image-preview' || guide.stage === 'video-preview'">
+        <details
+          v-if="
+            p.isConnected &&
+            guide.mediaHistory?.some(batch =>
+              batch.some(a => a.type === (guide.stage === 'image-preview' ? '图片' : '视频'))
+            )
+          "
+        >
+          <summary>此前生成批次</summary>
+          <template v-for="(batch, index) in guide.mediaHistory" :key="index"
+            ><button
+              v-if="
+                batch.every(a => a.type === (guide.stage === 'image-preview' ? '图片' : '视频'))
+              "
+              class="secondary-button"
+              @click="p.guideRestoreBatch(guide, index)"
+            >
+              恢复批次{{ index + 1 }}（{{ batch.length }}项）
+            </button></template
+          >
+        </details>
+
         <article v-for="a in guide.preview" :key="a.outputKey || a.id" class="guide-plan">
           <b>{{ a.name }}</b
           ><small v-if="a.revision"> · 已修改{{ a.revision }}次</small>
@@ -236,8 +283,24 @@ function toggleRow(a, id) {
             controls
             preload="metadata"
           ></video>
-          <ProductScene v-else :variant="a.scene" />
-          <small>本地示例素材，仅演示预览交互。</small>
+          <MediaCover v-else-if="p.isConnected" :asset="a" /><ProductScene
+            v-else
+            :variant="a.scene"
+          />
+          <small>{{
+            p.isConnected ? '供应商返回结果，请预览确认。' : '本地示例素材，仅演示预览交互。'
+          }}</small>
+          <details v-if="a.versions?.length">
+            <summary>历史预览版本</summary>
+            <button
+              v-for="(version, index) in a.versions"
+              :key="index"
+              class="secondary-button"
+              @click="p.guideRestoreVersion(guide, a, index)"
+            >
+              恢复版本{{ index + 1 }}
+            </button>
+          </details>
           <details>
             <summary>查看生成输入</summary>
             <p>{{ a.prompt }}</p>
@@ -246,14 +309,38 @@ function toggleRow(a, id) {
         <button class="secondary-button" @click="guide.modify = true">
           {{ guide.stage === 'image-preview' ? '修改图片' : '调整视频内容' }}
         </button>
+        <div v-if="p.isConnected && guide.failedMedia">
+          <p>{{ guide.failedMedia }}项调用失败，成功结果已保留，不会自动重试。</p>
+          <button class="secondary-button" @click="p.guideRetryMedia(guide)">仅重试失败项</button
+          ><label v-if="guide.preview.length"
+            ><input v-model="guide.allowPartial" type="checkbox" />仅采用成功结果，跳过失败项</label
+          >
+        </div>
+        <button
+          v-if="p.isConnected"
+          class="secondary-button"
+          @click="p.guideBackToParameters(guide)"
+        >
+          返回参数，新建生成批次
+        </button>
         <button
           v-if="guide.stage === 'image-preview'"
           class="primary-button"
+          :disabled="
+            !guide.preview.length || (p.isConnected && guide.failedMedia && !guide.allowPartial)
+          "
           @click="p.guideAcceptImages(guide)"
         >
           确定图片内容，创建并保存图片节点，进入下一步
         </button>
-        <button v-else class="primary-button" @click="p.guideAcceptVideos(guide)">
+        <button
+          v-else
+          class="primary-button"
+          :disabled="
+            !guide.preview.length || (p.isConnected && guide.failedMedia && !guide.allowPartial)
+          "
+          @click="p.guideAcceptVideos(guide)"
+        >
           确定视频内容，创建并保存视频节点
         </button>
       </template>
@@ -663,5 +750,19 @@ function toggleRow(a, id) {
 .guide-full-table td:nth-child(2) textarea,
 .guide-full-table td:nth-child(3) textarea {
   min-width: 0;
+}
+</style>
+
+<style>
+.story-guide .guide-plan > .media-cover {
+  height: 190px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+.story-guide .guide-plan > .media-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 </style>

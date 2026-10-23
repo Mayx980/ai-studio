@@ -1134,7 +1134,13 @@ function reset() {
                   @pointerdown.stop
                 ></textarea>
                 <button class="subtle-button" @click="p.openModal('text-editor', { node: n })">
-                  详情<Icon name="arrow" :size="14" />
+                  详情<Icon name="arrow" :size="14" /></button
+                ><button
+                  v-if="p.isConnected && n.pendingStory"
+                  class="subtle-button"
+                  @click="p.openPendingStory(n.id)"
+                >
+                  查看未保存生成稿
                 </button>
               </div>
               <div v-else class="empty-media">
@@ -1242,16 +1248,23 @@ function reset() {
                   @change="p.setNode(n.id, 'model', $event.target.value)"
                 >
                   <option value="qwen3.8-flash">Qwen Flash</option>
-                  <option value="mock-copy">文案模型（模拟）</option></select
+                  <option v-if="!p.isConnected" value="mock-copy">文案模型（模拟）</option></select
                 ><span v-else class="node-model"
                   >{{ n.type === '音频' ? 'Seed Audio1.0' : modelName(n.type, n.model)
                   }}<Icon name="down" :size="11" /></span
                 ><button
                   class="node-generate"
+                  :disabled="s.readonly || n.storyBusy || n.status === 'running'"
                   :title="'生成' + n.type"
                   @click="p.requestGenerate(n.id)"
                 >
-                  <Icon name="spark" :size="14" />{{ n.status === 'success' ? '再生成' : '生成' }}
+                  <Icon name="spark" :size="14" />{{
+                    n.storyBusy || n.status === 'running'
+                      ? '生成中…'
+                      : n.status === 'success'
+                        ? '再生成'
+                        : '生成'
+                  }}
                 </button>
               </div></template
             >
@@ -1362,6 +1375,16 @@ function reset() {
         </div>
         <div class="agent-messages">
           <div class="chat-date">今天</div>
+          <div v-if="p.recoverableGuides?.().length" class="recovered-guides">
+            <button
+              v-for="record in p.recoverableGuides()"
+              :key="record.guide.id"
+              class="secondary-button"
+              @click="p.recoverGuide(record.guide.id)"
+            >
+              恢复此前调用草稿 · {{ record.session }}
+            </button>
+          </div>
           <article v-for="(m, i) in s.messages" :key="i" class="chat-message" :class="m.role">
             <div class="message-role">
               <Icon v-if="m.role === 'assistant'" name="spark" :size="13" />{{

@@ -1,5 +1,5 @@
 export const mediaModels = {
-  图片: [{ value: 'qwen-image-3.0', label: '千问图像 3.0' }],
+  图片: [{ value: 'qwen-image-3.0-pro', label: '千问图像 3.0 Pro' }],
   视频: [{ value: 'wan3.0', label: '万相 3.0' }]
 }
 export function mediaDefaults(type) {

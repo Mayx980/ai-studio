@@ -9,7 +9,8 @@ const page = await browser.newPage({ viewport: { width: 1800, height: 1200 } }),
   requests = []
 page.on('pageerror', e => errors.push(e.message))
 page.on('request', r => requests.push(r.url()))
-await page.goto('http://127.0.0.1:5174')
+const origin=process.env.PREVIEW_URL || 'http://127.0.0.1:5174'
+await page.goto(origin)
 await page
   .locator('.inspiration-box textarea')
   .fill('目的：产品宣传；风格：电影感；时长30秒；比例16:9；核心内容：咖啡新品；目标受众：上班族')
@@ -76,7 +77,7 @@ await page.screenshot({ path: '/tmp/story-guide-final.png', fullPage: true })
 assert.deepEqual(errors, [])
 assert.equal(
   requests.filter(
-    u => !u.startsWith('http://127.0.0.1:5174') && !u.startsWith('data:') && !u.startsWith('blob:')
+    u => !u.startsWith(origin) && !u.startsWith('data:') && !u.startsWith('blob:')
   ).length,
   0
 )

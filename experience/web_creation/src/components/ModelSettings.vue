@@ -3,7 +3,7 @@ import { useCreation } from '../ports/creation'
 import Icon from './CreationIcon.vue'
 const p = useCreation()
 const providers = [
-  ['text', '文本 · 分镜与提示词优化', 'qwen3.8-flash · aliyun_bailian_qwen_text.ts'],
+  ['text', '文本 · 方向、方案、剧情与分镜', 'qwen3.8-flash · aliyun_bailian_qwen_text.ts'],
   ['image', '图片', 'qwen-image-3.0-pro · aliyunBailianQwenImage30Pro.ts'],
   ['video', '视频 · 文生／图生', 'wan3Video · aliyun_wan3_video_v3.ts'],
   ['audio', '音频', 'seed-audio-1.0 · seed-audio.ts']
@@ -38,7 +38,7 @@ const providers = [
             placeholder="在此输入 API Key"
         /></label>
         <p class="help-copy">
-          图片：1K／2K、PNG，最多3张参考图；视频：文生或单图生，2–30秒；音频：采用文件提供的音频接口。界面参数最终以适配器验证为准。
+          图片：1K／2K、PNG，最多3张参考图；视频：文生、单图或2–10张多图参考，2–30秒；音频：采用文件提供的音频接口。界面参数最终以适配器验证为准。
         </p>
       </div>
       <footer class="modal-footer">
