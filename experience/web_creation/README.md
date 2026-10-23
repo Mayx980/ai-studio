@@ -24,3 +24,8 @@ UIUX支持本地示例PNG/WebM/WAV下载，单个素材直接保存，选定镜�
 ## 验证
 
 在本目录执行 `corepack pnpm test`、`corepack pnpm test:models`、`corepack pnpm build`、`corepack pnpm build:scenario`、`corepack pnpm build:connected`。三个构建分别输出并执行隔离检查。浏览器回归脚本需要启动对应入口和 Chromium，可用 `CHROMIUM_PATH` 指定浏览器。`connected-current-check.mjs`和`connected-guide-check.mjs`使用替身供应商响应验证节点及完整助手流程，不能证明供应商实测成功。
+
+### Mentor 汇报演示
+
+通过项目 Preview 启动 Scenario 后，访问 `http://127.0.0.1:5173/?demo=1`。
+首页可选择「画布工作流」或「灵感助手」，共用香水广告案例。画布预置剧情、三镜头分镜、三张图片、三段本地示意视频和旁白节点；底部导航可按剧情→分镜→图片→视频定位。助手会带入完整需求，方案、剧情、分镜、媒体仍由演示者逐步确认。提示条可收起，随时切换演示；重新进入会创建新项目，刷新重置全部内存数据。无需 Key，不发送模型请求；图片/视频/声音仅用于展示交互，不作为生成效果样片。

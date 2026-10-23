@@ -116,6 +116,7 @@ const nav = [
         v-else-if="s.page === 'projects'"
       /><Assets v-else />
     </main>
+    <component :is="port.presentationComponent" v-if="port.presentationComponent" />
     <CreationModal v-if="s.editorOpen" forced-kind="script-editor" /><ModelSettings
       v-if="port.models"
     /><TextContextMenu /><CreationModal v-if="s.modal" :key="s.modalRevision" /><transition
