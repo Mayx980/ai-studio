@@ -113,11 +113,12 @@
       <div ref="senderElement" class="senderEditor" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
-      <guideImages v-if="props.creationModes" v-show="workspaceStore.creationMode === 'simple'" @change="hasGuideImages = $event" />
+      <guideImages v-if="props.creationModes" v-show="workspaceStore.creationMode === 'simple'" />
+      <browserModelResults v-if="props.creationModes" :directory="directory" />
       <div class="senderActions">
-        <modelPopover v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
+        <browserModelOptions v-if="props.creationModes && browserConfig.enabled" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
-        <el-button text circle :disabled="locked" aria-label="添加附件" title="添加附件" @click="attachmentInput?.click()"><icon-paperclip :size="16" /></el-button>
+        <referencePicker :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
         <mentionMenu ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
         <skillMenu ref="skillMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="skillQuery" :editor="senderElement" @select="selectSkill" @dismiss="skillQuery = undefined" />
         <el-popover
@@ -176,6 +177,10 @@ import {
 import { ElMessage } from "element-plus";
 import { getReadableFileExtension, getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import logoUrl from "@toonflow/assets/logo.svg";
+import { browserConfig, browserGuides, generateInBrowser } from "@/stores/browserGeneration";
+import browserModelOptions from "@/components/browserModelOptions.vue";
+import browserModelResults from "@/components/browserModelResults.vue";
+import referencePicker from "@/components/referencePicker.vue";
 import modelPopover from "@/components/modelPopover.vue";
 import skillMenu from "./skillMenu.vue";
 import mentionMenu from "./mentionMenu.vue";
@@ -207,7 +212,6 @@ import "x-sender/lib/XSender.css";
 const props = defineProps<{ active: boolean; initialSession: AgentConversation | null; sessionFile?: string; disabled: boolean; creationModes?: boolean }>();
 const emit = defineEmits<{ session: [file: string]; sent: [prompt: string]; event: [event: AgentEvent] }>();
 const workspaceStore = useWorkspaceStore();
-const hasGuideImages = ref(false);
 const directory = workspaceStore.project?.directory;
 const draftAttachments = ref<AgentAttachment[]>([]);
 const attachmentInput = ref<HTMLInputElement>();
@@ -455,8 +459,14 @@ async function removeDraftMention(id: string) {
   if (!locked.value) await sender?.removeMention([id]);
 }
 
-function submitMessage() {
-  if (hasGuideImages.value) { ElMessage.info("本轮为引导图界面设计，人物与首尾帧的生成接线将在正式实施完成；当前内容已保留。"); return; }
+async function submitMessage() {
+  if (props.creationModes && browserConfig.enabled) {
+    try {
+      const files = await Promise.all(draftAttachments.value.map(async item => item.file ?? new File([await useWorkspaceFiles(directory).read(item.path)], item.name, { type: item.mimeType })));
+      return await generateInBrowser(sender?.getText() ?? "", browserGuides.value, files, directory);
+    } catch (error) { ElMessage.error(error instanceof Error ? error.message : "读取引用素材失败，输入已保留"); return; }
+  }
+  if (props.creationModes && browserGuides.value.length) { ElMessage.info("本轮为引导图界面设计，人物与首尾帧的生成接线将在正式实施完成；当前内容已保留。"); return; }
   return sendMessage(editingId.value ? messages.value.find(item => item.id === editingId.value) : undefined);
 }
 
@@ -928,7 +938,7 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
   workspaceStore.pendingAgentMessage = null;
   draftAttachments.value = [...message.attachments ?? []];
   await fillPrompt(message.prompt);
-  if (sender === instance && props.active) void sendMessage();
+  if (sender === instance && props.active) void submitMessage();
 }, { flush: "post" });
 </script>
 

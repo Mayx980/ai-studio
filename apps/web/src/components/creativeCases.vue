@@ -7,11 +7,11 @@
     <div class="caseGrid">
       <article v-for="item in visibleCases" :key="item.name" class="caseCard">
         <button class="casePreview" type="button" :aria-label="`预览${item.name}`" :style="{ '--caseColor': item.color }" @pointerenter="play($event)" @pointerleave="pause($event)" @focus="play($event)" @blur="pause($event)" @click="preview = item">
-          <div class="caseArtwork" :data-case="item.mark" aria-hidden="true"><div class="artCircle"></div><span class="artMark">{{ item.mark }}</span><div class="artObject"></div><span class="artCaption">{{ item.category }}</span></div>
+          <img class="caseReference" :src="`/caseReference${item.mark}.svg`" :alt="`${item.name}参考图片（设计示意）`" />
           <video v-if="item.category !== '封面海报'" class="caseVideo" src="/creativePreview.webm" muted loop playsinline preload="none" @error="($event.target as HTMLVideoElement).hidden = true" />
           <span class="previewBadge">{{ item.category === '封面海报' ? '设计示意' : '示意视频 · 悬浮播放' }}</span>
         </button>
-        <div class="caseInfo"><div><h3>{{ item.name }}</h3><p>{{ item.description }}</p></div><el-button text type="primary" :aria-label="`使用${item.name}`" @click="emit('apply', item.prompt)">使用<icon-arrow-up-right :size="16" /></el-button></div>
+        <div class="caseInfo"><div><h3>{{ item.name }}</h3><p>{{ item.description }}</p></div><el-button text type="primary" :aria-label="`使用${item.name}`" @click="applyCase(item)">使用<icon-arrow-up-right :size="16" /></el-button></div>
       </article>
     </div>
     <el-dialog :modelValue="!!preview" :title="preview?.name" width="min(720px, 92vw)" appendToBody destroyOnClose @update:modelValue="preview = undefined">
@@ -24,8 +24,9 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { ElMessage } from "element-plus";
 import { IconArrowUpRight } from "@tabler/icons-vue";
-const emit = defineEmits<{ apply: [prompt: string] }>();
+const emit = defineEmits<{ apply: [value: { prompt: string; references: File[] }] }>();
 const categories = ["全部", "产品展示", "活动宣传", "人物口播", "品牌故事", "知识讲解", "封面海报"];
 const category = ref("全部");
 const cases = [
@@ -44,7 +45,17 @@ function play(event: Event) {
   if (video) void video.play().catch(() => {});
 }
 function pause(event: Event) { (event.currentTarget as HTMLElement).querySelector("video")?.pause(); }
-function applyPreview() { if (preview.value) emit("apply", preview.value.prompt); preview.value = undefined; }
+async function applyCase(item: (typeof cases)[number]) {
+  try {
+    const image = new Image(); image.src = `/caseReference${item.mark}.svg`; await image.decode();
+    const canvas = document.createElement("canvas"); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+    canvas.getContext("2d")!.drawImage(image, 0, 0);
+    const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error("参考图片转换失败")), "image/png"));
+    emit("apply", { prompt: item.prompt, references: [new File([blob], `${item.name}（设计示意）.png`, { type: "image/png" })] });
+    preview.value = undefined;
+  } catch { ElMessage.error("案例参考图片读取失败，未替换当前草稿，请重试。"); }
+}
+function applyPreview() { if (preview.value) void applyCase(preview.value); }
 </script>
 
 <style scoped lang="scss">
@@ -57,7 +68,7 @@ function applyPreview() { if (preview.value) emit("apply", preview.value.prompt)
     .caseCard {
       min-width: 0;
       .casePreview { display: block; position: relative; width: 100%; height: 220px; padding: 0; overflow: hidden; border: 1px solid var(--el-border-color-light); border-radius: 20px; background: var(--el-fill-color-light); cursor: pointer; &:hover, &:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 3px; .caseVideo:not([hidden]) { opacity: 1; } } .caseVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .2s; } .previewBadge { position: absolute; bottom: 12px; left: 12px; border-radius: 20px; padding: 5px 9px; font-size: 10px; color: #fff; background: #0008; } }
-      .caseArtwork { position: relative; height: 100%; overflow: hidden; background: linear-gradient(145deg, color-mix(in srgb, var(--caseColor) 40%, #f6f5ef), var(--caseColor)); .artCircle { position: absolute; width: 210px; height: 210px; border: 1px solid #fff7; border-radius: 50%; top: 25px; left: calc(50% - 105px); } .artMark { position: absolute; right: 18px; top: 10px; font-size: 52px; font-weight: 300; color: #fff5; } .artObject { position: absolute; width: 76px; height: 100px; left: calc(50% - 38px); bottom: 42px; border: 1px solid #fffa; border-radius: 14px 14px 8px 8px; background: linear-gradient(120deg, #fff9, #fff2); box-shadow: 15px 15px 24px #0002; &::before { content: ""; position: absolute; width: 35px; height: 20px; top: -20px; left: 19px; border-radius: 5px 5px 0 0; background: #fff8; } } &[data-case="02"] .artObject { width: 120px; left: calc(50% - 60px); height: 65px; border-radius: 50% 50% 8px 8px; } &[data-case="03"] .artObject { width: 110px; left: calc(50% - 55px); border-radius: 60px 60px 12px 12px; &::before { width: 48px; height: 48px; border-radius: 50%; left: 30px; top: -44px; } } &[data-case="04"] .artObject { width: 100px; left: calc(50% - 50px); border-radius: 60px 60px 0 0; height: 125px; &::before { display: none; } } &[data-case="05"] .artObject { transform: rotate(-12deg); width: 105px; height: 115px; left: calc(50% - 52px); border-radius: 8px; &::before { width: 65px; height: 2px; left: 20px; top: 32px; box-shadow: 0 16px #fff8, 0 32px #fff8; } } &[data-case="06"] .artObject { width: 110px; left: calc(50% - 55px); height: 140px; border-radius: 3px; &::before { width: 50px; height: 50px; border-radius: 50%; top: 25px; left: 30px; } } .artCaption { position: absolute; top: 24px; left: 22px; letter-spacing: 2px; line-height: 1.5; color: #34404b; font-size: 12px; } }
+      .caseReference { width: 100%; height: 100%; object-fit: cover; }
       .caseInfo { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 14px 2px; h3 { margin: 0 0 6px; font-size: 14px; font-weight: 500; } p { margin: 0; font-size: 12px; color: var(--el-text-color-secondary); } }
     }
   }

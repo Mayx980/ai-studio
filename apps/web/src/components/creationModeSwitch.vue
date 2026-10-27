@@ -1,7 +1,7 @@
 <template>
   <div class="creationModeSwitch" role="group" aria-label="创作模式">
     <div v-for="item in modes" :key="item.value" class="modeItem">
-      <el-button :type="mode === item.value ? 'primary' : undefined" :plain="mode === item.value" :aria-pressed="mode === item.value" @click="mode = item.value">
+      <el-button class="modeButton" :class="{ selected: mode === item.value }" :aria-pressed="mode === item.value" @click="mode = item.value">
         <component :is="item.icon" :size="16" aria-hidden="true" />{{ item.label }}
       </el-button>
       <el-tooltip :content="item.description" placement="top" :showAfter="150">
@@ -25,14 +25,23 @@ const modes = [
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 18px;
+  gap: 0;
+  width: min(640px, 100%);
+  padding: 4px;
+  border-radius: 48px;
+  background: var(--el-fill-color-dark);
   margin: 0 0 14px;
   .modeItem {
     display: flex;
     align-items: center;
-    gap: 5px;
-    .el-button { gap: 6px; border-radius: 20px; }
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    gap: 0;
+    .modeButton { width: 100%; height: 52px; border: 0; border-radius: 40px; background: transparent; color: var(--el-text-color-primary); font-size: 16px; font-weight: 600; padding-right: 34px; &.selected { background: radial-gradient(ellipse at 70% 60%, var(--el-color-primary-light-7), transparent 70%), var(--el-bg-color-overlay); box-shadow: 0 2px 8px #0001; } }
     .modeHelp {
+      position: absolute;
+      right: 10px;
       display: grid;
       place-items: center;
       width: 28px;

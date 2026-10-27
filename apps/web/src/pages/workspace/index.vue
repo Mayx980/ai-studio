@@ -27,14 +27,6 @@
     </keep-alive>
     <workspaceMenu class="workspaceMenu" @openSettings="settingsVisible = true" />
     <div v-show="workspaceStore.creationMode === 'professional'" class="workspaceTools">
-      <el-segmented :modelValue="activePanel" class="panelSwitcher" :options="panelOptions" size="small" aria-label="切换面板" @change="switchPanel">
-        <template #default="{ item }">
-          <span class="panelOption">
-            <component :is="item.icon" :size="14" aria-hidden="true" />
-            {{ item.label }}
-          </span>
-        </template>
-      </el-segmented>
       <div class="bottomTools">
         <el-card v-if="activePanel === 'canvas'" class="toolMenu" shadow="never" :bodyStyle="{ padding: '3px 6px' }">
           <div class="toolMenuContent" role="toolbar" aria-label="画布工具">
@@ -130,7 +122,7 @@
 import { computed, defineAsyncComponent, nextTick, onMounted, onScopeDispose, provide, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
 import axios from "axios";
-import { IconVector, IconFileText, IconPointer, IconHandStop, IconPlus, IconHelp, IconBook, IconBug, IconBrandWechat, IconBriefcase } from "@tabler/icons-vue";
+import { IconPointer, IconHandStop, IconPlus, IconHelp, IconBook, IconBug, IconBrandWechat, IconBriefcase } from "@tabler/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { QRCode } from "tdesign-vue-next";
 import shortcutHelp from "@/components/shortcutHelp.vue";
@@ -151,10 +143,6 @@ const selectedTool = ref<"move" | "hand">("move");
 onMounted(() => anonymousData.track("workspace.canvas"));
 const workspaceStore = useWorkspaceStore();
 useProviderBalances();
-const panelOptions = [
-  { label: "画布", value: "canvas", icon: IconVector },
-  { label: "文档", value: "document", icon: IconFileText },
-];
 const agentVisible = ref(true);
 watch(() => workspaceStore.creationMode, () => { agentVisible.value = true; });
 const agentWidth = ref(0);
@@ -191,6 +179,10 @@ function setDocumentPanel(value: Element | ComponentPublicInstance | null) {
   // KeepAlive 失活会清空模板 ref，保留同一工作区实例以协调后台文档保存和文件操作。
   if (value && directory) documentPanelCache.value = { directory, instance: value as InstanceType<typeof documentPanel> };
 }
+provide("importBrowserResult", async (file: File, directory: string) => {
+  if (!canvasPanelRef.value) throw new Error("画布尚未就绪");
+  await canvasPanelRef.value.importBrowserResult(file, directory);
+});
 provide("canvas", () => canvasPanelRef.value?.getCanvasContext());
 provide("mentionCanvas", () => canvasPanelRef.value?.mentionSource);
 provide("activateCanvasPanel", () => switchPanel("canvas"));

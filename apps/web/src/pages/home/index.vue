@@ -11,14 +11,13 @@
       </nav>
       <p>最近项目</p>
       <button v-for="item in sortedProjects.slice(0, 5)" :key="item.directory" class="recentProject" :title="item.name" @click="openProject(item)"><icon-folder :size="16" />{{ item.name }}</button>
-      <div class="sidebarFooter"><el-button text :icon="IconKeyboard" @click="shortcutsVisible = true">快捷键</el-button><el-button text :icon="IconPalette" @click="settingsVisible = true">外观与设置</el-button></div>
+      <div class="sidebarFooter"><el-button text :icon="IconPalette" @click="settingsVisible = true">外观与设置</el-button></div>
     </aside>
     <el-header class="pageHeader">
       <div class="headerActions">
         <el-badge isDot :hidden="!hasDesktopUpdate">
           <el-button round size="large" :icon="IconSettings" :aria-label="hasDesktopUpdate ? '设置，有新版本可用' : '设置'" @click="settingsVisible = true">设置</el-button>
         </el-badge>
-        <el-button round size="large" :type="deviceHubEnabled ? 'success' : undefined" :plain="deviceHubEnabled" :icon="deviceHubEnabled || mobileConnection.mode === 'remote' ? IconDeviceDesktop : IconQrcode" @click="mobileConnectVisible = true">{{ mobileConnectionLabel }}</el-button>
       </div>
     </el-header>
     <el-main class="pageContent">
@@ -38,13 +37,13 @@
             <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="creating || opening" @change="selectAttachments" />
             <attachmentList v-if="promptAttachments.length" class="promptAttachments" :attachments="promptAttachments" removable restorable :disabled="creating || opening" @remove="promptAttachments.splice($event, 1)" @restore="restoreAttachment" />
             <el-input ref="promptInput" v-model="prompt" type="textarea" :rows="4" resize="none" :disabled="creating || opening" :placeholder="promptPlaceholder" aria-label="创作描述" @paste.capture="pasteAttachments" />
-            <guideImages v-show="workspaceStore.creationMode === 'simple'" @change="hasGuideImages = $event" />
+            <guideImages v-show="workspaceStore.creationMode === 'simple'" />
             <template #footer>
               <div class="composerFooter">
                 <workspacePicker ref="promptWorkspacePicker" v-model="workspaceDirectory" :disabled="creating || opening" />
                 <el-space class="sendActions" wrap :size="12">
-                  <el-button text circle :icon="IconPaperclip" :disabled="creating || opening" aria-label="添加附件" title="添加附件" @click="attachmentInput?.click()" />
-                  <modelPopover v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" class="modelSelect" :disabled="creating || opening" />
+                  <referencePicker :disabled="creating || opening" @local="attachmentInput?.click()" @files="addAttachments" />
+                  <browserModelOptions v-if="browserConfig.enabled" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" class="modelSelect" :disabled="creating || opening" />
                   <el-button class="sendButton" type="primary" :circle="!!workspaceDirectory" :icon="workspaceDirectory ? IconArrowUp : IconFolder" :loading="creating" :disabled="creating || opening" :aria-label="workspaceDirectory ? '发送' : '选择工作目录'" @click="workspaceDirectory ? createProject() : promptWorkspacePicker?.chooseDirectory()">
                     <template v-if="!workspaceDirectory" #default>选择工作目录</template>
                   </el-button>
@@ -53,13 +52,15 @@
               <p v-if="!workspaceDirectory" class="workspaceHint" role="status">请先选择一个空文件夹作为工作目录，画布和素材会保存在这里。</p>
             </template>
           </el-card>
+          <browserModelResults :directory="workspaceStore.project?.directory" />
         </div>
       </section>
       <section v-if="homeSection === 'assets'" class="homeAssets"><h2>个人资产</h2><assetLibrary :modelValue="true" :directory="workspaceStore.project?.directory" /></section>
       <creativeCases v-if="homeSection === 'create'" @apply="applyCase" />
       <section v-show="homeSection === 'projects'" class="projectList" aria-labelledby="projectListTitle">
         <div class="sectionHeader">
-          <h2 id="projectListTitle">项目列表</h2>
+          <h2 id="projectListTitle">我的项目</h2>
+          <el-input v-model="projectSearch" placeholder="按项目名搜索" aria-label="按项目名搜索" clearable style="max-width: 240px" />
           <el-space wrap>
             <el-button :icon="IconFolderOpen" :disabled="creating || opening" @click="openProject()">导入项目</el-button>
             <el-button :icon="IconFolderPlus" :disabled="creating || opening" @click="createProject(false)">添加项目</el-button>
@@ -71,9 +72,9 @@
           </el-space>
         </div>
         <div class="projectItems" :class="{ listView: viewMode === 'list' }">
-          <el-card v-for="project in sortedProjects" :key="project.directory" class="projectCard" shadow="hover" :bodyStyle="{ padding: '0' }">
+          <el-card v-for="project in filteredProjects" :key="project.directory" class="projectCard" shadow="hover" :bodyStyle="{ padding: '0' }">
             <button class="projectEntry" type="button" :disabled="creating || opening" :aria-label="`打开项目 ${project.name}`" @click="openProject(project)">
-              <icon-folder class="projectIcon" :size="28" aria-hidden="true" />
+              <projectThumbnail :directory="project.directory" />
               <span class="projectInfo">
                 <span class="projectName" :title="project.name">{{ project.name }}</span>
                 <span class="projectPath" :title="project.directory">{{ project.directory }}</span>
@@ -89,8 +90,6 @@
       </section>
     </el-main>
     <settings v-model="settingsVisible" />
-    <shortcutHelp v-model="shortcutsVisible" />
-    <mobileConnect v-model="mobileConnectVisible" />
     <workspacePicker ref="relocationPicker" hideTrigger />
   </el-container>
 </template>
@@ -99,17 +98,22 @@
 import { locale, translate } from "@toonflow/i18n/vue";
 import axios from "axios";
 import { storeToRefs } from "pinia";
-import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox, type InputInstance } from "element-plus";
 import { getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import {
-  IconSettings, IconQrcode, IconPlus, IconSparkles, IconKeyboard, IconPalette, IconDeviceDesktop,
+  IconSettings, IconPlus, IconSparkles, IconPalette,
   IconArrowUp, IconLayoutGrid,
   IconList, IconSortDescending,
   IconSortAscending, IconFolder, IconEdit,
   IconFolderMinus, IconFolderPlus, IconFolderOpen, IconPaperclip,
 } from "@tabler/icons-vue";
+import { browserConfig, browserGuides, generationError } from "@/stores/browserGeneration";
+import browserModelOptions from "@/components/browserModelOptions.vue";
+import browserModelResults from "@/components/browserModelResults.vue";
+import projectThumbnail from "@/components/projectThumbnail.vue";
+import referencePicker from "@/components/referencePicker.vue";
 import modelPopover from "@/components/modelPopover.vue";
 import attachmentList from "@/components/agent/attachmentList.vue";
 import { createPastedTextFile, readTextAttachment } from "@/components/agent/textAttachments";
@@ -117,7 +121,6 @@ import type { AgentAttachment } from "@/components/agent/types";
 import logoUrl from "@toonflow/assets/logo.svg";
 import { useWorkspaceStore, type Project } from "@/stores/workspace";
 import { hasDesktopUpdate } from "@/stores/desktopUpdate";
-import { deviceHubEnabled, mobileConnection, mobileConnectionLabel } from "@/lib/mobile";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import settings from "@/components/settings/index.vue";
 import bg from "./bg.vue";
@@ -125,24 +128,20 @@ import creationModeSwitch from "@/components/creationModeSwitch.vue";
 import guideImages from "@/components/guideImages.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import creativeCases from "@/components/creativeCases.vue";
-import shortcutHelp from "@/components/shortcutHelp.vue";
 import workspacePicker from "./workspacePicker.vue";
 
 const settingsVisible = ref(false);
 const homeSection = ref("create");
-const shortcutsVisible = ref(false);
-const hasGuideImages = ref(false);
-async function applyCase(value: string) {
+async function applyCase(value: { prompt: string; references: File[] }) {
   if (prompt.value.trim()) {
     const replace = await ElMessageBox.confirm("应用案例会替换当前提示词，已有附件与引导图将保留。", "保留当前草稿或采用案例", { confirmButtonText: "采用案例", cancelButtonText: "保留草稿" }).then(() => true, () => false);
     if (!replace) return;
   }
-  prompt.value = value;
+  prompt.value = value.prompt;
+  addAttachments(value.references);
   await nextTick();
   promptInput.value?.focus();
 }
-const mobileConnectVisible = ref(false);
-const mobileConnect = defineAsyncComponent(() => import("@/components/mobileConnect.vue"));
 const router = useRouter();
 const creating = ref(false);
 const opening = ref(false);
@@ -223,6 +222,8 @@ watch([creating, opening], ([creating, opening]) => {
 
 const selectedModel = ref("");
 const reasoningEffort = ref("");
+const projectSearch = ref("");
+const filteredProjects = computed(() => sortedProjects.value.filter(item => item.name.toLocaleLowerCase().includes(projectSearch.value.trim().toLocaleLowerCase())));
 const sortDescending = ref(true);
 const viewMode = ref("grid");
 const sortedProjects = computed(() => [...projectList.value].sort((left, right) =>
@@ -369,8 +370,12 @@ async function renameProject(project: Project) {
 }
 
 async function createProject(fromPrompt = true) {
+  if (fromPrompt && browserConfig.enabled && !browserConfig.keys[browserConfig.kind].trim()) {
+    generationError.value = "请先在外观 → API 配置中输入当前模型的 Key。";
+    return;
+  }
   if (creating.value || opening.value || (fromPrompt && !workspaceDirectory.value)) return;
-  if (fromPrompt && hasGuideImages.value) {
+  if (fromPrompt && !browserConfig.enabled && browserGuides.value.length) {
     ElMessage.info("本轮为引导图界面设计，人物与首尾帧的生成接线将在正式实施完成；图片与提示词已保留。");
     return;
   }
@@ -594,10 +599,11 @@ async function createProject(fromPrompt = true) {
 
         .projectEntry {
           display: flex;
+          flex-direction: column;
           align-items: flex-start;
           gap: 12px;
           width: 100%;
-          padding: 20px 84px 20px 20px;
+          padding: 16px;
           border: 0;
           background: transparent;
           color: inherit;

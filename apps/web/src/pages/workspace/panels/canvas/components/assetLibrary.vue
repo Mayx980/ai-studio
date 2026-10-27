@@ -1,12 +1,17 @@
 <template>
-  <el-card v-if="visible" class="assetLibrary" shadow="never" :bodyStyle="{ padding: '8px' }" role="region" aria-label="素材库" @dblclick.stop>
+  <el-card v-if="visible" class="assetLibrary" :class="{ selectable }" shadow="never" :bodyStyle="{ padding: '8px' }" role="region" aria-label="素材库" @dblclick.stop>
     <div class="libraryToolbar">
       <el-input v-model="searchQuery" class="searchInput" :prefixIcon="IconSearch" placeholder="搜索素材" aria-label="搜索素材" clearable @keydown.esc.stop="searchQuery = ''" />
       <el-button class="toolbarButton" text :icon="IconFolderPlus" title="新建文件夹" aria-label="新建文件夹" :disabled="newFolderParent !== undefined" @click="startFolder" />
       <el-button class="toolbarButton" text :icon="IconX" title="关闭素材库" aria-label="关闭素材库" @click="visible = false" />
     </div>
+    <div class="assetFilters">
+      <el-select v-model="mediaFilter" aria-label="素材类别"><el-option label="全部素材" value="" /><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="音频" value="audio" /></el-select>
+      <el-select v-model="tagFilter" aria-label="按标签分类" clearable placeholder="全部标签"><el-option v-for="item in assetCategories" :key="item" :label="item" :value="item" /></el-select>
+    </div>
+    <p class="tagHint">标签随应用设置保存；同名分类文件夹会自动归类。</p>
     <el-scrollbar class="libraryScroll" maxHeight="min(440px, calc(100dvh - 198px))">
-      <el-tree ref="assetTree" class="assetTree" :data="displayEntries" nodeKey="path" :props="{ label: 'name' }" :icon="IconChevronRight" :currentNodeKey="folder === '.' ? undefined : folder" :filterNodeMethod="filterEntry" defaultExpandAll highlightCurrent emptyText="" @nodeClick="selectFolder">
+      <el-tree ref="assetTree" class="assetTree" :data="displayEntries" nodeKey="path" :props="{ label: 'name' }" :icon="IconChevronRight" :currentNodeKey="folder === '.' ? undefined : folder" :filterNodeMethod="filterEntry" defaultExpandAll highlightCurrent emptyText="暂无符合条件的素材" @nodeClick="selectFolder">
         <template #default="{ data, node }">
           <div class="assetEntry" :title="data.name" :draggable="data.type === 'file'" @dragstart.stop="startAssetDrag($event, data)" @dblclick.stop="openPreview(data)" @contextmenu="openItemMenu($event, data)">
             <span v-if="data.type === 'directory'" class="fileIcon"><component :is="node.expanded && !node.isLeaf ? IconFolderOpen : IconFolder" :size="18" aria-hidden="true" /></span>
@@ -20,6 +25,8 @@
             </span>
             <el-input v-if="data.draft" ref="folderInput" v-model="newFolderName" class="folderNameInput" size="small" aria-label="文件夹名称" :disabled="folderSaving" @click.stop @keydown.stop @keydown.enter.prevent="saveFolder" @keydown.esc.prevent="cancelFolder" @blur="saveFolder" />
             <span v-else class="assetName">{{ data.name }}</span>
+            <el-button v-if="selectable && mediaKind(data)" text type="primary" :disabled="selecting" :aria-label="'引用 ' + data.name" @click.stop="selectAsset(data)">引用</el-button>
+            <el-popover v-if="mediaKind(data) && !selectable" trigger="click" :width="290"><template #reference><el-button text size="small" @click.stop>标签</el-button></template><el-checkbox-group :modelValue="assetTags[data.path] ?? []" @update:modelValue="value => assetTags[data.path] = value.map(String)"><el-checkbox-button v-for="item in assetCategories" :key="item" :value="item">{{ item }}</el-checkbox-button></el-checkbox-group></el-popover>
             <el-button v-if="mediaKind(data)" class="moreButton" text :icon="IconEye" :aria-label="'预览 ' + data.name" title="预览（也可双击素材）" @click.stop="openPreview(data)" />
             <el-button v-if="!data.draft" class="moreButton" text :icon="IconDots" :aria-label="'更多 ' + data.name" title="更多" @click.stop="openItemMenu($event, data)" />
           </div>
@@ -87,6 +94,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import axios from "axios";
+import { storeToRefs } from "pinia";
+import { useAssetStore } from "@/stores/assets";
 import { ElMessage, ElTree, type InputInstance, type TreeNodeData } from "element-plus";
 import { IconChevronRight, IconDots, IconEye, IconFile, IconFolder, IconFolderOpen, IconFolderPlus, IconMusic, IconPhoto, IconSearch, IconVideo, IconX } from "@tabler/icons-vue";
 import type { NodeOutput } from "@toonflow/nodes-scaffold/values";
@@ -97,7 +106,17 @@ import assetMenu from "./assetMenu.vue";
 type AssetEntry = { name: string; path: string; type: "file" | "directory"; children?: AssetEntry[]; draft?: boolean };
 type AssetOutput = { label: string; output: NodeOutput };
 
-const props = defineProps<{ directory?: string }>();
+const props = defineProps<{ directory?: string; selectable?: boolean }>();
+const emit = defineEmits<{ select: [file: File] }>();
+const { tags: assetTags } = storeToRefs(useAssetStore());
+const mediaFilter = ref("");
+const tagFilter = ref("");
+const selecting = ref(false);
+async function selectAsset(entry: AssetEntry) {
+  if (selecting.value) return;
+  selecting.value = true;
+  try { const { data } = await axios.get<Blob>(assetUrl(entry.path), { responseType: "blob" }); emit("select", new File([data], entry.name, { type: data.type && data.type !== "application/octet-stream" ? data.type : mediaKind(entry) === "image" ? `image/${/\.jpe?g$/i.test(entry.name) ? "jpeg" : entry.name.split(".").pop()}` : mediaKind(entry) === "audio" ? "audio/mpeg" : "video/mp4" })); } catch (error) { showError(error); } finally { selecting.value = false; }
+}
 const visible = defineModel<boolean>({ default: false });
 const saveVisible = ref(false);
 const saving = ref(false);
@@ -150,6 +169,13 @@ function openItemMenu(event: MouseEvent, entry: AssetEntry) {
 }
 
 async function refreshAssets(path?: string, target?: string) {
+  if (path) {
+    for (const key of Object.keys(assetTags.value)) {
+      if (key !== path && !key.startsWith(path + "/")) continue;
+      if (target) assetTags.value[target + key.slice(path.length)] = assetTags.value[key]!;
+      delete assetTags.value[key];
+    }
+  }
   if (path && (folder.value === path || folder.value.startsWith(path + "/"))) {
     folder.value = target ? target + folder.value.slice(path.length) : ".";
   }
@@ -161,14 +187,25 @@ const displayEntries = computed(() => {
     if (newFolderParent.value === parent) children.push({ name: "新建文件夹", path: `${parent}/:newFolder`, type: "directory", draft: true });
     return children;
   }
-  return newFolderParent.value === undefined ? entries.value : withDraft(entries.value, ".");
+  function filter(items: AssetEntry[]): AssetEntry[] {
+    return items.flatMap(item => {
+      if (item.type === "directory") {
+        const children = filter(item.children ?? []);
+        return children.length || (!mediaFilter.value && !tagFilter.value) ? [{ ...item, children }] : [];
+      }
+      const tags = assetTags.value[item.path] ?? item.path.split("/").filter(part => assetCategories.includes(part));
+      return mediaKind(item) && (!mediaFilter.value || mediaKind(item) === mediaFilter.value) && (!tagFilter.value || tags.includes(tagFilter.value)) ? [item] : [];
+    });
+  }
+  const filtered = filter(entries.value);
+  return newFolderParent.value === undefined ? filtered : withDraft(filtered, ".");
 });
 
 function filterEntry(query: string, entry: TreeNodeData) {
   return !!entry.draft || entry.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
 }
 
-watch(searchQuery, query => assetTree.value?.filter(query));
+watch([searchQuery, displayEntries], async () => { await nextTick(); assetTree.value?.filter(searchQuery.value); });
 
 async function startFolder() {
   searchQuery.value = "";
@@ -292,6 +329,7 @@ defineExpose({ openSave });
 .saveCover { display: grid; place-items: center; min-height: 150px; margin: 16px 0; padding: 14px; border: 1px solid var(--el-border-color-light); border-radius: var(--el-border-radius-base); background: var(--el-fill-color-extra-light); img, video { max-width: 100%; max-height: 200px; object-fit: contain; border-radius: var(--el-border-radius-base); } audio { width: 100%; } }
 
 .assetLibrary {
+  &.selectable { width: 100%; }
   width: min(320px, calc(100vw - 30px));
   max-height: calc(100dvh - 140px);
 
@@ -325,6 +363,8 @@ defineExpose({ openSave });
     }
   }
 
+  .assetFilters { display: flex; gap: 8px; margin: 12px 0; .el-select { width: 160px; } }
+  .tagHint { font-size: 12px; color: var(--el-text-color-secondary); }
   .libraryScroll {
     min-height: 0;
     max-height: 440px;

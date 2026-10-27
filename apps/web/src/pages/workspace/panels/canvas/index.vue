@@ -81,7 +81,7 @@
       <nodeMenu
         :key="JSON.stringify(['nodeMenu', project?.directory, canvasId])"
         ref="nodeMenuRef"
-        :remoteNodes="availableNodes"
+        :remoteNodes="creationNodes"
         :pasteNode="pasteClipboardNode"
         :uploadFiles="canvasId && project?.directory ? selectFiles : undefined"
         :canUndo="canUndo"
@@ -208,6 +208,7 @@ const nodeLoads = shallowReactive(new Map<string, Promise<void>>());
 const nodeReloads = new Set<string>();
 const nodeErrors = ref<Record<string, string>>({});
 const availableNodes = computed(() => nodeOptions.value.filter(node => nodeTypes.value[node.type] && !nodeErrors.value[node.type]));
+const creationNodes = computed(() => availableNodes.value.filter(node => !["image", "video", "audio"].some(kind => node.type === `remote-${kind}Node` && availableNodes.value.some(item => item.type === `remote-${kind}GenerationNode`))).map(node => ({ ...node, label: node.label.replace(/^(图片|视频|音频)生成$/, "$1") })));
 const nodeListLoading = ref(true);
 const remoteNodeTypes = computed(() => [
   ...new Set((flowData.value as { type?: string }[]).map((item) => item.type).filter((type): type is string => !!type?.startsWith("remote-"))),
@@ -289,7 +290,13 @@ function getCanvasContext() {
 }
 const canvasReady = computed(() => !!canvasId.value && !nodeListLoading.value && nodeLoads.size === 0);
 provide("canvas", getCanvasContext);
-defineExpose({ canvasId, canvasReady, getCanvasContext, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
+async function importBrowserResult(file: File, directory: string) {
+  if (directory !== project.value?.directory || !canvasReady.value) throw new Error("工作区已切换或画布尚未就绪，请重新操作");
+  const position = pastePosition();
+  if (!position) throw new Error("画布尚未就绪");
+  await importCanvasContent([file], position);
+}
+defineExpose({ importBrowserResult, canvasId, canvasReady, getCanvasContext, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
   getCanvases: (signal?: AbortSignal) => {
     if (!canvasMenuRef.value) throw new Error("画布菜单尚未就绪");
     return canvasMenuRef.value.getCanvases(signal);
