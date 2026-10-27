@@ -101,17 +101,7 @@
               <h3 class="pluginName">
                 <component :is="pluginTypes[plugin.type].icon" :size="18" aria-hidden="true" />
                 <span class="pluginTitle">{{ plugin.displayName }}</span>
-                <a
-                  v-if="plugin.github"
-                  class="repoLink"
-                  :href="plugin.github"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  :aria-label="`${plugin.displayName} 的 GitHub`"
-                  title="GitHub"
-                  @click.stop>
-                  <icon-external-link :size="14" aria-hidden="true" />
-                </a>
+
               </h3>
               <span class="pluginId" :title="plugin.name">{{ plugin.name }}</span>
             </div>
@@ -196,7 +186,7 @@
                 </el-button>
               </el-badge>
               <el-popconfirm
-                v-if="plugin.author !== 'Toonflow' || plugin.type === 'skill' || plugin.type === 'agent' || plugin.type === 'ext'"
+                v-if="plugin.author !== 'ai-studio' || plugin.type === 'skill' || plugin.type === 'agent' || plugin.type === 'ext'"
                 :title="`确定卸载“${plugin.displayName}”${plugin.type === 'skill' ? '及其附属文件' : ''}吗？`"
                 width="280"
                 confirmButtonText="卸载"
@@ -745,7 +735,7 @@ async function updatePlugin(plugin: Plugin, action: "setEnabled" | "uninstall", 
     loading.value ||
     pendingPlugins.value.has(plugin.key) ||
     exportingPlugins.value.has(plugin.key) ||
-    (action === "uninstall" && plugin.author === "Toonflow" && (plugin.type === "node" || plugin.type === "tool"))
+    (action === "uninstall" && plugin.author === "ai-studio" && (plugin.type === "node" || plugin.type === "tool"))
   )
     return;
   pendingPlugins.value.add(plugin.key);

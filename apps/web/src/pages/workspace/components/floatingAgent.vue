@@ -4,7 +4,7 @@
       v-show="visible"
       id="agentPanel"
       class="floatingAgent"
-      :class="{ docked, dragging: interaction?.mode === 'move' }"
+      :class="{ expanded: props.expanded, docked, dragging: interaction?.mode === 'move' }"
       :style="panelStyle"
       aria-label="AI 对话"
       @pointerdown="startMenuMove"
@@ -26,9 +26,10 @@
         tabindex="0"
         @pointerdown.stop="startInteraction($event, handle.edge)"
         @keydown="resizeWithKeyboard($event, handle.edge)" />
-      <agent v-model="visible">
+      <agent v-model="visible" creationModes :closable="!props.expanded">
         <template #menuActions>
           <el-button
+            v-if="!props.expanded"
             text
             circle
             :aria-label="docked ? '切换为悬浮' : '停靠到右侧'"
@@ -48,6 +49,7 @@ import { computed, onBeforeUnmount, reactive, ref, shallowRef, watch } from "vue
 import { IconLayoutSidebarRight, IconAppWindowBottomRight } from "@tabler/icons-vue";
 import agent from "@/components/agent/index.vue";
 
+const props = defineProps<{ expanded?: boolean }>();
 const visible = defineModel<boolean>({ default: false });
 const emit = defineEmits<{ resize: [width: number] }>();
 const docked = ref(false);
@@ -62,7 +64,7 @@ const height = computed(() =>
 );
 const resizeHandles = computed(
   () =>
-    [
+    props.expanded ? [] : [
       { edge: "left", label: "从左侧调整对话宽度" },
       ...(docked.value
         ? []
@@ -76,7 +78,7 @@ const right = ref(15);
 const bottom = ref(15);
 const left = computed(() => Math.max(gap.value, Math.min(viewport.width - width.value - right.value, viewport.width - gap.value - width.value)));
 const top = computed(() => Math.max(gap.value, Math.min(viewport.height - height.value - bottom.value, viewport.height - gap.value - height.value)));
-const panelStyle = computed(() => ({
+const panelStyle = computed(() => props.expanded ? { left: `${Math.max(16, (viewport.width - 960) / 2)}px`, top: "72px", width: `${Math.min(960, viewport.width - 32)}px`, height: `${Math.max(200, viewport.height - 96)}px` } : ({
   left: `${docked.value ? viewport.width - width.value : left.value}px`,
   top: `${docked.value ? 0 : top.value}px`,
   width: `${width.value}px`,
@@ -131,12 +133,14 @@ function resizeWithKeyboard(event: KeyboardEvent, edge: ResizeEdge) {
 }
 
 function startMenuMove(event: PointerEvent) {
+  if (props.expanded) return;
   const target = event.target as HTMLElement;
   if (!target.closest(".agentMenu") || target.closest("button, input, textarea, select, a, [contenteditable], .el-input, .conversationTitle")) return;
   startInteraction(event, "move");
 }
 
 function startInteraction(event: PointerEvent, mode: "move" | ResizeEdge) {
+  if (props.expanded) return;
   if (event.button !== 0 || interaction.value || (docked.value && mode !== "left")) return;
   event.preventDefault();
   const element = event.currentTarget as HTMLElement;
@@ -178,7 +182,7 @@ function resizeViewport() {
   viewport.height = window.innerHeight;
 }
 
-watch([visible, docked], () => stopInteraction());
+watch([visible, docked, () => props.expanded], () => stopInteraction());
 watch(
   () => (visible.value && docked.value ? width.value : 0),
   (value) => emit("resize", value),
@@ -214,7 +218,7 @@ onBeforeUnmount(() => {
   :deep(.agent) {
     border-radius: inherit;
   }
-  &:not(.docked) :deep(.agentMenu) {
+  &:not(.docked):not(.expanded) :deep(.agentMenu) {
     cursor: grab;
     touch-action: none;
   }

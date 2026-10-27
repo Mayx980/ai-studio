@@ -3,6 +3,7 @@
     <agentMenu
       :key="conversationKey"
       :name="name"
+      :closable="props.closable"
       :history="history"
       :sessionFile="sessionFile"
       :parentFile="selectedConversation?.parentFile"
@@ -27,6 +28,7 @@
       :initialSession="item.session"
       :sessionFile="item.file"
       :disabled="loading || !initialized"
+      :creationModes="props.creationModes"
       @session="setSessionFile(item, $event)"
       @event="receiveAgentEvent"
       @sent="updateConversationName(item, $event)" />
@@ -45,6 +47,7 @@ import type { AgentEvent, AgentSubAgent } from "@toonflow/server/agent/types";
 import agentMenu from "./menu.vue";
 import conversation from "./conversation.vue";
 
+const props = withDefaults(defineProps<{ closable?: boolean; creationModes?: boolean }>(), { closable: true, creationModes: false });
 const visible = defineModel<boolean>({ default: false });
 type OpenConversation = { key: number; name: string; file?: string; parentFile?: string; subAgents: AgentSubAgent[]; session: AgentConversation | null };
 // ACT: 会话实例保留到工作区关闭，让切换后的回复继续接收流式内容。

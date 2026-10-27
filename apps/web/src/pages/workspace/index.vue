@@ -5,9 +5,9 @@
       v-model:selectedTool="selectedTool"
       ref="canvasPanelRef"
       class="canvasPanel"
-      :class="{ backgroundPanel: activePanel !== 'canvas' }"
-      :inert="activePanel !== 'canvas'"
-      :aria-hidden="activePanel !== 'canvas'"
+      :class="{ backgroundPanel: activePanel !== 'canvas' || workspaceStore.creationMode === 'simple' }"
+      :inert="activePanel !== 'canvas' || workspaceStore.creationMode === 'simple'"
+      :aria-hidden="activePanel !== 'canvas' || workspaceStore.creationMode === 'simple'"
       :active="activePanel === 'canvas'"
       :settingsVisible="settingsVisible" />
     <keep-alive :max="1">
@@ -26,7 +26,7 @@
         :saveNode="saveDocumentNode" />
     </keep-alive>
     <workspaceMenu class="workspaceMenu" @openSettings="settingsVisible = true" />
-    <div class="workspaceTools">
+    <div v-show="workspaceStore.creationMode === 'professional'" class="workspaceTools">
       <el-segmented :modelValue="activePanel" class="panelSwitcher" :options="panelOptions" size="small" aria-label="切换面板" @change="switchPanel">
         <template #default="{ item }">
           <span class="panelOption">
@@ -63,6 +63,7 @@
                     </el-button>
                   </template>
                   <div class="helpMenu">
+                    <el-button class="helpAction" text @click="shortcutsVisible = true; helpVisible = false">快捷键与使用说明</el-button>
                     <el-button
                       class="helpAction"
                       tag="a"
@@ -82,7 +83,7 @@
                       href="https://docs.qq.com/smartsheet/form/EmvmQBrmlPmr%2Fss_vsqk2v%2FvhiGzE?tab=ss_vsqk2v"
                       target="_blank"
                       rel="noopener noreferrer"
-                      title="Toonflow 需求/BUG反馈表"
+                      title="ai-studio 需求/BUG反馈表"
                       @click="helpVisible = false">
                       汇报 BUG
                     </el-button>
@@ -94,19 +95,20 @@
             </el-tooltip>
           </div>
         </el-card>
-        <el-tooltip v-if="!agentVisible" content="Toonflow Agent" placement="top" :showArrow="false" :hideAfter="0">
+        <el-tooltip v-if="!agentVisible" content="ai-studio Agent" placement="top" :showArrow="false" :hideAfter="0">
           <el-button
             class="agentButton"
             :class="{ standalone: activePanel !== 'canvas' }"
             :aria-expanded="agentVisible"
-            aria-label="Toonflow Agent"
+            aria-label="ai-studio Agent"
             aria-controls="agentPanel"
             @click="agentVisible = !agentVisible"></el-button>
         </el-tooltip>
       </div>
     </div>
-    <floatingAgent v-model="agentVisible" @resize="agentWidth = $event" />
+    <floatingAgent v-model="agentVisible" :expanded="workspaceStore.creationMode === 'simple'" @resize="agentWidth = $event" />
     <settings v-model="settingsVisible" />
+    <shortcutHelp v-model="shortcutsVisible" />
     <el-dialog v-model="contactVisible" :title="contactInfo.title" width="min(360px, calc(100vw - 32px))" alignCenter appendToBody>
       <div class="contactContent">
         <q-r-code
@@ -131,6 +133,7 @@ import axios from "axios";
 import { IconVector, IconFileText, IconPointer, IconHandStop, IconPlus, IconHelp, IconBook, IconBug, IconBrandWechat, IconBriefcase } from "@tabler/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { QRCode } from "tdesign-vue-next";
+import shortcutHelp from "@/components/shortcutHelp.vue";
 import settings from "@/components/settings/index.vue";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { registerWorkspaceControl, waitForControlValue } from "@/lib/mcpControl";
@@ -153,16 +156,18 @@ const panelOptions = [
   { label: "文档", value: "document", icon: IconFileText },
 ];
 const agentVisible = ref(true);
+watch(() => workspaceStore.creationMode, () => { agentVisible.value = true; });
 const agentWidth = ref(0);
 const settingsVisible = ref(false);
 const helpVisible = ref(false);
+const shortcutsVisible = ref(false);
 const contactVisible = ref(false);
 const contactType = ref<"community" | "business">("community");
 const contacts = {
   community: {
     title: "加入交流群",
     url: "https://work.weixin.qq.com/u/vc36adcc89845edcbe?v=5.0.3.63936&bb=85b8d228e8",
-    tip: "Toonflow 是为爱发电的开源项目。欢迎文明交流、友善反馈；回复可能需要一些时间，请避免责问或命令式沟通，感谢你的理解与尊重。",
+    tip: "欢迎文明交流、友善反馈。请勿在公开讨论中分享工作素材、个人信息或服务密钥。",
   },
   business: {
     title: "商务合作",

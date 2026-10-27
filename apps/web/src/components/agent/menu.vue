@@ -77,7 +77,7 @@
       </el-popover>
       <el-button text circle :loading="configLoading" :icon="IconAdjustmentsHorizontal" aria-label="媒体生成控制" title="媒体生成控制" @click="openMediaConfig" />
       <slot name="actions" />
-      <el-button text circle aria-label="关闭对话" title="关闭" @click="emit('close')"><icon-x :size="16" /></el-button>
+      <el-button v-if="closable !== false" text circle aria-label="关闭对话" title="关闭" @click="emit('close')"><icon-x :size="16" /></el-button>
     </div>
   </header>
   <pluginConfigDialog v-if="mediaTool" v-model="configVisible" :plugin="mediaTool" :canManage="canManageTools" />
@@ -99,6 +99,7 @@ import {
 } from "@tabler/icons-vue";
 
 const props = defineProps<{
+  closable?: boolean;
   name: string;
   history: AgentHistory[];
   sessionFile?: string;

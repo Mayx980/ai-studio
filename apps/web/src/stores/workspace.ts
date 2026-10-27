@@ -10,6 +10,7 @@ export type Project = {
 };
 
 export const useWorkspaceStore = defineStore("workspace", () => {
+  const creationMode = ref<"simple" | "professional">("simple");
   const project = ref<Project | null>(null);
   const projectList = ref<Project[]>([]);
   const pendingAgentMessage = ref<{ directory: string; prompt: string; attachments?: AgentAttachment[]; model: string; reasoningEffort: string } | null>(null);
@@ -43,7 +44,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (project.value?.directory === path) project.value = null;
   }
 
-  return { project, projectList, pendingAgentMessage, openProject, renameProject, removeProject };
+  return { creationMode, project, projectList, pendingAgentMessage, openProject, renameProject, removeProject };
 }, {
   persist: {
     key: "toonflow.projectList",

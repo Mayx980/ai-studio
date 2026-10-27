@@ -1,6 +1,18 @@
 <template>
   <el-container class="home">
     <bg class="pageBackground" />
+    <aside class="studioSidebar" aria-label="主导航">
+      <button class="studioBrand" @click="homeSection = 'create'">ai-studio</button>
+      <el-button type="primary" :icon="IconPlus" @click="homeSection = 'create'; promptInput?.focus()">新建创作</el-button>
+      <nav>
+        <button :aria-current="homeSection === 'create' ? 'page' : undefined" @click="homeSection = 'create'"><icon-sparkles :size="18" />创作</button>
+        <button @click="homeSection = 'assets'"><icon-photo :size="18" />个人资产</button>
+        <button :aria-current="homeSection === 'projects' ? 'page' : undefined" @click="homeSection = 'projects'"><icon-folder :size="18" />我的项目</button>
+      </nav>
+      <p>最近项目</p>
+      <button v-for="item in sortedProjects.slice(0, 5)" :key="item.directory" class="recentProject" :title="item.name" @click="openProject(item)"><icon-folder :size="16" />{{ item.name }}</button>
+      <div class="sidebarFooter"><el-button text :icon="IconKeyboard" @click="shortcutsVisible = true">快捷键</el-button><el-button text :icon="IconPalette" @click="settingsVisible = true">外观与设置</el-button></div>
+    </aside>
     <el-header class="pageHeader">
       <div class="headerActions">
         <el-badge isDot :hidden="!hasDesktopUpdate">
@@ -8,29 +20,15 @@
         </el-badge>
         <el-button round size="large" :type="deviceHubEnabled ? 'success' : undefined" :plain="deviceHubEnabled" :icon="deviceHubEnabled || mobileConnection.mode === 'remote' ? IconDeviceDesktop : IconQrcode" @click="mobileConnectVisible = true">{{ mobileConnectionLabel }}</el-button>
       </div>
-      <div class="githubAction">
-        <span class="arrowHint starHint">
-          点个 Star 支持一下
-          <svg viewBox="0 0 84 44" fill="none" aria-hidden="true">
-            <path d="M4 29C18 40 44 38 44 18C44 1 21 3 24 19C27 37 57 32 77 16M65 17L77 16L73 28" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </span>
-        <el-button round size="large" :icon="IconBrandGithub" tag="a" href="https://github.com/HBAI-Ltd/Toonflow-app" target="_blank" rel="noopener noreferrer">GitHub</el-button>
-      </div>
     </el-header>
     <el-main class="pageContent">
-      <section class="creationPanel" aria-label="创建项目">
+      <section v-show="homeSection === 'create'" class="creationPanel" aria-label="创建项目">
         <div class="brand">
-          <el-image class="brandLogo" :src="logoUrl" fit="contain" alt="Toonflow" />
-          <h1>Toonflow</h1>
+          <el-image class="brandLogo" :src="logoUrl" fit="contain" alt="ai-studio" />
+          <h1>ai-studio</h1>
         </div>
         <div class="promptArea">
-          <span class="arrowHint inspirationHint">
-            灵感创作模式
-            <svg viewBox="0 0 60 60" fill="none" aria-hidden="true">
-              <path d="M4 9C21 0 44 5 40 23C36 39 14 34 22 20C30 7 49 21 47 52M38 43L47 52L54 42" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </span>
+          <creationModeSwitch v-model="workspaceStore.creationMode" />
           <el-card class="promptCard" :class="{ draggingAttachments }" shadow="never" :bodyStyle="{ padding: '20px' }" :footerStyle="{ padding: '12px 16px' }" @dragenter.capture="dragEnterAttachments" @dragover.capture="dragOverAttachments" @dragleave.capture="dragLeaveAttachments" @drop.capture="dropAttachments">
             <div v-if="draggingAttachments" class="attachmentDropOverlay" role="status" aria-live="polite">
               <icon-paperclip :size="20" aria-hidden="true" />
@@ -40,6 +38,7 @@
             <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="creating || opening" @change="selectAttachments" />
             <attachmentList v-if="promptAttachments.length" class="promptAttachments" :attachments="promptAttachments" removable restorable :disabled="creating || opening" @remove="promptAttachments.splice($event, 1)" @restore="restoreAttachment" />
             <el-input ref="promptInput" v-model="prompt" type="textarea" :rows="4" resize="none" :disabled="creating || opening" :placeholder="promptPlaceholder" aria-label="创作描述" @paste.capture="pasteAttachments" />
+            <guideImages v-show="workspaceStore.creationMode === 'simple'" @change="hasGuideImages = $event" />
             <template #footer>
               <div class="composerFooter">
                 <workspacePicker ref="promptWorkspacePicker" v-model="workspaceDirectory" :disabled="creating || opening" />
@@ -56,7 +55,9 @@
           </el-card>
         </div>
       </section>
-      <section class="projectList" aria-labelledby="projectListTitle">
+      <section v-if="homeSection === 'assets'" class="homeAssets"><h2>个人资产</h2><assetLibrary :modelValue="true" :directory="workspaceStore.project?.directory" /></section>
+      <creativeCases v-if="homeSection === 'create'" @apply="applyCase" />
+      <section v-show="homeSection === 'projects'" class="projectList" aria-labelledby="projectListTitle">
         <div class="sectionHeader">
           <h2 id="projectListTitle">项目列表</h2>
           <el-space wrap>
@@ -88,6 +89,7 @@
       </section>
     </el-main>
     <settings v-model="settingsVisible" />
+    <shortcutHelp v-model="shortcutsVisible" />
     <mobileConnect v-model="mobileConnectVisible" />
     <workspacePicker ref="relocationPicker" hideTrigger />
   </el-container>
@@ -102,7 +104,7 @@ import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox, type InputInstance } from "element-plus";
 import { getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import {
-  IconSettings, IconBrandGithub, IconQrcode, IconDeviceDesktop,
+  IconSettings, IconQrcode, IconPlus, IconSparkles, IconKeyboard, IconPalette, IconDeviceDesktop,
   IconArrowUp, IconLayoutGrid,
   IconList, IconSortDescending,
   IconSortAscending, IconFolder, IconEdit,
@@ -119,9 +121,26 @@ import { deviceHubEnabled, mobileConnection, mobileConnectionLabel } from "@/lib
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import settings from "@/components/settings/index.vue";
 import bg from "./bg.vue";
+import creationModeSwitch from "@/components/creationModeSwitch.vue";
+import guideImages from "@/components/guideImages.vue";
+import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
+import creativeCases from "@/components/creativeCases.vue";
+import shortcutHelp from "@/components/shortcutHelp.vue";
 import workspacePicker from "./workspacePicker.vue";
 
 const settingsVisible = ref(false);
+const homeSection = ref("create");
+const shortcutsVisible = ref(false);
+const hasGuideImages = ref(false);
+async function applyCase(value: string) {
+  if (prompt.value.trim()) {
+    const replace = await ElMessageBox.confirm("应用案例会替换当前提示词，已有附件与引导图将保留。", "保留当前草稿或采用案例", { confirmButtonText: "采用案例", cancelButtonText: "保留草稿" }).then(() => true, () => false);
+    if (!replace) return;
+  }
+  prompt.value = value;
+  await nextTick();
+  promptInput.value?.focus();
+}
 const mobileConnectVisible = ref(false);
 const mobileConnect = defineAsyncComponent(() => import("@/components/mobileConnect.vue"));
 const router = useRouter();
@@ -351,6 +370,10 @@ async function renameProject(project: Project) {
 
 async function createProject(fromPrompt = true) {
   if (creating.value || opening.value || (fromPrompt && !workspaceDirectory.value)) return;
+  if (fromPrompt && hasGuideImages.value) {
+    ElMessage.info("本轮为引导图界面设计，人物与首尾帧的生成接线将在正式实施完成；图片与提示词已保留。");
+    return;
+  }
   creating.value = true;
   try {
     let path = workspaceDirectory.value;
@@ -383,7 +406,20 @@ async function createProject(fromPrompt = true) {
 <style lang="scss" scoped>
 .home {
   position: relative;
+  padding-left: 220px;
   isolation: isolate;
+
+  .homeAssets { padding-top: 24px; :deep(.assetLibrary) { width: 100%; max-height: none; } }
+  .studioSidebar {
+    position: fixed; inset: 0 auto 0 0; z-index: 6; width: 220px; display: flex; flex-direction: column; gap: 16px; padding: 30px 20px; border-right: 1px solid var(--el-border-color-light); background: var(--el-bg-color);
+    .studioBrand { font-size: 24px; font-weight: 700; letter-spacing: -.8px; color: var(--el-text-color-primary); border: 0; background: transparent; text-align: left; padding: 0 0 14px; cursor: pointer; }
+    nav { display: grid; gap: 5px; button { display: flex; align-items: center; gap: 10px; padding: 12px; border: 0; border-radius: var(--el-border-radius-base); background: transparent; color: var(--el-text-color-regular); font: inherit; font-size: 14px; cursor: pointer; &[aria-current="page"] { background: var(--el-color-primary-light-9); color: var(--el-color-primary); } } }
+    p { margin: 8px 10px 0; color: var(--el-text-color-secondary); font-size: 12px; }
+    .recentProject { display: flex; align-items: center; gap: 8px; padding: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; background: transparent; color: var(--el-text-color-regular); text-align: left; cursor: pointer; svg { flex: none; } }
+    .sidebarFooter { margin-top: auto; display: grid; gap: 6px; .el-button { justify-content: flex-start; margin: 0; } }
+  }
+  @media (max-width: 760px) { padding-left: 0; .studioSidebar { display: none; } }
+
   min-height: 100dvh;
   color: var(--el-text-color-primary);
 
@@ -394,27 +430,7 @@ async function createProject(fromPrompt = true) {
     pointer-events: none;
   }
 
-  .arrowHint {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--el-color-primary);
-    font-size: 13px;
-    white-space: nowrap;
-    pointer-events: none;
-    animation: hintNudge 2.4s ease-in-out infinite;
 
-    svg {
-      width: 56px;
-      height: 30px;
-      flex-shrink: 0;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      animation: none;
-    }
-  }
 
   .pageHeader {
     display: flex;
@@ -429,26 +445,7 @@ async function createProject(fromPrompt = true) {
       text-decoration: none;
     }
 
-    .githubAction {
-      position: relative;
 
-      .starHint {
-        top: 0;
-        inset-inline-end: calc(100% + 12px);
-        height: 100%;
-
-        &:dir(rtl) svg { transform: scaleX(-1); }
-
-        @media (max-width: 560px) {
-          top: calc(100% + 6px);
-          inset-inline-end: 0;
-          height: auto;
-
-          svg { transform: rotate(-45deg); }
-          &:dir(rtl) svg { transform: scaleX(-1) rotate(-45deg); }
-        }
-      }
-    }
   }
 
   .pageContent {
@@ -485,20 +482,7 @@ async function createProject(fromPrompt = true) {
       .promptArea {
         position: relative;
 
-        .inspirationHint {
-          bottom: calc(100% + 4px);
-          left: 16px;
-          height: 30px;
-          padding-right: 44px;
 
-          svg {
-            position: absolute;
-            top: -2px;
-            right: 0;
-            width: 36px;
-            height: 36px;
-          }
-        }
 
         .promptCard {
           position: relative;
