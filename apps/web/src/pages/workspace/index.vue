@@ -26,7 +26,7 @@
         :saveNode="saveDocumentNode" />
     </keep-alive>
     <workspaceMenu class="workspaceMenu" @openSettings="settingsVisible = true" />
-    <div v-show="workspaceStore.creationMode === 'professional'" class="workspaceTools">
+    <div v-show="workspaceStore.creationMode === 'professional'" class="canvasToolDock">
       <div class="bottomTools">
         <el-card v-if="activePanel === 'canvas'" class="toolMenu" shadow="never" :bodyStyle="{ padding: '3px 6px' }">
           <div class="toolMenuContent" role="toolbar" aria-label="画布工具">
@@ -46,45 +46,7 @@
                 <component :is="selectedTool === 'move' ? IconPointer : IconHandStop" :size="18" aria-hidden="true" />
               </el-button>
             </el-tooltip>
-            <el-tooltip :showArrow="false" content="帮助" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]" :disabled="helpVisible">
-              <span class="toolTrigger">
-                <el-popover v-model:visible="helpVisible" trigger="click" placement="top-end" :width="196">
-                  <template #reference>
-                    <el-button class="toolButton" text aria-label="帮助">
-                      <icon-help :size="18" />
-                    </el-button>
-                  </template>
-                  <div class="helpMenu">
-                    <el-button class="helpAction" text @click="shortcutsVisible = true; helpVisible = false">快捷键与使用说明</el-button>
-                    <el-button
-                      class="helpAction"
-                      tag="a"
-                      text
-                      :icon="IconBook"
-                      href="https://qcn7xdsqgc4z.feishu.cn/docx/RXFqdgR2Xo0dXZxGfd0cZCGgnwf"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      @click="helpVisible = false">
-                      使用教程
-                    </el-button>
-                    <el-button
-                      class="helpAction"
-                      tag="a"
-                      text
-                      :icon="IconBug"
-                      href="https://docs.qq.com/smartsheet/form/EmvmQBrmlPmr%2Fss_vsqk2v%2FvhiGzE?tab=ss_vsqk2v"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="ai-studio 需求/BUG反馈表"
-                      @click="helpVisible = false">
-                      汇报 BUG
-                    </el-button>
-                    <el-button class="helpAction" text :icon="IconBrandWechat" @click="showContact('community')">加入交流群</el-button>
-                    <el-button class="helpAction" text :icon="IconBriefcase" @click="showContact('business')">商务合作</el-button>
-                  </div>
-                </el-popover>
-              </span>
-            </el-tooltip>
+            <el-tooltip content="快捷键说明" placement="top" :showArrow="false"><el-button class="toolButton" text aria-label="快捷键说明" @click="shortcutsVisible = true"><icon-help :size="18" /></el-button></el-tooltip>
           </div>
         </el-card>
         <el-tooltip v-if="!agentVisible" content="ai-studio Agent" placement="top" :showArrow="false" :hideAfter="0">
@@ -101,20 +63,7 @@
     <floatingAgent v-model="agentVisible" :expanded="workspaceStore.creationMode === 'simple'" @resize="agentWidth = $event" />
     <settings v-model="settingsVisible" />
     <shortcutHelp v-model="shortcutsVisible" />
-    <el-dialog v-model="contactVisible" :title="contactInfo.title" width="min(360px, calc(100vw - 32px))" alignCenter appendToBody>
-      <div class="contactContent">
-        <q-r-code
-          :value="contactInfo.url"
-          :size="192"
-          type="svg"
-          color="#000000"
-          bgColor="#ffffff"
-          borderless
-          role="img"
-          :aria-label="`${contactInfo.title}二维码`" />
-        <p class="contactTip">{{ contactInfo.tip }}</p>
-      </div>
-    </el-dialog>
+
   </main>
 </template>
 
@@ -122,9 +71,8 @@
 import { computed, defineAsyncComponent, nextTick, onMounted, onScopeDispose, provide, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
 import axios from "axios";
-import { IconPointer, IconHandStop, IconPlus, IconHelp, IconBook, IconBug, IconBrandWechat, IconBriefcase } from "@tabler/icons-vue";
+import { IconPointer, IconHandStop, IconPlus, IconHelp } from "@tabler/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { QRCode } from "tdesign-vue-next";
 import shortcutHelp from "@/components/shortcutHelp.vue";
 import settings from "@/components/settings/index.vue";
 import { useWorkspaceStore } from "@/stores/workspace";
@@ -147,29 +95,7 @@ const agentVisible = ref(true);
 watch(() => workspaceStore.creationMode, () => { agentVisible.value = true; });
 const agentWidth = ref(0);
 const settingsVisible = ref(false);
-const helpVisible = ref(false);
 const shortcutsVisible = ref(false);
-const contactVisible = ref(false);
-const contactType = ref<"community" | "business">("community");
-const contacts = {
-  community: {
-    title: "加入交流群",
-    url: "https://work.weixin.qq.com/u/vc36adcc89845edcbe?v=5.0.3.63936&bb=85b8d228e8",
-    tip: "欢迎文明交流、友善反馈。请勿在公开讨论中分享工作素材、个人信息或服务密钥。",
-  },
-  business: {
-    title: "商务合作",
-    url: "https://work.weixin.qq.com/u/vc0f54596c5837d05a?v=5.0.8.70675",
-    tip: "此联系方式仅用于商务合作接洽，不提供问题答疑。使用问题欢迎在交流群交流，需求与 BUG 可通过反馈表提交。感谢理解。",
-  },
-};
-const contactInfo = computed(() => contacts[contactType.value]);
-
-function showContact(type: "community" | "business") {
-  contactType.value = type;
-  helpVisible.value = false;
-  contactVisible.value = true;
-}
 const canvasPanelRef = ref<InstanceType<typeof canvasPanel>>();
 const documentPanelCache = shallowRef<{ directory: string; instance: InstanceType<typeof documentPanel> }>();
 const documentPanelRef = computed(() => documentPanelCache.value?.directory === workspaceStore.project?.directory ? documentPanelCache.value?.instance : undefined);
@@ -360,49 +286,17 @@ function saveDocumentNode(directory: string, canvasPath: string, nodeId: string,
     z-index: 5;
   }
 
-  .workspaceTools {
+  .canvasToolDock {
     position: absolute;
-    inset: 0;
-    width: calc(100% - var(--agentWidth, 0px));
-    container: workspaceTools / inline-size;
-    pointer-events: none;
-
-    .panelSwitcher {
-      --el-border-radius-base: 999px;
-      --el-segmented-bg-color: var(--el-bg-color-overlay);
-      --el-segmented-item-selected-color: var(--el-color-primary);
-      --el-segmented-item-selected-bg-color: var(--el-color-primary-light-9);
-      position: absolute;
-      top: 15px;
-      left: 50%;
-      z-index: 5;
-      min-height: 32px;
-      padding: 3px;
-      border: 1px solid var(--el-border-color-light);
-      box-shadow: var(--el-box-shadow-lighter);
-      font-size: 12px;
-      transform: translateX(-50%);
-      pointer-events: auto;
-
-      .panelOption {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 5px;
-        padding: 0 3px;
-        line-height: 24px;
-      }
-    }
-
+    bottom: 15px;
+    left: calc((100% - var(--agentWidth, 0px)) / 2);
+    transform: translateX(-50%);
+    z-index: 5;
     .bottomTools {
-      position: absolute;
-      bottom: 15px;
-      left: 50%;
       z-index: 5;
       display: flex;
       align-items: center;
       gap: 8px;
-      transform: translateX(-50%);
       pointer-events: auto;
 
       .toolMenu {
@@ -578,30 +472,6 @@ function saveDocumentNode(directory: string, canvasPath: string, nodeId: string,
   }
   87.5% {
     background-position: 98% 60%, 0 0, 0 0;
-  }
-}
-.helpMenu {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-
-  .helpAction {
-    justify-content: flex-start;
-    margin-left: 0;
-  }
-}
-
-.contactContent {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-
-  .contactTip {
-    margin: 0;
-    color: var(--el-text-color-secondary);
-    font-size: 12px;
-    line-height: 1.7;
   }
 }
 </style>

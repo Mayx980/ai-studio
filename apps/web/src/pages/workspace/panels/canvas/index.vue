@@ -64,7 +64,7 @@
       <background :gap="16" pattern-color="var(--el-border-color)" />
       <canvasEmpty
         v-if="active && !settingsVisible && project?.directory && canvasReady && !flow.getNodes.value.length"
-        :availableNodes="availableNodes"
+        :availableNodes="creationNodes"
         @create="createEmptyNode" />
       <canvasMenu ref="canvasMenuRef" v-model:canvasId="canvasId" :directory="project?.directory" :initialCanvasId="initialCanvasId" :activateCanvas="activateCanvas" :flushSave="flushCanvases ?? flushCanvasSave">
         <assetLibrary ref="assetLibraryRef" v-model="assetsVisible" :directory="project?.directory" />
@@ -208,7 +208,7 @@ const nodeLoads = shallowReactive(new Map<string, Promise<void>>());
 const nodeReloads = new Set<string>();
 const nodeErrors = ref<Record<string, string>>({});
 const availableNodes = computed(() => nodeOptions.value.filter(node => nodeTypes.value[node.type] && !nodeErrors.value[node.type]));
-const creationNodes = computed(() => availableNodes.value.filter(node => !["image", "video", "audio"].some(kind => node.type === `remote-${kind}Node` && availableNodes.value.some(item => item.type === `remote-${kind}GenerationNode`))).map(node => ({ ...node, label: node.label.replace(/^(图片|视频|音频)生成$/, "$1") })));
+const creationNodes = computed(() => [...availableNodes.value.filter(node => !["image", "video", "audio"].some(kind => node.type === `remote-${kind}Node` && availableNodes.value.some(item => item.type === `remote-${kind}GenerationNode`))).map(node => ({ ...node, label: node.label.replace(/^(图片|视频|音频)生成$/, "$1") })), ...(availableNodes.value.some(node => node.type === "remote-textNode") ? [{ type: "scriptNode", label: "脚本" }] : [])]);
 const nodeListLoading = ref(true);
 const remoteNodeTypes = computed(() => [
   ...new Set((flowData.value as { type?: string }[]).map((item) => item.type).filter((type): type is string => !!type?.startsWith("remote-"))),

@@ -5,11 +5,9 @@ import audioModel from "@/lib/browserModels/audioModel";
 import textModel from "@/lib/browserModels/textModel";
 
 export type ModelKind = "image" | "video" | "audio" | "text";
-export type GuideImage = { role: "character" | "first" | "last"; file: File };
 export const browserModels = { image: imageModel, video: videoModel, audio: audioModel, text: textModel };
 // ACT: 原型直接使用供应商协议；Key 不进入持久化 Store 或服务端配置。
 export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: "", duration: "", resolution: "" });
-export const browserGuides = ref<(GuideImage & { url: string; name: string })[]>([]);
 export const generationBusy = ref(false);
 export const generationError = ref("");
 export const generationResults = ref<{ id: string; kind: ModelKind; url?: string; text?: string; file?: File; directory?: string }[]>([]);
@@ -18,23 +16,37 @@ let controller: AbortController | undefined;
 export function stopBrowserGeneration() { controller?.abort(); }
 export function clearBrowserKeys() { stopBrowserGeneration(); for (const key of Object.keys(browserConfig.keys) as ModelKind[]) browserConfig.keys[key] = ""; }
 
-export async function generateInBrowser(prompt: string, guides: GuideImage[], references: File[], directory?: string) {
+export async function generateInBrowser(prompt: string, references: File[], directory?: string) {
   if (generationBusy.value) return false;
   const { kind, endpoint, ratio, duration, resolution } = browserConfig;
   const apiKey = browserConfig.keys[kind].trim();
   generationError.value = "";
   if (!apiKey || !prompt.trim()) { generationError.value = "请填写提示词，并在外观 → API 配置中输入当前模型的 Key。"; return false; }
   if (!/^https:\/\//i.test(endpoint)) { generationError.value = "接口地址必须使用 HTTPS。"; return false; }
-  if (guides.some(item => item.role === "last")) { generationError.value = "当前四个适配器均未提供尾帧映射，请移除尾帧；不会将其当作普通参考图提交。"; return false; }
-  if (kind !== "video" && guides.some(item => item.role === "first")) { generationError.value = "首帧仅适用于视频模型。"; return false; }
-  if (["audio", "text"].includes(kind) && (guides.length || references.length)) { generationError.value = "当前文本和音频联调仅支持文字，请移除参考素材。"; return false; }
+  if (["audio", "text"].includes(kind) && references.length) { generationError.value = "当前文本和音频联调仅支持文字，请移除参考素材。"; return false; }
   if (references.some(file => !file.type.startsWith("image/"))) { generationError.value = "当前创作入口的参考素材仅支持图片。"; return false; }
-  if (kind === "video" && guides.some(item => item.role === "first") && (references.length || guides.some(item => item.role === "character"))) { generationError.value = "首帧模式不能与人物或其他参考图片混用。"; return false; }
+  let firstFrameIndex: number | undefined;
+  if (kind === "video") {
+    // ACT: 只识别明确编号或唯一图片的首尾帧指令；多图映射不明确时要求补充，不猜测用途。
+    const rolePrompt = prompt.replace(/(?:不要|无需|不必|不需要|不使用)\s*(?:把|将)?\s*(?:图(?:片)?\s*\d+|第[一二三四五六七八九十\d]+张(?:图(?:片)?)?)?\s*(?:作为|用作|当作|设为|设置为)?\s*(?:首帧|尾帧)/g, "");
+    const frameIndex = (role: string) => {
+      const image = "(?:图(?:片)?\\s*(\\d+)|第\\s*([一二三四五六七八九十\\d]+)\\s*张(?:图(?:片)?)?)";
+      const match = rolePrompt.match(new RegExp(`${image}\\s*(?:作为|用作|当作|设为|设置为|是|为)\\s*${role}|${role}\\s*(?:使用|用|采用|为|是)\\s*${image}`));
+      const number = match?.slice(1).find(Boolean);
+      if (number) return /^\d+$/.test(number) ? Number(number) - 1 : "一二三四五六七八九十".indexOf(number);
+      if (references.length === 1 && new RegExp(`(?:作为|用作|当作|设为|设置为)\\s*${role}|${role}\\s*(?:使用|用|采用|为|是)\\s*(?:这|该)`).test(rolePrompt)) return 0;
+    };
+    const lastFrameIndex = frameIndex("尾帧");
+    firstFrameIndex = frameIndex("首帧");
+    if (lastFrameIndex !== undefined || /(?:作为|用作|设为|设置为)\s*尾帧|分别.{0,6}首尾帧/.test(rolePrompt)) { generationError.value = "当前视频模型不支持尾帧，素材已保留。请更换支持尾帧的模型或修改要求。"; return false; }
+    if (firstFrameIndex !== undefined && (!references[firstFrameIndex] || references.length !== 1)) { generationError.value = "当前首帧模式仅接受一张图片，请仅保留指定的首帧图片；其他图片不会被静默忽略。"; return false; }
+    if (firstFrameIndex === undefined && /(?:作为|用作|设为|设置为)\s*首帧/.test(rolePrompt)) { generationError.value = "请明确指定首帧图片，例如“图1作为首帧”。"; return false; }
+  }
   controller = new AbortController();
   const signal = controller.signal;
   generationBusy.value = true;
   try {
-    const images = await Promise.all([...guides.map(item => item.file), ...references].map(async file => ({ type: "binary" as const, data: new Uint8Array(await file.arrayBuffer()), mimeType: file.type, name: file.name })));
+    const images = await Promise.all(references.map(async file => ({ type: "binary" as const, data: new Uint8Array(await file.arrayBuffer()), mimeType: file.type, name: file.name })));
     const tool = { fetch: ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, { ...init, credentials: "omit", referrerPolicy: "no-referrer" })) as typeof fetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" };
     const context = { config: { apiKey, endpoint }, signal, tool };
     if (kind === "text") {
@@ -48,7 +60,7 @@ export async function generateInBrowser(prompt: string, guides: GuideImage[], re
     } else {
       const assets = kind === "image" ? await imageModel.generateImage.call(context, { model: imageModel.models[0]!.id, prompt, images, ...(ratio ? { ratio } : {}), ...(resolution ? { size: resolution } : {}) })
         : kind === "audio" ? await audioModel.generateAudio.call(context, { model: audioModel.models[0]!.id, prompt })
-        : await videoModel.generateVideo.call(context, { model: videoModel.models[0]!.id, prompt, ...(guides.some(item => item.role === "first") ? { mode: "singleImage", firstFrame: images[0] } : { mode: images.length ? ["imageReference:10"] : "text", images }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
+        : await videoModel.generateVideo.call(context, { model: videoModel.models[0]!.id, prompt, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: images[firstFrameIndex!] } : { mode: images.length ? ["imageReference:10"] : "text", images }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
       signal.throwIfAborted();
       for (const asset of assets) {
         const mimeType = asset.mimeType || `${kind}/${kind === "image" ? "png" : kind === "audio" ? "mpeg" : "mp4"}`;

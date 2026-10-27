@@ -74,42 +74,7 @@
             <icon-focus-centered :size="18" />
           </el-button>
         </el-tooltip>
-        <el-tooltip :showArrow="false"
-          content="缩放菜单（滚轮调整缩放）"
-          placement="top"
-          :hideAfter="0"
-          :enterable="false"
-          :triggerKeys="[]"
-          :disabled="zoomMenuVisible">
-          <span class="toolTrigger">
-            <el-popover v-model:visible="zoomMenuVisible" trigger="click" placement="top-start" :width="216">
-              <template #reference>
-                <el-button
-                  class="toolButton"
-                  text
-                  aria-label="缩放菜单"
-                  @wheel.stop.prevent="$event.deltaY && applyZoom(Math.min(800, Math.max(20, zoomPercent - Math.sign($event.deltaY))))">
-                  {{ zoomPercent }}%
-                </el-button>
-              </template>
-              <div class="zoomMenu">
-                <el-input-number
-                  class="zoomInput"
-                  :model-value="zoomPercent"
-                  :min="20"
-                  :max="800"
-                  :controls="false"
-                  aria-label="缩放百分比"
-                  @change="applyZoom">
-                  <template #suffix>%</template>
-                </el-input-number>
-                <el-button class="zoomAction" text @click="zoomIn()">放大</el-button>
-                <el-button class="zoomAction" text @click="zoomOut()">缩小</el-button>
-                <el-button class="zoomAction" text @click="fitView()">适合屏幕</el-button>
-              </div>
-            </el-popover>
-          </span>
-        </el-tooltip>
+
       </div>
     </el-card>
   </panel>
@@ -132,10 +97,8 @@ const snapEnabled = defineModel<boolean>("snapEnabled", { required: true });
 const showEdges = defineModel<boolean>("showEdges", { required: true });
 const assetsVisible = defineModel<boolean>("assetsVisible", { default: false });
 const showMap = ref(false);
-const zoomMenuVisible = ref(false);
 const flow = useVueFlow();
-const { viewport, zoomTo, zoomIn, zoomOut, fitView, getNodes, updateNode } = flow;
-const zoomPercent = computed(() => Math.round(viewport.value.zoom * 100));
+const { fitView, getNodes, updateNode } = flow;
 const layoutSnapshot = ref<{ id: string; position: XYPosition }[]>();
 const undoPopoverVisible = ref(false);
 const arranging = ref(false);
@@ -163,9 +126,7 @@ watch(
 );
 onBeforeUnmount(() => arrangeController?.abort());
 
-function applyZoom(value: number | undefined) {
-  if (value !== undefined && Number.isFinite(value)) void zoomTo(value / 100);
-}
+
 
 async function arrangeNodes() {
   if (!canArrange.value) return;

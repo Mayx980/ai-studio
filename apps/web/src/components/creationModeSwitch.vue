@@ -51,7 +51,7 @@ const modes = [
       border-radius: 50%;
       color: var(--el-text-color-secondary);
       background: transparent;
-      cursor: help;
+      cursor: default;
       &:focus-visible { outline: 2px solid var(--el-color-primary); }
     }
   }

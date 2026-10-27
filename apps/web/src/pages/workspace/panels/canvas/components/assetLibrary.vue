@@ -1,17 +1,29 @@
 <template>
-  <el-card v-if="visible" class="assetLibrary" :class="{ selectable }" shadow="never" :bodyStyle="{ padding: '8px' }" role="region" aria-label="素材库" @dblclick.stop>
+  <component :is="page ? 'section' : ElCard" v-if="visible" class="assetLibrary" :class="{ selectable, assetPage: page }" v-bind="page ? {} : { shadow: 'never', bodyStyle: { padding: '8px' } }" role="region" aria-label="素材库" @dblclick.stop>
     <div class="libraryToolbar">
       <el-input v-model="searchQuery" class="searchInput" :prefixIcon="IconSearch" placeholder="搜索素材" aria-label="搜索素材" clearable @keydown.esc.stop="searchQuery = ''" />
-      <el-button class="toolbarButton" text :icon="IconFolderPlus" title="新建文件夹" aria-label="新建文件夹" :disabled="newFolderParent !== undefined" @click="startFolder" />
-      <el-button class="toolbarButton" text :icon="IconX" title="关闭素材库" aria-label="关闭素材库" @click="visible = false" />
+      <el-button v-if="!page" class="toolbarButton" text :icon="IconFolderPlus" title="新建文件夹" aria-label="新建文件夹" :disabled="newFolderParent !== undefined" @click="startFolder" />
+      <el-button v-if="!page" class="toolbarButton" text :icon="IconX" title="关闭素材库" aria-label="关闭素材库" @click="visible = false" />
     </div>
     <div class="assetFilters">
-      <el-select v-model="mediaFilter" aria-label="素材类别"><el-option label="全部素材" value="" /><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="音频" value="audio" /></el-select>
-      <el-select v-model="tagFilter" aria-label="按标签分类" clearable placeholder="全部标签"><el-option v-for="item in assetCategories" :key="item" :label="item" :value="item" /></el-select>
+      <el-select v-model="mediaFilter" aria-label="素材类别"><el-option label="全部素材" value="all" /><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="音频" value="audio" /></el-select>
+      <el-select v-model="tagFilter" aria-label="按标签分类" clearable :valueOnClear="'all'" :emptyValues="[undefined, null]" placeholder="全部标签"><el-option label="全部标签" value="all" /><el-option v-for="item in assetCategories" :key="item" :label="item" :value="item" /></el-select>
     </div>
     <p class="tagHint">标签随应用设置保存；同名分类文件夹会自动归类。</p>
-    <el-scrollbar class="libraryScroll" maxHeight="min(440px, calc(100dvh - 198px))">
-      <el-tree ref="assetTree" class="assetTree" :data="displayEntries" nodeKey="path" :props="{ label: 'name' }" :icon="IconChevronRight" :currentNodeKey="folder === '.' ? undefined : folder" :filterNodeMethod="filterEntry" defaultExpandAll highlightCurrent emptyText="暂无符合条件的素材" @nodeClick="selectFolder">
+    <el-scrollbar class="libraryScroll" :maxHeight="page ? undefined : 'min(440px, calc(100dvh - 198px))'">
+      <div v-if="page" class="assetGrid">
+        <article v-for="item in pageAssets" :key="item.path" class="assetCard">
+          <button class="assetCover" type="button" :aria-label="'预览 ' + item.name" @click="openPreview(item)">
+            <el-image v-if="mediaKind(item) === 'image'" :src="assetUrl(item.path)" fit="cover" loading="lazy" :alt="item.name"><template #error><icon-photo :size="32" /></template></el-image>
+            <video v-else-if="mediaKind(item) === 'video'" :src="assetUrl(item.path)" muted playsinline preload="metadata" aria-hidden="true" />
+            <icon-music v-else :size="44" aria-hidden="true" />
+            <span class="mediaLabel">{{ mediaKind(item) === 'image' ? '图片' : mediaKind(item) === 'video' ? '视频' : '音频' }}</span>
+          </button>
+          <div class="assetInfo"><h3 :title="item.name">{{ item.name }}</h3><el-button text :icon="IconDots" :aria-label="'更多 ' + item.name" @click="openItemMenu($event, item)" /></div>
+          <el-select :modelValue="tagsFor(item)" multiple collapseTags :aria-label="item.name + ' 标签'" placeholder="标签" @update:modelValue="value => assetTags[item.path] = value"><el-option v-for="tag in assetCategories" :key="tag" :label="tag" :value="tag" /></el-select>
+        </article>
+      </div>
+      <el-tree v-else ref="assetTree" class="assetTree" :data="displayEntries" nodeKey="path" :props="{ label: 'name' }" :icon="IconChevronRight" :currentNodeKey="folder === '.' ? undefined : folder" :filterNodeMethod="filterEntry" defaultExpandAll highlightCurrent emptyText="暂无符合条件的素材" @nodeClick="selectFolder">
         <template #default="{ data, node }">
           <div class="assetEntry" :title="data.name" :draggable="data.type === 'file'" @dragstart.stop="startAssetDrag($event, data)" @dblclick.stop="openPreview(data)" @contextmenu="openItemMenu($event, data)">
             <span v-if="data.type === 'directory'" class="fileIcon"><component :is="node.expanded && !node.isLeaf ? IconFolderOpen : IconFolder" :size="18" aria-hidden="true" /></span>
@@ -26,7 +38,7 @@
             <el-input v-if="data.draft" ref="folderInput" v-model="newFolderName" class="folderNameInput" size="small" aria-label="文件夹名称" :disabled="folderSaving" @click.stop @keydown.stop @keydown.enter.prevent="saveFolder" @keydown.esc.prevent="cancelFolder" @blur="saveFolder" />
             <span v-else class="assetName">{{ data.name }}</span>
             <el-button v-if="selectable && mediaKind(data)" text type="primary" :disabled="selecting" :aria-label="'引用 ' + data.name" @click.stop="selectAsset(data)">引用</el-button>
-            <el-popover v-if="mediaKind(data) && !selectable" trigger="click" :width="290"><template #reference><el-button text size="small" @click.stop>标签</el-button></template><el-checkbox-group :modelValue="assetTags[data.path] ?? []" @update:modelValue="value => assetTags[data.path] = value.map(String)"><el-checkbox-button v-for="item in assetCategories" :key="item" :value="item">{{ item }}</el-checkbox-button></el-checkbox-group></el-popover>
+            <el-popover v-if="mediaKind(data) && !selectable" trigger="click" :width="290"><template #reference><el-button text size="small" @click.stop>标签</el-button></template><el-checkbox-group :modelValue="tagsFor(data)" @update:modelValue="value => assetTags[data.path] = value.map(String)"><el-checkbox-button v-for="item in assetCategories" :key="item" :value="item">{{ item }}</el-checkbox-button></el-checkbox-group></el-popover>
             <el-button v-if="mediaKind(data)" class="moreButton" text :icon="IconEye" :aria-label="'预览 ' + data.name" title="预览（也可双击素材）" @click.stop="openPreview(data)" />
             <el-button v-if="!data.draft" class="moreButton" text :icon="IconDots" :aria-label="'更多 ' + data.name" title="更多" @click.stop="openItemMenu($event, data)" />
           </div>
@@ -41,7 +53,7 @@
       <el-alert v-if="previewError" :title="previewError" type="error" :closable="false" showIcon />
       <audio v-else :key="previewAsset.url" :src="previewAsset.url" :aria-label="previewAsset.name" controls preload="metadata" @error="previewError = '音频无法播放，文件可能已损坏或当前浏览器不支持其编码。'" />
     </div>
-  </el-card>
+  </component>
 
   <assetMenu v-if="visible" ref="assetMenuRef" :entries="entries" @changed="refreshAssets" />
 
@@ -96,7 +108,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import axios from "axios";
 import { storeToRefs } from "pinia";
 import { useAssetStore } from "@/stores/assets";
-import { ElMessage, ElTree, type InputInstance, type TreeNodeData } from "element-plus";
+import { ElCard, ElMessage, ElTree, type InputInstance, type TreeNodeData } from "element-plus";
 import { IconChevronRight, IconDots, IconEye, IconFile, IconFolder, IconFolderOpen, IconFolderPlus, IconMusic, IconPhoto, IconSearch, IconVideo, IconX } from "@tabler/icons-vue";
 import type { NodeOutput } from "@toonflow/nodes-scaffold/values";
 import { startAssetDrag } from "../canvasDrop";
@@ -106,11 +118,11 @@ import assetMenu from "./assetMenu.vue";
 type AssetEntry = { name: string; path: string; type: "file" | "directory"; children?: AssetEntry[]; draft?: boolean };
 type AssetOutput = { label: string; output: NodeOutput };
 
-const props = defineProps<{ directory?: string; selectable?: boolean }>();
+const props = defineProps<{ directory?: string; selectable?: boolean; page?: boolean }>();
 const emit = defineEmits<{ select: [file: File] }>();
 const { tags: assetTags } = storeToRefs(useAssetStore());
-const mediaFilter = ref("");
-const tagFilter = ref("");
+const mediaFilter = ref("all");
+const tagFilter = ref("all");
 const selecting = ref(false);
 async function selectAsset(entry: AssetEntry) {
   if (selecting.value) return;
@@ -146,6 +158,8 @@ onBeforeUnmount(() => { loadRequest++; });
 function assetUrl(path: string) {
   return `/api/assets/read?path=${encodeURIComponent(path)}`;
 }
+
+function tagsFor(entry: AssetEntry) { return assetTags.value[entry.path] ?? entry.path.split("/").filter(part => assetCategories.includes(part)); }
 
 function mediaKind(entry: AssetEntry) {
   if (entry.type !== "file" || entry.draft) return;
@@ -191,14 +205,20 @@ const displayEntries = computed(() => {
     return items.flatMap(item => {
       if (item.type === "directory") {
         const children = filter(item.children ?? []);
-        return children.length || (!mediaFilter.value && !tagFilter.value) ? [{ ...item, children }] : [];
+        return children.length || (mediaFilter.value === "all" && tagFilter.value === "all") ? [{ ...item, children }] : [];
       }
-      const tags = assetTags.value[item.path] ?? item.path.split("/").filter(part => assetCategories.includes(part));
-      return mediaKind(item) && (!mediaFilter.value || mediaKind(item) === mediaFilter.value) && (!tagFilter.value || tags.includes(tagFilter.value)) ? [item] : [];
+      const tags = tagsFor(item);
+      return mediaKind(item) && (mediaFilter.value === "all" || mediaKind(item) === mediaFilter.value) && (tagFilter.value === "all" || tags.includes(tagFilter.value)) ? [item] : [];
     });
   }
   const filtered = filter(entries.value);
   return newFolderParent.value === undefined ? filtered : withDraft(filtered, ".");
+});
+
+const pageAssets = computed(() => {
+  function flatten(items: AssetEntry[]): AssetEntry[] { return items.flatMap(item => item.type === "directory" ? flatten(item.children ?? []) : [item]); }
+  const query = searchQuery.value.trim().toLocaleLowerCase();
+  return flatten(displayEntries.value).filter(item => item.path.toLocaleLowerCase().includes(query));
 });
 
 function filterEntry(query: string, entry: TreeNodeData) {
@@ -330,6 +350,15 @@ defineExpose({ openSave });
 
 .assetLibrary {
   &.selectable { width: 100%; }
+  &.assetPage { width: 100%; max-height: none; background: transparent; .libraryScroll { max-height: none; } .libraryToolbar { max-width: 560px; } }
+  .assetGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 22px; padding: 8px 0 24px;
+    .assetCard { min-width: 0; padding: 12px; border: 1px solid var(--el-border-color-light); border-radius: 16px; background: var(--el-bg-color-overlay);
+      .assetCover { position: relative; display: grid; place-items: center; width: 100%; height: 180px; padding: 0; overflow: hidden; border: 0; border-radius: 10px; background: var(--el-fill-color-light); color: var(--el-text-color-secondary); cursor: pointer;
+        .el-image, video { width: 100%; height: 100%; object-fit: cover; } .mediaLabel { position: absolute; bottom: 8px; left: 8px; padding: 3px 7px; border-radius: 6px; color: white; background: #0008; font-size: 12px; }
+      }
+      .assetInfo { display: flex; align-items: center; gap: 8px; margin: 10px 0; h3 { flex: 1; min-width: 0; margin: 0; font-size: 14px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } }
+    }
+  }
   width: min(320px, calc(100vw - 30px));
   max-height: calc(100dvh - 140px);
 

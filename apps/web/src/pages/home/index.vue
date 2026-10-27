@@ -35,9 +35,8 @@
               <span>图片、视频、文档或代码文件</span>
             </div>
             <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="creating || opening" @change="selectAttachments" />
-            <attachmentList v-if="promptAttachments.length" class="promptAttachments" :attachments="promptAttachments" removable restorable :disabled="creating || opening" @remove="promptAttachments.splice($event, 1)" @restore="restoreAttachment" />
+            <attachmentList v-if="promptAttachments.length" class="promptAttachments" numbered :attachments="promptAttachments" removable restorable :disabled="creating || opening" @remove="promptAttachments.splice($event, 1)" @restore="restoreAttachment" />
             <el-input ref="promptInput" v-model="prompt" type="textarea" :rows="4" resize="none" :disabled="creating || opening" :placeholder="promptPlaceholder" aria-label="创作描述" @paste.capture="pasteAttachments" />
-            <guideImages v-show="workspaceStore.creationMode === 'simple'" />
             <template #footer>
               <div class="composerFooter">
                 <workspacePicker ref="promptWorkspacePicker" v-model="workspaceDirectory" :disabled="creating || opening" />
@@ -55,7 +54,7 @@
           <browserModelResults :directory="workspaceStore.project?.directory" />
         </div>
       </section>
-      <section v-if="homeSection === 'assets'" class="homeAssets"><h2>个人资产</h2><assetLibrary :modelValue="true" :directory="workspaceStore.project?.directory" /></section>
+      <section v-if="homeSection === 'assets'" class="homeAssets"><h2>个人资产</h2><assetLibrary page :modelValue="true" :directory="workspaceStore.project?.directory" /></section>
       <creativeCases v-if="homeSection === 'create'" @apply="applyCase" />
       <section v-show="homeSection === 'projects'" class="projectList" aria-labelledby="projectListTitle">
         <div class="sectionHeader">
@@ -109,7 +108,7 @@ import {
   IconSortAscending, IconFolder, IconEdit,
   IconFolderMinus, IconFolderPlus, IconFolderOpen, IconPaperclip,
 } from "@tabler/icons-vue";
-import { browserConfig, browserGuides, generationError } from "@/stores/browserGeneration";
+import { browserConfig, generationError } from "@/stores/browserGeneration";
 import browserModelOptions from "@/components/browserModelOptions.vue";
 import browserModelResults from "@/components/browserModelResults.vue";
 import projectThumbnail from "@/components/projectThumbnail.vue";
@@ -125,7 +124,6 @@ import useWorkspaceFiles from "@/lib/workspaceFiles";
 import settings from "@/components/settings/index.vue";
 import bg from "./bg.vue";
 import creationModeSwitch from "@/components/creationModeSwitch.vue";
-import guideImages from "@/components/guideImages.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import creativeCases from "@/components/creativeCases.vue";
 import workspacePicker from "./workspacePicker.vue";
@@ -375,10 +373,6 @@ async function createProject(fromPrompt = true) {
     return;
   }
   if (creating.value || opening.value || (fromPrompt && !workspaceDirectory.value)) return;
-  if (fromPrompt && !browserConfig.enabled && browserGuides.value.length) {
-    ElMessage.info("本轮为引导图界面设计，人物与首尾帧的生成接线将在正式实施完成；图片与提示词已保留。");
-    return;
-  }
   creating.value = true;
   try {
     let path = workspaceDirectory.value;
@@ -524,6 +518,7 @@ async function createProject(fromPrompt = true) {
 
           .promptAttachments {
             margin-bottom: 12px;
+            :deep(.thumbnailItem) { width: 68px; height: 68px; }
           }
 
           :deep(.el-textarea__inner) {

@@ -155,12 +155,12 @@ const canArrangeSelection = computed(() => {
 const filteredNodes = computed(() => {
   const nodes = remoteNodes.map(node => ({
     ...node,
-    icon: (flow.nodeTypes?.value?.[node.type] as { icon?: Component } | undefined)?.icon ?? IconBox,
+    icon: (flow.nodeTypes?.value?.[node.type === "scriptNode" ? "remote-textNode" : node.type] as { icon?: Component } | undefined)?.icon ?? IconBox,
   }));
   if (pendingGroup.value.length) {
     if (!flow.nodesConnectable.value || pendingGroup.value.some(node => flow.findNode(node.id) !== node || node.connectable === false)) return [];
     return nodes.filter(node => {
-      const targets = (flow.nodeTypes?.value?.[node.type] as { handles?: NodeHandle[] } | undefined)?.handles?.filter(handle => handle.type === "target") ?? [];
+      const targets = (flow.nodeTypes?.value?.[node.type === "scriptNode" ? "remote-textNode" : node.type] as { handles?: NodeHandle[] } | undefined)?.handles?.filter(handle => handle.type === "target") ?? [];
       return pendingGroup.value.every(source => (source.data.handles as NodeHandle[] | undefined)?.some(output =>
         output.type === "source" && targets.some(input => isTypeCompatible(output.dataType, input.dataType))));
     });
@@ -171,7 +171,7 @@ const filteredNodes = computed(() => {
   const port = (handle.node.data.handles as NodeHandle[] | undefined)?.find((item) => item.id === handle.id && item.type === handle.type);
   if (!port) return [];
   return nodes.filter((node) => {
-    const handles = (flow.nodeTypes?.value?.[node.type] as { handles?: NodeHandle[] } | undefined)?.handles;
+    const handles = (flow.nodeTypes?.value?.[node.type === "scriptNode" ? "remote-textNode" : node.type] as { handles?: NodeHandle[] } | undefined)?.handles;
     return handles?.some((item) => item.type !== port.type && isTypeCompatible(port.dataType, item.dataType));
   });
 });
@@ -339,7 +339,7 @@ async function runCommand(command: unknown) {
   if (handle && flow.findNode(handle.node.id) !== handle.node) return;
   if (group.some(source => flow.findNode(source.id) !== source)) return;
   const id = crypto.randomUUID();
-  addNodes({ id, type: node.type, position: { ...nodePosition }, data: { label: node.label } });
+  addNodes({ id, type: node.type === "scriptNode" ? "remote-textNode" : node.type, position: { ...nodePosition }, data: { label: node.label, ...(node.type === "scriptNode" ? { contentKind: "script" } : {}) } });
   if (!handle && !group.length) {
     flow.removeSelectedElements();
     flow.nodesSelectionActive.value = false;

@@ -28,6 +28,8 @@ import { getNodeIcon } from "../loadNodeComponent";
 defineProps<{ availableNodes: { type: string }[] }>();
 const emit = defineEmits<{ create: [type: string] }>();
 const actions = [
+  { type: "remote-textNode", label: "文字" },
+  { type: "scriptNode", label: "脚本" },
   { type: "remote-imageGenerationNode", label: "图片" },
   { type: "remote-videoGenerationNode", label: "视频" },
   { type: "remote-audioGenerationNode", label: "音频" },

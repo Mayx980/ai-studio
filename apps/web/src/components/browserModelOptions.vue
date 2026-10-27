@@ -10,7 +10,7 @@
       </template>
       <p>直接调用所选模型，不执行 Agent 的画布工具。</p>
       <p>未选择时采用适配器默认／模型推荐值；手动选择后按指定值提交。</p>
-      <p v-if="browserConfig.kind === 'video'">支持人物参考或单独首帧；当前适配器不支持尾帧。</p>
+      <p v-if="browserConfig.kind === 'video'">图片默认作为参考；首帧请在输入中指定“图1作为首帧”。当前模型不支持尾帧。</p>
       <p v-if="browserConfig.kind === 'audio' || browserConfig.kind === 'text'">当前适配器仅支持文字输入。</p>
     </el-form>
   </el-popover>

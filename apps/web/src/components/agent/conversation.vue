@@ -109,11 +109,10 @@
         @lostpointercapture="stopSenderResize"
         @keydown.up.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) + 16)"
         @keydown.down.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) - 16)" />
-      <attachmentList v-if="draftAttachments.length" class="draftAttachments" :attachments="draftAttachments" :directory="directory" removable restorable :disabled="locked" @remove="draftAttachments.splice($event, 1)" @restore="restoreTextAttachment" />
+      <attachmentList v-if="draftAttachments.length" class="draftAttachments" numbered :attachments="draftAttachments" :directory="directory" removable restorable :disabled="locked" @remove="draftAttachments.splice($event, 1)" @restore="restoreTextAttachment" />
       <div ref="senderElement" class="senderEditor" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
-      <guideImages v-if="props.creationModes" v-show="workspaceStore.creationMode === 'simple'" />
       <browserModelResults v-if="props.creationModes" :directory="directory" />
       <div class="senderActions">
         <browserModelOptions v-if="props.creationModes && browserConfig.enabled" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
@@ -164,7 +163,6 @@
 
 <script setup lang="ts">
 import creationModeSwitch from "@/components/creationModeSwitch.vue";
-import guideImages from "@/components/guideImages.vue";
 import { locale, t, translate } from "@toonflow/i18n/vue";
 import { computed, inject, nextTick, reactive, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
 import { defaultRangeExtractor, measureElement, observeElementRect, useVirtualizer } from "@tanstack/vue-virtual";
@@ -177,7 +175,7 @@ import {
 import { ElMessage } from "element-plus";
 import { getReadableFileExtension, getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import logoUrl from "@toonflow/assets/logo.svg";
-import { browserConfig, browserGuides, generateInBrowser } from "@/stores/browserGeneration";
+import { browserConfig, generateInBrowser } from "@/stores/browserGeneration";
 import browserModelOptions from "@/components/browserModelOptions.vue";
 import browserModelResults from "@/components/browserModelResults.vue";
 import referencePicker from "@/components/referencePicker.vue";
@@ -463,10 +461,9 @@ async function submitMessage() {
   if (props.creationModes && browserConfig.enabled) {
     try {
       const files = await Promise.all(draftAttachments.value.map(async item => item.file ?? new File([await useWorkspaceFiles(directory).read(item.path)], item.name, { type: item.mimeType })));
-      return await generateInBrowser(sender?.getText() ?? "", browserGuides.value, files, directory);
+      return await generateInBrowser(sender?.getText() ?? "", files, directory);
     } catch (error) { ElMessage.error(error instanceof Error ? error.message : "读取引用素材失败，输入已保留"); return; }
   }
-  if (props.creationModes && browserGuides.value.length) { ElMessage.info("本轮为引导图界面设计，人物与首尾帧的生成接线将在正式实施完成；当前内容已保留。"); return; }
   return sendMessage(editingId.value ? messages.value.find(item => item.id === editingId.value) : undefined);
 }
 
@@ -1264,6 +1261,7 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
     }
 
     .draftAttachments {
+      .thumbnailItem { width: 68px; height: 68px; }
       padding: 12px 12px 0;
     }
 
