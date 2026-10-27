@@ -3,6 +3,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useCreation } from '@/ports/creation'
 import CanvasLayers from './components/CanvasLayers.vue'
 import Home from './views/Home.vue'
+import AgentStudio from './views/AgentStudio.vue'
 import Workspace from './views/Workspace.vue'
 import Assets from './views/Assets.vue'
 import Projects from './views/Projects.vue'
@@ -57,7 +58,10 @@ const nav = [
         <button class="brand" @click="port.go('home')">
           <span class="brand-symbol"><Icon name="spark" :size="23" /></span
           ><strong>AI Studio<span>创作空间</span></strong></button
-        ><button class="new-project" @click="port.openModal('new-project')">
+        ><button
+          class="new-project"
+          @click="port.studio ? port.newStudio() : port.openModal('new-project')"
+        >
           <Icon name="plus" />新建创作
         </button>
         <nav>
@@ -91,6 +95,13 @@ const nav = [
         </button>
       </template>
       <div class="sidebar-bottom" @keydown.esc="accountMenu = false">
+        <button
+          v-if="port.studio"
+          class="studio-settings-trigger"
+          @click="port.studio.settings = true"
+        >
+          <Icon name="settings" :size="17" />设置与外观
+        </button>
         <div v-if="accountMenu" class="account-menu" role="menu" aria-label="账号菜单">
           <button role="menuitem" @click="logout()">退出登录</button>
         </div>
@@ -110,12 +121,29 @@ const nav = [
         <span>真实模型联调 · 当前输入与引用会提交至所选供应商</span
         ><button @click="port.models.open = true">设置 API Key</button>
       </div>
-      <component :is="port.scenarioNavigator" v-if="port.scenarioNavigator" /><Home
-        v-if="s.page === 'home'"
-      /><Workspace v-else-if="s.page === 'workspace'" /><Projects
-        v-else-if="s.page === 'projects'"
-      /><Assets v-else />
+      <component :is="port.scenarioNavigator" v-if="port.scenarioNavigator" /><AgentStudio
+        v-if="port.studio && ['home', 'agent'].includes(s.page)"
+      /><Home v-else-if="s.page === 'home'" /><Workspace
+        v-else-if="s.page === 'workspace'"
+      /><Projects v-else-if="s.page === 'projects'" /><Assets v-else />
     </main>
+    <section v-if="port.studio?.settings" class="studio-pop" role="dialog" aria-label="外观设置">
+      <header>
+        <h2>外观</h2>
+        <button aria-label="关闭设置" @click="port.studio.settings = false">×</button>
+      </header>
+      <p class="studio-muted">选择适合你的创作环境。设置立即生效，并记住你的选择。</p>
+      <div class="studio-theme-options">
+        <button
+          v-for="theme in ['浅色', '深色', '跟随系统']"
+          :key="theme"
+          :class="{ active: port.studio.appearance === theme }"
+          @click="port.studioTheme(theme)"
+        >
+          {{ theme }}
+        </button>
+      </div>
+    </section>
     <component :is="port.presentationComponent" v-if="port.presentationComponent" />
     <CreationModal v-if="s.editorOpen" forced-kind="script-editor" /><ModelSettings
       v-if="port.models"
