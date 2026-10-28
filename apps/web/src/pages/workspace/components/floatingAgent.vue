@@ -28,7 +28,7 @@
         @keydown="resizeWithKeyboard($event, handle.edge)" />
       <agent v-model="visible" creationModes :closable="!props.expanded">
         <template #menuActions>
-          <el-button v-if="props.expanded" text :icon="IconVector" aria-label="进入画布" @click="emit('enterCanvas')">进入画布</el-button>
+          <el-button v-if="props.expanded" class="enterCanvasButton" text :icon="IconVector" aria-label="进入画布" title="进入画布" @click="emit('enterCanvas')">进入画布</el-button>
           <el-button
             v-if="!props.expanded"
             text

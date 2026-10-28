@@ -182,7 +182,7 @@ function loadModels() {
     }
     models.value = items.filter(item => item.type === "audio");
     // ACT: 仅空配置选择默认模型，临时不可用的模型保持原选择，避免静默换供应商。
-    if (!data.value.model) {
+    if (!selectedModel.value) {
       const first = models.value[0];
       data.value.model = first ? JSON.stringify([first.providerId, first.modelId]) : "";
     }

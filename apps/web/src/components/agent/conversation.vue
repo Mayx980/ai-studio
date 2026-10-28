@@ -1,5 +1,6 @@
 <template>
   <div class="agentConversation">
+    <creationModeSwitch v-if="props.creationModes && !messages.length" v-model="workspaceStore.creationMode" class="conversationMode" />
     <div class="messageViewport t-chat t-chat--normal">
       <div ref="messageList" class="messageList t-chat__list" role="region" aria-label="对话消息" tabindex="0">
         <chat-item v-if="!messages.length && !disabled" role="assistant" variant="text">
@@ -59,7 +60,7 @@
                   <browserModelResults v-if="item.browserResultIds?.length" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showReference="false" :disabled="locked" @reference="referenceGeneratedFile" />
                   <div v-if="item.creationChoice && !item.creationChoice.resolved" class="creationChoices" role="group" aria-label="选择创作内容">
                     <p>{{ item.creationChoice.needsDetails ? "请先补充创作主体或用途，再确认要生成的内容。" : "你希望生成哪种内容？确认后我会在画布搭建节点和连线。" }}</p>
-                    <el-button v-for="choice in item.creationChoice.needsDetails ? [] : creationChoices" :key="choice.label" size="small" :disabled="locked" @click="continueCreation(item, choice.kind, choice.script)">{{ choice.label }}</el-button>
+                    <el-button v-for="choice in item.creationChoice.needsDetails ? [] : creationChoices" :key="choice.label" size="small" :disabled="locked" @click="continueCreation(item, choice.kind, choice.script, choice.label)">{{ choice.label }}</el-button>
                   </div>
                   <div v-if="item.error" class="messageError" role="alert">{{ item.error }}</div>
                 </div>
@@ -91,7 +92,6 @@
       <el-icon class="is-loading" aria-hidden="true"><icon-loader-2 :size="14" /></el-icon>
       <span>正在压缩上下文…</span>
     </div>
-    <creationModeSwitch v-if="props.creationModes && !messages.length" v-model="workspaceStore.creationMode" class="conversationMode" />
     <div class="messageInput" :class="{ draggingAttachments }" @dragenter.capture="dragEnterAttachments" @dragover.capture="dragOverAttachments" @dragleave.capture="dragLeaveAttachments" @drop.capture="dropAttachments">
       <div v-if="draggingAttachments" class="attachmentDropHint" role="status">
         <icon-paperclip :size="20" aria-hidden="true" />
@@ -234,7 +234,7 @@ const beginBrowserWorkflow = inject<BeginBrowserWorkflow | undefined>("beginBrow
 const sessionMode = ref(props.initialSession?.creationMode);
 watch(() => props.active, active => { if (active && sessionMode.value) workspaceStore.creationMode = sessionMode.value; }, { immediate: true });
 const creationChoices = [
-  { label: "方案／文字", kind: "text" as const, script: false }, { label: "剧情／分镜脚本", kind: "text" as const, script: true },
+  { label: "方案／文字", kind: "text" as const, script: false }, { label: "剧情脚本", kind: "text" as const, script: false }, { label: "分镜脚本", kind: "text" as const, script: true },
   { label: "图片", kind: "image" as const, script: false }, { label: "音频", kind: "audio" as const, script: false }, { label: "视频", kind: "video" as const, script: false },
 ];
 const messages = ref<AgentMessage[]>((props.initialSession?.messages ?? []).map(message => ({ ...message })));
@@ -484,10 +484,10 @@ async function persistBrowserMessages() {
   if (browserWorkspaceMode && directory && props.sessionFile) await saveBrowserConversation(directory, props.sessionFile, messages.value, sessionMode.value);
 }
 
-async function continueCreation(item: AgentMessage, kind: ModelKind, script = false) {
+async function continueCreation(item: AgentMessage, kind: ModelKind, script = false, label?: string) {
   if (locked.value || !item.creationChoice || item.creationChoice.resolved) return;
   const source = messages.value.find(message => message.id === item.replyTo);
-  const prompt = `${script ? "生成剧情／分镜脚本" : ({ text: "生成方案", image: "生成图片", video: "生成视频", audio: "生成音频" })[kind]}：${item.creationChoice.prompt}`;
+  const prompt = `${label ? `生成${label}` : script ? "生成分镜脚本" : ({ text: "生成方案", image: "生成图片", video: "生成视频", audio: "生成音频" })[kind]}：${item.creationChoice.prompt}`;
   item.creationChoice.resolved = true;
   await submitMessage({ prompt, kind, script, attachments: source?.attachments ?? [] });
 }
@@ -509,8 +509,8 @@ async function referenceMessageResults(item: AgentMessage) {
 
 async function submitMessage(choice?: { prompt: string; kind: ModelKind; script: boolean; attachments: AgentAttachment[] }) {
   if (locked.value) return;
-  if (browserWorkspaceMode && !browserConfig.enabled) { ElMessage.warning("请先在设置 → API 配置中启用模型联调并输入 Key"); return; }
-  if (props.creationModes && browserConfig.enabled) {
+  if (browserWorkspaceMode && !browserConfig.enabled && workspaceStore.creationMode !== "professional") { ElMessage.warning("请先在设置 → API 配置中启用模型联调并输入 Key"); return; }
+  if (props.creationModes && (browserWorkspaceMode || browserConfig.enabled)) {
     const input = choice?.prompt ?? sender?.getText() ?? "";
     if (!input.trim()) return;
     const pending = !choice ? messages.value.findLast(item => item.creationChoice && !item.creationChoice.resolved) : undefined;
@@ -546,14 +546,17 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
         return;
       }
       const outputKind = kind ?? "image";
+      if (!browserConfig.enabled) throw new Error("请先在设置 → API 配置中启用模型联调并输入 Key");
       if (!browserConfig.keys[outputKind].trim()) throw new Error("请先在设置 → API 配置中输入当前模型的 Key");
       if ((outputKind === "text" || outputKind === "audio") && files.length) throw new Error("当前文字／音频适配器只支持文字输入，请移除引用素材后重试");
-      const workflow = professional ? await beginBrowserWorkflow?.(prompt, outputKind, files, choice?.script ?? /脚本|分镜/.test(prompt)) : undefined;
+      if ((outputKind === "image" || outputKind === "video") && files.some(file => !file.type.startsWith("image/"))) throw new Error("当前图片／视频适配器的参考输入仅支持图片，素材已保留，请调整引用后重试");
+      const isStoryboard = choice?.script ?? /分镜/.test(prompt);
+      const workflow = await beginBrowserWorkflow?.(prompt, outputKind, files, isStoryboard, professional);
       if (professional && !workflow) throw new Error("画布尚未就绪，输入已保留");
       if (browserCancelled) throw new Error("已停止发送；已创建的画布节点保留供修改");
       await persistBrowserMessages();
       const previousIds = new Set(generationResults.value.map(item => item.id));
-      const generationPrompt = !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
+      const generationPrompt = isStoryboard ? `${prompt}\n请输出 Markdown 分镜表，列为：镜头号、时长、景别、运镜方式、画面、台词/音效、角色表情反应、环境场景、分镜图提示词、视频运动提示词、角色形象描述。每镜头一行，仅输出表格。` : !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
       const success = await generateInBrowser(generationPrompt, files, directory, outputKind);
       const results = generationResults.value.filter(item => !previousIds.has(item.id) && item.directory === directory);
       reply.browserResultIds = results.filter(item => item.kind !== "text").map(item => item.id);
@@ -992,7 +995,7 @@ watch(senderElement, (element, _previous, onCleanup) => {
     autoFocus: props.active,
     placeholder: translate("输入消息，@ 提及节点输出或全局素材…"),
     chatStyle: { minHeight: "44px", maxHeight: "50vh", fontSize: "14px", lineHeight: "24px" },
-    keyboardSendFun: event => event.key === "Enter" && !event.shiftKey && !event.isComposing,
+    keyboardSendFun: event => event.key === "Enter" && !event.shiftKey && !event.isComposing && event.keyCode !== 229,
     keyboardWrapFun: event => event.key === "Enter" && event.shiftKey && !event.isComposing,
   });
   sender = instance;
@@ -1068,7 +1071,7 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
 </script>
 
 <style lang="scss">
-.conversationMode { margin: 8px 14px 10px; flex-shrink: 0; }
+.conversationMode { margin: 8px 14px 10px auto; flex-shrink: 0; width: min(320px, calc(100% - 28px)); }
 .agentConversation {
   .creationChoices { padding: 10px 0; .el-button { margin: 4px; } }
   display: flex;

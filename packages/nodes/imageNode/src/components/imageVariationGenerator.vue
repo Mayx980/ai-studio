@@ -89,7 +89,7 @@ async function refreshModels(_event?: Event) {
       inheritModelConfig = false;
     }
     models.value = result.filter(item => item.type === "image");
-    if (!props.settings.model) {
+    if (!selectedModel.value) {
       const choice = models.value[0];
       props.settings.model = choice ? JSON.stringify([choice.providerId, choice.modelId]) : "";
     }

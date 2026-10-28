@@ -37,7 +37,7 @@ export async function generateBrowserText(input: NodeAiRequest) {
     ] }),
   });
   const body = await response.json();
-  if (!response.ok) throw new Error(body.error?.message || `文本生成失败（HTTP ${response.status}）`);
+  if (!response.ok) throw new Error(String(body.error?.message || `文本生成失败（HTTP ${response.status}）`).replaceAll(context.config.apiKey, "[Key]"));
   const text = body.choices?.[0]?.message?.content;
   if (body.choices?.[0]?.finish_reason === "length") throw new Error("文本输出达到模型上限，请缩小要求后重试");
   if (typeof text !== "string" || !text.trim()) throw new Error("文本模型没有返回有效内容");
@@ -72,7 +72,7 @@ async function saveAssets(assets: { type: string; data?: string | Uint8Array; ur
     } else throw new Error("模型未返回有效素材地址");
     if (!blob.size || (blob.type && !blob.type.startsWith(`${kind}/`) && blob.type !== "application/octet-stream")) throw new Error("模型结果不是有效媒体");
     const mimeType = blob.type.startsWith(`${kind}/`) ? blob.type : asset.mimeType || fallback;
-    const path = `${input.outputDirectory}/${crypto.randomUUID()}.${kind === "image" ? "png" : kind === "video" ? "mp4" : "mp3"}`;
+    const path = `${input.outputDirectory}/${crypto.randomUUID()}.${({ "image/jpeg": "jpg", "image/webp": "webp", "video/webm": "webm", "audio/wav": "wav", "audio/mpeg": "mp3" } as Record<string, string>)[mimeType] || (kind === "image" ? "png" : kind === "video" ? "mp4" : "mp3")}`;
     signal?.throwIfAborted();
     await files.write(path, blob, true);
     return { path, mimeType, mediaType: kind };
@@ -88,20 +88,20 @@ export const browserNodeAi: NodeAiAdapter = {
   async getMediaModels(signal) { signal?.throwIfAborted(); return availableBrowserModels(); },
   async generateImage(input, signal) {
     const context = modelContext("image", signal);
-    if (input.providerId !== browserModels.image.id) throw new Error("请选择 API 配置中已接入的图片模型");
+    if (input.providerId !== browserModels.image.id || !browserModels.image.models.some(model => model.id === input.modelId)) throw new Error("请选择 API 配置中已接入的图片模型");
     const assets = await browserModels.image.generateImage.call(context, { ...input, model: input.modelId, images: await imageInputs(input.directory, input.images) });
     return await saveAssets(assets, input, "image", signal) as Awaited<ReturnType<NodeAiAdapter["generateImage"]>>;
   },
   async generateVideo(input, signal) {
     const context = modelContext("video", signal);
-    if (input.providerId !== browserModels.video.id) throw new Error("请选择 API 配置中已接入的视频模型");
+    if (input.providerId !== browserModels.video.id || !browserModels.video.models.some(model => model.id === input.modelId)) throw new Error("请选择 API 配置中已接入的视频模型");
     const frame = async (item?: { path: string; mimeType: string }) => item ? (await imageInputs(input.directory, [item]))[0] : undefined;
     const assets = await browserModels.video.generateVideo.call(context, { ...input, model: input.modelId, images: await imageInputs(input.directory, input.images), videos: await imageInputs(input.directory, input.videos), audios: await imageInputs(input.directory, input.audios), firstFrame: await frame(input.firstFrame), lastFrame: await frame(input.lastFrame) });
     return await saveAssets(assets, input, "video", signal) as Awaited<ReturnType<NodeAiAdapter["generateVideo"]>>;
   },
   async generateAudio(input, signal) {
     const context = modelContext("audio", signal);
-    if (input.providerId !== browserModels.audio.id) throw new Error("请选择 API 配置中已接入的音频模型");
+    if (input.providerId !== browserModels.audio.id || !browserModels.audio.models.some(model => model.id === input.modelId)) throw new Error("请选择 API 配置中已接入的音频模型");
     if (input.audios?.length || input.images?.length) throw new Error("当前音频模型仅支持文字输入");
     const { images, audios, language, ...parameters } = input;
     const prompt = [input.prompt, language ? `生成语言：${language}` : ""].filter(Boolean).join("\n");

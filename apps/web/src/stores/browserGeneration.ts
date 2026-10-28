@@ -17,7 +17,7 @@ export const generationBusy = ref(false);
 export const generationError = ref("");
 export type BrowserGenerationResult = { id: string; kind: ModelKind; url?: string; text?: string; file?: File; directory?: string; path?: string };
 export type BrowserWorkflow = { complete(results: BrowserGenerationResult[]): Promise<void> };
-export type BeginBrowserWorkflow = (prompt: string, kind: ModelKind, references: File[], script: boolean) => Promise<BrowserWorkflow>;
+export type BeginBrowserWorkflow = (prompt: string, kind: ModelKind, references: File[], script: boolean, visible?: boolean) => Promise<BrowserWorkflow>;
 export const generationResults = ref<BrowserGenerationResult[]>([]);
 export const selectedBrowserModel = computed(() => browserModels[browserConfig.kind].models[0]!);
 let controller: AbortController | undefined;
@@ -39,16 +39,17 @@ export async function restoreBrowserResults(directory: string) {
     generationResults.value.push({ ...item, directory, file, url: URL.createObjectURL(file) });
   }
 }
-async function saveBrowserResults(directory: string) {
+async function saveBrowserResults(directory: string, signal?: AbortSignal) {
   const files = useWorkspaceFiles(directory);
   for (const item of generationResults.value.filter(item => item.directory === directory && !item.path && item.kind !== "text")) {
     if (!item.file) {
-      const response = await studioFetch(item.url!);
+      const response = await studioFetch(item.url!, { signal });
       if (!response.ok) throw new Error(`素材已生成，但下载保存失败（HTTP ${response.status}），请保留页面重试`);
       const blob = await response.blob();
       const mimeType = blob.type.startsWith(`${item.kind}/`) ? blob.type : `${item.kind}/${item.kind === "video" ? "mp4" : item.kind === "audio" ? "mpeg" : "png"}`;
       item.file = new File([blob], `生成素材.${mimeType.split("/")[1]}`, { type: mimeType });
     }
+    signal?.throwIfAborted();
     item.path = await uploadNodeFile(files, item.id, item.file);
     if (item.url?.startsWith("blob:")) URL.revokeObjectURL(item.url);
     item.url = URL.createObjectURL(item.file);
@@ -70,6 +71,7 @@ export function inferGenerationKind(prompt: string): ModelKind { return explicit
 
 export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind) {
   if (generationBusy.value) return false;
+  if (!browserConfig.enabled) { generationError.value = "请先在设置 → API 配置中启用模型联调"; return false; }
   const kind: ModelKind = requestedKind ?? inferGenerationKind(prompt);
   browserConfig.kind = kind;
   const { endpoint, ratio, duration, resolution } = browserConfig;
@@ -118,7 +120,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
       const file = asset.type === "base64" && asset.data ? new File([Uint8Array.from(atob(asset.data), char => char.charCodeAt(0))], `生成结果.${mimeType.split("/")[1]}`, { type: mimeType }) : undefined;
       generationResults.value.push({ id: crypto.randomUUID(), kind, url: file ? URL.createObjectURL(file) : asset.url, file, directory });
     }
-    if (browserWorkspaceMode && directory) await saveBrowserResults(directory);
+    if (browserWorkspaceMode && directory) await saveBrowserResults(directory, signal);
     return true;
   } catch (error) {
     generationError.value = signal.aborted ? "已停止等待；已提交的远端任务可能仍在运行，请先检查供应商任务记录。" : error instanceof TypeError ? "无法访问供应商接口，请检查本机预览服务及网络。输入和参考已保留。" : (error instanceof Error ? error.message : "模型调用失败").replaceAll(apiKey, "[Key]");

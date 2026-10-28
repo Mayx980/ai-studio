@@ -15,6 +15,7 @@
     @pointerleave="pointerPosition = undefined"
     @dragover="dragFilesOver"
     @drop="dropFiles">
+    <nodeReferences v-if="project?.directory" ref="nodeReferencesRef" :directory="project.directory" :nodes="() => flow.getNodes.value" />
     <vue-flow
       :id="runtimeKey"
       :only-render-visible-elements="false"
@@ -69,7 +70,8 @@
       <canvasMenu ref="canvasMenuRef" v-model:canvasId="canvasId" :directory="project?.directory" :initialCanvasId="initialCanvasId" :activateCanvas="activateCanvas" :flushSave="flushCanvases ?? flushCanvasSave">
         <assetLibrary ref="assetLibraryRef" v-model="assetsVisible" :directory="project?.directory" />
       </canvasMenu>
-      <canvasControls
+      <canvasControls :active="props.active"
+        :canUndo="canUndo" :canRedo="canRedo" :undo="() => changeHistory('undo')" :redo="() => changeHistory('redo')"
         ref="canvasControlsRef"
         v-model:assetsVisible="assetsVisible"
         v-model:snapEnabled="snapEnabled"
@@ -122,7 +124,7 @@
 
 <script setup lang="ts">
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
-import { browserModels, browserConfig, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
+import { browserModels, browserConfig, generationResults, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
 import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, onScopeDispose, provide, ref, shallowReactive, shallowRef, watch } from "vue";
 import axios from "axios";
 import { debounce } from "lodash-es";
@@ -164,12 +166,14 @@ import remoteNode from "./components/remoteNode.vue";
 import canvasMenu from "./components/canvasMenu.vue";
 import canvasControls from "./components/canvasControls.vue";
 import canvasEmpty from "./components/canvasEmpty.vue";
+import nodeReferences from "./components/nodeReferences.vue";
 import assetLibrary from "./components/assetLibrary.vue";
 import groupNode from "./components/groupNode.vue";
 import selectionToolbar from "./components/selectionToolbar.vue";
 import nodeSearch from "./components/nodeSearch.vue";
 import { finishGroupDrag, getSelectionTree } from "./selectionNodes";
-import type { NodeOutput } from "@toonflow/nodes-scaffold/values";
+import { validateConnection } from "@toonflow/nodes-scaffold/connection";
+import { isNodeOutput, type NodeOutput } from "@toonflow/nodes-scaffold/values";
 import type { NodeConnectionFeedback, NodeHandle } from "@toonflow/nodes-scaffold/connection";
 import { useNodeEvent } from "@toonflow/nodes-scaffold/nodeEvent";
 import type { NodeDocumentContext, NodeDocumentState } from "@toonflow/nodes-scaffold/nodeDocument";
@@ -309,8 +313,20 @@ async function batchCanvasEdit<T>(action: () => Promise<T>) {
   return canvasHistory.batch(action);
 }
 provide("canvas", getCanvasContext);
+async function fitCreationNodes(ids: string[]) {
+  const element = flow.vueFlowRef.value;
+  if (!element) return;
+  const bounds = element.getBoundingClientRect();
+  const agentWidth = Number.parseFloat(getComputedStyle(element).getPropertyValue("--agentWidth")) || 0;
+  const nodes = ids.flatMap(id => flow.findNode(id) ?? []);
+  if (!nodes.length) return;
+  await flow.setViewport(vueFlowRuntime.getTransformForBounds(vueFlowRuntime.getRectOfNodes(nodes), Math.max(240, bounds.width - agentWidth), bounds.height, flow.minZoom.value, 1, 0.25));
+}
 async function importBrowserResult(file: File, directory: string) {
   if (directory !== project.value?.directory || !canvasReady.value) throw new Error("工作区已切换或画布尚未就绪，请重新操作");
+  const resultPath = generationResults.value.find(result => result.file === file && result.directory === directory)?.path;
+  const existing = resultPath ? flow.getNodes.value.find(node => Object.values(node.data.outputs ?? {}).some(output => isNodeOutput(output) && output.value && typeof output.value === "object" && "url" in output.value && output.value.url === resultPath)) : undefined;
+  if (existing) { flow.removeSelectedElements(); flow.addSelectedNodes([existing]); await fitCreationNodes([existing.id]); return; }
   const position = pastePosition();
   if (!position) throw new Error("画布尚未就绪");
   const signal = canvasController.signal;
@@ -334,7 +350,7 @@ async function importBrowserResult(file: File, directory: string) {
   });
   flow.removeSelectedElements();
   flow.addSelectedNodes(ids.map(id => flow.findNode(id)!));
-  await flow.fitView({ nodes: ids, padding: 0.4, maxZoom: 1 });
+  await fitCreationNodes(ids);
   signal.throwIfAborted();
   await flushCanvasSave();
 }
@@ -364,7 +380,7 @@ const beginBrowserWorkflow: BeginBrowserWorkflow = async (prompt, kind, referenc
   await flushCanvasSave();
   await nextTick();
   await waitForControlValue(() => ids.every(id => { const node = flow.findNode(id); return node && node.dimensions.width > 0 && node.dimensions.height > 0; }) ? true : undefined, AbortSignal.any([signal, AbortSignal.timeout(10000)]));
-  await flow.fitView({ nodes: ids, padding: 0.3, maxZoom: 0.85 });
+  await fitCreationNodes(ids);
   const node = flow.findNode(targetId)!;
   const configuration = () => JSON.stringify([node.data.prompt, node.data.model, node.data.ratio, node.data.size, node.data.resolution, node.data.duration, node.data.outputs, flow.getEdges.value.filter(edge => edge.target === targetId).map(edge => [edge.id, edge.source, edge.sourceHandle, edge.targetHandle, flow.findNode(edge.source)?.data.outputs])]);
   const initialConfiguration = configuration();
@@ -592,24 +608,37 @@ async function dropFiles(event: DragEvent) {
   }
 }
 
-function selectFiles(position: { x: number; y: number }) {
-  const directory = project.value?.directory;
-  if (!props.active || props.settingsVisible || !canvasId.value || !directory) return;
-  const context = { directory, availableNodes: availableNodes.value, signal: canvasController.signal, flow };
-  const input = document.createElement("input");
-  input.type = "file";
-  input.multiple = true;
-  input.onchange = async () => {
-    const files = Array.from(input.files ?? []);
-    if (!files.length || context.signal.aborted) return;
-    try {
-      await canvasHistory.batch(() => importCanvasFiles(files, position, context));
-    } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : "文件导入失败");
-    }
-  };
-  input.click();
+const nodeReferencesRef = ref<InstanceType<typeof nodeReferences>>();
+async function pickNodeReferences(target?: string, position = pastePosition(), scope = "local") {
+  if (!position || !project.value?.directory || !canvasReady.value) return;
+  const directory = project.value.directory;
+  const canvas = canvasId.value;
+  const signal = canvasController.signal;
+  const choice = await nodeReferencesRef.value?.open(target, scope);
+  if (!choice) return;
+  try {
+    signal.throwIfAborted();
+    if (directory !== project.value?.directory || canvas !== canvasId.value) throw new Error("画布已切换，请重新引用");
+    await canvasHistory.batch(async () => {
+      const ids = await importCanvasFiles(choice.files, { x: position.x - (target ? 500 : 0), y: position.y }, { directory, availableNodes: availableNodes.value, signal, flow, throwOnError: true });
+      await nextTick();
+      await waitForControlValue(() => ids.every(id => flow.findNode(id)?.data.handles?.length) ? true : undefined, AbortSignal.any([signal, AbortSignal.timeout(10000)]));
+      const sources = [...choice.sources, ...ids.flatMap(id => Object.keys(flow.findNode(id)?.data.outputs ?? {}).slice(0, 1).map(sourceHandle => ({ source: id, sourceHandle })))];
+      if (target) for (const source of sources) {
+        const connection = { ...source, target, targetHandle: "in" };
+        const sourceNode = flow.findNode(source.source), targetNode = flow.findNode(target);
+        if (!sourceNode || !targetNode || !validateConnection(connection, { sourceNode, targetNode, nodes: flow.getNodes.value, edges: flow.getEdges.value })) throw new Error("该节点不支持此引用类型；已上传素材保留在画布");
+        if (flow.getEdges.value.some(edge => edge.source === source.source && edge.sourceHandle === source.sourceHandle && edge.target === target && edge.targetHandle === "in")) continue;
+        const reachesSource = (id: string, visited = new Set<string>()): boolean => id === source.source || (!visited.has(id) && (visited.add(id), flow.getEdges.value.filter(edge => edge.source === id).some(edge => reachesSource(edge.target, visited))));
+        if (reachesSource(target)) throw new Error("该引用会形成循环，未添加连线");
+        addEdges({ id: crypto.randomUUID(), ...connection });
+      }
+    });
+    await flushCanvasSave();
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "引用失败"); }
 }
+provide("pickNodeReferences", (target: string) => pickNodeReferences(target));
+function selectFiles(position: { x: number; y: number }) { void pickNodeReferences(undefined, position); }
 
 function openNodeMenu(event: MouseEvent) {
   if (!props.active || props.settingsVisible || !canvasReady.value) return;

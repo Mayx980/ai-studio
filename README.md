@@ -579,3 +579,8 @@ Copyright © 2026 北京爱阿科技有限公司
 ## 当前仓库开发
 
 本仓库基于固定上游版本接入，保留上游目录、UI 与业务实现。[来源与接入边界](governance/upstream.md) · [使用 wf-prod 开发](governance/development.md)。
+
+
+## ai-studio 创作原型
+
+Issue #7 的浏览器创作预览及共享交互方案见 [创作原型设计](apps/web/designs/creationExperience.md)。原型沿用原生 Web 与节点插件，真实供应商调用需要用户在浏览器内输入 Key；设计分支不代表生产交付。

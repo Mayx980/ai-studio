@@ -30,6 +30,7 @@
       <div class="bottomTools">
         <el-card v-if="activePanel === 'canvas'" class="toolMenu" shadow="never" :bodyStyle="{ padding: '3px 6px' }">
           <div class="toolMenuContent" role="toolbar" aria-label="画布工具">
+            <div id="canvasToolExtras" class="canvasToolExtras" />
             <el-tooltip content="添加节点" placement="top" :showArrow="false" :hideAfter="0" :enterable="false" :triggerKeys="[]">
               <el-button class="toolButton addNodeButton" :disabled="!canvasPanelRef?.canvasReady || settingsVisible" aria-label="添加节点" aria-haspopup="menu" @click="canvasPanelRef?.addNodeAtPointer()">
                 <icon-plus :size="18" aria-hidden="true" />
@@ -129,7 +130,7 @@ provide("importBrowserResult", async (file: File, directory: string) => {
   agentVisible.value = false;
 });
 provide("beginBrowserWorkflow", (async (...args) => {
-  workspaceStore.creationMode = "professional";
+  if (args[4] !== false) workspaceStore.creationMode = "professional";
   activePanel.value = "canvas";
   await nextTick();
   const panel = canvasPanelRef.value;
@@ -501,4 +502,12 @@ function saveDocumentNode(directory: string, canvasPath: string, nodeId: string,
     background-position: 98% 60%, 0 0, 0 0;
   }
 }
+</style>
+
+<style scoped lang="scss">
+.canvasToolExtras { display: flex; align-items: center; } .canvasToolDock { max-width: calc(100% - 24px); .toolMenuContent { flex-wrap: wrap; justify-content: center; } }
+</style>
+
+<style scoped lang="scss">
+@media (max-width: 640px) { .canvasToolDock { left: 50%; width: calc(100% - 24px); .bottomTools { flex-wrap: wrap; justify-content: center; .toolMenu { max-width: 100%; flex-shrink: 1; } } } }
 </style>

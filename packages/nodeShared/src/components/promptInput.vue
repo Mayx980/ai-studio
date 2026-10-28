@@ -1,5 +1,6 @@
 <template>
   <div class="promptInputWrap nodrag nopan nowheel">
+    <el-button v-if="pickReferences" class="referenceButton" text circle title="引用上传" aria-label="引用上传" @click.stop="pickReferences(nodeId)"><icon-paperclip :size="17" /></el-button>
     <el-button v-if="expandable" class="expandButton" :icon="IconMaximize" text circle title="展开编辑提示词" aria-label="展开编辑提示词" @mousedown.prevent @click.stop="expanded = true" />
     <teleport :to="expandedTarget || 'body'" :disabled="!expanded || !expandedTarget">
       <div ref="senderElement" class="promptInput nodrag nopan nowheel" :class="{ expandedInput: expanded }" @keydown.capture="handleMentionKey" @click.capture="previewReference" />
@@ -12,12 +13,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, inject, nextTick, ref, watch } from "vue";
 import { ElButton, ElDialog, ElImageViewer, useZIndex } from "element-plus";
-import { IconMaximize } from "@tabler/icons-vue";
+import { IconMaximize, IconPaperclip } from "@tabler/icons-vue";
+import { useNode } from "@vue-flow/core";
 import xSender, { type AnyTagProps, type MentionItem } from "x-sender";
 import "x-sender/lib/XSender.css";
 
+const { id: nodeId } = useNode();
+const pickReferences = inject<((nodeId: string) => Promise<void>) | undefined>("pickNodeReferences", undefined);
 const props = defineProps<{ references: (MentionItem & { value: string })[]; expandable?: boolean; placeholder?: string }>();
 const model = defineModel<AnyTagProps[][]>({ required: true });
 const text = defineModel<string>("text", { default: "" });

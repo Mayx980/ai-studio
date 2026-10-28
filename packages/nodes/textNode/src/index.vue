@@ -1,6 +1,7 @@
 <template>
   <nodeSkeleton
     v-bind="nodeProps"
+    :style="isScript ? { width: '1120px' } : undefined"
     v-model:bottomVisible="node.selected"
     :topVisible="node.selected"
     topWidth="max-content"
@@ -8,15 +9,17 @@
     :downloadName="`${nodeProps.label || '文本'}.md`"
     :bottomWidth="660"
     @fullscreen="fullscreen = true; editing = true">
-    <div class="textContent" :class="{ empty: !outputs.text.value.trim() }">
+    <div class="textContent" :class="{ empty: !isScript && !outputs.text.value.trim() }">
       <el-alert v-if="documentState.error" :title="documentState.error" type="error" :closable="false" showIcon>
         <el-button text size="small" :disabled="generating || textReloading" @click="editing = true">查看并复制当前正文</el-button>
         <el-button text size="small" :disabled="generating" :loading="textReloading" @click="reloadText">重新读取磁盘</el-button>
       </el-alert>
-      <div v-if="outputs.text.value.trim() && previewReady" class="textPreview nopan nowheel" :aria-label="isScript ? '脚本与分镜内容' : '文本内容'">
+      <span v-if="isScript && textReady" class="scriptSaveStatus" role="status">{{ documentState.error ? '保存失败，内容已保留' : documentState.dirty ? '正在保存…' : '已保存' }}</span>
+      <scriptTable v-if="isScript && textReady" v-model="outputs.text.value" v-model:rows="scriptRows" :nodeId="node.id" :disabled="generating || !!documentState.error" />
+      <div v-else-if="outputs.text.value.trim() && previewReady" class="textPreview nopan nowheel" :aria-label="isScript ? '脚本与分镜内容' : '文本内容'">
         <markdownPreview :modelValue="outputs.text.value" :files="textReady ? textFiles : undefined" :path="textPath" :active="previewReady" />
       </div>
-      <el-button class="editButton nodrag nopan" :icon="IconEdit" :disabled="generating || !textReady" text @dblclick.stop @click.stop="editing = true">{{ isScript ? "编辑脚本" : "编辑" }}</el-button>
+      <el-button v-if="!isScript" class="editButton nodrag nopan" :icon="IconEdit" :disabled="generating || !textReady" text @dblclick.stop @click.stop="editing = true">{{ isScript ? "编辑脚本" : "编辑" }}</el-button>
     </div>
     <template #bottom>
       <el-card class="promptCard" shadow="never" :bodyStyle="{ padding: '14px 16px 12px' }">
@@ -35,7 +38,7 @@
             </el-option-group>
           </el-select>
           <div class="promptActions">
-            <el-button class="sendButton" :icon="IconArrowUp" :loading="generating" :disabled="!prompt.trim() || !selectedModel || generating || !textReady" title="生成" aria-label="生成" @click="generateText" />
+            <el-button class="sendButton" :icon="IconArrowUp" :loading="generating" :disabled="(!prompt.trim() && !hasScriptReferences) || !selectedModel || generating || !textReady" title="生成" aria-label="生成" @click="generateText" />
           </div>
         </div>
       </el-card>
@@ -55,6 +58,8 @@ import { IconEdit, IconFileText, IconSparkles, IconArrowUp } from "@tabler/icons
 import { nodeSkeleton, nodeTools, useNode, z, type NodeAiModel, type NodeHandle } from "@toonflow/nodes-scaffold/runtime";
 import { groupNodeModels } from "@toonflow/node-shared/groupNodeModels";
 import { useNodeReferences } from "@toonflow/node-shared/useNodeReferences";
+import scriptTable from "./scriptTable.vue";
+import type { NodeOutput } from "@toonflow/nodes-scaffold/values";
 import markdownEditor from "./markdownEditor.vue";
 import markdownPreview from "./markdownPreview.vue";
 import referenceItem from "@toonflow/node-shared/referenceItem";
@@ -71,7 +76,7 @@ defineOptions({
     { id: "text", type: "source", dataType: "STRING", label: "文本输出" },
   ] satisfies NodeHandle[],
 });
-const { node, nodeProps, outputs, ai, files, nodeEvent, previewReady } = useNode({
+const { node, nodeProps, outputs, handles, ai, files, nodeEvent, previewReady } = useNode({
   label: "文本",
   outputs: { text: { dataType: "STRING", value: "" } },
 });
@@ -87,13 +92,23 @@ watch([() => outputs.value.text.value, () => node.selected || !!documentContext?
   downloadUrl.value = url;
   onCleanup(() => URL.revokeObjectURL(url));
 }, { immediate: true });
-const data = computed(() => node.data as typeof node.data & { prompt?: string; promptModel?: PromptModel; model?: string; textPath?: string; textSnapshot?: string; contentKind?: string });
+const data = computed(() => node.data as typeof node.data & { prompt?: string; promptModel?: PromptModel; model?: string; textPath?: string; textSnapshot?: string; contentKind?: string; scriptRows?: { id: string; cells: string[] }[] });
 const isScript = computed(() => data.value.contentKind === "script");
+if (isScript.value && !Array.isArray(data.value.scriptRows)) data.value.scriptRows = [];
+const scriptRows = computed({ get: () => data.value.scriptRows ?? [], set: (value: { id: string; cells: string[] }[]) => { data.value.scriptRows = value; } });
+watch(scriptRows, rows => {
+  if (!isScript.value) return;
+  handles.value = [handles.value.find(handle => handle.type === "target")!, { id: "text", type: "source", dataType: "STRING", label: "完整分镜表" }, ...rows.map(row => ({ id: `row:${row.id}`, type: "source" as const, dataType: "STRING", label: `镜头 ${row.cells[0] || "未编号"}` }))];
+  const values = outputs.value as Record<string, NodeOutput>;
+  for (const key of Object.keys(values)) if (key.startsWith("row:")) delete values[key];
+  for (const row of rows) values[`row:${row.id}`] = { dataType: "STRING", value: row.cells.map((value, index) => `${["镜头号", "时长", "景别", "运镜方式", "画面", "台词/音效", "角色表情反应", "环境场景", "分镜图提示词", "视频运动提示词", "角色形象描述"][index]}：${value}`).join("\n") };
+}, { deep: true, immediate: true });
 const prompt = computed({ get: () => data.value.prompt ?? "", set: (value: string) => { data.value.prompt = value; } });
 const model = computed({ get: () => data.value.model ?? "", set: (value: string) => { data.value.model = value; } });
 const models = ref<NodeAiModel[]>([]);
 const modelsLoading = ref(false);
 const generating = ref(false);
+const hasScriptReferences = computed(() => isScript.value && refList.value.some(item => item.dataType === "STRING" && typeof item.value === "string" && !!item.value.trim()));
 const selectedModel = computed(() => models.value.find(item => JSON.stringify([item.providerId, item.modelId]) === model.value));
 const modelGroups = computed(() => groupNodeModels(models.value));
 const textReady = ref(false);
@@ -214,7 +229,7 @@ async function loadModels(_event?: Event) {
   modelsLoading.value = true;
   try {
     models.value = await ai.getModels();
-    if (!model.value) {
+    if (!selectedModel.value) {
       const first = models.value[0];
       model.value = first ? JSON.stringify([first.providerId, first.modelId]) : "";
     }
@@ -227,7 +242,11 @@ async function loadModels(_event?: Event) {
 
 async function generateText() {
   const choice = selectedModel.value;
-  if (!textReady.value || generating.value || !choice || !prompt.value.trim()) return;
+  if (!textReady.value || generating.value || !choice || (!prompt.value.trim() && !hasScriptReferences.value)) return;
+  if (isScript.value && scriptRows.value.length) {
+    if (!await ElMessageBox.confirm("重新生成将替换当前分镜表和行引用连线，下游节点与已生成素材保留。当前表格会备份。", "重新生成分镜", { confirmButtonText: "继续生成", cancelButtonText: "保留当前表格", type: "warning" }).then(() => true, () => false)) return;
+    await textFiles.writeJson(`assets/${node.id}/scriptBackup${Date.now()}.json`, { rows: scriptRows.value, text: outputs.value.text.value }, true);
+  }
   generating.value = true;
   let text = "";
   try {
@@ -235,13 +254,13 @@ async function generateText() {
     const references = refList.value
       .filter(item => item.value !== undefined && (item.dataType === "STRING" || item.dataType === "IMAGE" || item.dataType === "VIDEO" || item.dataType === "FILE"))
       .map(item => item.dataType === "STRING" ? { dataType: item.dataType, value: item.value } : { dataType: item.dataType, value: { ...item.value } });
-    const input = { providerId: choice.providerId, modelId: choice.modelId, prompt: isScript.value ? `根据以下要求撰写视频脚本或分镜文案，清晰表达场景、画面和台词；缺失信息不要虚构。\n${prompt.value.trim()}` : prompt.value.trim(), references };
+    const input = { providerId: choice.providerId, modelId: choice.modelId, prompt: isScript.value ? `根据以下要求输出 Markdown 分镜表，表头依次为：镜头号、时长、景别、运镜方式、画面、台词/音效、角色表情反应、环境场景、分镜图提示词、视频运动提示词、角色形象描述。每个镜头一行，不要添加表格以外的文字。\n${prompt.value.trim()}` : prompt.value.trim(), references };
     const directory = references.some(item => item.dataType !== "STRING") ? (await textFiles.list()).directory : undefined;
     const result = await ai.generate({
       ...input,
       directory,
       onEvent(event) {
-        if (event.type === "text") outputs.value.text.value = text += event.delta;
+        if (event.type === "text") { text += event.delta; if (!isScript.value) outputs.value.text.value = text; }
       },
     });
     outputs.value.text.value = result.text;

@@ -1,15 +1,16 @@
 <template>
   <mini-map
-    v-if="showMap"
+    v-if="showMap && active"
     class="canvasMiniMap"
     position="bottom-left"
     :pannable="true"
     :zoomable="true"
     node-color="var(--el-fill-color-dark)"
     mask-color="var(--el-mask-color-extra-light)" />
-  <panel class="canvasControlsPanel" position="bottom-left">
-    <el-card class="canvasControlsCard" shadow="never" :bodyStyle="{ padding: '3px 6px' }">
+  <teleport v-if="active" to="#canvasToolExtras" defer>
       <div class="canvasControls">
+        <el-button text :disabled="!canUndo" aria-label="撤销" title="撤销" @click="undo"><icon-arrow-back-up :size="18" /></el-button>
+        <el-button text :disabled="!canRedo" aria-label="重做" title="重做" @click="redo"><icon-arrow-forward-up :size="18" /></el-button>
         <el-tooltip :showArrow="false" :content="assetsVisible ? '关闭个人资产' : '打开个人资产'" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]">
           <el-button
             class="toolButton"
@@ -70,25 +71,29 @@
           </el-button>
         </el-tooltip>
         <el-tooltip :showArrow="false" content="适应视图" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]">
-          <el-button class="toolButton" text aria-label="适应视图" @click="fitView()">
+          <el-button class="toolButton" text aria-label="适应视图" @click="fitView({ maxZoom: 1 })">
             <icon-focus-centered :size="18" />
           </el-button>
         </el-tooltip>
 
       </div>
-    </el-card>
-  </panel>
+  </teleport>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { Panel, useVueFlow, type XYPosition } from "@vue-flow/core";
+import { useVueFlow, type XYPosition } from "@vue-flow/core";
 import { MiniMap } from "@vue-flow/minimap";
-import { IconMap, IconMagnet, IconFocusCentered } from "@tabler/icons-vue";
+import { IconMap, IconMagnet, IconFocusCentered, IconArrowBackUp, IconArrowForwardUp } from "@tabler/icons-vue";
 import { ElMessage } from "element-plus";
 import { arrangeCanvas } from "../arrangeCanvas";
 
 const props = defineProps<{
+  active: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
   canvasId: string;
   directory: string | undefined;
   batchHistory: (action: () => Promise<void>) => Promise<void>;
@@ -210,4 +215,8 @@ async function undoArrange() {
     margin-left: 0;
   }
 }
+</style>
+
+<style scoped lang="scss">
+.canvasControls { display: flex; align-items: center; flex-wrap: wrap; gap: 0; :deep(.el-button) { margin: 0; width: 32px; padding: 0; } }
 </style>

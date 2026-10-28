@@ -766,11 +766,11 @@ defineExpose({ getCanvases, peekCanvases, initialized, addCanvas, switchCanvas, 
 
 <style lang="scss" scoped>
 .canvasMenuPanel.vue-flow__panel {
-  left: 0;
+  left: 270px;
   display: flex;
   align-items: center;
   gap: 12px;
-  max-width: calc(50% - 90px);
+  max-width: calc(100% - 300px);
 }
 
 .canvasPicker {
@@ -894,4 +894,9 @@ defineExpose({ getCanvases, peekCanvases, initialized, addCanvas, switchCanvas, 
   }
 }
 
+</style>
+
+<style scoped lang="scss">
+.canvasMenuPanel { .canvasMenu { max-width: 100%; } .menuContent { min-width: 0; .canvasTrigger { flex-shrink: 0; white-space: nowrap; } .workspaceNameInput { max-width: 160px; min-width: 40px; } } }
+@media (max-width: 640px) { .canvasMenuPanel.vue-flow__panel { top: 62px; left: 0; max-width: calc(100% - 24px); } }
 </style>

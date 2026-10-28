@@ -13,7 +13,7 @@ export default {
     { type: "input", field: "apiKey", title: "百炼 API Key", value: "", props: { type: "password", showPassword: true, autocomplete: "off" } },
     { type: "input", field: "endpoint", title: "业务空间接口地址", value: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", props: { type: "text", autocomplete: "off", placeholder: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com" } },
   ],
-  models: [{ id: "qwen-image-3.0-pro", label: "千问图像生成 3.0 Pro", type: "image", mode: ["text", "singleImage", "multiReference"], imageRatios: ["1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16", "21:9", "9:21"], imageSizes: ["1K", "2K", "auto"] }],
+  models: [{ id: "qwen-image-3.0-pro", label: "千问图像生成 3.0 Pro", type: "image", mode: ["text", "singleImage", "multiReference"], imageRatios: ["1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16", "21:9", "9:21", "2:1", "4:1"], imageSizes: ["1K", "2K", "auto"] }],
   async generateImage(this: Context, request: ImageRequest): Promise<MediaAsset[]> {
     this.signal?.throwIfAborted();
     const apiKey = this.config.apiKey?.trim();
@@ -76,10 +76,12 @@ export default {
       "9:16": "768*1360",
       "21:9": "1536*656",
       "9:21": "656*1536",
+      "2:1": "1024*512",
+      "4:1": "2048*512",
     };
     if (request.ratio !== undefined) {
       const baseSize = ratioSizes[request.ratio.trim()];
-      if (!baseSize) throw new Error("当前支持的宽高比：1:1、3:2、2:3、4:3、3:4、16:9、9:16、21:9、9:21");
+      if (!baseSize) throw new Error("当前支持的宽高比：1:1、3:2、2:3、4:3、3:4、16:9、9:16、21:9、9:21、2:1、4:1");
       const requestedSize = request.size?.trim().toLowerCase();
       if (requestedSize && !["auto", "1k", "2k"].includes(requestedSize) && !/^\d{3,4}[x*]\d{3,4}$/.test(requestedSize)) {
         throw new Error("图片尺寸请使用 auto、1K、2K 或类似 1024x1024 的格式");
@@ -89,7 +91,7 @@ export default {
       } else if (requestedSize === "2k") {
         const [width, height] = baseSize.split("*").map(Number);
         parameters.size = `${width * 2}*${height * 2}`;
-      } else if (requestedSize !== "auto") {
+      } else {
         parameters.size = baseSize;
       }
     } else if (request.size !== undefined) {
@@ -107,6 +109,11 @@ export default {
       }
     }
 
+    // 百炼 Qwen 3.0 协议允许 512²～2048² 像素、最长边比例不超过 8:1；全景沿用同一尺寸校验。
+    if (typeof parameters.size === "string") {
+      const [width, height] = parameters.size.split("*").map(Number);
+      if (!width || !height || width * height < 512 * 512 || width * height > 2048 * 2048 || Math.max(width / height, height / width) > 8) throw new Error("图片总像素须在 512²～2048² 之间，最长边比例不超过 8:1");
+    }
     const other = request.other ?? {};
     const supportedOther = ["negative_prompt", "seed", "prompt_extend", "prompt_extend_mode", "enable_thinking", "watermark"];
     for (const key of Object.keys(other)) {

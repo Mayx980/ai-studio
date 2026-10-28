@@ -13,7 +13,7 @@
       @keydown.esc.prevent="editingName = false"
       @blur="saveName" />
     <span v-else class="conversationName">
-      <span class="conversationTitle" :class="{ readOnly: parentFile }" :title="name" :tabindex="sessionFile && !parentFile ? 0 : -1" @dblclick="editName" @keydown.enter.prevent="editName">{{ name }}</span>
+      <span class="conversationTitle" :class="{ readOnly: parentFile }" :title="name" :tabindex="sessionFile && !parentFile ? 0 : -1" @click="editName" @keydown.enter.prevent="editName">{{ name }}</span>
     </span>
     <div class="menuActions">
       <el-popover v-if="subAgents?.length" v-model:visible="subAgentsVisible" trigger="click" placement="bottom-end" :width="340" :showArrow="false" :popperStyle="{ maxWidth: 'calc(100vw - 24px)' }">
@@ -253,6 +253,7 @@ async function renameHistory(item: AgentHistory) {
       color: var(--el-text-color-secondary);
       .el-icon { font-size: 16px; }
       &.historyTrigger { width: auto; padding: 0 6px; }
+      &.enterCanvasButton { width: auto; padding: 0 8px; flex-shrink: 0; white-space: nowrap; }
     }
   }
 }
@@ -416,4 +417,8 @@ async function renameHistory(item: AgentHistory) {
     }
   }
 }
+</style>
+
+<style scoped lang="scss">
+.agentMenu { flex-wrap: wrap; gap: 6px; .conversationName { min-width: 80px; flex: 1; } .menuActions { flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; } }
 </style>

@@ -416,7 +416,7 @@ async function openHistory(item: ConversationHistory) {
 
 async function createProject(fromPrompt = true) {
   if (fromPrompt && !prompt.value.trim()) return;
-  if (fromPrompt && browserWorkspaceMode && !browserConfig.enabled) { generationError.value = "请先在设置 → API 配置中启用模型并输入 Key"; return; }
+  if (fromPrompt && browserWorkspaceMode && !browserConfig.enabled && workspaceStore.creationMode === "simple") { generationError.value = "请先在设置 → API 配置中启用模型并输入 Key"; return; }
   if (fromPrompt && browserConfig.enabled && workspaceStore.creationMode === "simple" && !browserConfig.keys[inferGenerationKind(prompt.value)].trim()) {
     generationError.value = "请先在设置 → API 配置中输入当前模型的 Key。";
     return;

@@ -155,6 +155,7 @@ async function newConversation() {
   if (loading.value || historyLoading.value) return;
   const directory = workspaceStore.project?.directory;
   if (!directory) return ElMessage.warning("请先打开项目");
+  if (props.creationModes) workspaceStore.creationMode = "simple";
   const currentRequest = ++requestId;
   loading.value = true;
   try {
