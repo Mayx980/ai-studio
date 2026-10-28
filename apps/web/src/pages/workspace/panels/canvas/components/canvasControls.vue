@@ -10,13 +10,13 @@
   <panel class="canvasControlsPanel" position="bottom-left">
     <el-card class="canvasControlsCard" shadow="never" :bodyStyle="{ padding: '3px 6px' }">
       <div class="canvasControls">
-        <el-tooltip :showArrow="false" :content="assetsVisible ? '关闭素材库' : '打开素材库'" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]">
+        <el-tooltip :showArrow="false" :content="assetsVisible ? '关闭个人资产' : '打开个人资产'" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]">
           <el-button
             class="toolButton"
             text
             :type="assetsVisible ? 'primary' : 'default'"
             :aria-pressed="assetsVisible"
-            aria-label="素材库"
+            aria-label="个人资产"
             @click="assetsVisible = !assetsVisible">
             <icon-folders :size="18" />
           </el-button>

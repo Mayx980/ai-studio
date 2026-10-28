@@ -121,6 +121,8 @@
 </template>
 
 <script setup lang="ts">
+import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
+import { browserModels, browserConfig, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
 import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, onScopeDispose, provide, ref, shallowReactive, shallowRef, watch } from "vue";
 import axios from "axios";
 import { debounce } from "lodash-es";
@@ -336,7 +338,55 @@ async function importBrowserResult(file: File, directory: string) {
   signal.throwIfAborted();
   await flushCanvasSave();
 }
-defineExpose({ waitUntilReady, importBrowserResult, canvasId, canvasReady, getCanvasContext, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
+const beginBrowserWorkflow: BeginBrowserWorkflow = async (prompt, kind, references, script) => {
+  await waitUntilReady();
+  const directory = project.value?.directory;
+  const position = pastePosition();
+  if (!directory || !position) throw new Error("画布尚未就绪");
+  const canvas = canvasId.value;
+  const signal = canvasController.signal;
+  const type = kind === "text" ? "remote-textNode" : `remote-${kind}GenerationNode`;
+  if (!availableNodes.value.some(node => node.type === type)) throw new Error("请先安装并启用对应节点");
+  const targetId = crypto.randomUUID();
+  const ids = await canvasHistory.batch(async () => {
+    const sourceIds = await importCanvasFiles([new File([prompt], "创作要求.md", { type: "text/markdown" }), ...references], position, { directory, availableNodes: availableNodes.value, signal, flow, throwOnError: true });
+    const provider = browserModels[kind];
+    addNodes({ id: targetId, type, position: { x: position.x + 640, y: position.y }, data: {
+      label: script ? "脚本" : ({ text: "方案／文字", image: "图片", video: "视频", audio: "音频" })[kind],
+      contentKind: script ? "script" : undefined, prompt, promptModel: prompt.split("\n").map(text => [{ type: "Write", text }]), model: JSON.stringify([provider.id, provider.models[0]!.id]),
+      ...(browserConfig.ratio ? { ratio: browserConfig.ratio } : {}), ...(browserConfig.resolution ? (kind === "image" ? { size: browserConfig.resolution } : { resolution: browserConfig.resolution }) : {}),
+      ...(browserConfig.duration ? { duration: Number(browserConfig.duration) } : {}),
+    } });
+    sourceIds.forEach((id, index) => flow.updateNode(id, { position: { x: position.x, y: position.y + index * 360 } }));
+    addEdges(sourceIds.map((id, index) => ({ id: crypto.randomUUID(), source: id, sourceHandle: index === 0 ? "text" : "image", target: targetId, targetHandle: "in" })));
+    return [...sourceIds, targetId];
+  });
+  await flushCanvasSave();
+  await nextTick();
+  await waitForControlValue(() => ids.every(id => { const node = flow.findNode(id); return node && node.dimensions.width > 0 && node.dimensions.height > 0; }) ? true : undefined, AbortSignal.any([signal, AbortSignal.timeout(10000)]));
+  await flow.fitView({ nodes: ids, padding: 0.3, maxZoom: 0.85 });
+  const node = flow.findNode(targetId)!;
+  const configuration = () => JSON.stringify([node.data.prompt, node.data.model, node.data.ratio, node.data.size, node.data.resolution, node.data.duration, node.data.outputs, flow.getEdges.value.filter(edge => edge.target === targetId).map(edge => [edge.id, edge.source, edge.sourceHandle, edge.targetHandle, flow.findNode(edge.source)?.data.outputs])]);
+  const initialConfiguration = configuration();
+  return { async complete(results) {
+    signal.throwIfAborted();
+    if (project.value?.directory !== directory || canvasId.value !== canvas || !flow.findNode(targetId)) throw new Error("画布或节点已变化，生成结果保留在对话中，请手动加入画布");
+    if (configuration() !== initialConfiguration) throw new Error("节点内容、配置或连线已修改，生成结果保留在对话中，请确认后手动加入画布");
+    const result = results[0];
+    if (!result) throw new Error("模型未返回结果，创作节点已保留");
+    if (kind === "text") {
+      await saveDocumentNode(directory, canvas, targetId, "text", result.text || "");
+    } else {
+      const file = result.file;
+      const path = result.path || (file ? await uploadNodeFile(useWorkspaceFiles(directory), targetId, file) : undefined);
+      if (!path) throw new Error("生成素材尚未保存，请从对话中重试加入画布");
+      flow.updateNodeData(targetId, { outputs: { [kind]: { dataType: kind.toUpperCase(), value: { url: path, mimeType: file?.type || `${kind}/${kind === "image" ? "png" : kind === "video" ? "mp4" : "mpeg"}` } } } });
+    }
+    await flushCanvasSave();
+  } };
+};
+
+defineExpose({ beginBrowserWorkflow, waitUntilReady, importBrowserResult, canvasId, canvasReady, getCanvasContext, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
   getCanvases: (signal?: AbortSignal) => {
     if (!canvasMenuRef.value) throw new Error("画布菜单尚未就绪");
     return canvasMenuRef.value.getCanvases(signal);

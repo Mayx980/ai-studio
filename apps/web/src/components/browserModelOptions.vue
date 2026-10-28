@@ -8,7 +8,7 @@
         <el-form-item label="分辨率"><el-select v-model="browserConfig.resolution" aria-label="分辨率"><el-option label="AI 推荐" value="" /><el-option v-for="item in resolutions" :key="item" :label="item" :value="item" /></el-select></el-form-item>
         <el-form-item v-if="kind === 'video'" label="时长"><el-select v-model="browserConfig.duration" aria-label="时长"><el-option label="AI 推荐" value="" /><el-option v-for="item in [2, 3, 5, 10, 15, 20, 30]" :key="item" :label="`${item} 秒`" :value="String(item)" /></el-select></el-form-item>
       </template>
-      <p>根据输入自动判断图片或视频；信息模糊时默认生成图片。</p>
+      <p>根据输入选择文字、图片、音频或视频模型；简单模式信息模糊时默认生成图片。</p>
       <p>未选择时采用适配器默认／模型推荐值；手动选择后按指定值提交。</p>
       <p v-if="kind === 'video'">图片默认作为参考；首帧请在输入中指定“图1作为首帧”。当前模型不支持尾帧。</p>
       <p v-if="kind === 'audio' || kind === 'text'">当前适配器仅支持文字输入。</p>

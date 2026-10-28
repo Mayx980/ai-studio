@@ -47,7 +47,7 @@
       <el-button v-if="!parentFile" text circle aria-label="新建对话" title="新建对话" @click="emit('newChat')"><icon-message-plus :size="16" /></el-button>
       <el-popover v-if="!parentFile" v-model:visible="historyVisible" trigger="click" placement="bottom-end" :width="280" :showArrow="false" @show="emit('history')">
         <template #reference>
-          <el-button text circle :loading="loading" :icon="IconHistory" :aria-expanded="historyVisible" aria-label="历史对话" title="历史对话" />
+          <el-button class="historyTrigger" text :loading="loading" :icon="IconHistory" :aria-expanded="historyVisible" aria-label="历史对话">历史对话</el-button>
         </template>
         <div class="historyList" role="group" aria-label="历史对话">
           <p v-if="!history.length" class="historyTips" role="status">{{ loading ? "正在加载对话…" : "暂无历史对话，点击“新建对话”开始。" }}</p>
@@ -252,6 +252,7 @@ async function renameHistory(item: AgentHistory) {
       padding: 0;
       color: var(--el-text-color-secondary);
       .el-icon { font-size: 16px; }
+      &.historyTrigger { width: auto; padding: 0 6px; }
     }
   }
 }

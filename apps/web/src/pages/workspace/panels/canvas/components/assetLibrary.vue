@@ -1,9 +1,9 @@
 <template>
-  <component :is="page ? 'section' : ElCard" v-if="visible" class="assetLibrary" :class="{ selectable, assetPage: page }" v-bind="page ? {} : { shadow: 'never', bodyStyle: { padding: '8px' } }" role="region" aria-label="素材库" @dblclick.stop>
+  <component :is="page ? 'section' : ElCard" v-if="visible" class="assetLibrary" :class="{ selectable, assetPage: page }" v-bind="page ? {} : { shadow: 'never', bodyStyle: { padding: '8px' } }" role="region" aria-label="个人资产" @dblclick.stop>
     <div class="libraryToolbar">
       <el-input v-model="searchQuery" class="searchInput" :prefixIcon="IconSearch" placeholder="搜索素材" aria-label="搜索素材" clearable @keydown.esc.stop="searchQuery = ''" />
       <el-button v-if="!page" class="toolbarButton" text :icon="IconFolderPlus" title="新建文件夹" aria-label="新建文件夹" :disabled="newFolderParent !== undefined" @click="startFolder" />
-      <el-button v-if="!page" class="toolbarButton" text :icon="IconX" title="关闭素材库" aria-label="关闭素材库" @click="visible = false" />
+      <el-button v-if="!page" class="toolbarButton" text :icon="IconX" title="关闭个人资产" aria-label="关闭个人资产" @click="visible = false" />
     </div>
     <div class="assetFilters">
       <el-select v-model="mediaFilter" aria-label="素材类别"><el-option label="全部素材" value="all" /><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="音频" value="audio" /></el-select>

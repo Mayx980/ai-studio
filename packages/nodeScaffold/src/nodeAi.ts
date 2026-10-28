@@ -1,4 +1,4 @@
-import { onScopeDispose } from "vue";
+import { inject, onScopeDispose } from "vue";
 import { runAgentLoop, type AgentTool, type AgentToolResult } from "@earendil-works/pi-agent-core";
 import { createAssistantMessageEventStream, type AssistantMessage, type Context, type Message, type Model } from "@earendil-works/pi-ai";
 import { EventSourceParserStream } from "eventsource-parser/stream";
@@ -57,6 +57,16 @@ export type NodeAiTool = {
   description: string;
   parameters: Record<string, unknown>;
   execute(args: Record<string, unknown>, signal?: AbortSignal): unknown | Promise<unknown>;
+};
+
+export type NodeAiAdapter = {
+  enabled(): boolean;
+  getModels(signal?: AbortSignal): Promise<NodeAiModel[]>;
+  getMediaModels(signal?: AbortSignal): Promise<NodeMediaModel[]>;
+  generateImage(input: NodeImageRequest, signal?: AbortSignal): Promise<NodeImageResult[]>;
+  generateVideo(input: NodeVideoRequest, signal?: AbortSignal): Promise<NodeVideoResult[]>;
+  generateAudio(input: NodeAudioRequest, signal?: AbortSignal): Promise<NodeAudioResult[]>;
+  generate(input: NodeAiRequest): Promise<NodeAiResult>;
 };
 
 async function readResult<T>(response: Response): Promise<T> {
@@ -168,19 +178,23 @@ async function requestModel(input: NodeAiRequest, context: Context, model: Model
 }
 
 export function useNodeAi() {
+  const adapter = inject<NodeAiAdapter | undefined>("nodeAi", undefined);
   const controller = new AbortController();
   onScopeDispose(() => controller.abort());
   const requestSignal = (signal?: AbortSignal) => signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
 
   async function getModels(signal?: AbortSignal) {
+    if (adapter?.enabled()) return adapter.getModels(requestSignal(signal));
     return readModels<NodeAiModel>("/api/ai/models", requestSignal(signal));
   }
 
   async function getMediaModels(signal?: AbortSignal) {
+    if (adapter?.enabled()) return adapter.getMediaModels(requestSignal(signal));
     return readModels<NodeMediaModel>("/api/ai/media/models", requestSignal(signal));
   }
 
   async function getMediaPrice(input: NodeMediaPriceRequest, signal?: AbortSignal): Promise<NodeMediaPrice | null> {
+    if (adapter?.enabled()) return null;
     const waitingSignal = requestSignal(signal);
     waitingSignal.throwIfAborted();
     const now = Date.now();
@@ -257,18 +271,22 @@ export function useNodeAi() {
   }
 
   function generateImage(input: NodeImageRequest, signal?: AbortSignal) {
+    if (adapter?.enabled()) return adapter.generateImage(input, requestSignal(signal));
     return generateMedia("image", input, signal);
   }
 
   function generateVideo(input: NodeVideoRequest, signal?: AbortSignal) {
+    if (adapter?.enabled()) return adapter.generateVideo(input, requestSignal(signal));
     return generateMedia("video", input, signal);
   }
 
   function generateAudio(input: NodeAudioRequest, signal?: AbortSignal) {
+    if (adapter?.enabled()) return adapter.generateAudio(input, requestSignal(signal));
     return generateMedia("audio", input, signal);
   }
 
   async function generate(input: NodeAiRequest): Promise<NodeAiResult> {
+    if (adapter?.enabled()) return adapter.generate({ ...input, signal: requestSignal(input.signal) });
     const signal = requestSignal(input.signal);
     const callSignal = input.tools?.length ? AbortSignal.any([signal, AbortSignal.timeout(600000)]) : signal;
     const { providerId, modelId, prompt, systemPrompt, onEvent } = input;

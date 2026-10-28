@@ -26,7 +26,7 @@ const modes = [
   flex-wrap: wrap;
   align-items: center;
   gap: 0;
-  width: min(640px, 100%);
+  width: min(340px, 100%);
   padding: 4px;
   border-radius: 48px;
   background: var(--el-fill-color-dark);
@@ -38,14 +38,14 @@ const modes = [
     flex: 1;
     min-width: 0;
     gap: 0;
-    .modeButton { width: 100%; height: 52px; border: 0; border-radius: 40px; background: transparent; color: var(--el-text-color-primary); font-size: 16px; font-weight: 600; padding-right: 34px; &.selected { background: radial-gradient(ellipse at 70% 60%, var(--el-color-primary-light-7), transparent 70%), var(--el-bg-color-overlay); box-shadow: 0 2px 8px #0001; } }
+    .modeButton { width: 100%; height: 36px; border: 0; border-radius: 40px; background: transparent; color: var(--el-text-color-primary); font-size: 13px; font-weight: 600; padding: 0 30px 0 10px; &.selected { background: radial-gradient(ellipse at 70% 60%, var(--el-color-primary-light-7), transparent 70%), var(--el-bg-color-overlay); box-shadow: 0 2px 8px #0001; } }
     .modeHelp {
       position: absolute;
-      right: 10px;
+      right: 6px;
       display: grid;
       place-items: center;
-      width: 28px;
-      height: 28px;
+      width: 24px;
+      height: 24px;
       padding: 0;
       border: 0;
       border-radius: 50%;

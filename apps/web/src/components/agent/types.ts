@@ -18,6 +18,7 @@ export type AgentMessage = {
   parts?: AgentMessagePart[];
   streaming?: boolean;
   browserResultIds?: string[];
+  creationChoice?: { prompt: string; needsDetails?: boolean; resolved?: boolean };
   error?: string;
   report?: { file: string; name: string };
 };
@@ -25,6 +26,7 @@ export type AgentMessage = {
 export type AgentHistory = { file: string; name: string; modified: string; messageCount: number };
 
 export type AgentConversation = {
+  creationMode?: "simple" | "professional";
   file: string;
   name: string;
   messages: AgentMessage[];

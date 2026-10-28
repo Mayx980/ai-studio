@@ -56,7 +56,11 @@
                   </template>
                   <attachmentList v-if="item.attachments?.length" :attachments="item.attachments" :directory="directory" />
                   <div v-if="item.role === 'user'" class="messageText"><mentionContent :content="item.content" :mentions="item.mentions" :directory="directory" /></div>
-                  <browserModelResults v-if="item.browserResultIds?.length" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :disabled="locked" @reference="referenceGeneratedFile" />
+                  <browserModelResults v-if="item.browserResultIds?.length" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showReference="false" :disabled="locked" @reference="referenceGeneratedFile" />
+                  <div v-if="item.creationChoice && !item.creationChoice.resolved" class="creationChoices" role="group" aria-label="选择创作内容">
+                    <p>{{ item.creationChoice.needsDetails ? "请先补充创作主体或用途，再确认要生成的内容。" : "你希望生成哪种内容？确认后我会在画布搭建节点和连线。" }}</p>
+                    <el-button v-for="choice in item.creationChoice.needsDetails ? [] : creationChoices" :key="choice.label" size="small" :disabled="locked" @click="continueCreation(item, choice.kind, choice.script)">{{ choice.label }}</el-button>
+                  </div>
                   <div v-if="item.error" class="messageError" role="alert">{{ item.error }}</div>
                 </div>
               </template>
@@ -71,6 +75,9 @@
                 <template v-if="item.role === 'user'">
                   <el-button class="messageAction" text circle :disabled="locked || remoteRunning" aria-label="编辑消息" title="编辑消息" @click="editMessage(item)"><icon-pencil :size="14" /></el-button>
                 </template>
+                <el-tooltip v-if="item.browserResultIds?.some(id => generationResults.some(result => result.id === id && result.kind !== 'text'))" content="引用到输入框" placement="top">
+                  <el-button class="messageAction" text circle :disabled="locked" aria-label="引用到输入框" @click="referenceMessageResults(item)"><icon-paperclip :size="14" /></el-button>
+                </el-tooltip>
                 <el-button v-if="!item.report" class="messageAction" text circle :loading="deletingId === item.id" :disabled="locked || remoteRunning" aria-label="删除消息" title="删除消息" @click="deleteMessage(item)"><icon-trash v-if="deletingId !== item.id" :size="14" /></el-button>
               </template>
             </div>
@@ -158,6 +165,7 @@
         </el-button>
       </div>
     </div>
+    <creativeCases v-if="props.creationModes" compact @apply="applyCreativeCase" />
   </div>
 </template>
 
@@ -165,6 +173,7 @@
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { saveBrowserConversation } from "./browserConversations";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
+import creativeCases from "@/components/creativeCases.vue";
 import creationModeSwitch from "@/components/creationModeSwitch.vue";
 import { locale, t, translate } from "@toonflow/i18n/vue";
 import { computed, inject, nextTick, reactive, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
@@ -175,10 +184,10 @@ import {
   IconCircleDashed, IconPencil, IconX, IconLoader2,
   IconTrash, IconVector, IconMovie, IconPhoto, IconArrowUpRight, IconUsersGroup, IconPaperclip,
 } from "@tabler/icons-vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { getReadableFileExtension, getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import logoUrl from "@toonflow/assets/logo.svg";
-import { browserConfig, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration } from "@/stores/browserGeneration";
+import { browserConfig, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, browserResultFile, type ModelKind, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
 import browserModelOptions from "@/components/browserModelOptions.vue";
 import browserModelResults from "@/components/browserModelResults.vue";
 import referencePicker from "@/components/referencePicker.vue";
@@ -221,6 +230,13 @@ const draggingAttachments = ref(false);
 let attachmentDragDepth = 0;
 const attachmentAccept = `image/*,video/*,${readableFileAccept}`;
 const createCanvasContext = inject<(() => CanvasContext | undefined) | undefined>("canvas", undefined);
+const beginBrowserWorkflow = inject<BeginBrowserWorkflow | undefined>("beginBrowserWorkflow", undefined);
+const sessionMode = ref(props.initialSession?.creationMode);
+watch(() => props.active, active => { if (active && sessionMode.value) workspaceStore.creationMode = sessionMode.value; }, { immediate: true });
+const creationChoices = [
+  { label: "方案／文字", kind: "text" as const, script: false }, { label: "剧情／分镜脚本", kind: "text" as const, script: true },
+  { label: "图片", kind: "image" as const, script: false }, { label: "音频", kind: "audio" as const, script: false }, { label: "视频", kind: "video" as const, script: false },
+];
 const messages = ref<AgentMessage[]>((props.initialSession?.messages ?? []).map(message => ({ ...message })));
 const browserMessages = computed(() => {
   const groups = new Map<string, { id: string; tools: AgentToolCall[] }>();
@@ -464,13 +480,47 @@ async function removeDraftMention(id: string) {
   if (!locked.value) await sender?.removeMention([id]);
 }
 
-async function submitMessage() {
+async function persistBrowserMessages() {
+  if (browserWorkspaceMode && directory && props.sessionFile) await saveBrowserConversation(directory, props.sessionFile, messages.value, sessionMode.value);
+}
+
+async function continueCreation(item: AgentMessage, kind: ModelKind, script = false) {
+  if (locked.value || !item.creationChoice || item.creationChoice.resolved) return;
+  const source = messages.value.find(message => message.id === item.replyTo);
+  const prompt = `${script ? "生成剧情／分镜脚本" : ({ text: "生成方案", image: "生成图片", video: "生成视频", audio: "生成音频" })[kind]}：${item.creationChoice.prompt}`;
+  item.creationChoice.resolved = true;
+  await submitMessage({ prompt, kind, script, attachments: source?.attachments ?? [] });
+}
+
+async function applyCreativeCase(value: { prompt: string; references: File[] }) {
+  if (locked.value) return;
+  if (sender?.getText().trim() && !await ElMessageBox.confirm("应用案例会替换当前提示词，引用素材保留。", "应用创意案例", { confirmButtonText: "采用案例", cancelButtonText: "保留草稿" }).then(() => true, () => false)) return;
+  await fillPrompt(value.prompt);
+  addAttachments(value.references);
+}
+
+async function referenceMessageResults(item: AgentMessage) {
+  try {
+    const results = generationResults.value.filter(result => item.browserResultIds?.includes(result.id) && result.directory === directory && result.kind !== "text");
+    addAttachments(await Promise.all(results.map(browserResultFile)));
+    sender?.focus("last");
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "引用素材失败"); }
+}
+
+async function submitMessage(choice?: { prompt: string; kind: ModelKind; script: boolean; attachments: AgentAttachment[] }) {
   if (locked.value) return;
   if (browserWorkspaceMode && !browserConfig.enabled) { ElMessage.warning("请先在设置 → API 配置中启用模型联调并输入 Key"); return; }
   if (props.creationModes && browserConfig.enabled) {
-    const prompt = sender?.getText() ?? "";
-    if (!prompt.trim()) return;
-    const attachments = [...draftAttachments.value];
+    const input = choice?.prompt ?? sender?.getText() ?? "";
+    if (!input.trim()) return;
+    const pending = !choice ? messages.value.findLast(item => item.creationChoice && !item.creationChoice.resolved) : undefined;
+    const prompt = pending?.creationChoice ? `${pending.creationChoice.prompt}\n补充要求：${input}` : input;
+    const sourceAttachments = pending ? messages.value.find(item => item.id === pending.replyTo)?.attachments ?? [] : [];
+    const attachments = [...sourceAttachments, ...(choice?.attachments ?? draftAttachments.value)];
+    if (pending?.creationChoice) pending.creationChoice.resolved = true;
+    sessionMode.value ??= workspaceStore.creationMode;
+    const professional = sessionMode.value === "professional";
+    const kind = choice?.kind ?? explicitGenerationKind(prompt);
     browserCancelled = false;
     browserSubmitting.value = true;
     let reply: AgentMessage | undefined;
@@ -489,24 +539,38 @@ async function submitMessage() {
       emit("sent", prompt);
       await sender?.reset({ clearHistory: false });
       draftAttachments.value = [];
-      const previousIds = new Set(generationResults.value.map(item => item.id));
-      const success = !browserCancelled && await generateInBrowser(prompt, files, directory);
-      reply.browserResultIds = generationResults.value.filter(item => !previousIds.has(item.id)).map(item => item.id);
-      if (!success) {
-        reply.error = browserCancelled ? "已停止发送，输入已保留。" : generationError.value;
-        await sender?.reset({ clearHistory: false, chatNode: [[{ type: "Write", text: prompt }]] });
-        draftAttachments.value = attachments;
+      // ACT: 先明确输出类型与主体；没有主体时继续对话，不为供应商提交空泛生成任务。
+      const needsDetails = !prompt.replace(/\d+\s*(?:秒|分钟|张|个)/g, "").replace(/(?:请|帮我|我想|想要|给我|生成|制作|创作|输出|一份|一段|一个|一部|一张|一些|剧情脚本|分镜脚本|视频脚本|脚本|方案|图片|图像|视频|短片|音频|文字|文本|的|补充要求|[\s，。！？:：、,!?.])/g, "").trim();
+      if (professional && (!kind || needsDetails)) {
+        reply.creationChoice = { prompt, needsDetails };
+        return;
       }
+      const outputKind = kind ?? "image";
+      if (!browserConfig.keys[outputKind].trim()) throw new Error("请先在设置 → API 配置中输入当前模型的 Key");
+      if ((outputKind === "text" || outputKind === "audio") && files.length) throw new Error("当前文字／音频适配器只支持文字输入，请移除引用素材后重试");
+      const workflow = professional ? await beginBrowserWorkflow?.(prompt, outputKind, files, choice?.script ?? /脚本|分镜/.test(prompt)) : undefined;
+      if (professional && !workflow) throw new Error("画布尚未就绪，输入已保留");
+      if (browserCancelled) throw new Error("已停止发送；已创建的画布节点保留供修改");
+      await persistBrowserMessages();
+      const previousIds = new Set(generationResults.value.map(item => item.id));
+      const generationPrompt = !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
+      const success = await generateInBrowser(generationPrompt, files, directory, outputKind);
+      const results = generationResults.value.filter(item => !previousIds.has(item.id) && item.directory === directory);
+      reply.browserResultIds = results.filter(item => item.kind !== "text").map(item => item.id);
+      const text = results.filter(item => item.kind === "text").map(item => item.text).join("\n\n");
+      if (text) { reply.content = text; reply.parts = [{ id: crypto.randomUUID(), type: "text", content: text }]; }
+      if (!success) throw new Error(browserCancelled ? "已停止发送，输入已保留。" : generationError.value);
+      await workflow?.complete(results);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "读取引用素材失败，输入已保留";
+      const message = error instanceof Error ? error.message : "生成失败，输入已保留";
       if (reply) reply.error = message;
       else ElMessage.error(message);
+      await sender?.reset({ clearHistory: false, chatNode: [[{ type: "Write", text: prompt }]] });
+      draftAttachments.value = attachments;
     } finally {
       if (reply) reply.streaming = false;
-      if (browserWorkspaceMode && directory && props.sessionFile) {
-        try { await saveBrowserConversation(directory, props.sessionFile, messages.value); }
-        catch (error) { ElMessage.error(error instanceof Error ? error.message : "浏览器对话保存失败"); }
-      }
+      try { await persistBrowserMessages(); }
+      catch (error) { ElMessage.error(error instanceof Error ? error.message : "浏览器对话保存失败"); }
       browserSubmitting.value = false;
     }
     return;
@@ -992,7 +1056,7 @@ watch(senderElement, (element, _previous, onCleanup) => {
   });
 });
 
-watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMessage && props.active && !locked.value && !!senderElement.value && !!createCanvasContext?.(), async ready => {
+watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMessage && props.active && !locked.value && !!senderElement.value && ((props.creationModes && browserConfig.enabled) || !!createCanvasContext?.()), async ready => {
   const message = workspaceStore.pendingAgentMessage;
   const instance = sender;
   if (!ready || !message || !instance || message.directory !== directory) return;
@@ -1000,12 +1064,13 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
   draftAttachments.value = [...message.attachments ?? []];
   await fillPrompt(message.prompt);
   if (sender === instance && props.active) void submitMessage();
-}, { flush: "post" });
+}, { immediate: true, flush: "post" });
 </script>
 
 <style lang="scss">
 .conversationMode { margin: 8px 14px 10px; flex-shrink: 0; }
 .agentConversation {
+  .creationChoices { padding: 10px 0; .el-button { margin: 4px; } }
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -1014,7 +1079,7 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
 
   .messageViewport {
     flex: 1;
-    min-height: 0;
+    min-height: 100px;
 
     .messageList {
       overflow-anchor: none;

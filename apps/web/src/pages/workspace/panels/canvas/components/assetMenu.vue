@@ -49,7 +49,7 @@ const moveFolders = computed(() => {
       ...flatten(item.children ?? []),
     ]);
   }
-  return [{ label: translate("素材库根目录"), path: "." }, ...flatten(props.entries)];
+  return [{ label: translate("个人资产根目录"), path: "." }, ...flatten(props.entries)];
 });
 
 function destinationDisabled(path: string) {
@@ -103,7 +103,7 @@ async function createMoveFolder() {
   const entry = activeEntry.value!;
   closeMenu();
   try {
-    const { value } = await ElMessageBox.prompt("新文件夹将创建在素材库根目录", "新建文件夹", {
+    const { value } = await ElMessageBox.prompt("新文件夹将创建在个人资产根目录", "新建文件夹", {
       inputValue: "新建文件夹",
       inputPattern: /^[^\\/]+$/,
       inputValidator: value => !!value?.trim() || "请输入文件夹名称",

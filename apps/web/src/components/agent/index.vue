@@ -198,7 +198,10 @@ async function loadHistory(openLatest = false) {
     // 首条回复结束前会话可能尚未落盘，仍允许从历史菜单切回。
     for (const item of conversations.value) if (item.file) setSessionFile(item, item.file);
     if (openLatest) {
-      const session = !workspaceStore.pendingAgentMessage && data.data[0] ? await readConversation(directory, data.data[0].file) : browserWorkspaceMode ? await createBrowserConversation(directory) : null;
+      const requested = workspaceStore.pendingAgentSession;
+      const file = requested?.directory === directory ? requested.file : !workspaceStore.pendingAgentMessage ? data.data[0]?.file : undefined;
+      const session = file ? await readConversation(directory, file) : browserWorkspaceMode ? await createBrowserConversation(directory) : null;
+      if (requested?.directory === directory) workspaceStore.pendingAgentSession = null;
       if (currentRequest !== requestId) return;
       showConversation(session);
       initialized.value = true;

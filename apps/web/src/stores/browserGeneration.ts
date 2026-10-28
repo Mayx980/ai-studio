@@ -6,6 +6,7 @@ import imageModel from "@/lib/browserModels/imageModel";
 import videoModel from "@/lib/browserModels/videoModel";
 import audioModel from "@/lib/browserModels/audioModel";
 import { studioFetch } from "@/lib/studioFetch";
+import { generateBrowserText } from "@/lib/browserNodeAi";
 import textModel from "@/lib/browserModels/textModel";
 
 export type ModelKind = "image" | "video" | "audio" | "text";
@@ -14,7 +15,10 @@ export const browserModels = { image: imageModel, video: videoModel, audio: audi
 export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: "", duration: "", resolution: "" });
 export const generationBusy = ref(false);
 export const generationError = ref("");
-export const generationResults = ref<{ id: string; kind: ModelKind; url?: string; text?: string; file?: File; directory?: string; path?: string }[]>([]);
+export type BrowserGenerationResult = { id: string; kind: ModelKind; url?: string; text?: string; file?: File; directory?: string; path?: string };
+export type BrowserWorkflow = { complete(results: BrowserGenerationResult[]): Promise<void> };
+export type BeginBrowserWorkflow = (prompt: string, kind: ModelKind, references: File[], script: boolean) => Promise<BrowserWorkflow>;
+export const generationResults = ref<BrowserGenerationResult[]>([]);
 export const selectedBrowserModel = computed(() => browserModels[browserConfig.kind].models[0]!);
 let controller: AbortController | undefined;
 export function stopBrowserGeneration() { controller?.abort(); }
@@ -42,7 +46,7 @@ async function saveBrowserResults(directory: string) {
       const response = await studioFetch(item.url!);
       if (!response.ok) throw new Error(`素材已生成，但下载保存失败（HTTP ${response.status}），请保留页面重试`);
       const blob = await response.blob();
-      const mimeType = blob.type.startsWith(`${item.kind}/`) ? blob.type : `${item.kind}/${item.kind === "video" ? "mp4" : "png"}`;
+      const mimeType = blob.type.startsWith(`${item.kind}/`) ? blob.type : `${item.kind}/${item.kind === "video" ? "mp4" : item.kind === "audio" ? "mpeg" : "png"}`;
       item.file = new File([blob], `生成素材.${mimeType.split("/")[1]}`, { type: mimeType });
     }
     item.path = await uploadNodeFile(files, item.id, item.file);
@@ -53,26 +57,27 @@ async function saveBrowserResults(directory: string) {
   await files.writeJson(".agent/browserResults.json", generationResults.value.filter(item => item.directory === directory && item.path).map(({ id, kind, path, file }) => ({ id, kind, path, mimeType: file?.type, name: file?.name })));
 }
 
-// ACT: 只依据明确的输出意图分类，参考素材本身不决定输出；模糊输入默认图片。
-export function inferGenerationKind(prompt: string): "image" | "video" {
-  const text = prompt.replace(/(?:不要|无需|不需要|不生成|不做)\s*(?:生成|制作)?\s*(?:图片|视频|短片|动画)/g, "");
-  const image = /视频封面|图片|图像|海报|封面|插画|照片|肖像|截图|壁纸|静态图|image|photo|poster/i;
-  const targets = [...text.matchAll(/(?:生成|制作|绘制|设计|输出|画一|做一|做成|变成|转(?:为|成)?|给我|我要|generate|create).{0,16}?(视频封面|短视频|视频|短片|动画|图片|图像|海报|封面|插画|照片|肖像|截图|壁纸|静态图|image|photo|poster|video)/gi)];
-  if (targets.length) return image.test(targets.at(-1)![1]!) ? "image" : "video";
-  const subject = text.replace(/(?:参考|根据|使用|上传|这张|该张).{0,8}?(?:图片|图像|照片)/g, "");
-  if (/视频封面|海报|封面|插画|壁纸|静态图/.test(subject)) return "image";
-  return /视频|短片|动画|video/i.test(subject) ? "video" : "image";
+// ACT: 输出意图按动作后的目标优先；参考素材或“视频脚本”中的视频不单独决定输出。
+export function explicitGenerationKind(prompt: string): ModelKind | undefined {
+  const text = prompt.replace(/(?:不要|无需|不需要|不生成|不做)\s*(?:生成|制作)?\s*(?:图片|视频|短片|动画|音频|脚本|方案)/g, "");
+  const kindFor = (target: string): ModelKind => /脚本|方案|策划|文案|大纲|故事|文字|文本|script|plan/i.test(target) ? "text" : /音频|音乐|配音|旁白|音效|audio|music/i.test(target) ? "audio" : /视频|短片|动画|video/i.test(target) ? "video" : "image";
+  const targets = [...text.matchAll(/(?:生成|制作|绘制|设计|输出|写一|写个|编写|创作|画一|做一|做成|变成|转(?:为|成)?|给我|我要|generate|create).{0,16}?(视频封面|剧情脚本|分镜脚本|视频脚本|脚本|方案|策划|文案|大纲|故事|文字|文本|短视频|视频|短片|动画|音频|音乐|配音|旁白|音效|图片|图像|海报|封面|插画|照片|肖像|截图|壁纸|静态图|script|plan|image|photo|poster|video|audio|music)/gi)];
+  if (targets.length) return kindFor(targets.at(-1)![1]!);
+  const target = text.match(/视频封面|剧情脚本|分镜脚本|视频脚本|脚本|方案|策划|文案|大纲|文字|文本|音频|音乐|配音|旁白|音效|视频|短片|动画|海报|封面|插画|壁纸|静态图|图片|图像|script|plan|image|photo|poster|video|audio|music/i)?.[0];
+  return target ? kindFor(target) : undefined;
 }
+export function inferGenerationKind(prompt: string): ModelKind { return explicitGenerationKind(prompt) ?? "image"; }
 
-export async function generateInBrowser(prompt: string, references: File[], directory?: string) {
+export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind) {
   if (generationBusy.value) return false;
-  const kind: ModelKind = inferGenerationKind(prompt);
+  const kind: ModelKind = requestedKind ?? inferGenerationKind(prompt);
   browserConfig.kind = kind;
   const { endpoint, ratio, duration, resolution } = browserConfig;
   const apiKey = browserConfig.keys[kind].trim();
   generationError.value = "";
   if (!apiKey || !prompt.trim()) { generationError.value = "请填写提示词，并在设置 → API 配置中输入当前模型的 Key。"; return false; }
   if (!/^https:\/\//i.test(endpoint)) { generationError.value = "接口地址必须使用 HTTPS。"; return false; }
+  if ((kind === "text" || kind === "audio") && references.length) { generationError.value = "当前文字／音频适配器仅支持文字输入，请移除引用素材；输入与素材已保留。"; return false; }
   if (references.some(file => !file.type.startsWith("image/"))) { generationError.value = "当前创作入口的参考素材仅支持图片。"; return false; }
   let firstFrameIndex: number | undefined;
   if (kind === "video") {
@@ -95,14 +100,21 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   const signal = controller.signal;
   generationBusy.value = true;
   try {
+    if (kind === "text") {
+      const { text } = await generateBrowserText({ providerId: textModel.id, modelId: textModel.models[0]!.id, prompt, signal });
+      signal.throwIfAborted();
+      generationResults.value.push({ id: crypto.randomUUID(), kind, text, directory });
+      return true;
+    }
     const images = await Promise.all(references.map(async file => ({ type: "binary" as const, data: new Uint8Array(await file.arrayBuffer()), mimeType: file.type, name: file.name })));
     const tool = { fetch: studioFetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" };
     const context = { config: { apiKey, endpoint }, signal, tool };
-    const assets = kind === "image" ? await imageModel.generateImage.call(context, { model: imageModel.models[0]!.id, prompt, images, ...(ratio ? { ratio } : {}), ...(resolution ? { size: resolution } : {}) })
+    const assets = kind === "audio" ? await audioModel.generateAudio.call(context, { model: audioModel.models[0]!.id, prompt }) : kind === "image" ? await imageModel.generateImage.call(context, { model: imageModel.models[0]!.id, prompt, images, ...(ratio ? { ratio } : {}), ...(resolution ? { size: resolution } : {}) })
       : await videoModel.generateVideo.call(context, { model: videoModel.models[0]!.id, prompt, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: images[firstFrameIndex!] } : { mode: images.length ? ["imageReference:10"] : "text", images }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
     signal.throwIfAborted();
+    if (!assets.length) throw new Error("模型未返回生成素材");
     for (const asset of assets) {
-      const mimeType = asset.mimeType || `${kind}/${kind === "image" ? "png" : "mp4"}`;
+      const mimeType = asset.mimeType || `${kind}/${kind === "image" ? "png" : kind === "audio" ? "mpeg" : "mp4"}`;
       const file = asset.type === "base64" && asset.data ? new File([Uint8Array.from(atob(asset.data), char => char.charCodeAt(0))], `生成结果.${mimeType.split("/")[1]}`, { type: mimeType }) : undefined;
       generationResults.value.push({ id: crypto.randomUUID(), kind, url: file ? URL.createObjectURL(file) : asset.url, file, directory });
     }
@@ -112,4 +124,17 @@ export async function generateInBrowser(prompt: string, references: File[], dire
     generationError.value = signal.aborted ? "已停止等待；已提交的远端任务可能仍在运行，请先检查供应商任务记录。" : error instanceof TypeError ? "无法访问供应商接口，请检查本机预览服务及网络。输入和参考已保留。" : (error instanceof Error ? error.message : "模型调用失败").replaceAll(apiKey, "[Key]");
     return false;
   } finally { generationBusy.value = false; controller = undefined; }
+}
+
+export async function browserResultFile(item: BrowserGenerationResult) {
+  let file = item.file;
+  if (!file) {
+    const response = await studioFetch(item.url!);
+    if (!response.ok) throw new Error(`读取模型结果失败（HTTP ${response.status}）`);
+    const blob = await response.blob();
+    if (!blob.size || (blob.type && !blob.type.startsWith(`${item.kind}/`) && blob.type !== "application/octet-stream")) throw new Error("结果地址没有返回有效素材，请检查供应商的结果地址和有效期");
+    file = new File([blob], `生成结果.${item.kind === "video" ? "mp4" : item.kind === "audio" ? "mp3" : "png"}`, { type: (blob.type.startsWith(`${item.kind}/`) ? blob.type : "") || `${item.kind}/${item.kind === "video" ? "mp4" : item.kind === "audio" ? "mpeg" : "png"}` });
+  }
+  item.file = file;
+  return file;
 }

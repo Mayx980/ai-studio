@@ -68,6 +68,8 @@
 </template>
 
 <script setup lang="ts">
+import { browserNodeAi } from "@/lib/browserNodeAi";
+import { browserConfig, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
 import { computed, defineAsyncComponent, nextTick, onMounted, onScopeDispose, provide, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
 import axios from "axios";
@@ -82,6 +84,9 @@ import canvasPanel from "./panels/canvas/canvasHost.vue";
 import type { DocumentNodeOptions } from "./panels/canvas/canvasFiles";
 import workspaceMenu from "./components/workspaceMenu.vue";
 import floatingAgent from "./components/floatingAgent.vue";
+
+provide("nodeAi", browserNodeAi);
+watch(() => [browserConfig.enabled, browserConfig.endpoint, ...Object.values(browserConfig.keys)], () => { window.dispatchEvent(new Event("toonflow:provider-config-changed")); });
 
 const documentPanel = defineAsyncComponent(() => import("./panels/document/index.vue"));
 
@@ -123,6 +128,14 @@ provide("importBrowserResult", async (file: File, directory: string) => {
   await canvasPanelRef.value.importBrowserResult(file, directory);
   agentVisible.value = false;
 });
+provide("beginBrowserWorkflow", (async (...args) => {
+  workspaceStore.creationMode = "professional";
+  activePanel.value = "canvas";
+  await nextTick();
+  const panel = canvasPanelRef.value;
+  if (!panel) throw new Error("画布正在初始化，请稍后重试");
+  return panel.beginBrowserWorkflow(...args);
+}) as BeginBrowserWorkflow);
 provide("canvas", () => canvasPanelRef.value?.getCanvasContext());
 provide("mentionCanvas", () => canvasPanelRef.value?.mentionSource);
 provide("activateCanvasPanel", () => switchPanel("canvas"));

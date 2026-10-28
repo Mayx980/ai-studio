@@ -6,6 +6,7 @@
       <el-button type="primary" :icon="IconPlus" @click="homeSection = 'create'; promptInput?.focus()">新建创作</el-button>
       <nav>
         <button :aria-current="homeSection === 'create' ? 'page' : undefined" @click="homeSection = 'create'"><icon-sparkles :size="18" />创作</button>
+        <button :aria-current="homeSection === 'history' ? 'page' : undefined" @click="homeSection = 'history'"><icon-history :size="18" />历史对话</button>
         <button @click="homeSection = 'assets'"><icon-photo :size="18" />个人资产</button>
         <button :aria-current="homeSection === 'projects' ? 'page' : undefined" @click="homeSection = 'projects'"><icon-folder :size="18" />我的项目</button>
       </nav>
@@ -36,7 +37,7 @@
             </div>
             <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="creating || opening" @change="selectAttachments" />
             <attachmentList v-if="promptAttachments.length" class="promptAttachments" numbered :attachments="promptAttachments" removable restorable :disabled="creating || opening" @remove="promptAttachments.splice($event, 1)" @restore="restoreAttachment" />
-            <el-input ref="promptInput" v-model="prompt" type="textarea" :rows="4" resize="vertical" :disabled="creating || opening" :placeholder="promptPlaceholder" aria-label="创作描述" @paste.capture="pasteAttachments" />
+            <el-input ref="promptInput" v-model="prompt" type="textarea" :rows="4" resize="vertical" :disabled="creating || opening" :placeholder="promptPlaceholder" aria-label="创作描述" @paste.capture="pasteAttachments" @keydown="handlePromptKeydown" />
             <template #footer>
               <div class="composerFooter">
                 <span v-if="browserWorkspaceMode" class="workspaceHint">项目与素材保存在当前浏览器</span>
@@ -52,8 +53,16 @@
               <p v-if="!workspaceDirectory && !browserWorkspaceMode" class="workspaceHint" role="status">请先选择一个空文件夹作为工作目录，画布和素材会保存在这里。</p>
             </template>
           </el-card>
-          <browserModelResults :directory="workspaceStore.project?.directory" />
+          <el-alert v-if="generationError" :title="generationError" type="error" :closable="false" />
         </div>
+      </section>
+      <section v-if="homeSection === 'history'" class="homeHistory" aria-label="历史对话">
+        <h2>历史对话</h2>
+        <p v-if="historyLoading" role="status">正在读取历史对话…</p>
+        <el-alert v-if="historyError" :title="historyError" type="error" :closable="false" />
+        <button v-for="item in conversationHistory" :key="`${item.directory}:${item.file}`" class="historyEntry" type="button" :disabled="opening || creating" @click="openHistory(item)">
+          <icon-history :size="18" /><span><strong>{{ item.name }}</strong><small>{{ item.projectName }} · {{ item.messageCount }} 条消息</small></span>
+        </button>
       </section>
       <section v-if="homeSection === 'assets'" class="homeAssets"><h2>个人资产</h2><assetLibrary page :modelValue="true" :directory="workspaceStore.project?.directory" /></section>
       <creativeCases v-if="homeSection === 'create'" @apply="applyCase" />
@@ -103,7 +112,7 @@ import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox, type InputInstance } from "element-plus";
 import { getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import {
-  IconSettings, IconPlus, IconSparkles, IconPalette,
+  IconSettings, IconPlus, IconSparkles, IconPalette, IconHistory,
   IconArrowUp, IconLayoutGrid,
   IconList, IconSortDescending,
   IconSortAscending, IconFolder, IconEdit,
@@ -111,7 +120,8 @@ import {
 } from "@tabler/icons-vue";
 import { inferGenerationKind, browserConfig, generationError } from "@/stores/browserGeneration";
 import browserModelOptions from "@/components/browserModelOptions.vue";
-import browserModelResults from "@/components/browserModelResults.vue";
+import { listBrowserConversations } from "@/components/agent/browserConversations";
+import type { AgentHistory } from "@/components/agent/types";
 import projectThumbnail from "@/components/projectThumbnail.vue";
 import referencePicker from "@/components/referencePicker.vue";
 import modelPopover from "@/components/modelPopover.vue";
@@ -369,14 +379,45 @@ async function renameProject(project: Project) {
   if (result) workspaceStore.renameProject(project.directory, result.value);
 }
 
-async function changeCreationMode(mode: "simple" | "professional") {
-  if (mode !== "professional") return;
-  if (workspaceStore.project) await router.push("/workspace");
-  else await createProject(false);
+function changeCreationMode() { promptInput.value?.focus(); }
+function handlePromptKeydown(event: Event | KeyboardEvent) {
+  if (!(event instanceof KeyboardEvent)) return;
+  if (event.key !== "Enter" || event.shiftKey || event.isComposing || event.keyCode === 229) return;
+  event.preventDefault();
+  if (!creating.value && !opening.value && prompt.value.trim()) void createProject();
+}
+type ConversationHistory = AgentHistory & { directory: string; projectName: string };
+const conversationHistory = ref<ConversationHistory[]>([]);
+const historyLoading = ref(false);
+const historyError = ref("");
+watch(homeSection, async section => {
+  if (section !== "history") return;
+  historyLoading.value = true;
+  historyError.value = "";
+  try {
+    const lists = await Promise.all(workspaceStore.projectList.map(async project => {
+      const items = browserWorkspaceMode ? await listBrowserConversations(project.directory) : (await axios.get<{ data: AgentHistory[] }>("/api/agent/list", { params: { directory: project.directory }, headers: { "x-toonflow-workspace": "1" } })).data.data;
+      return items.map(item => ({ ...item, directory: project.directory, projectName: project.name }));
+    }));
+    conversationHistory.value = lists.flat().sort((a, b) => b.modified.localeCompare(a.modified));
+  } catch (error) { historyError.value = error instanceof Error ? error.message : "读取历史对话失败"; }
+  finally { historyLoading.value = false; }
+});
+async function openHistory(item: ConversationHistory) {
+  if (opening.value || creating.value) return;
+  opening.value = true;
+  try {
+    await workspaceStore.openProject(item.directory);
+    workspaceStore.pendingAgentSession = { directory: item.directory, file: item.file };
+    await router.push("/workspace");
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "打开历史对话失败"); }
+  finally { opening.value = false; }
 }
 
 async function createProject(fromPrompt = true) {
-  if (fromPrompt && browserConfig.enabled && !browserConfig.keys[inferGenerationKind(prompt.value)].trim()) {
+  if (fromPrompt && !prompt.value.trim()) return;
+  if (fromPrompt && browserWorkspaceMode && !browserConfig.enabled) { generationError.value = "请先在设置 → API 配置中启用模型并输入 Key"; return; }
+  if (fromPrompt && browserConfig.enabled && workspaceStore.creationMode === "simple" && !browserConfig.keys[inferGenerationKind(prompt.value)].trim()) {
     generationError.value = "请先在设置 → API 配置中输入当前模型的 Key。";
     return;
   }
@@ -438,6 +479,7 @@ async function createProject(fromPrompt = true) {
   padding-left: 220px;
   isolation: isolate;
 
+  .homeHistory { padding-top: 24px; .historyEntry { display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px; margin: 8px 0; border: 1px solid var(--el-border-color-light); border-radius: 12px; background: var(--el-bg-color); color: var(--el-text-color-primary); text-align: left; cursor: pointer; span { display: grid; gap: 6px; } small { color: var(--el-text-color-secondary); } &:hover { border-color: var(--el-color-primary); } } }
   .homeAssets { padding-top: 24px; :deep(.assetLibrary) { width: 100%; max-height: none; } }
   .studioSidebar {
     position: fixed; inset: 0 auto 0 0; z-index: 6; width: 220px; display: flex; flex-direction: column; gap: 16px; padding: 30px 20px; border-right: 1px solid var(--el-border-color-light); background: var(--el-bg-color);

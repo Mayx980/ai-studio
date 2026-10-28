@@ -20,6 +20,7 @@
 </template>
 
 <script setup lang="ts">
+import type { BeginBrowserWorkflow } from "@/stores/browserGeneration";
 import { computed, nextTick, onScopeDispose, provide, shallowReactive, shallowRef, ref, watch, type ComponentPublicInstance } from "vue";
 import type { CanvasContext } from "@toonflow/tool-canvas/runtime";
 import { waitForControlValue } from "@/lib/mcpControl";
@@ -404,6 +405,10 @@ const mentionSource: MentionCanvasSource = {
 };
 
 defineExpose({
+  beginBrowserWorkflow: (async (...args) => {
+    const panel = await waitForControlValue(() => activeInstance.value, lifetime.signal);
+    return panel.beginBrowserWorkflow(...args);
+  }) as BeginBrowserWorkflow,
   waitUntilReady: async () => {
     const panel = await waitForControlValue(() => activeInstance.value, AbortSignal.any([lifetime.signal, AbortSignal.timeout(30000)]));
     await panel.waitUntilReady();

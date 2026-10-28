@@ -49,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, onMounted, ref, watch } from "vue";
+import { computed, inject, onMounted, onScopeDispose, ref, watch } from "vue";
 import { ElAlert, ElButton, ElCard, ElSelect, ElDialog, ElOption, ElOptionGroup, ElMessage, ElMessageBox } from "element-plus";
 import { IconEdit, IconFileText, IconSparkles, IconArrowUp } from "@tabler/icons-vue";
 import { nodeSkeleton, nodeTools, useNode, z, type NodeAiModel, type NodeHandle } from "@toonflow/nodes-scaffold/runtime";
@@ -206,8 +206,10 @@ nodeEvent.on("copy", () => {
 });
 
 onMounted(loadModels);
+window.addEventListener("toonflow:provider-config-changed", loadModels);
+onScopeDispose(() => window.removeEventListener("toonflow:provider-config-changed", loadModels));
 
-async function loadModels() {
+async function loadModels(_event?: Event) {
   if (modelsLoading.value) return;
   modelsLoading.value = true;
   try {

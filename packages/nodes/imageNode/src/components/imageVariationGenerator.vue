@@ -70,9 +70,11 @@ watch(() => props.aspectRatio, value => {
 });
 watch(() => [props.source?.url, props.source?.mimeType], () => generationController?.abort(), { flush: "sync" });
 onMounted(refreshModels);
+window.addEventListener("toonflow:provider-config-changed", refreshModels);
+onScopeDispose(() => window.removeEventListener("toonflow:provider-config-changed", refreshModels));
 onScopeDispose(() => { disposed = true; generationController?.abort(); });
 
-async function refreshModels() {
+async function refreshModels(_event?: Event) {
   if (modelsLoading.value || busy.value) return;
   modelsLoading.value = true;
   try {

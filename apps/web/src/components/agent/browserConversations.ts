@@ -27,11 +27,12 @@ export async function listBrowserConversations(directory: string) {
     return { file: entry.name, name: session.name, messageCount: session.messages.length, modified: (session as AgentConversation & { modified?: string }).modified ?? "" };
   })).then(items => items.sort((a, b) => b.modified.localeCompare(a.modified)));
 }
-export async function saveBrowserConversation(directory: string, file: string, messages: AgentMessage[]) {
+export async function saveBrowserConversation(directory: string, file: string, messages: AgentMessage[], creationMode?: "simple" | "professional") {
   const files = await sessionFiles(directory);
   const path = `${folder}/${file}`;
   const snapshot = await files.readTextSnapshot(path);
   const session = JSON.parse(snapshot.text) as AgentConversation & { modified?: string };
+  if (creationMode) session.creationMode = creationMode;
   session.messages = messages.map(message => ({ ...message, streaming: false, attachments: message.attachments?.map(({ file, ...attachment }) => attachment) }));
   if (session.name === "新对话") session.name = messages.find(message => message.role === "user")?.content.slice(0, 80) || session.name;
   session.modified = new Date().toISOString();

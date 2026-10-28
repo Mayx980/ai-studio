@@ -15,9 +15,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const creationMode = ref<"simple" | "professional">("simple");
   const project = ref<Project | null>(null);
   const projectList = ref<Project[]>([]);
+  const pendingAgentSession = ref<{ directory: string; file: string } | null>(null);
   const pendingAgentMessage = ref<{ directory: string; prompt: string; attachments?: AgentAttachment[]; model: string; reasoningEffort: string } | null>(null);
 
   async function openProject(path: string, previousDirectory = path, signal?: AbortSignal) {
+    pendingAgentSession.value = null;
     if (browserWorkspaceMode) {
       if (!path.trim()) throw new Error("项目标识不能为空");
       signal?.throwIfAborted();
@@ -55,7 +57,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (project.value?.directory === path) project.value = null;
   }
 
-  return { creationMode, project, projectList, pendingAgentMessage, openProject, renameProject, removeProject };
+  return { creationMode, project, projectList, pendingAgentMessage, pendingAgentSession, openProject, renameProject, removeProject };
 }, {
   persist: {
     key: browserWorkspaceMode ? "aiStudio.browserProjects" : "toonflow.projectList",

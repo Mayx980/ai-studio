@@ -1,6 +1,6 @@
 <template>
-  <section class="creativeCases" aria-labelledby="creativeCasesTitle">
-    <div class="caseHeader"><h2 id="creativeCasesTitle">从一个案例开始</h2><span>应用后可继续编辑，发送才开始创作</span></div>
+  <section class="creativeCases" :class="{ compact }" :aria-labelledby="titleId">
+    <div class="caseHeader"><h2 :id="titleId">从一个案例开始</h2><span>应用后可继续编辑，发送才开始创作</span></div>
     <div class="caseCategories" role="group" aria-label="案例分类">
       <button v-for="item in categories" :key="item" type="button" :aria-pressed="category === item" @click="category = item">{{ item }}</button>
     </div>
@@ -23,10 +23,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, useId } from "vue";
 import { ElMessage } from "element-plus";
 import { IconArrowUpRight } from "@tabler/icons-vue";
+defineProps<{ compact?: boolean }>();
 const emit = defineEmits<{ apply: [value: { prompt: string; references: File[] }] }>();
+const titleId = useId();
 const categories = ["全部", "产品展示", "活动宣传", "人物口播", "品牌故事", "知识讲解", "封面海报"];
 const category = ref("全部");
 const cases = [
@@ -61,6 +63,7 @@ function applyPreview() { if (preview.value) void applyCase(preview.value); }
 <style scoped lang="scss">
 .creativeCases {
   margin: 48px 0 36px;
+  &.compact { flex: 0 1 120px; min-height: 0; margin: 8px 14px 12px; max-height: 120px; overflow: auto; .caseHeader { h2 { font-size: 13px; } span { display: none; } } .caseCategories { gap: 14px; margin: 6px 0; button { font-size: 12px; } } .caseGrid { display: flex; gap: 10px; overflow-x: auto; .caseCard { flex: 0 0 160px; .casePreview { height: 64px; border-radius: 8px; .previewBadge { display: none; } } .caseInfo { padding: 6px 0; h3 { font-size: 12px; margin: 0; } p { display: none; } } } } }
   .caseHeader { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; h2 { font-size: 19px; margin: 0; font-weight: 600; } span { color: var(--el-text-color-secondary); font-size: 12px; } }
   .caseCategories { display: flex; overflow-x: auto; gap: 24px; margin: 22px 0; padding-bottom: 6px; button { flex: none; padding: 6px 0; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--el-text-color-secondary); font: inherit; font-size: 14px; cursor: pointer; &[aria-pressed="true"] { color: var(--el-color-primary); border-bottom-color: var(--el-color-primary); font-weight: 600; } } }
   .caseGrid {
