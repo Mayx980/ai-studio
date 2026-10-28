@@ -208,6 +208,13 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(6px);
   box-shadow: var(--el-box-shadow-light);
 
+  &.expanded {
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
+    box-shadow: none;
+  }
+
   &.docked {
     border-width: 0 0 0 1px;
     border-radius: 0;

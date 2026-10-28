@@ -17,6 +17,7 @@ export type AgentMessage = {
   mentions?: AgentMention[];
   parts?: AgentMessagePart[];
   streaming?: boolean;
+  browserResultIds?: string[];
   error?: string;
   report?: { file: string; name: string };
 };

@@ -107,6 +107,10 @@ function setDocumentPanel(value: Element | ComponentPublicInstance | null) {
 }
 provide("importBrowserResult", async (file: File, directory: string) => {
   if (!canvasPanelRef.value) throw new Error("画布尚未就绪");
+  workspaceStore.creationMode = "professional";
+  activePanel.value = "canvas";
+  await nextTick();
+  await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
   await canvasPanelRef.value.importBrowserResult(file, directory);
 });
 provide("canvas", () => canvasPanelRef.value?.getCanvasContext());

@@ -65,6 +65,7 @@ export function isCanvasFileDrag(event: DragEvent) {
 
 type CanvasFileContext = {
   directory: string;
+  throwOnError?: boolean;
   availableNodes: { type: string }[];
   signal: AbortSignal;
   flow: Pick<ReturnType<typeof useVueFlow>, "addNodes" | "screenToFlowCoordinate">;
@@ -92,6 +93,7 @@ export async function dropCanvasFiles(event: DragEvent, context: CanvasFileConte
 export async function importCanvasFiles(droppedFiles: File[], position: { x: number; y: number }, context: CanvasFileContext) {
   const { signal, flow, availableNodes } = context;
   const files = useWorkspaceFiles(context.directory);
+  const createdIds: string[] = [];
   for (const [index, file] of droppedFiles.entries()) {
     if (signal.aborted) break;
     const id = crypto.randomUUID();
@@ -116,11 +118,14 @@ export async function importCanvasFiles(droppedFiles: File[], position: { x: num
       signal.throwIfAborted();
       flow.addNodes({ id, type, position: { x: position.x + index * 32, y: position.y + index * 32 },
         data: kind === "text" ? { label: file.name, textSnapshot } : { label: file.name, outputs: { [kind]: output } } });
+      createdIds.push(id);
     } catch (error) {
       if (copiedPath) await files.remove(copiedPath).catch(showError);
+      if (context.throwOnError) throw error;
       if (!signal.aborted) showError(error);
     }
   }
+  return createdIds;
 }
 
 function showError(error: unknown) {

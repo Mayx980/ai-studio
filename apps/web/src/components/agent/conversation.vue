@@ -56,6 +56,7 @@
                   </template>
                   <attachmentList v-if="item.attachments?.length" :attachments="item.attachments" :directory="directory" />
                   <div v-if="item.role === 'user'" class="messageText"><mentionContent :content="item.content" :mentions="item.mentions" :directory="directory" /></div>
+                  <browserModelResults v-if="item.browserResultIds?.length" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" />
                   <div v-if="item.error" class="messageError" role="alert">{{ item.error }}</div>
                 </div>
               </template>
@@ -83,7 +84,8 @@
       <el-icon class="is-loading" aria-hidden="true"><icon-loader-2 :size="14" /></el-icon>
       <span>正在压缩上下文…</span>
     </div>
-    <creationModeSwitch v-if="props.creationModes" v-model="workspaceStore.creationMode" class="conversationMode" />
+    <div v-if="sending" class="generationControls" role="status"><span>正在生成…</span><el-button @click="stopGeneration">停止生成</el-button></div>
+    <creationModeSwitch v-if="props.creationModes && !messages.length" v-model="workspaceStore.creationMode" class="conversationMode" />
     <div class="messageInput" :class="{ draggingAttachments }" @dragenter.capture="dragEnterAttachments" @dragover.capture="dragOverAttachments" @dragleave.capture="dragLeaveAttachments" @drop.capture="dropAttachments">
       <div v-if="draggingAttachments" class="attachmentDropHint" role="status">
         <icon-paperclip :size="20" aria-hidden="true" />
@@ -113,7 +115,6 @@
       <div ref="senderElement" class="senderEditor" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
-      <browserModelResults v-if="props.creationModes" :directory="directory" />
       <div class="senderActions">
         <browserModelOptions v-if="props.creationModes && browserConfig.enabled" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
@@ -152,8 +153,8 @@
             </div>
           </div>
         </el-popover>
-        <el-button class="sendButton" type="primary" circle :disabled="!busy && locked" :aria-label="busy ? '停止生成' : editingId ? '重发消息' : '发送消息'" :title="busy ? '停止生成' : editingId ? '重发消息' : '发送消息'" @click="busy ? stopMessage() : submitMessage()">
-          <icon-player-stop-filled v-if="busy" :size="14" />
+        <el-button class="sendButton" type="primary" circle :disabled="locked" :aria-label="sending ? '正在发送消息' : editingId ? '重发消息' : '发送消息'" :title="sending ? '正在发送消息' : editingId ? '重发消息' : '发送消息'" @click="submitMessage">
+          <el-icon v-if="sending" class="is-loading"><icon-loader-2 :size="16" /></el-icon>
           <icon-arrow-up v-else :size="16" />
         </el-button>
       </div>
@@ -169,13 +170,13 @@ import { defaultRangeExtractor, measureElement, observeElementRect, useVirtualiz
 import axios from "axios";
 import {
   IconArrowUp, IconArrowDown, IconAtom, IconChevronDown, IconChevronRight, IconCopy,
-  IconCircleDashed, IconPencil, IconPlayerStopFilled, IconX, IconLoader2,
+  IconCircleDashed, IconPencil, IconX, IconLoader2,
   IconTrash, IconVector, IconMovie, IconPhoto, IconArrowUpRight, IconUsersGroup, IconPaperclip,
 } from "@tabler/icons-vue";
 import { ElMessage } from "element-plus";
 import { getReadableFileExtension, getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import logoUrl from "@toonflow/assets/logo.svg";
-import { browserConfig, generateInBrowser } from "@/stores/browserGeneration";
+import { browserConfig, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration } from "@/stores/browserGeneration";
 import browserModelOptions from "@/components/browserModelOptions.vue";
 import browserModelResults from "@/components/browserModelResults.vue";
 import referencePicker from "@/components/referencePicker.vue";
@@ -250,10 +251,12 @@ const remoteRunning = ref(props.initialSession?.running ?? false);
 const stats = ref(props.initialSession?.stats);
 const contextUsage = ref(props.initialSession?.contextUsage);
 const busy = ref(false);
+const browserSubmitting = ref(false);
+const sending = computed(() => busy.value || browserSubmitting.value || (props.creationModes && generationBusy.value));
 const compacting = ref(false);
 const deletingId = ref<string>();
 const restoringAttachment = ref(false);
-const locked = computed(() => props.disabled || busy.value || deletingId.value !== undefined || restoringAttachment.value);
+const locked = computed(() => props.disabled || sending.value || deletingId.value !== undefined || restoringAttachment.value);
 const editingId = ref<string>();
 const draftMentions = ref<AgentMention[]>([]);
 const draftMentionTargets = shallowRef<{ key: symbol; element: HTMLElement; mention: AgentMention }[]>([]);
@@ -458,13 +461,47 @@ async function removeDraftMention(id: string) {
 }
 
 async function submitMessage() {
+  if (locked.value) return;
   if (props.creationModes && browserConfig.enabled) {
+    const prompt = sender?.getText() ?? "";
+    if (!prompt.trim()) return;
+    const attachments = [...draftAttachments.value];
+    browserSubmitting.value = true;
+    let reply: AgentMessage | undefined;
     try {
-      const files = await Promise.all(draftAttachments.value.map(async item => item.file ?? new File([await useWorkspaceFiles(directory).read(item.path)], item.name, { type: item.mimeType })));
-      return await generateInBrowser(sender?.getText() ?? "", files, directory);
-    } catch (error) { ElMessage.error(error instanceof Error ? error.message : "读取引用素材失败，输入已保留"); return; }
+      const files = await Promise.all(attachments.map(async item => item.file ?? new File([await useWorkspaceFiles(directory).read(item.path)], item.name, { type: item.mimeType })));
+      const userId = crypto.randomUUID();
+      const assistantId = crypto.randomUUID();
+      messages.value.push({ id: userId, role: "user", content: prompt, attachments });
+      messages.value.push({ id: assistantId, replyTo: userId, role: "assistant", content: "", streaming: true });
+      reply = messages.value.find(item => item.id === assistantId)!;
+      emit("sent", prompt);
+      await sender?.reset({ clearHistory: false });
+      draftAttachments.value = [];
+      const start = generationResults.value.length;
+      const success = await generateInBrowser(prompt, files, directory);
+      reply.browserResultIds = generationResults.value.slice(start).map(item => item.id);
+      if (!success) {
+        reply.error = generationError.value;
+        await sender?.reset({ clearHistory: false, chatNode: [[{ type: "Write", text: prompt }]] });
+        draftAttachments.value = attachments;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "读取引用素材失败，输入已保留";
+      if (reply) reply.error = message;
+      else ElMessage.error(message);
+    } finally {
+      if (reply) reply.streaming = false;
+      browserSubmitting.value = false;
+    }
+    return;
   }
   return sendMessage(editingId.value ? messages.value.find(item => item.id === editingId.value) : undefined);
+}
+
+function stopGeneration() {
+  if (props.creationModes && generationBusy.value) stopBrowserGeneration();
+  else stopMessage();
 }
 
 async function selectSkill(name: string) {
@@ -1184,6 +1221,8 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
     }
   }
 
+  .generationControls { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px 12px; color: var(--el-text-color-secondary); }
+
   .compactionStatus {
     display: flex;
     flex-shrink: 0;
@@ -1202,6 +1241,12 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
     position: relative;
     flex-shrink: 0;
     margin: 0 12px 8px;
+    width: calc(100% - 24px);
+    min-width: min(280px, calc(100% - 24px));
+    max-width: calc(100% - 24px);
+    box-sizing: border-box;
+    resize: horizontal;
+    overflow: hidden;
     border: 1px solid var(--el-border-color-light);
     border-radius: calc(var(--ui-radius) * 2.75);
     background: var(--el-bg-color);
@@ -1248,8 +1293,9 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
       top: -4px;
       right: 12px;
       left: 12px;
-      height: 8px;
+      height: 12px;
       border-radius: 4px;
+      &::after { content: ""; display: block; width: 36px; height: 3px; margin: 4px auto; background: var(--el-border-color); border-radius: 3px; }
       cursor: ns-resize;
       touch-action: none;
       user-select: none;

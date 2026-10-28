@@ -294,7 +294,30 @@ async function importBrowserResult(file: File, directory: string) {
   if (directory !== project.value?.directory || !canvasReady.value) throw new Error("工作区已切换或画布尚未就绪，请重新操作");
   const position = pastePosition();
   if (!position) throw new Error("画布尚未就绪");
-  await importCanvasContent([file], position);
+  const signal = canvasController.signal;
+  const ids = await canvasHistory.batch(() => importCanvasFiles([file], position, { directory, availableNodes: availableNodes.value, signal, flow, throwOnError: true }));
+  signal.throwIfAborted();
+  if (!ids.length) throw new Error("素材节点未能创建，请重试");
+  // ACT: 新节点插件需要异步挂载并测量；只有 nextTick 时 fitView 会因尺寸为零直接跳过。
+  await new Promise<void>((resolve, reject) => {
+    const ready = () => ids.every(id => { const node = flow.findNode(id); return node && node.dimensions.width > 0 && node.dimensions.height > 0; });
+    const finish = (error?: Error) => {
+      stop();
+      clearTimeout(timeout);
+      signal.removeEventListener("abort", abort);
+      if (error) reject(error); else resolve();
+    };
+    const abort = () => finish(new Error("工作区已切换，停止定位素材节点"));
+    const stop = watch(ready, value => { if (value) finish(); }, { flush: "post" });
+    const timeout = setTimeout(() => finish(new Error("素材节点已创建，但显示尚未就绪，请在层级中定位节点")), 10000);
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) abort(); else if (ready()) finish();
+  });
+  flow.removeSelectedElements();
+  flow.addSelectedNodes(ids.map(id => flow.findNode(id)!));
+  await flow.fitView({ nodes: ids, padding: 0.4, maxZoom: 1 });
+  signal.throwIfAborted();
+  await flushCanvasSave();
 }
 defineExpose({ importBrowserResult, canvasId, canvasReady, getCanvasContext, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
   getCanvases: (signal?: AbortSignal) => {

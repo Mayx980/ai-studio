@@ -125,14 +125,14 @@ export function useCanvasHistory(flow: ReturnType<typeof useVueFlow>, binding: (
     if (canRedo.value) await restore(cursor.value + 1);
   }
 
-  async function batch(action: () => Promise<void>) {
+  async function batch<T>(action: () => Promise<T>) {
     if (!binding() || applying.value) throw new Error("画布尚未就绪");
     record.cancel();
     commit();
     const currentRevision = revision;
     grouping.value++;
     try {
-      await action();
+      return await action();
     } finally {
       await nextTick();
       if (currentRevision === revision) {
