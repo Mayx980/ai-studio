@@ -129,12 +129,10 @@
     <div class="settingsFooter">
       <el-button :icon="IconRestore" @click="updateUiSettings({ ...defaultUiSettings, language: uiSettings.language, startupAnimation: uiSettings.startupAnimation })">恢复界面默认设置</el-button>
     </div>
-    <browserApiSettings />
   </div>
 </template>
 
 <script setup lang="ts">
-import browserApiSettings from "@/components/browserApiSettings.vue";
 import { nextTick, ref, watchEffect } from "vue";
 import {
   IconSun,

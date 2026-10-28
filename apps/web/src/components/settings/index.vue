@@ -40,6 +40,7 @@ import { defineAsyncComponent, shallowRef } from "vue";
 import { hasDesktopUpdate } from "@/stores/desktopUpdate";
 import {
   IconPalette,
+  IconKey,
   IconSettings,
   IconBuildingStore,
   IconInfoCircle,
@@ -51,6 +52,7 @@ import {
 
 const settingsPanels = [
   { id: "ui", label: "外观", icon: IconPalette, component: defineAsyncComponent(() => import("./panels/ui.vue")) },
+  { id: "api", label: "API 配置", icon: IconKey, component: defineAsyncComponent(() => import("@/components/browserApiSettings.vue")) },
   { id: "general", label: "常规配置", icon: IconSettings, component: defineAsyncComponent(() => import("./panels/general/index.vue")) },
   {
     id: "pluginMarket",

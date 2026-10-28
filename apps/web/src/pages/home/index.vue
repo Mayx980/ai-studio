@@ -375,7 +375,7 @@ async function changeCreationMode(mode: "simple" | "professional") {
 
 async function createProject(fromPrompt = true) {
   if (fromPrompt && browserConfig.enabled && !browserConfig.keys[inferGenerationKind(prompt.value)].trim()) {
-    generationError.value = "请先在外观 → API 配置中输入当前模型的 Key。";
+    generationError.value = "请先在设置 → API 配置中输入当前模型的 Key。";
     return;
   }
   if (creating.value || opening.value || (fromPrompt && !workspaceDirectory.value)) return;

@@ -35,7 +35,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   const { endpoint, ratio, duration, resolution } = browserConfig;
   const apiKey = browserConfig.keys[kind].trim();
   generationError.value = "";
-  if (!apiKey || !prompt.trim()) { generationError.value = "请填写提示词，并在外观 → API 配置中输入当前模型的 Key。"; return false; }
+  if (!apiKey || !prompt.trim()) { generationError.value = "请填写提示词，并在设置 → API 配置中输入当前模型的 Key。"; return false; }
   if (!/^https:\/\//i.test(endpoint)) { generationError.value = "接口地址必须使用 HTTPS。"; return false; }
   if (references.some(file => !file.type.startsWith("image/"))) { generationError.value = "当前创作入口的参考素材仅支持图片。"; return false; }
   let firstFrameIndex: number | undefined;

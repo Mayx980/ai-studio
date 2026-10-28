@@ -1,6 +1,5 @@
 <template>
   <section class="browserApiSettings">
-    <h3>API 配置</h3>
     <p>使用本次提供的模型适配器直接联调。Key 仅保存在当前浏览器页面内存，刷新后清除，不写入服务端设置。</p>
     <el-switch v-model="browserConfig.enabled" activeText="启用浏览器模型联调" aria-label="启用浏览器模型联调" />
     <el-form labelPosition="top" autocomplete="off">
@@ -19,5 +18,5 @@ import { browserConfig, browserModels, clearBrowserKeys } from "@/stores/browser
 </script>
 
 <style scoped lang="scss">
-.browserApiSettings { margin-top: 32px; border-top: 1px solid var(--el-border-color-light); padding-top: 18px; p { color: var(--el-text-color-secondary); font-size: 13px; line-height: 1.7; } .el-form { margin-top: 18px; } }
+.browserApiSettings { p { color: var(--el-text-color-secondary); font-size: 13px; line-height: 1.7; } .el-form { margin-top: 18px; } }
 </style>
