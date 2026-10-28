@@ -7,17 +7,20 @@ import desktopConfig from "../../electrobun.config.ts";
 import postcssConfig from "../../postcss.config.ts";
 import { i18nPlugin } from "@toonflow/i18n/vite";
 
-export default defineConfig({
+import studioRelay from "./studioRelay";
+
+export default defineConfig(({ mode }) => ({
   css: { postcss: postcssConfig },
   define: {
+    "import.meta.env.VITE_STUDIO_RELAY": mode === "studio",
     "import.meta.env.appVersion": JSON.stringify(desktopConfig.app.version),
   },
   server: {
     proxy: {
-      "/mcp": { target: "http://127.0.0.1:3000", changeOrigin: false },
-      "/a2a": { target: "http://127.0.0.1:3000", changeOrigin: false },
+      "/mcp": { target: mode === "studio" ? "http://127.0.0.1:3107" : "http://127.0.0.1:3000", changeOrigin: false },
+      "/a2a": { target: mode === "studio" ? "http://127.0.0.1:3107" : "http://127.0.0.1:3000", changeOrigin: false },
       "/api": {
-        target: "http://127.0.0.1:3000",
+        target: mode === "studio" ? "http://127.0.0.1:3107" : "http://127.0.0.1:3000",
         changeOrigin: false,
         configure(proxy) {
           proxy.on("proxyReq", (request, incoming) => {
@@ -38,6 +41,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   plugins: [
+    ...(mode === "studio" ? [studioRelay()] : []),
     i18nPlugin(),
     vue(),
     components({
@@ -51,4 +55,4 @@ export default defineConfig({
       ],
     }),
   ],
-});
+}));

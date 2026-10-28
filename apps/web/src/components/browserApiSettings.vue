@@ -9,7 +9,7 @@
       </el-form-item>
       <el-form-item label="百炼业务空间接口地址（图片／文本）"><el-input v-model="browserConfig.endpoint" aria-label="百炼业务空间接口地址" /></el-form-item>
     </el-form>
-    <p>万相视频沿用文件中的业务空间地址；音频使用火山引擎固定地址。供应商需允许浏览器跨域访问。发送才产生真实请求及费用；停止等待不保证撤销远端任务。</p>
+    <p>万相视频沿用文件中的业务空间地址；音频使用火山引擎固定地址。本机原型通过临时中转访问供应商，Key 只随当次请求转发，不保存或记录；普通部署仍需供应商允许跨域。发送才产生真实请求及费用；停止等待不保证撤销远端任务。</p>
     <el-button @click="clearBrowserKeys">清除全部 Key 并停止等待</el-button>
   </section>
 </template>

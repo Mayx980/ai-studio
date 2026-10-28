@@ -27,7 +27,7 @@
           <h1>ai-studio</h1>
         </div>
         <div class="promptArea">
-          <creationModeSwitch v-model="workspaceStore.creationMode" />
+          <creationModeSwitch v-model="workspaceStore.creationMode" @update:modelValue="changeCreationMode" />
           <el-card class="promptCard" :class="{ draggingAttachments }" shadow="never" :bodyStyle="{ padding: '20px' }" :footerStyle="{ padding: '12px 16px' }" @dragenter.capture="dragEnterAttachments" @dragover.capture="dragOverAttachments" @dragleave.capture="dragLeaveAttachments" @drop.capture="dropAttachments">
             <div v-if="draggingAttachments" class="attachmentDropOverlay" role="status" aria-live="polite">
               <icon-paperclip :size="20" aria-hidden="true" />
@@ -367,6 +367,12 @@ async function renameProject(project: Project) {
   if (result) workspaceStore.renameProject(project.directory, result.value);
 }
 
+async function changeCreationMode(mode: "simple" | "professional") {
+  if (mode !== "professional") return;
+  if (workspaceStore.project) await router.push("/workspace");
+  else await createProject(false);
+}
+
 async function createProject(fromPrompt = true) {
   if (fromPrompt && browserConfig.enabled && !browserConfig.keys[browserConfig.kind].trim()) {
     generationError.value = "请先在外观 → API 配置中输入当前模型的 Key。";
@@ -385,6 +391,11 @@ async function createProject(fromPrompt = true) {
       if (!path) return;
     }
     const { directory, empty } = await useWorkspaceFiles(path).list();
+    if (fromPrompt && directory === workspaceStore.project?.directory) {
+      workspaceStore.pendingAgentMessage = { directory, prompt: prompt.value, attachments: [...promptAttachments.value], model: selectedModel.value, reasoningEffort: reasoningEffort.value };
+      await router.push("/workspace");
+      return;
+    }
     if (!empty) return ElMessage.warning("该文件夹不为空，请重新选择空文件夹；已有项目请使用“导入项目”或点击项目列表打开。");
     await useWorkspaceFiles(directory).writeJson("画布1.json", { toonflowCanvas: true, nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }, true);
     await workspaceStore.openProject(directory);

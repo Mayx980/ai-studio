@@ -13,6 +13,7 @@
 </template>
 
 <script setup lang="ts">
+import { studioFetch } from "@/lib/studioFetch";
 import { computed, inject, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { browserConfig, generationBusy, generationError, generationResults, selectedBrowserModel, stopBrowserGeneration } from "@/stores/browserGeneration";
@@ -28,7 +29,7 @@ async function addToCanvas(item: Result) {
   try {
     let file = item.file;
     if (!file) {
-      const response = await fetch(item.url!, { credentials: "omit", referrerPolicy: "no-referrer" });
+      const response = await studioFetch(item.url!);
       if (!response.ok) throw new Error(`读取模型结果失败（HTTP ${response.status}）`);
       const blob = await response.blob();
       file = new File([blob], `生成结果.${item.kind === "video" ? "mp4" : item.kind === "audio" ? "mp3" : "png"}`, { type: blob.type || `${item.kind}/${item.kind === "video" ? "mp4" : item.kind === "audio" ? "mpeg" : "png"}` });

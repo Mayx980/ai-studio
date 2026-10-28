@@ -2,6 +2,7 @@ import { computed, reactive, ref } from "vue";
 import imageModel from "@/lib/browserModels/imageModel";
 import videoModel from "@/lib/browserModels/videoModel";
 import audioModel from "@/lib/browserModels/audioModel";
+import { studioFetch } from "@/lib/studioFetch";
 import textModel from "@/lib/browserModels/textModel";
 
 export type ModelKind = "image" | "video" | "audio" | "text";
@@ -47,7 +48,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   generationBusy.value = true;
   try {
     const images = await Promise.all(references.map(async file => ({ type: "binary" as const, data: new Uint8Array(await file.arrayBuffer()), mimeType: file.type, name: file.name })));
-    const tool = { fetch: ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, { ...init, credentials: "omit", referrerPolicy: "no-referrer" })) as typeof fetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" };
+    const tool = { fetch: studioFetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" };
     const context = { config: { apiKey, endpoint }, signal, tool };
     if (kind === "text") {
       const response = await tool.fetch(`${endpoint.replace(/\/+$/, "")}/compatible-mode/v1/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: textModel.models[0]!.id, messages: [{ role: "user", content: prompt }], stream: false, enable_thinking: true }), signal: AbortSignal.any([signal, AbortSignal.timeout(180000)]) });
@@ -70,7 +71,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
     }
     return true;
   } catch (error) {
-    generationError.value = signal.aborted ? "已停止等待；已提交的远端任务可能仍在运行，请先检查供应商任务记录。" : error instanceof TypeError ? "浏览器无法访问供应商接口，请检查网络及供应商 CORS 跨域许可。输入和参考已保留。" : (error instanceof Error ? error.message : "模型调用失败").replaceAll(apiKey, "[Key]");
+    generationError.value = signal.aborted ? "已停止等待；已提交的远端任务可能仍在运行，请先检查供应商任务记录。" : error instanceof TypeError ? "无法访问供应商接口，请检查本机预览服务及网络。输入和参考已保留。" : (error instanceof Error ? error.message : "模型调用失败").replaceAll(apiKey, "[Key]");
     return false;
   } finally { generationBusy.value = false; controller = undefined; }
 }
