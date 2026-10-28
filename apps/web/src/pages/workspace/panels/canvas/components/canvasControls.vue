@@ -1,27 +1,9 @@
 <template>
-  <mini-map
-    v-if="showMap && active"
-    class="canvasMiniMap"
-    position="bottom-left"
-    :pannable="true"
-    :zoomable="true"
-    node-color="var(--el-fill-color-dark)"
-    mask-color="var(--el-mask-color-extra-light)" />
   <teleport v-if="active" to="#canvasToolExtras" defer>
       <div class="canvasControls">
         <el-button text :disabled="!canUndo" aria-label="撤销" title="撤销" @click="undo"><icon-arrow-back-up :size="18" /></el-button>
         <el-button text :disabled="!canRedo" aria-label="重做" title="重做" @click="redo"><icon-arrow-forward-up :size="18" /></el-button>
-        <el-tooltip :showArrow="false" :content="assetsVisible ? '关闭个人资产' : '打开个人资产'" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]">
-          <el-button
-            class="toolButton"
-            text
-            :type="assetsVisible ? 'primary' : 'default'"
-            :aria-pressed="assetsVisible"
-            aria-label="个人资产"
-            @click="assetsVisible = !assetsVisible">
-            <icon-folders :size="18" />
-          </el-button>
-        </el-tooltip>
+
         <!-- trigger 用 contextmenu 是为了让整理按钮只由 arrangeNodes 控制显隐，同时仍保留点击外部自动关闭 -->
         <el-tooltip :showArrow="false" content="整理画布" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]" :disabled="undoPopoverVisible">
           <span class="toolTrigger">
@@ -37,28 +19,8 @@
             </el-popover>
           </span>
         </el-tooltip>
-        <el-tooltip :showArrow="false" :content="showMap ? '隐藏地图' : '显示地图'" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]">
-          <el-button
-            class="toolButton"
-            text
-            :type="showMap ? 'primary' : 'default'"
-            :aria-pressed="showMap"
-            aria-label="显示或隐藏地图"
-            @click="showMap = !showMap">
-            <icon-map :size="18" />
-          </el-button>
-        </el-tooltip>
-        <el-tooltip :showArrow="false" :content="snapEnabled ? '关闭网格吸附' : '开启网格吸附'" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]">
-          <el-button
-            class="toolButton"
-            text
-            :type="snapEnabled ? 'primary' : 'default'"
-            :aria-pressed="snapEnabled"
-            aria-label="网格吸附"
-            @click="snapEnabled = !snapEnabled">
-            <icon-magnet :size="18" />
-          </el-button>
-        </el-tooltip>
+
+
         <el-tooltip :showArrow="false" :content="showEdges ? '隐藏连线' : '显示连线'" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]">
           <el-button
             class="toolButton"
@@ -83,8 +45,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useVueFlow, type XYPosition } from "@vue-flow/core";
-import { MiniMap } from "@vue-flow/minimap";
-import { IconMap, IconMagnet, IconFocusCentered, IconArrowBackUp, IconArrowForwardUp } from "@tabler/icons-vue";
+import { IconFocusCentered, IconArrowBackUp, IconArrowForwardUp } from "@tabler/icons-vue";
 import { ElMessage } from "element-plus";
 import { arrangeCanvas } from "../arrangeCanvas";
 
@@ -101,7 +62,6 @@ const props = defineProps<{
 const snapEnabled = defineModel<boolean>("snapEnabled", { required: true });
 const showEdges = defineModel<boolean>("showEdges", { required: true });
 const assetsVisible = defineModel<boolean>("assetsVisible", { default: false });
-const showMap = ref(false);
 const flow = useVueFlow();
 const { fitView, getNodes, updateNode } = flow;
 const layoutSnapshot = ref<{ id: string; position: XYPosition }[]>();

@@ -5,10 +5,7 @@
         <el-input v-model="projectNameDraft" class="workspaceNameInput" :style="{ '--workspaceName': JSON.stringify(projectNameDraft || ' ') }" size="small" :title="browserWorkspaceMode ? '当前浏览器' : directory" :disabled="!workspaceStore.project" aria-label="项目名称"
           @keydown.stop @keydown.enter="saveProjectName" @keydown.esc.prevent="projectNameDraft = workspaceName" @blur="saveProjectName" />
         <el-divider direction="vertical" />
-        <el-popover trigger="click" placement="bottom-start" :width="340" :showArrow="false" :disabled="!directory">
-          <template #reference><el-button class="canvasTrigger" text :disabled="!directory" aria-label="显示层级">显示层级<icon-chevron-down :size="14" aria-hidden="true" /></el-button></template>
-          <canvasLayers />
-        </el-popover>
+
       </div>
     </el-card>
     <div class="menuExtension"><slot /></div>
@@ -37,7 +34,6 @@
 <script setup lang="ts">
 import axios from "axios";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
-import canvasLayers from "./canvasLayers.vue";
 import { translate } from "@toonflow/i18n/vue";
 import { computed, inject, nextTick, onBeforeUnmount, ref, shallowRef, watch, type ShallowRef } from "vue";
 import { Panel, useVueFlow, type FlowExportObject } from "@vue-flow/core";
@@ -766,7 +762,7 @@ defineExpose({ getCanvases, peekCanvases, initialized, addCanvas, switchCanvas, 
 
 <style lang="scss" scoped>
 .canvasMenuPanel.vue-flow__panel {
-  left: 270px;
+  left: 0;
   display: flex;
   align-items: center;
   gap: 12px;

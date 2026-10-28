@@ -76,7 +76,7 @@
                 <template v-if="item.role === 'user'">
                   <el-button class="messageAction" text circle :disabled="locked || remoteRunning" aria-label="编辑消息" title="编辑消息" @click="editMessage(item)"><icon-pencil :size="14" /></el-button>
                 </template>
-                <el-tooltip v-if="item.browserResultIds?.some(id => generationResults.some(result => result.id === id && result.kind !== 'text'))" content="引用到输入框" placement="top">
+                <el-tooltip v-if="item.role === 'assistant'" content="引用到输入框" placement="top">
                   <el-button class="messageAction" text circle :disabled="locked" aria-label="引用到输入框" @click="referenceMessageResults(item)"><icon-paperclip :size="14" /></el-button>
                 </el-tooltip>
                 <el-button v-if="!item.report" class="messageAction" text circle :loading="deletingId === item.id" :disabled="locked || remoteRunning" aria-label="删除消息" title="删除消息" @click="deleteMessage(item)"><icon-trash v-if="deletingId !== item.id" :size="14" /></el-button>
@@ -502,7 +502,10 @@ async function applyCreativeCase(value: { prompt: string; references: File[] }) 
 async function referenceMessageResults(item: AgentMessage) {
   try {
     const results = generationResults.value.filter(result => item.browserResultIds?.includes(result.id) && result.directory === directory && result.kind !== "text");
-    addAttachments(await Promise.all(results.map(browserResultFile)));
+    const text = item.content.trim() || item.parts?.filter(part => part.type === "text").map(part => part.content).join("\n") || (item.creationChoice ? `${item.creationChoice.needsDetails ? "请先补充创作主体或用途，再确认要生成的内容。" : "你希望生成哪种内容？确认后我会在画布搭建节点和连线。"}\n${item.creationChoice.prompt}` : "");
+    const files = await Promise.all(results.map(browserResultFile));
+    if (text) files.unshift(new File([text], "对话引用.txt", { type: "text/plain" }));
+    addAttachments(files);
     sender?.focus("last");
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "引用素材失败"); }
 }
@@ -548,16 +551,17 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       const outputKind = kind ?? "image";
       if (!browserConfig.enabled) throw new Error("请先在设置 → API 配置中启用模型联调并输入 Key");
       if (!browserConfig.keys[outputKind].trim()) throw new Error("请先在设置 → API 配置中输入当前模型的 Key");
-      if ((outputKind === "text" || outputKind === "audio") && files.length) throw new Error("当前文字／音频适配器只支持文字输入，请移除引用素材后重试");
-      if ((outputKind === "image" || outputKind === "video") && files.some(file => !file.type.startsWith("image/"))) throw new Error("当前图片／视频适配器的参考输入仅支持图片，素材已保留，请调整引用后重试");
+      if ((outputKind === "text" || outputKind === "audio") && files.some(file => !file.type.startsWith("text/") && file.type !== "application/json")) throw new Error("当前文字／音频适配器只支持文字输入，请移除引用素材后重试");
+      if ((outputKind === "image" || outputKind === "video") && files.some(file => !file.type.startsWith("image/") && !file.type.startsWith("text/") && file.type !== "application/json")) throw new Error("当前图片／视频适配器的参考输入仅支持图片，素材已保留，请调整引用后重试");
       const isStoryboard = choice?.script ?? /分镜/.test(prompt);
       const workflow = await beginBrowserWorkflow?.(prompt, outputKind, files, isStoryboard, professional);
       if (professional && !workflow) throw new Error("画布尚未就绪，输入已保留");
       if (browserCancelled) throw new Error("已停止发送；已创建的画布节点保留供修改");
       await persistBrowserMessages();
       const previousIds = new Set(generationResults.value.map(item => item.id));
+      const textReferences = await Promise.all(files.filter(file => file.type.startsWith("text/") || file.type === "application/json").map(async file => { const text = await file.text(); if (text.length > 100000) throw new Error("文字引用最多支持 100000 字符，请缩小内容"); return `${file.name}：\n${text}`; }));
       const generationPrompt = isStoryboard ? `${prompt}\n请输出 Markdown 分镜表，列为：镜头号、时长、景别、运镜方式、画面、台词/音效、角色表情反应、环境场景、分镜图提示词、视频运动提示词、角色形象描述。每镜头一行，仅输出表格。` : !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
-      const success = await generateInBrowser(generationPrompt, files, directory, outputKind);
+      const success = await generateInBrowser([generationPrompt, ...textReferences].join("\n\n"), files.filter(file => file.type.startsWith("image/")), directory, outputKind);
       const results = generationResults.value.filter(item => !previousIds.has(item.id) && item.directory === directory);
       reply.browserResultIds = results.filter(item => item.kind !== "text").map(item => item.id);
       const text = results.filter(item => item.kind === "text").map(item => item.text).join("\n\n");

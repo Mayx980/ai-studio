@@ -1,8 +1,11 @@
+import { useNode, useVueFlow } from "@vue-flow/core";
 import { computed, ref, type Ref } from "vue";
 import { nodeTools, z } from "@toonflow/nodes-scaffold/nodeTools";
 import type { NodeOutputs } from "@toonflow/nodes-scaffold/values";
 
 export function useNodeGeneration(outputs: Readonly<Ref<NodeOutputs>>, cancel: () => void) {
+  const { node } = useNode();
+  const flow = useVueFlow();
   const status = ref<"idle" | "running" | "succeeded" | "failed">("idle");
   const error = ref("");
   const generating = computed(() => status.value === "running");
@@ -29,8 +32,10 @@ export function useNodeGeneration(outputs: Readonly<Ref<NodeOutputs>>, cancel: (
     if (generating.value) throw new Error("节点正在生成，请等待完成");
     status.value = "running";
     error.value = "";
+    const referenceSnapshot = flow.getEdges.value.filter(edge => edge.target === node.id && edge.sourceHandle?.startsWith("row:")).map(edge => ({ key: JSON.stringify([edge.source, edge.sourceHandle]), value: flow.findNode(edge.source)?.data.outputs?.[edge.sourceHandle!]?.value }));
     try {
       const result = await task();
+      if (node.data.scriptReferenceVersions) for (const reference of referenceSnapshot) if (typeof reference.value === "string") node.data.scriptReferenceVersions[reference.key] = reference.value;
       status.value = "succeeded";
       return result;
     } catch (failure) {

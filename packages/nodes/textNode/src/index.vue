@@ -1,6 +1,7 @@
 <template>
   <nodeSkeleton
     v-bind="nodeProps"
+    :hiddenHandles="isScript ? scriptRows.map(row => `row:${row.id}`) : []"
     :style="isScript ? { width: '1120px' } : undefined"
     v-model:bottomVisible="node.selected"
     :topVisible="node.selected"
@@ -15,7 +16,7 @@
         <el-button text size="small" :disabled="generating" :loading="textReloading" @click="reloadText">重新读取磁盘</el-button>
       </el-alert>
       <span v-if="isScript && textReady" class="scriptSaveStatus" role="status">{{ documentState.error ? '保存失败，内容已保留' : documentState.dirty ? '正在保存…' : '已保存' }}</span>
-      <scriptTable v-if="isScript && textReady" v-model="outputs.text.value" v-model:rows="scriptRows" :nodeId="node.id" :disabled="generating || !!documentState.error" />
+      <scriptTable ref="scriptTableRef" v-if="isScript && textReady" v-model="outputs.text.value" v-model:rows="scriptRows" :nodeId="node.id" :disabled="generating || !!documentState.error" />
       <div v-else-if="outputs.text.value.trim() && previewReady" class="textPreview nopan nowheel" :aria-label="isScript ? '脚本与分镜内容' : '文本内容'">
         <markdownPreview :modelValue="outputs.text.value" :files="textReady ? textFiles : undefined" :path="textPath" :active="previewReady" />
       </div>
@@ -37,8 +38,8 @@
               <el-option v-for="item in provider.models" :key="item.modelId" :label="item.label" :value="JSON.stringify([item.providerId, item.modelId])" />
             </el-option-group>
           </el-select>
-          <div class="promptActions">
-            <el-button class="sendButton" :icon="IconArrowUp" :loading="generating" :disabled="(!prompt.trim() && !hasScriptReferences) || !selectedModel || generating || !textReady" title="生成" aria-label="生成" @click="generateText" />
+          <div class="promptActions"><el-button v-if="isScript" text :disabled="generating || data.scriptImportPending" @click="scriptTableRef?.chooseImport()">上传文档／表格</el-button>
+            <el-button class="sendButton" :icon="IconArrowUp" :loading="generating" :disabled="(!prompt.trim() && !hasScriptReferences) || !selectedModel || generating || data.scriptImportPending || !textReady" title="生成" aria-label="生成" @click="generateText" />
           </div>
         </div>
       </el-card>
@@ -81,6 +82,7 @@ const { node, nodeProps, outputs, handles, ai, files, nodeEvent, previewReady } 
   outputs: { text: { dataType: "STRING", value: "" } },
 });
 const { refList, referenceMentions, setReferencePreview, removeReference } = useNodeReferences();
+const scriptTableRef = ref<InstanceType<typeof scriptTable>>();
 const editing = ref(false);
 const fullscreen = ref(false);
 const downloadUrl = ref("");
@@ -92,7 +94,8 @@ watch([() => outputs.value.text.value, () => node.selected || !!documentContext?
   downloadUrl.value = url;
   onCleanup(() => URL.revokeObjectURL(url));
 }, { immediate: true });
-const data = computed(() => node.data as typeof node.data & { prompt?: string; promptModel?: PromptModel; model?: string; textPath?: string; textSnapshot?: string; contentKind?: string; scriptRows?: { id: string; cells: string[] }[] });
+const data = computed(() => node.data as typeof node.data & { prompt?: string; promptModel?: PromptModel; model?: string; textPath?: string; textSnapshot?: string; contentKind?: string; scriptReferenceVersions?: Record<string, string | undefined>; scriptImport?: { applied: boolean; text?: string; error?: string }; scriptImportActive?: { applied: boolean; text?: string; error?: string }; scriptImportPending?: boolean; scriptRows?: { id: string; cells: string[] }[] });
+const importedReference = computed(() => data.value.scriptImportActive ?? data.value.scriptImport);
 const isScript = computed(() => data.value.contentKind === "script");
 if (isScript.value && !Array.isArray(data.value.scriptRows)) data.value.scriptRows = [];
 const scriptRows = computed({ get: () => data.value.scriptRows ?? [], set: (value: { id: string; cells: string[] }[]) => { data.value.scriptRows = value; } });
@@ -108,7 +111,7 @@ const model = computed({ get: () => data.value.model ?? "", set: (value: string)
 const models = ref<NodeAiModel[]>([]);
 const modelsLoading = ref(false);
 const generating = ref(false);
-const hasScriptReferences = computed(() => isScript.value && refList.value.some(item => item.dataType === "STRING" && typeof item.value === "string" && !!item.value.trim()));
+const hasScriptReferences = computed(() => isScript.value && !data.value.scriptImportPending && (!!(importedReference.value?.applied && !importedReference.value.error && importedReference.value.text?.trim()) || refList.value.some(item => item.dataType === "STRING" && typeof item.value === "string" && !!item.value.trim())));
 const selectedModel = computed(() => models.value.find(item => JSON.stringify([item.providerId, item.modelId]) === model.value));
 const modelGroups = computed(() => groupNodeModels(models.value));
 const textReady = ref(false);
@@ -242,7 +245,7 @@ async function loadModels(_event?: Event) {
 
 async function generateText() {
   const choice = selectedModel.value;
-  if (!textReady.value || generating.value || !choice || (!prompt.value.trim() && !hasScriptReferences.value)) return;
+  if (!textReady.value || generating.value || data.value.scriptImportPending || !choice || (!prompt.value.trim() && !hasScriptReferences.value)) return;
   if (isScript.value && scriptRows.value.length) {
     if (!await ElMessageBox.confirm("重新生成将替换当前分镜表和行引用连线，下游节点与已生成素材保留。当前表格会备份。", "重新生成分镜", { confirmButtonText: "继续生成", cancelButtonText: "保留当前表格", type: "warning" }).then(() => true, () => false)) return;
     await textFiles.writeJson(`assets/${node.id}/scriptBackup${Date.now()}.json`, { rows: scriptRows.value, text: outputs.value.text.value }, true);
@@ -254,6 +257,8 @@ async function generateText() {
     const references = refList.value
       .filter(item => item.value !== undefined && (item.dataType === "STRING" || item.dataType === "IMAGE" || item.dataType === "VIDEO" || item.dataType === "FILE"))
       .map(item => item.dataType === "STRING" ? { dataType: item.dataType, value: item.value } : { dataType: item.dataType, value: { ...item.value } });
+    if (isScript.value && importedReference.value?.applied && !importedReference.value.error && importedReference.value.text) references.push({ dataType: "STRING", value: importedReference.value.text });
+    const rowVersions = refList.value.filter(item => item.sourceHandle.startsWith("row:")).map(item => ({ key: JSON.stringify([item.source, item.sourceHandle]), value: item.value }));
     const input = { providerId: choice.providerId, modelId: choice.modelId, prompt: isScript.value ? `根据以下要求输出 Markdown 分镜表，表头依次为：镜头号、时长、景别、运镜方式、画面、台词/音效、角色表情反应、环境场景、分镜图提示词、视频运动提示词、角色形象描述。每个镜头一行，不要添加表格以外的文字。\n${prompt.value.trim()}` : prompt.value.trim(), references };
     const directory = references.some(item => item.dataType !== "STRING") ? (await textFiles.list()).directory : undefined;
     const result = await ai.generate({
@@ -263,7 +268,9 @@ async function generateText() {
         if (event.type === "text") { text += event.delta; if (!isScript.value) outputs.value.text.value = text; }
       },
     });
+    if (isScript.value && (!/\|\s*镜头号\s*\|/.test(result.text) || !result.text.includes("视频运动提示词"))) throw new Error("模型未返回完整分镜表，原表已保留，请调整要求后重试");
     outputs.value.text.value = result.text;
+    if (data.value.scriptReferenceVersions) for (const item of rowVersions) if (typeof item.value === "string") data.value.scriptReferenceVersions[item.key] = item.value;
   } catch (error) {
     if (error instanceof Error && error.name !== "AbortError") ElMessage.error(error.message);
   } finally {

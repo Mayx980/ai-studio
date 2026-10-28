@@ -310,7 +310,7 @@ function saveDocumentNode(directory: string, canvasPath: string, nodeId: string,
   .workspaceMenu {
     position: absolute;
     top: 15px;
-    left: 15px;
+    right: 15px;
     z-index: 5;
   }
 

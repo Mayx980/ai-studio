@@ -134,7 +134,7 @@
           v-for="(item, index) in group.items"
           :id="item.id"
           :key="item.id"
-          v-show="!documentTarget"
+          v-show="!documentTarget && !hiddenHandles.includes(item.id)"
           class="nodeHandle"
           :class="{
             connected: isHandleConnected(item),
@@ -201,6 +201,7 @@ const props = withDefaults(
       downloadUrl?: string;
       downloadName?: string;
       fullscreenVisible?: boolean;
+      hiddenHandles?: string[];
     }
   >(),
   {
@@ -209,6 +210,7 @@ const props = withDefaults(
     outputs: () => ({}),
     previewReady: true,
     fullscreenVisible: true,
+    hiddenHandles: () => [],
     topWidth: "20vw",
     bottomWidth: "20vw",
   }

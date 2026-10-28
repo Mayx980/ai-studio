@@ -68,8 +68,12 @@
         :availableNodes="creationNodes"
         @create="createEmptyNode" />
       <canvasMenu ref="canvasMenuRef" v-model:canvasId="canvasId" :directory="project?.directory" :initialCanvasId="initialCanvasId" :activateCanvas="activateCanvas" :flushSave="flushCanvases ?? flushCanvasSave">
-        <assetLibrary ref="assetLibraryRef" v-model="assetsVisible" :directory="project?.directory" />
+
       </canvasMenu>
+      <panel v-if="props.active" class="canvasSidebar" position="top-left">
+        <div class="sidebarHeader"><el-button text :aria-expanded="sidebarOpen" aria-label="折叠或展开侧栏" @click="sidebarOpen = !sidebarOpen">{{ sidebarOpen ? '收起' : '展开' }}</el-button><template v-if="sidebarOpen"><el-button text :type="!assetsVisible ? 'primary' : 'default'" @click="assetsVisible = false">显示层级</el-button><el-button text :type="assetsVisible ? 'primary' : 'default'" @click="assetsVisible = true">个人资产</el-button></template></div>
+        <div v-show="sidebarOpen" class="sidebarContent"><canvasLayers v-if="!assetsVisible" /><assetLibrary ref="assetLibraryRef" v-model="assetsVisible" :directory="project?.directory" /></div>
+      </panel>
       <canvasControls :active="props.active"
         :canUndo="canUndo" :canRedo="canRedo" :undo="() => changeHistory('undo')" :redo="() => changeHistory('redo')"
         ref="canvasControlsRef"
@@ -123,6 +127,7 @@
 </template>
 
 <script setup lang="ts">
+import { Panel } from "@vue-flow/core";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { browserModels, browserConfig, generationResults, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
 import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, onScopeDispose, provide, ref, shallowReactive, shallowRef, watch } from "vue";
@@ -167,6 +172,7 @@ import canvasMenu from "./components/canvasMenu.vue";
 import canvasControls from "./components/canvasControls.vue";
 import canvasEmpty from "./components/canvasEmpty.vue";
 import nodeReferences from "./components/nodeReferences.vue";
+import canvasLayers from "./components/canvasLayers.vue";
 import assetLibrary from "./components/assetLibrary.vue";
 import groupNode from "./components/groupNode.vue";
 import selectionToolbar from "./components/selectionToolbar.vue";
@@ -235,6 +241,7 @@ let gestureScale: number | undefined;
 let copyingNodes = false;
 const showEdges = ref(true);
 const assetsVisible = ref(false);
+const sidebarOpen = ref(true);
 const assetLibraryRef = ref<InstanceType<typeof assetLibrary>>();
 const edgeDisconnect = ref<{ id: string; x: number; y: number }>();
 const flow = useVueFlow(props.runtimeKey);
@@ -374,7 +381,7 @@ const beginBrowserWorkflow: BeginBrowserWorkflow = async (prompt, kind, referenc
       ...(browserConfig.duration ? { duration: Number(browserConfig.duration) } : {}),
     } });
     sourceIds.forEach((id, index) => flow.updateNode(id, { position: { x: position.x, y: position.y + index * 360 } }));
-    addEdges(sourceIds.map((id, index) => ({ id: crypto.randomUUID(), source: id, sourceHandle: index === 0 ? "text" : "image", target: targetId, targetHandle: "in" })));
+    addEdges(sourceIds.map((id, index) => ({ id: crypto.randomUUID(), source: id, sourceHandle: index === 0 ? "text" : references[index - 1]?.type.startsWith("image/") ? "image" : references[index - 1]?.type.startsWith("video/") ? "video" : references[index - 1]?.type.startsWith("audio/") ? "audio" : "text", target: targetId, targetHandle: "in" })));
     return [...sourceIds, targetId];
   });
   await flushCanvasSave();
@@ -1357,4 +1364,8 @@ const defaultEdgeOptions = markRaw({
   padding: 0;
   transform: translate(-50%, -50%);
 }
+</style>
+
+<style scoped lang="scss">
+.canvasSidebar.vue-flow__panel { top: 68px; left: 0; max-width: calc(100vw - 32px); background: var(--el-bg-color); border: 1px solid var(--el-border-color); border-radius: 12px; .sidebarHeader { display: flex; padding: 4px; } .sidebarContent { width: 300px; max-width: calc(100vw - 32px); max-height: calc(100dvh - 220px); overflow: auto; padding: 10px; :deep(.assetLibrary) { width: 100%; } } }
 </style>
