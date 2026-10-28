@@ -8,7 +8,7 @@ import textModel from "@/lib/browserModels/textModel";
 export type ModelKind = "image" | "video" | "audio" | "text";
 export const browserModels = { image: imageModel, video: videoModel, audio: audioModel, text: textModel };
 // ACT: 原型直接使用供应商协议；Key 不进入持久化 Store 或服务端配置。
-export const browserConfig = reactive({ enabled: false, kind: "video" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: "", duration: "", resolution: "" });
+export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: "", duration: "", resolution: "" });
 export const generationBusy = ref(false);
 export const generationError = ref("");
 export const generationResults = ref<{ id: string; kind: ModelKind; url?: string; text?: string; file?: File; directory?: string }[]>([]);
@@ -17,7 +17,7 @@ let controller: AbortController | undefined;
 export function stopBrowserGeneration() { controller?.abort(); }
 export function clearBrowserKeys() { stopBrowserGeneration(); for (const key of Object.keys(browserConfig.keys) as ModelKind[]) browserConfig.keys[key] = ""; }
 
-// ACT: 只依据明确的输出意图分类，参考素材本身不决定输出；模糊输入默认视频。
+// ACT: 只依据明确的输出意图分类，参考素材本身不决定输出；模糊输入默认图片。
 export function inferGenerationKind(prompt: string): "image" | "video" {
   const text = prompt.replace(/(?:不要|无需|不需要|不生成|不做)\s*(?:生成|制作)?\s*(?:图片|视频|短片|动画)/g, "");
   const image = /视频封面|图片|图像|海报|封面|插画|照片|肖像|截图|壁纸|静态图|image|photo|poster/i;
@@ -25,7 +25,7 @@ export function inferGenerationKind(prompt: string): "image" | "video" {
   if (targets.length) return image.test(targets.at(-1)![1]!) ? "image" : "video";
   const subject = text.replace(/(?:参考|根据|使用|上传|这张|该张).{0,8}?(?:图片|图像|照片)/g, "");
   if (/视频封面|海报|封面|插画|壁纸|静态图/.test(subject)) return "image";
-  return (image.test(subject) || /绘制|画一|画个|画出/.test(subject)) && !/视频|短片|动画|video/i.test(subject) ? "image" : "video";
+  return /视频|短片|动画|video/i.test(subject) ? "video" : "image";
 }
 
 export async function generateInBrowser(prompt: string, references: File[], directory?: string) {
