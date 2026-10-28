@@ -42,7 +42,7 @@
                 <workspacePicker ref="promptWorkspacePicker" v-model="workspaceDirectory" :disabled="creating || opening" />
                 <el-space class="sendActions" wrap :size="12">
                   <referencePicker :disabled="creating || opening" @local="attachmentInput?.click()" @files="addAttachments" />
-                  <browserModelOptions v-if="browserConfig.enabled" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" class="modelSelect" :disabled="creating || opening" />
+                  <browserModelOptions v-if="browserConfig.enabled" :prompt="prompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" class="modelSelect" :disabled="creating || opening" />
                   <el-button class="sendButton" type="primary" :circle="!!workspaceDirectory" :icon="workspaceDirectory ? IconArrowUp : IconFolder" :loading="creating" :disabled="creating || opening" :aria-label="workspaceDirectory ? '发送' : '选择工作目录'" @click="workspaceDirectory ? createProject() : promptWorkspacePicker?.chooseDirectory()">
                     <template v-if="!workspaceDirectory" #default>选择工作目录</template>
                   </el-button>
@@ -108,7 +108,7 @@ import {
   IconSortAscending, IconFolder, IconEdit,
   IconFolderMinus, IconFolderPlus, IconFolderOpen, IconPaperclip,
 } from "@tabler/icons-vue";
-import { browserConfig, generationError } from "@/stores/browserGeneration";
+import { inferGenerationKind, browserConfig, generationError } from "@/stores/browserGeneration";
 import browserModelOptions from "@/components/browserModelOptions.vue";
 import browserModelResults from "@/components/browserModelResults.vue";
 import projectThumbnail from "@/components/projectThumbnail.vue";
@@ -374,7 +374,7 @@ async function changeCreationMode(mode: "simple" | "professional") {
 }
 
 async function createProject(fromPrompt = true) {
-  if (fromPrompt && browserConfig.enabled && !browserConfig.keys[browserConfig.kind].trim()) {
+  if (fromPrompt && browserConfig.enabled && !browserConfig.keys[inferGenerationKind(prompt.value)].trim()) {
     generationError.value = "请先在外观 → API 配置中输入当前模型的 Key。";
     return;
   }

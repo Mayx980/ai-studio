@@ -87,7 +87,7 @@
         :canUndo="canUndo"
         :canRedo="canRedo"
         :selectionBusy="selectionToolbarRef?.busy"
-        :batchHistory="canvasHistory.batch"
+        :batchHistory="batchCanvasEdit"
         @duplicateSelection="selectionToolbarRef?.operate('duplicate')"
         @history="canvasHistory.commit"
         @undo="changeHistory('undo')"
@@ -175,6 +175,7 @@ import { useNodeToolsContext } from "@toonflow/nodes-scaffold/nodeTools";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { generalSettings } from "@/stores/settings";
 import { getShortcutBindings, shortcutLabel, shortcutMatches, shortcutPressed } from "@/lib/canvasShortcuts";
+import { waitForControlValue } from "@/lib/mcpControl";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import anonymousData from "@/lib/anonymousData";
 import { createClipboardMediaFile, dropCanvasFiles, getClipboardMediaFiles, importCanvasFiles, isCanvasFileDrag } from "./canvasDrop";
@@ -288,7 +289,23 @@ const createCanvasContext = useCanvasTools({
 function getCanvasContext() {
   return canvasId.value || canvasMenuRef.value?.initialized ? createCanvasContext(canvasId.value, canvasController.signal, workspaceController.signal) : undefined;
 }
-const canvasReady = computed(() => !!canvasId.value && !nodeListLoading.value && nodeLoads.size === 0);
+const canvasReady = computed(() => canvasHistory.ready.value && !!flow.vueFlowRef.value && !nodeListLoading.value && nodeLoads.size === 0);
+async function waitUntilReady() {
+  const directory = project.value?.directory;
+  if (!directory) throw new Error("请先打开项目");
+  const signal = AbortSignal.any([workspaceController.signal, AbortSignal.timeout(30000)]);
+  const state = await waitForControlValue(() => canvasMenuRef.value?.loadError || (canvasReady.value ? true : undefined), signal);
+  if (typeof state === "string") throw new Error(state);
+  if (directory !== project.value?.directory) throw new Error("项目已切换，请重新操作");
+}
+async function batchCanvasEdit<T>(action: () => Promise<T>) {
+  const id = canvasId.value;
+  const signal = canvasController.signal;
+  await waitUntilReady();
+  signal.throwIfAborted();
+  if (id !== canvasId.value) throw new Error("画布已切换，请重新选择节点");
+  return canvasHistory.batch(action);
+}
 provide("canvas", getCanvasContext);
 async function importBrowserResult(file: File, directory: string) {
   if (directory !== project.value?.directory || !canvasReady.value) throw new Error("工作区已切换或画布尚未就绪，请重新操作");
@@ -319,7 +336,7 @@ async function importBrowserResult(file: File, directory: string) {
   signal.throwIfAborted();
   await flushCanvasSave();
 }
-defineExpose({ importBrowserResult, canvasId, canvasReady, getCanvasContext, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
+defineExpose({ waitUntilReady, importBrowserResult, canvasId, canvasReady, getCanvasContext, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
   getCanvases: (signal?: AbortSignal) => {
     if (!canvasMenuRef.value) throw new Error("画布菜单尚未就绪");
     return canvasMenuRef.value.getCanvases(signal);
@@ -545,6 +562,7 @@ function selectFiles(position: { x: number; y: number }) {
 }
 
 function openNodeMenu(event: MouseEvent) {
+  if (!props.active || props.settingsVisible || !canvasReady.value) return;
   if (event.target instanceof Element && event.target.classList.contains("vue-flow__pane")) nodeMenuRef.value?.openMenu(event, true);
 }
 

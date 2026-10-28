@@ -8,7 +8,7 @@ import textModel from "@/lib/browserModels/textModel";
 export type ModelKind = "image" | "video" | "audio" | "text";
 export const browserModels = { image: imageModel, video: videoModel, audio: audioModel, text: textModel };
 // ACT: 原型直接使用供应商协议；Key 不进入持久化 Store 或服务端配置。
-export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: "", duration: "", resolution: "" });
+export const browserConfig = reactive({ enabled: false, kind: "video" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: "", duration: "", resolution: "" });
 export const generationBusy = ref(false);
 export const generationError = ref("");
 export const generationResults = ref<{ id: string; kind: ModelKind; url?: string; text?: string; file?: File; directory?: string }[]>([]);
@@ -17,14 +17,26 @@ let controller: AbortController | undefined;
 export function stopBrowserGeneration() { controller?.abort(); }
 export function clearBrowserKeys() { stopBrowserGeneration(); for (const key of Object.keys(browserConfig.keys) as ModelKind[]) browserConfig.keys[key] = ""; }
 
+// ACT: 只依据明确的输出意图分类，参考素材本身不决定输出；模糊输入默认视频。
+export function inferGenerationKind(prompt: string): "image" | "video" {
+  const text = prompt.replace(/(?:不要|无需|不需要|不生成|不做)\s*(?:生成|制作)?\s*(?:图片|视频|短片|动画)/g, "");
+  const image = /视频封面|图片|图像|海报|封面|插画|照片|肖像|截图|壁纸|静态图|image|photo|poster/i;
+  const targets = [...text.matchAll(/(?:生成|制作|绘制|设计|输出|画一|做一|做成|变成|转(?:为|成)?|给我|我要|generate|create).{0,16}?(视频封面|短视频|视频|短片|动画|图片|图像|海报|封面|插画|照片|肖像|截图|壁纸|静态图|image|photo|poster|video)/gi)];
+  if (targets.length) return image.test(targets.at(-1)![1]!) ? "image" : "video";
+  const subject = text.replace(/(?:参考|根据|使用|上传|这张|该张).{0,8}?(?:图片|图像|照片)/g, "");
+  if (/视频封面|海报|封面|插画|壁纸|静态图/.test(subject)) return "image";
+  return (image.test(subject) || /绘制|画一|画个|画出/.test(subject)) && !/视频|短片|动画|video/i.test(subject) ? "image" : "video";
+}
+
 export async function generateInBrowser(prompt: string, references: File[], directory?: string) {
   if (generationBusy.value) return false;
-  const { kind, endpoint, ratio, duration, resolution } = browserConfig;
+  const kind: ModelKind = inferGenerationKind(prompt);
+  browserConfig.kind = kind;
+  const { endpoint, ratio, duration, resolution } = browserConfig;
   const apiKey = browserConfig.keys[kind].trim();
   generationError.value = "";
   if (!apiKey || !prompt.trim()) { generationError.value = "请填写提示词，并在外观 → API 配置中输入当前模型的 Key。"; return false; }
   if (!/^https:\/\//i.test(endpoint)) { generationError.value = "接口地址必须使用 HTTPS。"; return false; }
-  if (["audio", "text"].includes(kind) && references.length) { generationError.value = "当前文本和音频联调仅支持文字，请移除参考素材。"; return false; }
   if (references.some(file => !file.type.startsWith("image/"))) { generationError.value = "当前创作入口的参考素材仅支持图片。"; return false; }
   let firstFrameIndex: number | undefined;
   if (kind === "video") {
@@ -50,24 +62,13 @@ export async function generateInBrowser(prompt: string, references: File[], dire
     const images = await Promise.all(references.map(async file => ({ type: "binary" as const, data: new Uint8Array(await file.arrayBuffer()), mimeType: file.type, name: file.name })));
     const tool = { fetch: studioFetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" };
     const context = { config: { apiKey, endpoint }, signal, tool };
-    if (kind === "text") {
-      const response = await tool.fetch(`${endpoint.replace(/\/+$/, "")}/compatible-mode/v1/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: textModel.models[0]!.id, messages: [{ role: "user", content: prompt }], stream: false, enable_thinking: true }), signal: AbortSignal.any([signal, AbortSignal.timeout(180000)]) });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error?.message || `文本接口返回 HTTP ${response.status}`);
-      const text = body.choices?.[0]?.message?.content;
-      if (typeof text !== "string" || !text.trim()) throw new Error("文本接口未返回有效内容");
-      signal.throwIfAborted();
-      generationResults.value.push({ id: crypto.randomUUID(), kind, text, directory });
-    } else {
-      const assets = kind === "image" ? await imageModel.generateImage.call(context, { model: imageModel.models[0]!.id, prompt, images, ...(ratio ? { ratio } : {}), ...(resolution ? { size: resolution } : {}) })
-        : kind === "audio" ? await audioModel.generateAudio.call(context, { model: audioModel.models[0]!.id, prompt })
-        : await videoModel.generateVideo.call(context, { model: videoModel.models[0]!.id, prompt, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: images[firstFrameIndex!] } : { mode: images.length ? ["imageReference:10"] : "text", images }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
-      signal.throwIfAborted();
-      for (const asset of assets) {
-        const mimeType = asset.mimeType || `${kind}/${kind === "image" ? "png" : kind === "audio" ? "mpeg" : "mp4"}`;
-        const file = asset.type === "base64" && asset.data ? new File([Uint8Array.from(atob(asset.data), char => char.charCodeAt(0))], `生成结果.${mimeType.split("/")[1]}`, { type: mimeType }) : undefined;
-        generationResults.value.push({ id: crypto.randomUUID(), kind, url: file ? URL.createObjectURL(file) : asset.url, file, directory });
-      }
+    const assets = kind === "image" ? await imageModel.generateImage.call(context, { model: imageModel.models[0]!.id, prompt, images, ...(ratio ? { ratio } : {}), ...(resolution ? { size: resolution } : {}) })
+      : await videoModel.generateVideo.call(context, { model: videoModel.models[0]!.id, prompt, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: images[firstFrameIndex!] } : { mode: images.length ? ["imageReference:10"] : "text", images }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
+    signal.throwIfAborted();
+    for (const asset of assets) {
+      const mimeType = asset.mimeType || `${kind}/${kind === "image" ? "png" : "mp4"}`;
+      const file = asset.type === "base64" && asset.data ? new File([Uint8Array.from(atob(asset.data), char => char.charCodeAt(0))], `生成结果.${mimeType.split("/")[1]}`, { type: mimeType }) : undefined;
+      generationResults.value.push({ id: crypto.randomUUID(), kind, url: file ? URL.createObjectURL(file) : asset.url, file, directory });
     }
     return true;
   } catch (error) {

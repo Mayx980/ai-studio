@@ -8,7 +8,7 @@
       :class="{ backgroundPanel: activePanel !== 'canvas' || workspaceStore.creationMode === 'simple' }"
       :inert="activePanel !== 'canvas' || workspaceStore.creationMode === 'simple'"
       :aria-hidden="activePanel !== 'canvas' || workspaceStore.creationMode === 'simple'"
-      :active="activePanel === 'canvas'"
+      :active="activePanel === 'canvas' && workspaceStore.creationMode === 'professional'"
       :settingsVisible="settingsVisible" />
     <keep-alive :max="1">
       <documentPanel
@@ -60,7 +60,7 @@
         </el-tooltip>
       </div>
     </div>
-    <floatingAgent v-model="agentVisible" :expanded="workspaceStore.creationMode === 'simple'" @resize="agentWidth = $event" />
+    <floatingAgent @enterCanvas="enterCanvas" v-model="agentVisible" :expanded="workspaceStore.creationMode === 'simple'" @resize="agentWidth = $event" />
     <settings v-model="settingsVisible" />
     <shortcutHelp v-model="shortcutsVisible" />
 
@@ -78,7 +78,6 @@ import settings from "@/components/settings/index.vue";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { registerWorkspaceControl, waitForControlValue } from "@/lib/mcpControl";
 import anonymousData from "@/lib/anonymousData";
-import { useProviderBalances } from "@/lib/providerBilling";
 import canvasPanel from "./panels/canvas/canvasHost.vue";
 import type { DocumentNodeOptions } from "./panels/canvas/canvasFiles";
 import workspaceMenu from "./components/workspaceMenu.vue";
@@ -90,7 +89,6 @@ const activePanel = ref<"canvas" | "document">("canvas");
 const selectedTool = ref<"move" | "hand">("move");
 onMounted(() => anonymousData.track("workspace.canvas"));
 const workspaceStore = useWorkspaceStore();
-useProviderBalances();
 const agentVisible = ref(true);
 watch(() => workspaceStore.creationMode, () => { agentVisible.value = true; });
 const agentWidth = ref(0);
@@ -105,13 +103,25 @@ function setDocumentPanel(value: Element | ComponentPublicInstance | null) {
   // KeepAlive 失活会清空模板 ref，保留同一工作区实例以协调后台文档保存和文件操作。
   if (value && directory) documentPanelCache.value = { directory, instance: value as InstanceType<typeof documentPanel> };
 }
+async function enterCanvas() {
+  try {
+    workspaceStore.creationMode = "professional";
+    activePanel.value = "canvas";
+    await nextTick();
+    if (!canvasPanelRef.value) throw new Error("画布正在初始化，请稍后重试");
+    await canvasPanelRef.value.waitUntilReady();
+    agentVisible.value = false;
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "无法进入画布"); }
+}
 provide("importBrowserResult", async (file: File, directory: string) => {
   if (!canvasPanelRef.value) throw new Error("画布尚未就绪");
   workspaceStore.creationMode = "professional";
   activePanel.value = "canvas";
   await nextTick();
   await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+  await canvasPanelRef.value.waitUntilReady();
   await canvasPanelRef.value.importBrowserResult(file, directory);
+  agentVisible.value = false;
 });
 provide("canvas", () => canvasPanelRef.value?.getCanvasContext());
 provide("mentionCanvas", () => canvasPanelRef.value?.mentionSource);

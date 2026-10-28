@@ -404,6 +404,10 @@ const mentionSource: MentionCanvasSource = {
 };
 
 defineExpose({
+  waitUntilReady: async () => {
+    const panel = await waitForControlValue(() => activeInstance.value, AbortSignal.any([lifetime.signal, AbortSignal.timeout(30000)]));
+    await panel.waitUntilReady();
+  },
   importBrowserResult: async (file: File, directory: string) => {
     const panel = activeInstance.value;
     if (!panel) throw new Error("画布尚未就绪");

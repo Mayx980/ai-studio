@@ -16,6 +16,7 @@ export function useCanvasHistory(flow: ReturnType<typeof useVueFlow>, binding: (
   const edgeRuntimeFields = new Set(["data", "selected", "sourceNode", "targetNode", "sourceX", "sourceY", "targetX", "targetY", "events", "initialized"]);
   let revision = 0;
   let dragging = false;
+  const ready = computed(() => !!binding() && !applying.value);
   const canUndo = computed(() => !!binding() && !applying.value && !grouping.value && cursor.value > 0);
   const canRedo = computed(() => !!binding() && !applying.value && !grouping.value && cursor.value < snapshots.value.length - 1);
 
@@ -176,5 +177,5 @@ export function useCanvasHistory(flow: ReturnType<typeof useVueFlow>, binding: (
   onScopeDispose(() => { revision++; record.cancel(); });
 
   const getRetainedNodes = () => [...nodeReferences.values(), ...flow.getNodes.value];
-  return { canUndo, canRedo, record, commit, undo, redo, batch, getRetainedNodes };
+  return { ready, canUndo, canRedo, record, commit, undo, redo, batch, getRetainedNodes };
 }

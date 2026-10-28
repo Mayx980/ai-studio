@@ -56,7 +56,7 @@
                   </template>
                   <attachmentList v-if="item.attachments?.length" :attachments="item.attachments" :directory="directory" />
                   <div v-if="item.role === 'user'" class="messageText"><mentionContent :content="item.content" :mentions="item.mentions" :directory="directory" /></div>
-                  <browserModelResults v-if="item.browserResultIds?.length" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" />
+                  <browserModelResults v-if="item.browserResultIds?.length" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :disabled="locked" @reference="referenceGeneratedFile" />
                   <div v-if="item.error" class="messageError" role="alert">{{ item.error }}</div>
                 </div>
               </template>
@@ -84,7 +84,6 @@
       <el-icon class="is-loading" aria-hidden="true"><icon-loader-2 :size="14" /></el-icon>
       <span>正在压缩上下文…</span>
     </div>
-    <div v-if="sending" class="generationControls" role="status"><span>正在生成…</span><el-button @click="stopGeneration">停止生成</el-button></div>
     <creationModeSwitch v-if="props.creationModes && !messages.length" v-model="workspaceStore.creationMode" class="conversationMode" />
     <div class="messageInput" :class="{ draggingAttachments }" @dragenter.capture="dragEnterAttachments" @dragover.capture="dragOverAttachments" @dragleave.capture="dragLeaveAttachments" @drop.capture="dropAttachments">
       <div v-if="draggingAttachments" class="attachmentDropHint" role="status">
@@ -116,7 +115,7 @@
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
       <div class="senderActions">
-        <browserModelOptions v-if="props.creationModes && browserConfig.enabled" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
+        <browserModelOptions v-if="props.creationModes && browserConfig.enabled" :prompt="draftPrompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
         <referencePicker :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
         <mentionMenu ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
@@ -153,7 +152,7 @@
             </div>
           </div>
         </el-popover>
-        <el-button class="sendButton" type="primary" circle :disabled="locked" :aria-label="sending ? '正在发送消息' : editingId ? '重发消息' : '发送消息'" :title="sending ? '正在发送消息' : editingId ? '重发消息' : '发送消息'" @click="submitMessage">
+        <el-button class="sendButton" type="primary" circle :disabled="!sending && locked" :aria-label="sending ? '停止生成' : editingId ? '重发消息' : '发送消息'" :title="sending ? '停止生成' : editingId ? '重发消息' : '发送消息'" @click="sending ? stopGeneration() : submitMessage()">
           <el-icon v-if="sending" class="is-loading"><icon-loader-2 :size="16" /></el-icon>
           <icon-arrow-up v-else :size="16" />
         </el-button>
@@ -213,6 +212,7 @@ const emit = defineEmits<{ session: [file: string]; sent: [prompt: string]; even
 const workspaceStore = useWorkspaceStore();
 const directory = workspaceStore.project?.directory;
 const draftAttachments = ref<AgentAttachment[]>([]);
+const draftPrompt = ref("");
 const attachmentInput = ref<HTMLInputElement>();
 const draggingAttachments = ref(false);
 let attachmentDragDepth = 0;
@@ -252,6 +252,7 @@ const stats = ref(props.initialSession?.stats);
 const contextUsage = ref(props.initialSession?.contextUsage);
 const busy = ref(false);
 const browserSubmitting = ref(false);
+let browserCancelled = false;
 const sending = computed(() => busy.value || browserSubmitting.value || (props.creationModes && generationBusy.value));
 const compacting = ref(false);
 const deletingId = ref<string>();
@@ -466,10 +467,12 @@ async function submitMessage() {
     const prompt = sender?.getText() ?? "";
     if (!prompt.trim()) return;
     const attachments = [...draftAttachments.value];
+    browserCancelled = false;
     browserSubmitting.value = true;
     let reply: AgentMessage | undefined;
     try {
       const files = await Promise.all(attachments.map(async item => item.file ?? new File([await useWorkspaceFiles(directory).read(item.path)], item.name, { type: item.mimeType })));
+      if (browserCancelled) return;
       const userId = crypto.randomUUID();
       const assistantId = crypto.randomUUID();
       messages.value.push({ id: userId, role: "user", content: prompt, attachments });
@@ -478,11 +481,11 @@ async function submitMessage() {
       emit("sent", prompt);
       await sender?.reset({ clearHistory: false });
       draftAttachments.value = [];
-      const start = generationResults.value.length;
-      const success = await generateInBrowser(prompt, files, directory);
-      reply.browserResultIds = generationResults.value.slice(start).map(item => item.id);
+      const previousIds = new Set(generationResults.value.map(item => item.id));
+      const success = !browserCancelled && await generateInBrowser(prompt, files, directory);
+      reply.browserResultIds = generationResults.value.filter(item => !previousIds.has(item.id)).map(item => item.id);
       if (!success) {
-        reply.error = generationError.value;
+        reply.error = browserCancelled ? "已停止发送，输入已保留。" : generationError.value;
         await sender?.reset({ clearHistory: false, chatNode: [[{ type: "Write", text: prompt }]] });
         draftAttachments.value = attachments;
       }
@@ -499,7 +502,13 @@ async function submitMessage() {
   return sendMessage(editingId.value ? messages.value.find(item => item.id === editingId.value) : undefined);
 }
 
+function referenceGeneratedFile(file: File) {
+  addAttachments([file]);
+  sender?.focus("last");
+}
+
 function stopGeneration() {
+  browserCancelled = true;
   if (props.creationModes && generationBusy.value) stopBrowserGeneration();
   else stopMessage();
 }
@@ -909,6 +918,7 @@ watch(senderElement, (element, _previous, onCleanup) => {
   if (!props.active || locked.value) instance.disable();
   instance.bus.on("agentConversation", xSender.EventSet.EVENT_COMMON_SEND, () => void submitMessage());
   instance.bus.on("agentConversation", xSender.EventSet.EVENT_COMMON_CHANGE, () => {
+    draftPrompt.value = instance.getText();
     skillQuery.value = /^\/([^\s/]*)$/.exec(instance.getText())?.[1];
     const targets: typeof draftMentionTargets.value = [];
     for (const line of instance.chatEditor.NODES) for (const tag of line.children) {
@@ -1220,8 +1230,6 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
       }
     }
   }
-
-  .generationControls { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px 12px; color: var(--el-text-color-secondary); }
 
   .compactionStatus {
     display: flex;

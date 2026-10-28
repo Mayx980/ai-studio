@@ -28,6 +28,7 @@
         @keydown="resizeWithKeyboard($event, handle.edge)" />
       <agent v-model="visible" creationModes :closable="!props.expanded">
         <template #menuActions>
+          <el-button v-if="props.expanded" text :icon="IconVector" aria-label="进入画布" @click="emit('enterCanvas')">进入画布</el-button>
           <el-button
             v-if="!props.expanded"
             text
@@ -46,12 +47,12 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, shallowRef, watch } from "vue";
-import { IconLayoutSidebarRight, IconAppWindowBottomRight } from "@tabler/icons-vue";
+import { IconLayoutSidebarRight, IconAppWindowBottomRight, IconVector } from "@tabler/icons-vue";
 import agent from "@/components/agent/index.vue";
 
 const props = defineProps<{ expanded?: boolean }>();
 const visible = defineModel<boolean>({ default: false });
-const emit = defineEmits<{ resize: [width: number] }>();
+const emit = defineEmits<{ resize: [width: number]; enterCanvas: [] }>();
 const docked = ref(false);
 const viewport = reactive({ width: window.innerWidth, height: window.innerHeight });
 const gap = computed(() => Math.min(15, viewport.width / 2, viewport.height / 2));

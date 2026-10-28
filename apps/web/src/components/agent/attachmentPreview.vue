@@ -25,7 +25,7 @@
       <template #error><icon-photo :size="20" /></template>
     </el-image>
     <button v-else-if="attachment.mimeType.startsWith('video/')" class="thumbnailButton" type="button" :title="attachment.name" :aria-label="`预览 ${attachment.name}`" :disabled="!thumbnailUrl" @click="videoPreviewVisible = true">
-      <video v-if="thumbnailUrl" :src="thumbnailUrl" preload="metadata" muted playsinline aria-hidden="true" />
+      <video v-if="thumbnailUrl" :src="thumbnailUrl" preload="metadata" muted playsinline aria-hidden="true" @loadedmetadata="showVideoCover" />
       <icon-video class="videoIcon" :size="16" />
     </button>
     <div v-else class="fileAttachmentCard" :title="attachment.name"><icon-file-text :size="18" /><span>{{ attachment.name }}</span></div>
@@ -59,6 +59,10 @@ const textError = ref("");
 const imageRef = ref<ImageInstance>();
 const videoPreviewVisible = ref(false);
 const thumbnailUrl = ref("");
+function showVideoCover(event: Event) {
+  const video = event.target as HTMLVideoElement;
+  if (video.duration > 0) video.currentTime = Math.min(0.1, video.duration / 2);
+}
 
 watch(() => [props.directory, props.attachment.file, props.attachment.path, props.attachment.mimeType] as const, async ([directory, file, path, mimeType], _previous, onCleanup) => {
   videoPreviewVisible.value = false;
