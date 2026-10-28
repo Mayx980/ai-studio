@@ -1,5 +1,5 @@
 <template>
-  <section v-if="browserConfig.enabled" class="browserModelResults" aria-label="真实模型联调">
+  <section v-if="results.length || (browserConfig.enabled && showStatus)" class="browserModelResults" aria-label="真实模型联调">
     <p v-if="showStatus && generationBusy" role="status">正在调用 {{ selectedBrowserModel.label }}，请保持页面打开。</p>
     <el-alert v-if="showStatus && generationError" :title="generationError" type="error" :closable="false" />
     <article v-for="item in results" :key="item.id" class="generatedResult">

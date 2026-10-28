@@ -67,7 +67,7 @@
   </el-dialog>
 
   <el-dialog v-model="saveVisible" title="保存到个人资产" width="520px" alignCenter appendToBody :closeOnClickModal="false" @opened="assetNameInput?.select()">
-    <el-alert title="设计预览：本轮仅核对保存信息，不写入素材库。" type="info" :closable="false" />
+    <el-alert title="素材与标签保存在当前浏览器，刷新后仍可使用。" type="info" :closable="false" />
     <div class="saveCover">
       <el-alert v-if="saveCoverError" :title="saveCoverError" type="error" :closable="false" />
       <img v-else-if="saveCoverUrl && saveMediaType === 'IMAGE'" :src="saveCoverUrl" alt="待保存图片封面" />
@@ -98,12 +98,14 @@
   </el-dialog>
   <el-dialog v-model="saveSummaryVisible" title="核对资产信息" width="420px" appendToBody>
     <el-descriptions :column="1" border><el-descriptions-item label="名称">{{ assetName }}</el-descriptions-item><el-descriptions-item label="位置">{{ saveCategory }}</el-descriptions-item><el-descriptions-item label="标签">{{ saveTags.join('、') || '未选择' }}</el-descriptions-item></el-descriptions>
-    <p>以上为设计预览。文件与标签未写入素材库，正式持久化由后续实施接入。</p>
-    <template #footer><el-button type="primary" @click="saveSummaryVisible = false">返回编辑</el-button></template>
+    <p>素材与标签保存在当前浏览器，刷新后保留。</p>
+    <template #footer><el-button @click="saveSummaryVisible = false">返回编辑</el-button><el-button type="primary" :loading="saving" @click="saveBrowserAsset">保存到个人资产</el-button></template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { browserAssetFiles, browserAssetMimeType, listBrowserAssets } from "@/lib/browserAssets";
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import axios from "axios";
 import { storeToRefs } from "pinia";
@@ -124,10 +126,13 @@ const { tags: assetTags } = storeToRefs(useAssetStore());
 const mediaFilter = ref("all");
 const tagFilter = ref("all");
 const selecting = ref(false);
+const assetUrls = ref<Record<string, string>>({});
+const assetReleases: (() => void)[] = [];
+onBeforeUnmount(() => { for (const release of assetReleases) release(); });
 async function selectAsset(entry: AssetEntry) {
   if (selecting.value) return;
   selecting.value = true;
-  try { const { data } = await axios.get<Blob>(assetUrl(entry.path), { responseType: "blob" }); emit("select", new File([data], entry.name, { type: data.type && data.type !== "application/octet-stream" ? data.type : mediaKind(entry) === "image" ? `image/${/\.jpe?g$/i.test(entry.name) ? "jpeg" : entry.name.split(".").pop()}` : mediaKind(entry) === "audio" ? "audio/mpeg" : "video/mp4" })); } catch (error) { showError(error); } finally { selecting.value = false; }
+  try { const data = browserWorkspaceMode ? new Blob([await browserAssetFiles().read(entry.path)], { type: browserAssetMimeType(entry.path) }) : (await axios.get<Blob>(assetUrl(entry.path), { responseType: "blob" })).data; emit("select", new File([data], entry.name, { type: data.type && data.type !== "application/octet-stream" ? data.type : mediaKind(entry) === "image" ? `image/${/\.jpe?g$/i.test(entry.name) ? "jpeg" : entry.name.split(".").pop()}` : mediaKind(entry) === "audio" ? "audio/mpeg" : "video/mp4" })); } catch (error) { showError(error); } finally { selecting.value = false; }
 }
 const visible = defineModel<boolean>({ default: false });
 const saveVisible = ref(false);
@@ -156,6 +161,7 @@ let loadRequest = 0;
 onBeforeUnmount(() => { loadRequest++; });
 
 function assetUrl(path: string) {
+  if (browserWorkspaceMode) return assetUrls.value[path] || "";
   return `/api/assets/read?path=${encodeURIComponent(path)}`;
 }
 
@@ -290,7 +296,27 @@ const extension = computed(() => {
 async function loadEntries() {
   const request = ++loadRequest;
   try {
-    const { data } = await axios.get<{ data: { entries: AssetEntry[] } }>("/api/assets/list");
+    const data = browserWorkspaceMode ? { data: { entries: await listBrowserAssets() } } : (await axios.get<{ data: { entries: AssetEntry[] } }>("/api/assets/list")).data;
+    if (browserWorkspaceMode) {
+      const releases: (() => void)[] = [];
+      const urls: Record<string, string> = {};
+      const loadUrls = async (items: AssetEntry[]) => {
+        for (const item of items) {
+          if (item.type === "directory") await loadUrls(item.children ?? []);
+          else {
+            const preview = browserAssetFiles().acquireUrl(item.path, browserAssetMimeType(item.path));
+            urls[item.path] = await preview.url;
+            releases.push(preview.release);
+          }
+        }
+      };
+      try { await loadUrls(data.data.entries); }
+      catch (error) { for (const release of releases) release(); throw error; }
+      if (request !== loadRequest) { for (const release of releases) release(); return; }
+      for (const release of assetReleases.splice(0)) release();
+      assetReleases.push(...releases);
+      assetUrls.value = urls;
+    }
     if (request !== loadRequest) return;
     entries.value = data.data.entries;
     await nextTick();
@@ -321,8 +347,26 @@ function selectFolder(entry: AssetEntry) {
 async function createAssetFolder(parent: string, name: string) {
   if (/[\\/]/.test(name)) throw new Error("文件夹名称不能包含斜杠");
   const path = parent === "." ? name : `${parent}/${name}`;
-  await axios.post("/api/assets/mkdir", { path });
+  if (browserWorkspaceMode) await browserAssetFiles().mkdir(path);
+  else await axios.post("/api/assets/mkdir", { path });
   return path;
+}
+
+async function saveBrowserAsset() {
+  const output = outputs.value[selectedOutput.value]?.output;
+  if (!browserWorkspaceMode || !sourceDirectory || !output || !output.value || typeof output.value !== "object" || typeof output.value.url !== "string" || !assetName.value.trim() || /[\\/]/.test(assetName.value)) return;
+  saving.value = true;
+  try {
+    const files = browserAssetFiles();
+    await files.mkdir(saveCategory.value).catch(error => { if (error.code !== "EEXIST") throw error; });
+    const path = `${saveCategory.value}/${assetName.value.trim()}`;
+    await files.write(path, new Blob([await useWorkspaceFiles(sourceDirectory).read(output.value.url)], { type: output.value.mimeType }), true);
+    assetTags.value[path] = [...saveTags.value];
+    saveSummaryVisible.value = false; saveVisible.value = false;
+    await loadEntries();
+    ElMessage.success("已保存到浏览器个人资产");
+  } catch (error) { showError(error); }
+  finally { saving.value = false; }
 }
 
 async function openSave(label: string, items: AssetOutput[]) {

@@ -24,6 +24,8 @@
 </template>
 
 <script setup lang="ts">
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { browserAssetFiles } from "@/lib/browserAssets";
 import { translate } from "@toonflow/i18n/vue";
 import { computed, nextTick, ref, shallowRef } from "vue";
 import axios from "axios";
@@ -79,7 +81,8 @@ function showError(error: unknown) {
 async function relocate(entry: AssetEntry, target: string) {
   busy.value = true;
   try {
-    await axios.post("/api/assets/rename", { path: entry.path, target });
+    if (browserWorkspaceMode) await browserAssetFiles().rename(entry.path, target);
+    else await axios.post("/api/assets/rename", { path: entry.path, target });
     emit("changed", entry.path, target);
   } finally {
     busy.value = false;
@@ -109,7 +112,8 @@ async function createMoveFolder() {
       cancelButtonText: "取消",
     });
     const name = value.trim();
-    await axios.post("/api/assets/mkdir", { path: name });
+    if (browserWorkspaceMode) await browserAssetFiles().mkdir(name);
+    else await axios.post("/api/assets/mkdir", { path: name });
     await relocate(entry, name + "/" + entry.name);
   } catch (error) {
     showError(error);
@@ -127,7 +131,7 @@ async function handleCommand(command: string) {
   closeMenu();
   try {
     if (command === "download") {
-      await saveFile(() => axios.get<Blob>("/api/assets/read", { params: { path: entry.path, download: true }, responseType: "blob" }).then(({ data }) => data), entry.name);
+      await saveFile(() => browserWorkspaceMode ? browserAssetFiles().read(entry.path).then(data => new Blob([data])) : axios.get<Blob>("/api/assets/read", { params: { path: entry.path, download: true }, responseType: "blob" }).then(({ data }) => data), entry.name);
     }
     if (command === "rename") {
       const { value } = await ElMessageBox.prompt("名称", "重命名", {
@@ -144,7 +148,8 @@ async function handleCommand(command: string) {
       await ElMessageBox.confirm("确定删除“" + entry.name + "”？", "删除素材", { type: "warning", confirmButtonText: "删除", cancelButtonText: "取消" });
       busy.value = true;
       try {
-        await axios.delete("/api/assets/remove", { data: { path: entry.path } });
+        if (browserWorkspaceMode) await browserAssetFiles().remove(entry.path);
+        else await axios.delete("/api/assets/remove", { data: { path: entry.path } });
         emit("changed", entry.path);
       } finally {
         busy.value = false;

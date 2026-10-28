@@ -2,6 +2,7 @@
   <div class="workspaceMenu">
     <el-card shadow="never" :bodyStyle="{ padding: '3px 6px' }">
       <div class="menuContent">
+        <span v-if="browserWorkspaceMode" class="browserStorageLabel" title="画布与素材保存在当前浏览器，刷新后保留；清除浏览器站点数据会删除这些内容">浏览器保存</span>
         <el-button v-if="workspaceStore.creationMode === 'professional'" class="toolButton" text :icon="IconMessages" aria-label="返回对话" title="返回对话" @click="workspaceStore.creationMode = 'simple'" />
         <el-button class="toolButton" text aria-label="退出项目" title="退出项目" @click="exitVisible = true">
           <icon-logout :size="18" aria-hidden="true" />
@@ -26,6 +27,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { IconMessages, IconLogout, IconSettings } from "@tabler/icons-vue";
 import { hasDesktopUpdate } from "@/stores/desktopUpdate";
@@ -49,6 +51,7 @@ async function exitProject() {
 
 <style scoped lang="scss">
 .workspaceMenu {
+  .browserStorageLabel { padding: 0 8px; font-size: 12px; color: var(--el-text-color-secondary); }
   .menuContent {
     display: flex;
     align-items: center;

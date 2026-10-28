@@ -1,4 +1,6 @@
 import axios from "axios";
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { browserAssetFiles } from "@/lib/browserAssets";
 import { ElMessage } from "element-plus";
 import type { useVueFlow } from "@vue-flow/core";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
@@ -81,7 +83,9 @@ export async function dropCanvasFiles(event: DragEvent, context: CanvasFileConte
   try {
     signal.throwIfAborted();
     if (path) {
-      const { data } = await axios.get<Blob>("/api/assets/read", { params: { path }, responseType: "blob", signal });
+      const data = browserWorkspaceMode
+        ? new Blob([await browserAssetFiles().read(path)], { type: fileMimeTypes[path.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream" })
+        : (await axios.get<Blob>("/api/assets/read", { params: { path }, responseType: "blob", signal })).data;
       droppedFiles = [new File([data], path.split("/").pop()!, { type: data.type })];
     }
     await importCanvasFiles(droppedFiles, position, context);

@@ -1,3 +1,4 @@
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import axios from "axios";
 import { normalizeLocale } from "@toonflow/i18n";
 import { computed, nextTick, ref, watch } from "vue";
@@ -15,6 +16,7 @@ let applyingSettings = false;
 
 export const settingsStorage = {
   getItem(key: string) {
+    if (browserWorkspaceMode && localStorage.getItem(key) !== null) return localStorage.getItem(key);
     const stores = settings.value.stores as Record<string, unknown> | undefined;
     if (stores && Object.hasOwn(stores, key)) return JSON.stringify(stores[key]);
     // ACT: 只迁移当前来源可读取的旧缓存，保留原值；不同端口的 localStorage 不能互读。
@@ -23,6 +25,7 @@ export const settingsStorage = {
     return value;
   },
   setItem(key: string, value: string) {
+    if (browserWorkspaceMode) { localStorage.setItem(key, value); return; }
     settings.value.stores = { ...(settings.value.stores as Record<string, unknown> | undefined), [key]: JSON.parse(value) };
   },
 };
@@ -105,7 +108,16 @@ export async function loadSettings() {
   if (data.code !== 200 || !data.data || typeof data.data !== "object" || Array.isArray(data.data)) {
     throw new Error("读取设置失败");
   }
-  settings.value = data.data;
+  let preferences: Record<string, unknown> = {};
+  if (browserWorkspaceMode) {
+    try {
+      const stored = JSON.parse(localStorage.getItem("aiStudio.preferences") ?? "{}");
+      if (stored && typeof stored === "object" && !Array.isArray(stored)) {
+        preferences = Object.fromEntries(["ui", "general", "privacy"].filter(key => stored[key] && typeof stored[key] === "object" && !Array.isArray(stored[key])).map(key => [key, stored[key]]));
+      }
+    } catch { throw new Error("浏览器外观设置损坏，请清除此项设置后重试；项目数据未改动"); }
+  }
+  settings.value = { ...data.data, ...preferences };
   // 等初始化引发的监听执行完，再允许自动保存。
   await nextTick();
   settingsReady = true;
@@ -116,6 +128,12 @@ export function saveSettings(update?: (current: Record<string, unknown>) => Reco
   const saving = saveQueue.then(async () => {
     const patch = update?.(settings.value);
     if (update && !patch) return false;
+    if (browserWorkspaceMode) {
+      if (patch) settings.value = { ...settings.value, ...patch };
+      const preferences = Object.fromEntries(["ui", "general", "privacy"].filter(key => settings.value[key] !== undefined).map(key => [key, settings.value[key]]));
+      localStorage.setItem("aiStudio.preferences", JSON.stringify(preferences));
+      return true;
+    }
     const requestedNodeMenu = JSON.stringify(((patch?.general ?? settings.value.general) as { nodeMenu?: unknown } | undefined)?.nodeMenu);
     const { data } = await axios.put<{ code: number; data: { customProviders?: CustomProvider[]; mediaProvider?: { id: string }; modelRefreshErrors?: string[]; nodeMenu?: StoredNodeMenuItem[] | null } | null }>(
       "/api/settings/save", { settings: { ...settings.value, ...patch } }, { headers: { "x-toonflow-workspace": "1" } },

@@ -115,7 +115,7 @@
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
       <div class="senderActions">
-        <browserModelOptions v-if="props.creationModes && browserConfig.enabled" :prompt="draftPrompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
+        <browserModelOptions v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :prompt="draftPrompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
         <referencePicker :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
         <mentionMenu ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
@@ -162,6 +162,9 @@
 </template>
 
 <script setup lang="ts">
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { saveBrowserConversation } from "./browserConversations";
+import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
 import creationModeSwitch from "@/components/creationModeSwitch.vue";
 import { locale, t, translate } from "@toonflow/i18n/vue";
 import { computed, inject, nextTick, reactive, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
@@ -463,6 +466,7 @@ async function removeDraftMention(id: string) {
 
 async function submitMessage() {
   if (locked.value) return;
+  if (browserWorkspaceMode && !browserConfig.enabled) { ElMessage.warning("请先在设置 → API 配置中启用模型联调并输入 Key"); return; }
   if (props.creationModes && browserConfig.enabled) {
     const prompt = sender?.getText() ?? "";
     if (!prompt.trim()) return;
@@ -474,6 +478,10 @@ async function submitMessage() {
       const files = await Promise.all(attachments.map(async item => item.file ?? new File([await useWorkspaceFiles(directory).read(item.path)], item.name, { type: item.mimeType })));
       if (browserCancelled) return;
       const userId = crypto.randomUUID();
+      if (browserWorkspaceMode && directory) {
+        const filesStore = useWorkspaceFiles(directory);
+        for (const item of attachments) if (item.file && !item.path) item.path = await uploadNodeFile(filesStore, userId, item.file);
+      }
       const assistantId = crypto.randomUUID();
       messages.value.push({ id: userId, role: "user", content: prompt, attachments });
       messages.value.push({ id: assistantId, replyTo: userId, role: "assistant", content: "", streaming: true });
@@ -495,6 +503,10 @@ async function submitMessage() {
       else ElMessage.error(message);
     } finally {
       if (reply) reply.streaming = false;
+      if (browserWorkspaceMode && directory && props.sessionFile) {
+        try { await saveBrowserConversation(directory, props.sessionFile, messages.value); }
+        catch (error) { ElMessage.error(error instanceof Error ? error.message : "浏览器对话保存失败"); }
+      }
       browserSubmitting.value = false;
     }
     return;
@@ -576,6 +588,11 @@ async function deleteMessage(item: AgentMessage) {
   if (locked.value || remoteRunning.value || item.streaming || item.report) return;
   deletingId.value = item.id;
   try {
+    if (browserWorkspaceMode) {
+      messages.value = messages.value.filter(message => message.id !== item.id && message.replyTo !== item.id);
+      if (directory && props.sessionFile) await saveBrowserConversation(directory, props.sessionFile, messages.value);
+      return;
+    }
     if (item.entryId || item.replyTo) {
       if (!directory || !props.sessionFile) throw new Error("请重新打开对话后再删除");
       const { data } = await axios.delete<{ code: number; data: AgentConversation; message?: string }>("/api/agent/message", {

@@ -1,5 +1,5 @@
 <template>
-  <el-popover v-if="browserConfig.enabled" trigger="click" placement="top" :width="300">
+  <el-popover v-if="browserConfig.enabled || browserWorkspaceMode" trigger="click" placement="top" :width="300">
     <template #reference><el-button text aria-label="模型与生成参数">{{ browserModels[kind].models[0]!.label }} · 参数</el-button></template>
     <el-form labelPosition="top">
       <el-form-item label="生成模型"><span>{{ browserModels[kind].models[0]!.label }}</span></el-form-item>
@@ -17,6 +17,7 @@
 </template>
 
 <script setup lang="ts">
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { computed, watch } from "vue";
 import { browserConfig, browserModels, generationBusy, inferGenerationKind } from "@/stores/browserGeneration";
 const props = withDefaults(defineProps<{ prompt?: string }>(), { prompt: "" });

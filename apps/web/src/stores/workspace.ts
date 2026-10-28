@@ -1,5 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { settingsStorage } from "@/stores/settings";
 import axios from "axios";
 import type { AgentAttachment } from "@/components/agent/types";
 
@@ -16,6 +18,15 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const pendingAgentMessage = ref<{ directory: string; prompt: string; attachments?: AgentAttachment[]; model: string; reasoningEffort: string } | null>(null);
 
   async function openProject(path: string, previousDirectory = path, signal?: AbortSignal) {
+    if (browserWorkspaceMode) {
+      if (!path.trim()) throw new Error("项目标识不能为空");
+      signal?.throwIfAborted();
+      const existing = projectList.value.find(item => item.directory === previousDirectory || item.directory === path);
+      project.value = { directory: path, name: existing?.name || (path.startsWith("browser:") ? "未命名项目" : path.split(/[\\/]/).filter(Boolean).at(-1)!) || "未命名项目", lastOpenedAt: Date.now() };
+      projectList.value = [project.value, ...projectList.value.filter(item => item.directory !== previousDirectory && item.directory !== path)];
+      pendingAgentMessage.value = null;
+      return;
+    }
     const { data } = await axios.get<{ code: number; data?: { directory: string }; message?: string }>("/api/workspaces/check", {
       params: { directory: path }, headers: { "x-toonflow-workspace": "1" }, signal,
     });
@@ -47,7 +58,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   return { creationMode, project, projectList, pendingAgentMessage, openProject, renameProject, removeProject };
 }, {
   persist: {
-    key: "toonflow.projectList",
+    key: browserWorkspaceMode ? "aiStudio.browserProjects" : "toonflow.projectList",
+    storage: browserWorkspaceMode ? { getItem: (key: string) => localStorage.getItem(key) ?? settingsStorage.getItem("toonflow.projectList"), setItem: (key: string, value: string) => localStorage.setItem(key, value) } : settingsStorage,
     pick: ["project", "projectList"],
   },
 });

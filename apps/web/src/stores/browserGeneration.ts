@@ -1,3 +1,6 @@
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import useWorkspaceFiles from "@/lib/workspaceFiles";
+import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { computed, reactive, ref } from "vue";
 import imageModel from "@/lib/browserModels/imageModel";
 import videoModel from "@/lib/browserModels/videoModel";
@@ -11,11 +14,44 @@ export const browserModels = { image: imageModel, video: videoModel, audio: audi
 export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: "", duration: "", resolution: "" });
 export const generationBusy = ref(false);
 export const generationError = ref("");
-export const generationResults = ref<{ id: string; kind: ModelKind; url?: string; text?: string; file?: File; directory?: string }[]>([]);
+export const generationResults = ref<{ id: string; kind: ModelKind; url?: string; text?: string; file?: File; directory?: string; path?: string }[]>([]);
 export const selectedBrowserModel = computed(() => browserModels[browserConfig.kind].models[0]!);
 let controller: AbortController | undefined;
 export function stopBrowserGeneration() { controller?.abort(); }
 export function clearBrowserKeys() { stopBrowserGeneration(); for (const key of Object.keys(browserConfig.keys) as ModelKind[]) browserConfig.keys[key] = ""; }
+
+export async function restoreBrowserResults(directory: string) {
+  if (!browserWorkspaceMode) return;
+  const files = useWorkspaceFiles(directory);
+  let saved: { id: string; kind: ModelKind; path: string; mimeType?: string; name?: string }[];
+  try { saved = await files.readJson(".agent/browserResults.json"); }
+  catch (error) { if ((error as { code?: string }).code === "ENOENT") return; throw error; }
+  if (!Array.isArray(saved)) throw new Error("浏览器素材记录无效");
+  for (const item of saved) {
+    if (!item || typeof item.id !== "string" || !["image", "video", "audio"].includes(item.kind) || typeof item.path !== "string") throw new Error("浏览器素材记录无效");
+    if (generationResults.value.some(result => result.id === item.id && result.directory === directory)) continue;
+    const type = item.mimeType?.startsWith(`${item.kind}/`) ? item.mimeType : `${item.kind}/${item.kind === "video" ? "mp4" : item.kind === "audio" ? "mpeg" : "png"}`;
+    const file = new File([await files.read(item.path)], item.name || item.path.split("/").at(-1)!, { type });
+    generationResults.value.push({ ...item, directory, file, url: URL.createObjectURL(file) });
+  }
+}
+async function saveBrowserResults(directory: string) {
+  const files = useWorkspaceFiles(directory);
+  for (const item of generationResults.value.filter(item => item.directory === directory && !item.path && item.kind !== "text")) {
+    if (!item.file) {
+      const response = await studioFetch(item.url!);
+      if (!response.ok) throw new Error(`素材已生成，但下载保存失败（HTTP ${response.status}），请保留页面重试`);
+      const blob = await response.blob();
+      const mimeType = blob.type.startsWith(`${item.kind}/`) ? blob.type : `${item.kind}/${item.kind === "video" ? "mp4" : "png"}`;
+      item.file = new File([blob], `生成素材.${mimeType.split("/")[1]}`, { type: mimeType });
+    }
+    item.path = await uploadNodeFile(files, item.id, item.file);
+    if (item.url?.startsWith("blob:")) URL.revokeObjectURL(item.url);
+    item.url = URL.createObjectURL(item.file);
+  }
+  await files.mkdir(".agent").catch(error => { if (error.code !== "EEXIST") throw error; });
+  await files.writeJson(".agent/browserResults.json", generationResults.value.filter(item => item.directory === directory && item.path).map(({ id, kind, path, file }) => ({ id, kind, path, mimeType: file?.type, name: file?.name })));
+}
 
 // ACT: 只依据明确的输出意图分类，参考素材本身不决定输出；模糊输入默认图片。
 export function inferGenerationKind(prompt: string): "image" | "video" {
@@ -70,6 +106,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
       const file = asset.type === "base64" && asset.data ? new File([Uint8Array.from(atob(asset.data), char => char.charCodeAt(0))], `生成结果.${mimeType.split("/")[1]}`, { type: mimeType }) : undefined;
       generationResults.value.push({ id: crypto.randomUUID(), kind, url: file ? URL.createObjectURL(file) : asset.url, file, directory });
     }
+    if (browserWorkspaceMode && directory) await saveBrowserResults(directory);
     return true;
   } catch (error) {
     generationError.value = signal.aborted ? "已停止等待；已提交的远端任务可能仍在运行，请先检查供应商任务记录。" : error instanceof TypeError ? "无法访问供应商接口，请检查本机预览服务及网络。输入和参考已保留。" : (error instanceof Error ? error.message : "模型调用失败").replaceAll(apiKey, "[Key]");

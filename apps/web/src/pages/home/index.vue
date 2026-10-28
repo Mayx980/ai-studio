@@ -39,16 +39,17 @@
             <el-input ref="promptInput" v-model="prompt" type="textarea" :rows="4" resize="vertical" :disabled="creating || opening" :placeholder="promptPlaceholder" aria-label="创作描述" @paste.capture="pasteAttachments" />
             <template #footer>
               <div class="composerFooter">
-                <workspacePicker ref="promptWorkspacePicker" v-model="workspaceDirectory" :disabled="creating || opening" />
+                <span v-if="browserWorkspaceMode" class="workspaceHint">项目与素材保存在当前浏览器</span>
+                <workspacePicker v-else ref="promptWorkspacePicker" v-model="workspaceDirectory" :disabled="creating || opening" />
                 <el-space class="sendActions" wrap :size="12">
                   <referencePicker :disabled="creating || opening" @local="attachmentInput?.click()" @files="addAttachments" />
-                  <browserModelOptions v-if="browserConfig.enabled" :prompt="prompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" class="modelSelect" :disabled="creating || opening" />
-                  <el-button class="sendButton" type="primary" :circle="!!workspaceDirectory" :icon="workspaceDirectory ? IconArrowUp : IconFolder" :loading="creating" :disabled="creating || opening" :aria-label="workspaceDirectory ? '发送' : '选择工作目录'" @click="workspaceDirectory ? createProject() : promptWorkspacePicker?.chooseDirectory()">
-                    <template v-if="!workspaceDirectory" #default>选择工作目录</template>
+                  <browserModelOptions v-if="browserConfig.enabled || browserWorkspaceMode" :prompt="prompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" class="modelSelect" :disabled="creating || opening" />
+                  <el-button class="sendButton" type="primary" :circle="!!workspaceDirectory" :icon="workspaceDirectory || browserWorkspaceMode ? IconArrowUp : IconFolder" :loading="creating" :disabled="creating || opening" :aria-label="workspaceDirectory || browserWorkspaceMode ? '发送' : '选择工作目录'" @click="workspaceDirectory || browserWorkspaceMode ? createProject() : promptWorkspacePicker?.chooseDirectory()">
+                    <template v-if="!workspaceDirectory && !browserWorkspaceMode" #default>选择工作目录</template>
                   </el-button>
                 </el-space>
               </div>
-              <p v-if="!workspaceDirectory" class="workspaceHint" role="status">请先选择一个空文件夹作为工作目录，画布和素材会保存在这里。</p>
+              <p v-if="!workspaceDirectory && !browserWorkspaceMode" class="workspaceHint" role="status">请先选择一个空文件夹作为工作目录，画布和素材会保存在这里。</p>
             </template>
           </el-card>
           <browserModelResults :directory="workspaceStore.project?.directory" />
@@ -61,7 +62,7 @@
           <h2 id="projectListTitle">我的项目</h2>
           <el-input v-model="projectSearch" placeholder="按项目名搜索" aria-label="按项目名搜索" clearable style="max-width: 240px" />
           <el-space wrap>
-            <el-button :icon="IconFolderOpen" :disabled="creating || opening" @click="openProject()">导入项目</el-button>
+            <el-button v-if="!browserWorkspaceMode" :icon="IconFolderOpen" :disabled="creating || opening" @click="openProject()">导入项目</el-button>
             <el-button :icon="IconFolderPlus" :disabled="creating || opening" @click="createProject(false)">添加项目</el-button>
             <el-button circle :icon="sortDescending ? IconSortDescending : IconSortAscending" :aria-label="sortDescending ? '按时间降序' : '按时间升序'" @click="sortDescending = !sortDescending" />
             <el-radio-group v-model="viewMode" aria-label="项目视图">
@@ -76,7 +77,7 @@
               <projectThumbnail :directory="project.directory" />
               <span class="projectInfo">
                 <span class="projectName" :title="project.name">{{ project.name }}</span>
-                <span class="projectPath" :title="project.directory">{{ project.directory }}</span>
+                <span class="projectPath" :title="browserWorkspaceMode ? '当前浏览器 · 刷新后保留' : project.directory">{{ browserWorkspaceMode ? '当前浏览器 · 刷新后保留' : project.directory }}</span>
                 <span class="projectTime">最近打开 {{ new Date(project.lastOpenedAt).toLocaleString(locale, { hour12: false }) }}</span>
               </span>
             </button>
@@ -120,6 +121,7 @@ import type { AgentAttachment } from "@/components/agent/types";
 import logoUrl from "@toonflow/assets/logo.svg";
 import { useWorkspaceStore, type Project } from "@/stores/workspace";
 import { hasDesktopUpdate } from "@/stores/desktopUpdate";
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import settings from "@/components/settings/index.vue";
 import bg from "./bg.vue";
@@ -378,10 +380,27 @@ async function createProject(fromPrompt = true) {
     generationError.value = "请先在设置 → API 配置中输入当前模型的 Key。";
     return;
   }
-  if (creating.value || opening.value || (fromPrompt && !workspaceDirectory.value)) return;
+  if (creating.value || opening.value || (fromPrompt && !workspaceDirectory.value && !browserWorkspaceMode)) return;
   creating.value = true;
   try {
     let path = workspaceDirectory.value;
+    if (browserWorkspaceMode) {
+      let name = "未命名项目";
+      if (!fromPrompt) {
+        const result = await ElMessageBox.prompt("输入项目名称，画布与素材将保存在当前浏览器", "添加项目", { inputValue: "未命名项目", confirmButtonText: "创建", cancelButtonText: "取消", inputValidator: value => !!value?.trim() || "请输入项目名称" }).catch(() => null);
+        if (!result) return;
+        name = result.value.trim();
+      }
+      if (!fromPrompt || !workspaceStore.project) path = `browser://${crypto.randomUUID()}`;
+      const files = useWorkspaceFiles(path);
+      const { entries } = await files.list();
+      if (!entries.length) await files.writeJson("画布1.json", { toonflowCanvas: true, nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }, true);
+      await workspaceStore.openProject(path);
+      if (!fromPrompt || name !== "未命名项目") workspaceStore.renameProject(path, name);
+      if (fromPrompt && (prompt.value.trim() || promptAttachments.value.length)) workspaceStore.pendingAgentMessage = { directory: path, prompt: prompt.value, attachments: [...promptAttachments.value], model: selectedModel.value, reasoningEffort: reasoningEffort.value };
+      await router.push("/workspace");
+      return;
+    }
     if (!fromPrompt) {
       const confirmed = await ElMessageBox.confirm("请选择一个空文件夹作为项目目录，画布和素材将保存在其中。", "添加项目", {
         confirmButtonText: "选择空文件夹", cancelButtonText: "取消", type: "info",
