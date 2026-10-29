@@ -22,9 +22,13 @@ export async function generateBrowserText(input: NodeAiRequest) {
   const references = input.references ?? [];
   if (references.some(item => item.dataType !== "STRING")) throw new Error("当前文本模型仅支持文字参考，请移除图片、视频或文件引用后重试");
   if (input.tools?.length) throw new Error("当前浏览器文本适配器不支持工具调用");
-  const response = await studioFetch(`${context.config.endpoint.replace(/\/+$/, "")}/compatible-mode/v1/chat/completions`, {
+  const endpoint = new URL(context.config.endpoint);
+  const isAliyun = endpoint.hostname.endsWith(".aliyuncs.com");
+  if (endpoint.pathname === "/" && isAliyun) endpoint.pathname = "/compatible-mode/v1";
+  const base = endpoint.href.replace(/\/+$/, "");
+  const response = await studioFetch(base.endsWith("/chat/completions") ? base : `${base}/chat/completions`, {
     method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${context.config.apiKey}` }, signal: input.signal,
-    body: JSON.stringify({ model: input.modelId, stream: false, enable_thinking: false, messages: [
+    body: JSON.stringify({ model: input.modelId, stream: false, ...(isAliyun ? { enable_thinking: false } : {}), messages: [
       { role: "system", content: input.systemPrompt || "根据用户要求生成对应内容。明确要求方案、剧情脚本或分镜脚本时输出完整文字内容，不要改成图片提示词。" },
       { role: "user", content: [input.prompt, ...references.map(item => item.value)].join("\n\n") },
     ] }),

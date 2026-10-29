@@ -13,7 +13,7 @@ export default function studioRelay(): Plugin {
           response.writeHead(403).end("仅允许本机原型页面访问"); return;
         }
         const target = new URL(String(request.headers["x-studio-target"] || ""));
-        const allowed = target.hostname.endsWith(".aliyuncs.com") || target.hostname === "openspeech.bytedance.com" || [".bytecdn.cn", ".byteimg.com", ".ibytedtos.com", ".volces.com"].some(suffix => target.hostname.endsWith(suffix));
+        const allowed = target.hostname.endsWith(".aliyuncs.com") || ["openspeech.bytedance.com", "api.deepseek.com", "api.siliconflow.cn", "api.moonshot.cn", "api.moonshot.ai", "open.bigmodel.cn", "api.openai.com"].includes(target.hostname) || [".bytecdn.cn", ".byteimg.com", ".ibytedtos.com", ".volces.com"].some(suffix => target.hostname.endsWith(suffix));
         if (!allowed || target.protocol !== "https:" || target.username || target.password || (target.port && target.port !== "443") || !["GET", "POST", "HEAD"].includes(request.method ?? "")) {
           response.writeHead(400).end("不支持该供应商地址或请求方法"); return;
         }

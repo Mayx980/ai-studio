@@ -59,3 +59,11 @@ Vite 从内置节点包的 `package.json` 读取公开 `component` 导出并建�
 “用户真实测评口播”“达人种草好物”使用用户提供的 AI 示例图作风格参考，提示词明确居家光线、机位、操作细节、口播结构及中文字幕。产品资料和真实体验由用户提供，不编造背书、功效或价格。
 
 万相本地中转必须逐字保留 `X-DashScope-OssResourceResolve`。旧白名单误加连字符，导致该请求头被丢弃，OSS 临时地址未经解析即进入视频任务。现已按[百炼临时文件文档](https://help.aliyun.com/zh/model-studio/get-temporary-file-url)修正；保留本机同源、HTTPS、供应商域名及方法限制，不将 OSS 地址强改为不可访问的公开地址。真实视频成功仍需有效 Key 验证。
+
+## 按厂商管理 API 配置
+
+API 设置参考原生 Toonflow 的供应商卡片、厂商选择和模型编辑结构。供应商统一管理 Key、HTTPS 基础地址及多项模型，支持添加、编辑、删除与主动获取模型列表，未列出时手工填写厂商模型 ID。保存前校验 Key、地址所属厂商、类型和重复模型；取消编辑不改已保存配置。旧配置按实际厂商地址归组，编辑时保留模型 identity，Key 仍仅页面内存。
+
+阿里云百炼保留文字、图片、视频的既有协议；火山保留 Seed-Audio。DeepSeek、硅基流动、Kimi、智谱及 OpenAI 仅接入 Chat Completions 文字模型，不据供应商支持其它协议就宣称全部能力可用。列表由厂商实际返回，不以静态示例代替账号模型权限；智谱当前使用手动模型 ID。接口参考[DeepSeek 文档](https://api-docs.deepseek.com/)、[百炼文档](https://help.aliyun.com/zh/model-studio/)、[硅基流动文档](https://docs.siliconflow.cn/)。
+
+本轮经人工确认只额外联动文字调用地址拼接及本地中转白名单：百炼根地址补兼容路径，其他厂商保留所填 API 基础路径；百炼专属参数不发给其它厂商。本机中转仅追加明确的厂商域名，继续限制本机同源、HTTPS 与请求方法，不开放任意代理。实际生成及模型权限仍需有效 Key 验证。
