@@ -67,3 +67,11 @@ API 设置参考原生 Toonflow 的供应商卡片、厂商选择和模型编辑
 阿里云百炼保留文字、图片、视频的既有协议；火山保留 Seed-Audio。DeepSeek、硅基流动、Kimi、智谱及 OpenAI 仅接入 Chat Completions 文字模型，不据供应商支持其它协议就宣称全部能力可用。列表由厂商实际返回，不以静态示例代替账号模型权限；智谱当前使用手动模型 ID。接口参考[DeepSeek 文档](https://api-docs.deepseek.com/)、[百炼文档](https://help.aliyun.com/zh/model-studio/)、[硅基流动文档](https://docs.siliconflow.cn/)。
 
 本轮经人工确认只额外联动文字调用地址拼接及本地中转白名单：百炼根地址补兼容路径，其他厂商保留所填 API 基础路径；百炼专属参数不发给其它厂商。本机中转仅追加明确的厂商域名，继续限制本机同源、HTTPS 与请求方法，不开放任意代理。实际生成及模型权限仍需有效 Key 验证。
+
+## 千问图片任务与参数气泡
+
+Qwen 3.0／2.1 图像模型按[厂商异步协议](https://help.aliyun.com/zh/model-studio/qwen-image-generation-and-editing-api-reference)向 `image-generation/generation` 提交一次任务，设置 `X-DashScope-Async: enable`，随后通过同一基础地址的 `tasks/<task_id>` 查询状态。成功后仍解析原有 choices 图片结果并走原有保存链路，不改变提示词、参考图或参数。其它不支持异步的旧模型保留同步路由。
+
+此改动避免长同步出图请求超过本机中转等待时间。只轮询查询，不自动重提生成；等待、查询或任务失败时保留任务编号，提示先核对厂商记录，防止重复消费。失败响应保留 HTTP 状态、厂商消息和请求编号；中转连接失败返回结构化错误，不泄露 Key，也不将未知失败映射成成功。
+
+参数气泡使用显式可见状态，仅外部点击关闭。内部下拉留在气泡 DOM 内，选择参数、失焦、Esc、鼠标移出及点击内侧留白不关闭面板。面板和触发入口均属于外部点击的排除区域。

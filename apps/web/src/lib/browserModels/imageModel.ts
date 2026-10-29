@@ -6,7 +6,7 @@ export default {
   id: "aliyunBailianQwenImage30Pro",
   label: "阿里云百炼·千问图像生成 3.0 Pro",
   version: "2.0.1",
-  readme: `接入阿里云百炼 qwen-image-3.0-pro，支持文生图和参考图片编辑。使用 DashScope 原生同步协议，需要填写百炼 API Key，以及业务空间专属域名，默认业务空间地址为 https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com。域名需与模型和 API Key 所属地域一致。图片结果 URL 有效期有限，请及时保存。
+  readme: `接入阿里云百炼 qwen-image-3.0-pro，支持文生图和参考图片编辑。使用 DashScope 原生异步任务协议，需要填写百炼 API Key，以及业务空间专属域名，默认业务空间地址为 https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com。域名需与模型和 API Key 所属地域一致。图片结果 URL 有效期有限，请及时保存。
 
 图片编辑支持最多 3 张参考图，参考图需为公网 HTTP(S) URL 或 Base64；本适配器会将 ai-studio 提供的内存图片转换为 Base64 传入，不会上传到第三方存储。接口不支持 mask、multipart 编辑或非 PNG 输出。`,
   rules: [
@@ -140,17 +140,52 @@ export default {
       input: { messages: [{ role: "user", content }] },
       parameters,
     };
-    const signal = AbortSignal.any([AbortSignal.timeout(600000), ...(this.signal ? [this.signal] : [])]);
-    const response = await this.tool.fetch(`${endpoint}/api/v1/services/aigc/multimodal-generation/generation`, {
+    const timeout = AbortSignal.timeout(600000);
+    const signal = AbortSignal.any([timeout, ...(this.signal ? [this.signal] : [])]);
+    const asynchronous = ["qwen-image-3.0-pro", "qwen-image-3.0", "qwen-image-2.1-pro", "qwen-image-2.1-turbo"].includes(request.model);
+    const readResponse = async (response: Response, action: string): Promise<unknown> => {
+      const text = await response.text();
+      let value: unknown;
+      try { value = JSON.parse(text); } catch { value = undefined; }
+      if (!response.ok) {
+        const record = value && typeof value === "object" ? value as Record<string, unknown> : {};
+        const message = typeof record.message === "string" ? record.message : typeof record.code === "string" ? record.code : text.trim() && !/^\s*</.test(text) ? text : "供应商未返回有效 JSON 错误详情";
+        const requestId = typeof record.request_id === "string" ? `；请求编号：${record.request_id}` : "";
+        throw new Error(`${action}失败（HTTP ${response.status}）：${message.slice(0, 800)}${requestId}`.replaceAll(apiKey, "[Key]"));
+      }
+      if (!value || typeof value !== "object") throw new Error(`${action}未返回有效 JSON，请检查厂商响应，勿重复提交生成`);
+      return value;
+    };
+    const response = await this.tool.fetch(`${endpoint}/api/v1/services/aigc/${asynchronous ? "image-generation" : "multimodal-generation"}/generation`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", ...(asynchronous ? { "X-DashScope-Async": "enable" } : {}) },
       body: JSON.stringify(body),
       signal,
     });
-    const raw: unknown = await response.json().catch(() => null);
-    if (!response.ok) {
-      const detail = this.tool.errorMessage(raw);
-      throw new Error(`千问图片生成失败（HTTP ${response.status}）：${detail || response.statusText || "未知错误"}`);
+    let raw = await readResponse(response, "千问图片生成");
+    if (asynchronous) {
+      const taskId = (raw as { output?: { task_id?: unknown } }).output?.task_id;
+      if (typeof taskId !== "string" || !taskId.trim() || taskId.length > 512) throw new Error("千问接口未返回有效任务编号，请检查厂商记录，勿重复提交生成");
+      try {
+        while (true) {
+          signal.throwIfAborted();
+          const result = await readResponse(await this.tool.fetch(`${endpoint}/api/v1/tasks/${encodeURIComponent(taskId)}`, { headers: { Authorization: `Bearer ${apiKey}` }, signal }), "查询千问图片任务");
+          const output = (result as { output?: { task_status?: string; message?: string; code?: string } }).output;
+          if (output?.task_status === "SUCCEEDED") { raw = result; break; }
+          if (!["PENDING", "RUNNING"].includes(output?.task_status ?? "")) throw new Error(output?.message || output?.code || `图片任务状态：${output?.task_status || "无效"}`);
+          await new Promise<void>((resolve, reject) => {
+            const cleanup = () => { clearTimeout(timer); signal.removeEventListener("abort", abort); };
+            const abort = () => { cleanup(); reject(signal.reason); };
+            const timer = setTimeout(() => { cleanup(); resolve(); }, 10000);
+            signal.addEventListener("abort", abort, { once: true });
+            if (signal.aborted) abort();
+          });
+        }
+      } catch (reason) {
+        if (this.signal?.aborted) throw reason;
+        const message = timeout.aborted ? "等待图片生成超过 10 分钟，远端任务可能仍在运行，请先检查厂商记录" : reason instanceof Error ? reason.message : "图片任务查询失败";
+        throw new Error(`${message}；任务编号：${taskId}。请勿重复提交生成。`.replaceAll(apiKey, "[Key]"));
+      }
     }
     if (!raw || typeof raw !== "object" || !("output" in raw)) throw new Error("千问接口未返回有效的 output 结果");
     const output = (raw as { output?: unknown }).output;

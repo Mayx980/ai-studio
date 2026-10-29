@@ -1,12 +1,12 @@
 <template>
-  <el-popover v-if="browserConfig.enabled || browserWorkspaceMode" trigger="click" :hideAfter="0" placement="top" :width="300">
-    <template #reference><el-button text aria-label="模型与生成参数">{{ models.find(model => model.id === browserModelSelection[kind])?.label || models[0]?.label || '未接入模型' }} · 参数</el-button></template>
-    <el-form labelPosition="top">
-      <el-form-item label="生成模型"><el-select v-model="browserModelSelection[kind]" placeholder="选择已接入模型" noDataText="请先在 API 配置接入模型"><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.id" /></el-select></el-form-item>
+  <el-popover ref="parameterPopover" v-if="browserConfig.enabled || browserWorkspaceMode" trigger="click" :visible="parametersVisible" :triggerKeys="[]" :hideAfter="0" @update:visible="openParameters" placement="top" :width="300">
+    <template #reference><span ref="parameterTrigger"><el-button text aria-label="模型与生成参数" :aria-expanded="parametersVisible" @click="parametersVisible = true">{{ models.find(model => model.id === browserModelSelection[kind])?.label || models[0]?.label || '未接入模型' }} · 参数</el-button></span></template>
+    <el-form v-click-outside:[parameterExcludes]="closeParameters" labelPosition="top">
+      <el-form-item label="生成模型"><el-select :teleported="false" v-model="browserModelSelection[kind]" placeholder="选择已接入模型" noDataText="请先在 API 配置接入模型"><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.id" /></el-select></el-form-item>
       <template v-if="kind === 'image' || kind === 'video'">
-        <el-form-item label="比例"><el-select v-model="browserConfig.ratio" aria-label="比例"><el-option label="AI 推荐" value="" /><el-option v-for="item in ratios" :key="item" :label="item" :value="item" /></el-select></el-form-item>
-        <el-form-item label="分辨率"><el-select v-model="browserConfig.resolution" aria-label="分辨率"><el-option label="AI 推荐" value="" /><el-option v-for="item in resolutions" :key="item" :label="item" :value="item" /></el-select></el-form-item>
-        <el-form-item v-if="kind === 'video'" label="时长"><el-select v-model="browserConfig.duration" aria-label="时长"><el-option label="AI 推荐" value="" /><el-option v-for="item in [2, 3, 5, 10, 15, 20, 30]" :key="item" :label="`${item} 秒`" :value="String(item)" /></el-select></el-form-item>
+        <el-form-item label="比例"><el-select :teleported="false" v-model="browserConfig.ratio" aria-label="比例"><el-option label="AI 推荐" value="" /><el-option v-for="item in ratios" :key="item" :label="item" :value="item" /></el-select></el-form-item>
+        <el-form-item label="分辨率"><el-select :teleported="false" v-model="browserConfig.resolution" aria-label="分辨率"><el-option label="AI 推荐" value="" /><el-option v-for="item in resolutions" :key="item" :label="item" :value="item" /></el-select></el-form-item>
+        <el-form-item v-if="kind === 'video'" label="时长"><el-select :teleported="false" v-model="browserConfig.duration" aria-label="时长"><el-option label="AI 推荐" value="" /><el-option v-for="item in [2, 3, 5, 10, 15, 20, 30]" :key="item" :label="`${item} 秒`" :value="String(item)" /></el-select></el-form-item>
       </template>
       <p>根据输入选择文字、图片、音频或视频模型；简单模式信息模糊时默认生成图片。</p>
       <p>未选择时采用适配器默认／模型推荐值；手动选择后按指定值提交。</p>
@@ -17,9 +17,17 @@
 </template>
 
 <script setup lang="ts">
+import { ClickOutside as vClickOutside, type PopoverInstance } from "element-plus";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
-import { computed, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { browserConfig, browserModels, browserModelSelection, configuredBrowserModels, generationBusy, inferGenerationKind } from "@/stores/browserGeneration";
+const parametersVisible = ref(false);
+const parameterTrigger = ref<HTMLElement>();
+const parameterPopover = ref<PopoverInstance>();
+const parameterExcludes = computed(() => [parameterTrigger.value, parameterPopover.value?.popperRef?.contentRef]);
+// ACT: 忽略组件的失焦和键盘隐藏请求，只在面板外点击时关闭。
+function openParameters(visible: boolean) { if (visible) parametersVisible.value = true; }
+function closeParameters() { parametersVisible.value = false; }
 const props = withDefaults(defineProps<{ prompt?: string }>(), { prompt: "" });
 const kind = computed(() => generationBusy.value ? browserConfig.kind : inferGenerationKind(props.prompt));
 const models = computed(() => configuredBrowserModels(kind.value));

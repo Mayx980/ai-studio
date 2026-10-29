@@ -39,8 +39,10 @@ export default function studioRelay(): Plugin {
         }
         response.end();
       } catch {
-        if (!response.headersSent) response.writeHead(502);
-        response.end("供应商请求失败，请检查接口地址和网络连接");
+        if (response.destroyed) return;
+        if (response.headersSent) { response.destroy(); return; }
+        response.writeHead(502, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ code: "StudioUpstreamError", message: "本机中转连接供应商失败或等待超时；请求可能已被受理，请先检查厂商任务记录，勿重复提交。" }));
       }
     });
   } };
