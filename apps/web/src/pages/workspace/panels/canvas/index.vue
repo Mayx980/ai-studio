@@ -126,6 +126,7 @@
 <script setup lang="ts">
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { browserConfig, resolveBrowserModel, generationResults, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
+import { browserNodeAi } from "@/lib/browserNodeAi";
 import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, onScopeDispose, provide, ref, shallowReactive, shallowRef, watch } from "vue";
 import axios from "axios";
 import { debounce } from "lodash-es";
@@ -241,6 +242,7 @@ const sidebarOpen = ref(true);
 const assetLibraryRef = ref<InstanceType<typeof assetLibrary>>();
 const edgeDisconnect = ref<{ id: string; x: number; y: number }>();
 const flow = useVueFlow(props.runtimeKey);
+provide("nodeAi", browserNodeAi);
 const nodeDocument: NodeDocumentContext = { targets: shallowReactive(new Map()), mounts: new Map(), states: shallowReactive(new Map()) };
 const canvasDirty = ref(false);
 const canvasSaveError = ref("");
@@ -325,17 +327,27 @@ async function fitCreationNodes(ids: string[]) {
   if (!nodes.length) return;
   await flow.setViewport(vueFlowRuntime.getTransformForBounds(vueFlowRuntime.getRectOfNodes(nodes), Math.max(240, bounds.width - agentWidth), bounds.height, flow.minZoom.value, 1, 0.25));
 }
-async function importBrowserResult(file: File, directory: string, script = false) {
+async function importBrowserResult(file: File, directory: string, script = false, application?: { resultId: string; label: string; model?: string; prompt?: string; sources: { canvasPath: string; nodeId: string }[] }) {
   if (directory !== project.value?.directory || !canvasReady.value) throw new Error("工作区已切换或画布尚未就绪，请重新操作");
   const resultPath = generationResults.value.find(result => result.file === file && result.directory === directory)?.path;
-  const existing = resultPath ? flow.getNodes.value.find(node => Object.values(node.data.outputs ?? {}).some(output => isNodeOutput(output) && output.value && typeof output.value === "object" && "url" in output.value && output.value.url === resultPath)) : undefined;
-  if (existing) { flow.removeSelectedElements(); flow.addSelectedNodes([existing]); await fitCreationNodes([existing.id]); return; }
+  const existing = flow.getNodes.value.find(node => (application && node.data.browserResultId === application.resultId) || (resultPath && Object.values(node.data.outputs ?? {}).some(output => isNodeOutput(output) && output.value && typeof output.value === "object" && "url" in output.value && output.value.url === resultPath)));
+  if (existing) { flow.removeSelectedElements(); flow.addSelectedNodes([existing]); await fitCreationNodes([existing.id]); await flushCanvasSave(); return { canvasPath: canvasId.value, nodeId: existing.id }; }
+  if (application?.sources.some(source => source.canvasPath !== canvasId.value || !flow.findNode(source.nodeId))) throw new Error("前序画布或节点已变化，请回到原画布后应用；生成结果已保留");
   const position = pastePosition();
   if (!position) throw new Error("画布尚未就绪");
   const signal = canvasController.signal;
   const ids = await canvasHistory.batch(() => importCanvasFiles([file], position, { directory, availableNodes: availableNodes.value, signal, flow, throwOnError: true, script }));
   signal.throwIfAborted();
   if (!ids.length) throw new Error("素材节点未能创建，请重试");
+  if (application) {
+    const target = flow.findNode(ids[0]!)!;
+    flow.updateNodeData(target.id, { browserResultId: application.resultId, label: application.label, model: application.model, prompt: application.prompt, promptModel: (application.prompt || "").split("\n").map(text => [{ type: "Write", text }]) });
+    for (const source of application.sources) {
+      const sourceNode = flow.findNode(source.nodeId)!;
+      const handle = sourceNode.data.handles?.find((handle: NodeHandle) => handle.type === "source" && !handle.id.startsWith("row:"));
+      if (handle) addEdges({ id: crypto.randomUUID(), source: source.nodeId, sourceHandle: handle.id, target: target.id, targetHandle: "in" });
+    }
+  }
   // ACT: 新节点插件需要异步挂载并测量；只有 nextTick 时 fitView 会因尺寸为零直接跳过。
   await new Promise<void>((resolve, reject) => {
     const ready = () => ids.every(id => { const node = flow.findNode(id); return node && node.dimensions.width > 0 && node.dimensions.height > 0; });
@@ -356,6 +368,7 @@ async function importBrowserResult(file: File, directory: string, script = false
   await fitCreationNodes(ids);
   signal.throwIfAborted();
   await flushCanvasSave();
+  return { canvasPath: canvasId.value, nodeId: ids[0]! };
 }
 const beginBrowserWorkflow: BeginBrowserWorkflow = async (prompt, kind, references, script, _visible, sources = []) => {
   await waitUntilReady();
@@ -1154,6 +1167,11 @@ function refreshInstalled(event: WindowEventMap["toonflow:plugin-installed"]) {
 }
 
 const refreshNodeConfig = () => { void loadRemoteNodes(); };
+watch(() => props.settingsVisible, (visible, previous) => {
+  if (visible || !previous) return;
+  for (const name of ["textNode", "imageGenerationNode", "videoGenerationNode", "audioGenerationNode"]) nodeReloads.add(name);
+  void loadRemoteNodes();
+});
 
 onMounted(() => {
   // 在捕获阶段同步修饰键，避免节点编辑器截断 keydown/keyup 后缩放状态丢失或卡住。

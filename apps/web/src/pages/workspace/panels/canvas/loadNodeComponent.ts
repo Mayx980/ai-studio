@@ -5,6 +5,7 @@ type NodeComponent = Exclude<NodeTypesObject[string], string>;
 
 const components = shallowReactive(new Map<string, NodeComponent>());
 const requests = new Map<string, Promise<NodeComponent>>();
+const sources = new Map<string, string>();
 
 export function getNodeIcon(type?: string): Component | undefined {
   if (!type?.startsWith("remote-")) return;
@@ -16,17 +17,13 @@ export function loadNodeComponent(name: string, url: string, force = false): Pro
   if (pending) return pending;
   const nodeWindow = window as typeof window & { toonflowNodes?: NodeTypesObject };
   const cached = components.get(name) ?? (Object.hasOwn(nodeWindow.toonflowNodes ?? {}, name) ? nodeWindow.toonflowNodes?.[name] : undefined);
-  if (!force && cached && (typeof cached === "object" || typeof cached === "function")) {
-    components.set(name, cached);
-    return Promise.resolve(cached);
-  }
-  components.delete(name);
   // ACT: 同名节点只加载一份脚本，所有画布共享进行中的重载，避免互相清除全局导出。
   const request = (async () => {
     const scriptUrl = force ? `${url}${url.includes("?") ? "&" : "?"}reload=${crypto.randomUUID()}` : url;
     const response = await fetch(scriptUrl);
     if (!response.ok) throw new Error(`节点脚本加载失败（HTTP ${response.status}）`);
     const code = await response.text();
+    if (!force && cached && (typeof cached === "object" || typeof cached === "function") && sources.get(name) === code) { components.set(name, cached); return cached; }
     if (code.includes("toonflowTiptapHost")) await import("@/lib/tiptapHost");
     return new Promise<NodeComponent>((resolve, reject) => {
       delete nodeWindow.toonflowNodes?.[name];
@@ -39,6 +36,7 @@ export function loadNodeComponent(name: string, url: string, force = false): Pro
           reject(new Error(`节点脚本未导出 ${name} 组件`));
           return;
         }
+        sources.set(name, code);
         resolve(component);
       };
       script.onerror = () => {

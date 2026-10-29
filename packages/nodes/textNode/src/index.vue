@@ -2,8 +2,8 @@
   <nodeSkeleton
     v-bind="nodeProps"
     :icon="isScript ? IconMovie : IconFileText"
-    :hiddenHandles="isScript ? scriptRows.map(row => `row:${row.id}`) : []"
-    :style="isScript ? { width: '1120px' } : undefined"
+    :hiddenHandles="isScript ? scriptRows.flatMap(row => [`row:${row.id}`, `rowIn:${row.id}`]) : []"
+    :style="isScript ? { width: '2600px' } : undefined"
     v-model:bottomVisible="node.selected"
     :topVisible="node.selected"
     topWidth="max-content"
@@ -11,7 +11,7 @@
     :downloadName="`${nodeProps.label || '文本'}.md`"
     :bottomWidth="660"
     @fullscreen="fullscreen = true; editing = true">
-    <div class="textContent" :class="{ empty: !isScript && !outputs.text.value.trim() }">
+    <div class="textContent" @click="openScript" :class="{ empty: !isScript && !outputs.text.value.trim() }">
       <el-alert v-if="documentState.error" :title="documentState.error" type="error" :closable="false" showIcon>
         <el-button text size="small" :disabled="generating || textReloading" @click="editing = true">查看并复制当前正文</el-button>
         <el-button text size="small" :disabled="generating" :loading="textReloading" @click="reloadText">重新读取磁盘</el-button>
@@ -48,7 +48,8 @@
   </nodeSkeleton>
   <el-dialog v-model="editing" :title="isScript ? '编辑脚本／分镜文案' : '编辑文本'" width="min(860px, calc(100vw - 32px))" :fullscreen="fullscreen" alignCenter appendToBody @closed="fullscreen = false">
     <div class="textEditor" :class="{ fullscreen }">
-      <markdownEditor v-model="outputs.text.value" :files="textReady ? textFiles : undefined" :path="textPath" :active="editing" :disabled="generating || textReloading" :readonly="!!documentState.error" :ariaLabel="isScript ? '编辑脚本与分镜内容' : '编辑文本内容'" />
+      <scriptTable v-if="isScript" v-model="outputs.text.value" v-model:rows="scriptRows" :nodeId="node.id" embedded :disabled="generating || !!documentState.error" />
+      <markdownEditor v-else v-model="outputs.text.value" :files="textReady ? textFiles : undefined" :path="textPath" :active="editing" :disabled="generating || textReloading" :readonly="!!documentState.error" :ariaLabel="isScript ? '编辑脚本与分镜内容' : '编辑文本内容'" />
     </div>
   </el-dialog>
 </template>
@@ -67,6 +68,8 @@ import markdownPreview from "./markdownPreview.vue";
 import referenceItem from "@toonflow/node-shared/referenceItem";
 import promptInput from "@toonflow/node-shared/promptInput";
 import { useNodeDocumentState, type NodeDocumentContext } from "@toonflow/nodes-scaffold/nodeDocument";
+import { useVueFlow } from "@vue-flow/core";
+import { getTargetValues } from "@toonflow/nodes-scaffold/nodeInputs";
 
 type PromptModel = NonNullable<InstanceType<typeof promptInput>["$props"]["modelValue"]>;
 
@@ -86,6 +89,10 @@ const { refList, referenceMentions, setReferencePreview, removeReference } = use
 const scriptTableRef = ref<InstanceType<typeof scriptTable>>();
 const editing = ref(false);
 const fullscreen = ref(false);
+function openScript(event: MouseEvent) {
+  if (!isScript.value || (event.target as Element).closest("button, input, textarea, .el-input, .el-image, .vue-flow__handle")) return;
+  fullscreen.value = true; editing.value = true;
+}
 const downloadUrl = ref("");
 const documentContext = inject<NodeDocumentContext | undefined>("nodeDocument", undefined);
 watch([() => outputs.value.text.value, () => node.selected || !!documentContext?.targets.has(node.id)], ([text, visible], _previous, onCleanup) => {
@@ -100,12 +107,17 @@ const importedReference = computed(() => data.value.scriptImportActive ?? data.v
 const isScript = computed(() => data.value.contentKind === "script");
 if (isScript.value && !Array.isArray(data.value.scriptRows)) data.value.scriptRows = [];
 const scriptRows = computed({ get: () => data.value.scriptRows ?? [], set: (value: { id: string; cells: string[] }[]) => { data.value.scriptRows = value; } });
+const flow = useVueFlow();
+const rowReferences = computed(() => Object.fromEntries(scriptRows.value.map(row => [row.id, getTargetValues(node.id, `rowIn:${row.id}`, flow.getNodes.value, flow.getEdges.value)])));
 watch(scriptRows, rows => {
   if (!isScript.value) return;
-  handles.value = [handles.value.find(handle => handle.type === "target")!, { id: "text", type: "source", dataType: "STRING", label: "完整分镜表" }, ...rows.map(row => ({ id: `row:${row.id}`, type: "source" as const, dataType: "STRING", label: `镜头 ${row.cells[0] || "未编号"}` }))];
+  handles.value = [handles.value.find(handle => handle.id === "in" && handle.type === "target")!, { id: "text", type: "source", dataType: "STRING", label: "完整分镜表" }, ...rows.flatMap(row => [{ id: `rowIn:${row.id}`, type: "target" as const, dataType: "IMAGE", label: `镜头 ${row.cells[0] || "未编号"} 图片引用` }, { id: `row:${row.id}`, type: "source" as const, dataType: "STRING", label: `镜头 ${row.cells[0] || "未编号"}` }])];
+}, { deep: true, immediate: true });
+watch([scriptRows, rowReferences], ([rows, references]) => {
+  if (!isScript.value) return;
   const values = outputs.value as Record<string, NodeOutput>;
   for (const key of Object.keys(values)) if (key.startsWith("row:")) delete values[key];
-  for (const row of rows) values[`row:${row.id}`] = { dataType: "STRING", value: row.cells.map((value, index) => `${["镜头号", "时长", "景别", "运镜方式", "画面", "台词/音效", "角色表情反应", "环境场景", "分镜图提示词", "视频运动提示词", "角色形象描述"][index]}：${value}`).join("\n") };
+  for (const row of rows) values[`row:${row.id}`] = { dataType: "STRING", value: [...row.cells.map((value, index) => `${["镜头号", "时长", "景别", "运镜方式", "画面", "台词/音效", "角色表情反应", "环境场景", "分镜图提示词", "视频运动提示词", "角色形象描述"][index]}：${value}`), ...references[row.id]!.map(item => `参考图片：${item.dataType === "IMAGE" && item.value ? item.value.url : "尚未生成"}`)].join("\n") };
 }, { deep: true, immediate: true });
 const prompt = computed({ get: () => data.value.prompt ?? "", set: (value: string) => { data.value.prompt = value; } });
 const model = computed({ get: () => data.value.model ?? "", set: (value: string) => { data.value.model = value; } });
@@ -301,6 +313,7 @@ nodeTools.register({
 .textEditor {
   height: min(560px, calc(100dvh - 144px));
   min-height: 0;
+  overflow: auto;
 
   &.fullscreen {
     height: calc(100dvh - 112px);

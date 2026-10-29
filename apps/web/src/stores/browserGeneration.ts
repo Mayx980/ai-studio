@@ -36,6 +36,7 @@ export type BrowserWorkflowNode = { canvasPath: string; nodeId: string };
 export type ProfessionalCanvas = {
   read(directory: string, node: BrowserWorkflowNode): Promise<string>;
   mount(directory: string, node: BrowserWorkflowNode, target: HTMLElement): Promise<() => void>;
+  apply(directory: string, result: BrowserGenerationResult, sources: BrowserWorkflowNode[], label: string, model?: string, prompt?: string): Promise<BrowserWorkflowNode>;
 };
 export type BrowserWorkflow = { node: BrowserWorkflowNode; complete(results: BrowserGenerationResult[]): Promise<void> };
 export type BeginBrowserWorkflow = (prompt: string, kind: ModelKind, references: File[], script: boolean, visible?: boolean, sources?: BrowserWorkflowNode[]) => Promise<BrowserWorkflow>;

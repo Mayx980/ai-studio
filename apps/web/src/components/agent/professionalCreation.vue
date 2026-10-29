@@ -6,9 +6,9 @@
     <el-button v-if="busy" text @click="stop">停止等待</el-button>
     <el-button v-if="state.stage === 'analyze' && !busy" @click="analyze">分析创作要求</el-button>
     <el-form v-if="state.stage === 'brief'" labelPosition="top" :disabled="busy || disabled">
-      <el-form-item label="本次创作目标"><el-select v-model="state.goal" @change="changed"><el-option v-for="item in goals" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-form-item>
-      <el-form-item label="从哪一步开始"><el-select v-model="state.start" @change="changed"><el-option label="从想法开始" value="idea" /><el-option label="已有剧情，继续创作" value="story" /><el-option label="已有分镜，继续创作" value="storyboard" /></el-select></el-form-item>
-      <el-form-item v-for="(question, index) in state.questions" :key="index" :label="question.label"><el-input v-model="question.answer" type="textarea" :rows="2" @input="changed" /></el-form-item>
+      <el-form-item label="本次创作目标"><el-radio-group v-model="state.goal" @change="changed"><el-radio v-for="item in goals" :key="item.value" :value="item.value">{{ item.label }}</el-radio></el-radio-group></el-form-item>
+      <el-form-item label="从哪一步开始"><el-radio-group v-model="state.start" @change="changed"><el-radio value="idea">从想法开始</el-radio><el-radio value="story">已有剧情</el-radio><el-radio value="storyboard">已有分镜</el-radio></el-radio-group></el-form-item>
+      <el-form-item v-for="(question, index) in state.questions" :key="index" :label="question.label"><el-checkbox-group v-model="question.selected" @change="answerQuestion(index)"><el-checkbox v-for="option in question.options || []" :key="option" :value="option">{{ option }}</el-checkbox></el-checkbox-group><el-input v-model="question.custom" placeholder="其他想法（选填）" @input="answerQuestion(index)" /></el-form-item>
       <el-form-item v-if="state.start !== 'idea'" label="已有剧情／分镜正文"><el-input v-model="sourceText" type="textarea" :rows="6" placeholder="粘贴正文，或使用本轮已引用的文本内容" /></el-form-item>
       <el-button type="primary" :disabled="!state.questions.every(question => question.answer.trim()) || (state.start !== 'idea' && !sourceText.trim())" @click="makePlans">确认要求，生成方案</el-button>
     </el-form>
@@ -33,26 +33,34 @@
       <el-button type="primary" :disabled="busy || disabled" @click="makePrompts">生成设计提示词供我选择</el-button><el-button :disabled="busy || disabled" @click="skipImages">暂不生成参考图</el-button>
     </template>
     <template v-if="state.stage === 'prompts'">
-      <p>选择一个角色／场景设计提示词，确认后生成图片。</p>
-      <el-radio-group v-model="state.selectedPrompt" :disabled="busy || disabled" @change="changed"><el-radio v-for="option in state.prompts" :key="option.id" :value="option.id"><strong>{{ option.title }}</strong><p>{{ option.content }}</p></el-radio></el-radio-group>
-      <el-button type="primary" :disabled="busy || disabled || !state.selectedPrompt" @click="makeImages">采用提示词，生成参考图</el-button>
+      <p>勾选角色／场景设计提示词，可多选，分别生成参考图。</p>
+      <el-checkbox-group v-model="selectedPrompts" :disabled="busy || disabled" @change="changed"><el-checkbox v-for="option in state.prompts" :key="option.id" :value="option.id"><strong>{{ option.title }}</strong><p>{{ option.content }}</p></el-checkbox></el-checkbox-group>
+      <el-button type="primary" :disabled="busy || disabled || !selectedPrompts.length" @click="makeImages">生成选中的参考图</el-button>
     </template>
     <template v-if="state.stage === 'imageReview'">
-      <browserModelResults :directory="directory" :resultIds="state.imageResultIds" :showStatus="false" :showCanvas="false" :showReference="false" />
-      <el-button type="primary" :disabled="busy || disabled" @click="state.stage = state.goal === 'video' ? 'videoConsent' : 'done'; changed()">确认参考图，继续</el-button>
+      <p>勾选要应用的图片。确认后分别保存到画布图片节点。</p>
+      <el-checkbox-group v-model="selectedImages" :disabled="busy || disabled" @change="changed"><div v-for="(id, index) in imageDraftIds" :key="id" class="mediaCandidate"><el-checkbox :value="id">{{ draftLabel(id) || `参考图 ${index + 1}` }}</el-checkbox><browserModelResults :directory="directory" :resultIds="[id]" :showStatus="false" :showCanvas="false" :showReference="false" /></div></el-checkbox-group>
+      <el-button type="primary" :disabled="busy || disabled || !selectedImages.length" @click="confirmMedia('image')">应用所选图片并加入画布</el-button>
+      <el-button :disabled="busy || disabled" @click="state.stage = 'prompts'; changed()">继续选择提示词</el-button>
+    </template>
+    <template v-if="state.stage === 'videoReview'">
+      <p>勾选要应用的视频。确认后分别保存到画布视频节点。</p>
+      <el-checkbox-group v-model="selectedVideos" :disabled="busy || disabled" @change="changed"><div v-for="(id, index) in videoDraftIds" :key="id" class="mediaCandidate"><el-checkbox :value="id">{{ draftLabel(id) || `视频 ${index + 1}` }}</el-checkbox><browserModelResults :directory="directory" :resultIds="[id]" :showStatus="false" :showCanvas="false" :showReference="false" /></div></el-checkbox-group>
+      <el-button type="primary" :disabled="busy || disabled || !selectedVideos.length" @click="confirmMedia('video')">应用所选视频并加入画布</el-button>
     </template>
     <template v-if="state.stage === 'videoConsent'">
       <p>是否使用已确认的剧情、分镜与参考图生成视频？</p>
       <el-button type="primary" :disabled="busy || disabled" @click="makeVideo">确认生成视频</el-button><el-button :disabled="busy || disabled" @click="state.stage = 'done'; changed()">暂不生成</el-button>
+      <el-button v-if="imageDraftIds.length" :disabled="busy || disabled" @click="state.stage = 'imageReview'; changed()">调整参考图</el-button>
     </template>
-    <template v-if="state.stage === 'done'"><p>本次内容已加入画布，可继续编辑。</p><browserModelResults v-if="state.resultIds.length" :directory="directory" :resultIds="state.resultIds" :showStatus="false" :showCanvas="false" :showReference="false" /></template>
+    <template v-if="state.stage === 'done'"><p>所选内容已加入画布，可继续编辑。</p><browserModelResults v-if="appliedResultIds.length" :directory="directory" :resultIds="appliedResultIds" :showStatus="false" :showCanvas="false" :showReference="false" /></template>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { generateBrowserText } from "@/lib/browserNodeAi";
-import { browserResultFile, generateInBrowser, generationBusy, generationError, generationResults, resolveBrowserModel, stopBrowserGeneration, type BeginBrowserWorkflow, type BrowserWorkflowNode, type ModelKind, type ProfessionalCanvas } from "@/stores/browserGeneration";
+import { browserResultFile, generateInBrowser, generationBusy, generationError, generationResults, resolveBrowserModel, stopBrowserGeneration, type BeginBrowserWorkflow, type BrowserWorkflowNode, type ProfessionalCanvas } from "@/stores/browserGeneration";
 import { readTextAttachment } from "./textAttachments";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import type { AgentAttachment } from "./types";
@@ -66,12 +74,21 @@ const busy = ref(false), error = ref(""), editorReady = ref(false);
 const sourceText = computed({ get: () => props.state.sourceText || "", set: value => { props.state.sourceText = value; changed(); } });
 const editorTarget = ref<HTMLElement>();
 let controller: AbortController | undefined;
+let mediaWaiting = false;
 let releaseEditor: (() => void) | undefined;
 const goals = [{ label: "剧情", value: "story" }, { label: "分镜设计", value: "storyboard" }, { label: "图片", value: "image" }, { label: "视频", value: "video" }, { label: "音频", value: "audio" }];
-const stageLabels = { analyze: "分析要求", brief: "补充创作细节", plans: "选择方案", scripts: "选择脚本", storyReview: "预览修改剧情", storyboardReview: "预览修改分镜", referenceConsent: "确认参考图", prompts: "选择设计提示词", imageReview: "预览参考图", videoConsent: "确认视频生成", done: "已加入画布" };
+const stageLabels = { analyze: "分析要求", brief: "勾选创作细节", plans: "选择方案", scripts: "选择脚本", storyReview: "预览修改剧情", storyboardReview: "预览修改分镜", referenceConsent: "确认参考图", prompts: "选择设计提示词", imageReview: "预览参考图", videoConsent: "确认视频生成", videoReview: "预览并应用视频", done: "已加入画布" };
+const selectedPrompts = computed({ get: () => props.state.selectedPrompts ?? (props.state.selectedPrompt ? [props.state.selectedPrompt] : []), set: value => { props.state.selectedPrompts = value; } });
+const selectedImages = computed({ get: () => props.state.selectedImages ?? props.state.imageResultIds, set: value => { props.state.selectedImages = value; } });
+const selectedVideos = computed({ get: () => props.state.selectedVideos ?? videoDraftIds.value, set: value => { props.state.selectedVideos = value; } });
+const imageDraftIds = computed(() => [...new Set([...(props.state.mediaDrafts ?? []).filter(item => item.kind === "image").map(item => item.resultId), ...props.state.imageResultIds])]);
+const videoDraftIds = computed(() => (props.state.mediaDrafts ?? []).filter(item => item.kind === "video").map(item => item.resultId));
+const appliedResultIds = computed(() => props.state.mediaDrafts ? props.state.mediaDrafts.filter(item => item.node).map(item => item.resultId) : props.state.resultIds);
+function draftLabel(id: string) { return props.state.mediaDrafts?.find(item => item.resultId === id)?.label; }
+function answerQuestion(index: number) { const question = props.state.questions[index]!; question.answer = [...question.selected ?? [], question.custom || ""].filter(Boolean).join("、"); changed(); }
 const reviewNode = computed(() => props.state.stage === "storyReview" ? props.state.story : props.state.stage === "storyboardReview" ? props.state.storyboard : undefined);
 function changed() { emit("change"); }
-function stop() { controller?.abort(); if (generationBusy.value) stopBrowserGeneration(); }
+function stop() { controller?.abort(); if (mediaWaiting) stopBrowserGeneration(); }
 async function run(action: () => Promise<void>) {
   if (busy.value || props.disabled) return;
   error.value = ""; busy.value = true; emit("busy", true); controller = new AbortController();
@@ -106,10 +123,10 @@ async function options(instruction: string): Promise<ProfessionalOption[]> {
 }
 function analyze() { return run(async () => {
   sourceText.value = await initialReferences();
-  const result = await textRequest(`用户要求：${props.state.prompt}\n已有文字参考：${sourceText.value}\n请分析当前创作情景，提问 3～6 个尚未明确、且会影响结果的问题，例如制作目的、时长、受众、主要内容、风格、比例。已经明确的细节不要重复问；如全部明确只询问需确认的关键取舍。输出 {"questions":["具体问题"]}。`);
+  const result = await textRequest(`用户要求：${props.state.prompt}\n已有文字参考：${sourceText.value}\n请分析当前创作情景，提问最多 6 个尚未明确且影响结果的问题，例如制作目的、时长、受众、主体、风格、比例。每题提供 3～5 个适合当前情景的简短选项，允许多选。已经明确的细节不要重复问，全部明确时 questions 可为空。输出 {"questions":[{"label":"具体问题","options":["选项1","选项2","选项3"]}]}。`);
   const questions = (result as { questions?: unknown })?.questions;
-  if (!Array.isArray(questions) || !questions.length || questions.length > 6 || questions.some(item => typeof item !== "string" || !item.trim())) throw new Error("模型未返回有效问题，请重新分析");
-  props.state.questions = questions.map(label => ({ label, answer: "" })); props.state.stage = "brief";
+  if (!Array.isArray(questions) || questions.length > 6 || questions.some(item => !item || typeof item.label !== "string" || !item.label.trim() || !Array.isArray(item.options) || item.options.length < 2 || item.options.length > 6 || item.options.some((option: unknown) => typeof option !== "string" || !option.trim()))) throw new Error("模型未返回有效的提问选项，请重新分析");
+  props.state.questions = questions.map(item => ({ label: item.label, options: [...new Set<string>([...item.options, "由你推荐"])], selected: [], custom: "", answer: "" })); props.state.stage = "brief";
 }); }
 function makePlans() { return run(async () => { props.state.plans = await options("根据已补充的细节生成不同创作方案供勾选"); props.state.stage = "plans"; }); }
 async function createDocument(text: string, script: boolean) {
@@ -166,9 +183,9 @@ function confirmDocument() { return run(async () => {
 }); }
 function makePrompts() { return run(async () => { props.state.prompts = await options("基于当前已修改的剧情和分镜生成几个角色／场景设计提示词，保持主体一致"); props.state.stage = "prompts"; }); }
 function skipImages() { props.state.stage = props.state.goal === "video" ? "videoConsent" : "done"; changed(); }
-async function media(kind: ModelKind, prompt: string) {
-  if (!begin) throw new Error("画布尚未就绪");
-  resolveBrowserModel(kind);
+async function media(kind: "image" | "video" | "audio", prompt: string, label = "") {
+  if (!canvas) throw new Error("画布尚未就绪");
+  const model = resolveBrowserModel(kind);
   const referenceResults = kind === "video" ? generationResults.value.filter(item => props.state.imageResultIds.includes(item.id) && item.directory === props.directory) : [];
   if (kind === "video" && props.state.imageResultIds.length !== referenceResults.length) throw new Error("参考图未能恢复，请保留当前内容并重新打开对话");
   const originalImages = props.attachments.filter(item => item.mimeType.startsWith("image/"));
@@ -177,22 +194,57 @@ async function media(kind: ModelKind, prompt: string) {
   if (kind === "audio" && originalImages.length) throw new Error("音频模型只支持文字参考，图片不会被静默忽略");
   if (generationBusy.value) throw new Error("另一个模型请求仍在处理中，请稍后继续");
   controller?.signal.throwIfAborted();
-  const workflow = await begin(prompt, kind, referenceResults.length ? [] : files, false, true, [...sources(), ...(kind === "video" ? props.state.images : [])]);
-  controller?.signal.throwIfAborted();
   const previous = new Set(generationResults.value.map(item => item.id));
-  const success = await generateInBrowser(prompt, files, props.directory, kind);
+  let success: boolean;
+  mediaWaiting = true;
+  try { success = await generateInBrowser(prompt, files, props.directory, kind); }
+  finally { mediaWaiting = false; }
   const results = generationResults.value.filter(item => !previous.has(item.id) && item.directory === props.directory);
-  if (!success) throw new Error(generationError.value);
-  await workflow.complete(results);
-  props.state.resultIds.push(...results.map(item => item.id)); emit("results", props.state.resultIds);
-  if (kind === "image") { props.state.images.push(workflow.node); props.state.imageResultIds.push(...results.map(item => item.id)); }
+  if (!results.length && !success) throw new Error(generationError.value);
+  for (const result of results) {
+    const draft = { resultId: result.id, kind, label: label || ({ image: "参考图", video: "视频", audio: "音频" })[kind], prompt, model: JSON.stringify([model.id, model.modelId]), node: undefined as BrowserWorkflowNode | undefined };
+    (props.state.mediaDrafts ??= []).push(draft);
+    props.state.resultIds.push(result.id);
+    if (kind === "audio") draft.node = await canvas.apply(props.directory, result, sources(), draft.label, draft.model, draft.prompt);
+  }
+  emit("results", props.state.resultIds); changed();
+  if (!success) { if (kind === "image") { props.state.selectedImages = [...selectedImages.value, ...results.map(item => item.id)]; props.state.stage = "imageReview"; } else if (kind === "video") { props.state.selectedVideos = results.map(item => item.id); props.state.stage = "videoReview"; } throw new Error(generationError.value); }
+  return results.map(item => item.id);
 }
-function makeImages() { return run(async () => { const prompt = props.state.prompts.find(item => item.id === props.state.selectedPrompt); if (!prompt) throw new Error("请选择提示词"); await media("image", prompt.content); props.state.stage = "imageReview"; }); }
-function makeVideo() { return run(async () => { await media("video", `${await context()}\n将已确认的剧情与分镜转为视频，参考所附图片保持角色和场景一致。`); props.state.stage = "done"; }); }
+function confirmMedia(kind: "image" | "video") { return run(async () => {
+  if (!canvas) throw new Error("画布尚未就绪");
+  const ids = kind === "image" ? selectedImages.value : selectedVideos.value;
+  if (!ids.length) throw new Error("请先勾选要应用的素材");
+  const adopted: BrowserWorkflowNode[] = [];
+  for (const id of ids) {
+    const result = generationResults.value.find(item => item.id === id && item.directory === props.directory && item.kind === kind);
+    if (!result) throw new Error("素材未能恢复，请重新打开对话，已有节点保留");
+    let draft = props.state.mediaDrafts?.find(item => item.resultId === id);
+    if (!draft) {
+      draft = { resultId: id, kind, label: kind === "image" ? "参考图" : "视频", model: "", prompt: props.state.prompt };
+      (props.state.mediaDrafts ??= []).push(draft);
+    }
+    const node = await canvas.apply(props.directory, result, [...sources(), ...(kind === "video" ? props.state.images : [])], draft.label, draft.model, draft.prompt);
+    draft.node = node; adopted.push(node); changed();
+  }
+  if (kind === "image") { props.state.images = adopted; props.state.imageResultIds = [...ids]; props.state.stage = props.state.goal === "video" ? "videoConsent" : "done"; }
+  else props.state.stage = "done";
+}); }
+function makeImages() { return run(async () => {
+  const prompts = props.state.prompts.filter(item => selectedPrompts.value.includes(item.id) && !props.state.generatedPromptIds?.includes(item.id));
+  if (!prompts.length) { if (imageDraftIds.value.length) { props.state.stage = "imageReview"; return; } throw new Error("请先勾选设计提示词"); }
+  for (const prompt of prompts) {
+    const ids = await media("image", prompt.content, prompt.title);
+    (props.state.generatedPromptIds ??= []).push(prompt.id);
+    props.state.selectedImages = [...new Set([...selectedImages.value, ...ids])];
+    props.state.stage = "imageReview"; changed();
+  }
+}); }
+function makeVideo() { return run(async () => { const ids = await media("video", `${await context()}\n将已确认的剧情与分镜转为视频，参考所附图片保持角色和场景一致。`); props.state.selectedVideos = ids; props.state.stage = "videoReview"; }); }
 watch(reviewNode, () => { void mountEditor(); }, { flush: "post" });
 watch(() => props.stopToken, stop);
 watch(() => props.disabled, disabled => { if (!disabled && props.state.stage === "analyze" && !busy.value) void analyze(); });
-onMounted(() => { if (props.state.stage === "analyze" && !props.disabled) void analyze(); else void mountEditor(); });
+onMounted(() => { for (const question of props.state.questions) { question.options ??= ["由你推荐"]; question.selected ??= []; question.custom ??= question.answer; } if (props.state.stage === "analyze" && !props.disabled) void analyze(); else void mountEditor(); });
 onBeforeUnmount(() => { stop(); releaseEditor?.(); });
 </script>
 

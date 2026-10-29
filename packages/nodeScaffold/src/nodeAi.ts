@@ -184,17 +184,17 @@ export function useNodeAi() {
   const requestSignal = (signal?: AbortSignal) => signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
 
   async function getModels(signal?: AbortSignal) {
-    if (adapter?.enabled()) return adapter.getModels(requestSignal(signal));
+    if (adapter) return adapter.enabled() ? adapter.getModels(requestSignal(signal)) : [];
     return readModels<NodeAiModel>("/api/ai/models", requestSignal(signal));
   }
 
   async function getMediaModels(signal?: AbortSignal) {
-    if (adapter?.enabled()) return adapter.getMediaModels(requestSignal(signal));
+    if (adapter) return adapter.enabled() ? adapter.getMediaModels(requestSignal(signal)) : [];
     return readModels<NodeMediaModel>("/api/ai/media/models", requestSignal(signal));
   }
 
   async function getMediaPrice(input: NodeMediaPriceRequest, signal?: AbortSignal): Promise<NodeMediaPrice | null> {
-    if (adapter?.enabled()) return null;
+    if (adapter) return null;
     const waitingSignal = requestSignal(signal);
     waitingSignal.throwIfAborted();
     const now = Date.now();
@@ -271,22 +271,22 @@ export function useNodeAi() {
   }
 
   function generateImage(input: NodeImageRequest, signal?: AbortSignal) {
-    if (adapter?.enabled()) return adapter.generateImage(input, requestSignal(signal));
+    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateImage(input, requestSignal(signal)); }
     return generateMedia("image", input, signal);
   }
 
   function generateVideo(input: NodeVideoRequest, signal?: AbortSignal) {
-    if (adapter?.enabled()) return adapter.generateVideo(input, requestSignal(signal));
+    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateVideo(input, requestSignal(signal)); }
     return generateMedia("video", input, signal);
   }
 
   function generateAudio(input: NodeAudioRequest, signal?: AbortSignal) {
-    if (adapter?.enabled()) return adapter.generateAudio(input, requestSignal(signal));
+    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateAudio(input, requestSignal(signal)); }
     return generateMedia("audio", input, signal);
   }
 
   async function generate(input: NodeAiRequest): Promise<NodeAiResult> {
-    if (adapter?.enabled()) return adapter.generate({ ...input, signal: requestSignal(input.signal) });
+    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generate({ ...input, signal: requestSignal(input.signal) }); }
     const signal = requestSignal(input.signal);
     const callSignal = input.tools?.length ? AbortSignal.any([signal, AbortSignal.timeout(600000)]) : signal;
     const { providerId, modelId, prompt, systemPrompt, onEvent } = input;

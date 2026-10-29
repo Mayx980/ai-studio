@@ -70,7 +70,7 @@
 
 <script setup lang="ts">
 import { browserNodeAi } from "@/lib/browserNodeAi";
-import { browserConfig, additionalBrowserModels, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
+import { browserConfig, browserResultFile, additionalBrowserModels, type ProfessionalCanvas, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
 import { computed, defineAsyncComponent, nextTick, onMounted, onScopeDispose, provide, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
 import axios from "axios";
@@ -148,7 +148,13 @@ provide("professionalCanvas", {
     if (!canvasPanelRef.value) throw new Error("画布尚未就绪");
     return canvasPanelRef.value.mountDocumentNode(directory, node.canvasPath, node.nodeId, target);
   },
-});
+  async apply(directory, result, sources, label, model, prompt) {
+    if (!canvasPanelRef.value || directory !== workspaceStore.project?.directory) throw new Error("工作区已切换，生成结果保留在原对话");
+    const file = await browserResultFile(result);
+    await canvasPanelRef.value.waitUntilReady();
+    return canvasPanelRef.value.importBrowserResult(file, directory, false, { resultId: result.id, label, model, prompt, sources });
+  },
+} satisfies ProfessionalCanvas);
 provide("mentionCanvas", () => canvasPanelRef.value?.mentionSource);
 provide("activateCanvasPanel", () => switchPanel("canvas"));
 provide("performWorkspaceFileAction", (directory: string, action: "copy" | "rename" | "move" | "delete", path: string, target?: string, entryType: "canvas" | "directory" = "canvas") =>

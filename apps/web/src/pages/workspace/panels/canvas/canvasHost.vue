@@ -413,10 +413,10 @@ defineExpose({
     const panel = await waitForControlValue(() => activeInstance.value, AbortSignal.any([lifetime.signal, AbortSignal.timeout(30000)]));
     await panel.waitUntilReady();
   },
-  importBrowserResult: async (file: File, directory: string, script = false) => {
+  importBrowserResult: async (...args: Parameters<CanvasInstance["importBrowserResult"]>) => {
     const panel = activeInstance.value;
     if (!panel) throw new Error("画布尚未就绪");
-    await panel.importBrowserResult(file, directory, script);
+    return panel.importBrowserResult(...args);
   },
   canvasId, canvasReady, canvasListReady, getCanvasContext, readDocumentNode, readDocumentNodes, focusDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, resolveDocumentNodeFile, performFileAction, flushSave, cancelSave,
   addNodeAtPointer: () => activeInstance.value?.addNodeAtPointer(),

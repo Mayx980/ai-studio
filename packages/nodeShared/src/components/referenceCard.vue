@@ -55,7 +55,7 @@ const { node: targetNode } = useNode();
 const flow = useVueFlow();
 const props = defineProps<{ item: NodeInputValue; index: number }>();
 const emit = defineEmits<{ remove: []; preview: [url: string] }>();
-const isRow = computed(() => props.item.sourceHandle.startsWith("row:"));
+const isRow = computed(() => props.item.dataType === "STRING" && props.item.sourceHandle.startsWith("row:"));
 const rowLabel = computed(() => isRow.value ? `${flow.findNode(props.item.source)?.data.label || "脚本"} · ${typeof props.item.value === "string" ? props.item.value.split("\n")[0] : "镜头"}` : "");
 const referenceId = computed(() => JSON.stringify([props.item.source, props.item.sourceHandle]));
 watch(() => props.item.value, value => {

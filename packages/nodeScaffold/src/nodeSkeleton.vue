@@ -134,7 +134,7 @@
           v-for="(item, index) in group.items"
           :id="item.id"
           :key="item.id"
-          v-show="!documentTarget && !hiddenHandles.includes(item.id)"
+          v-show="!documentTarget"
           class="nodeHandle"
           :class="{
             connected: isHandleConnected(item),
@@ -216,8 +216,8 @@ const props = withDefaults(
   }
 );
 const handleGroups = computed(() => [
-  { type: "target" as const, position: Position.Left, items: props.handles.filter((item) => item.type === "target") },
-  { type: "source" as const, position: Position.Right, items: props.handles.filter((item) => item.type === "source") },
+  { type: "target" as const, position: Position.Left, items: props.handles.filter((item) => item.type === "target" && !props.hiddenHandles.includes(item.id)) },
+  { type: "source" as const, position: Position.Right, items: props.handles.filter((item) => item.type === "source" && !props.hiddenHandles.includes(item.id)) },
 ]);
 const cardHeight = computed(() => Math.max(100, ...handleGroups.value.map((group) => (group.items.length + 1) * 44)));
 const { id: nodeId, node } = useNode();

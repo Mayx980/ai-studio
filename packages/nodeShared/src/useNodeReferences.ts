@@ -3,16 +3,24 @@ import { useNode, useVueFlow } from "@vue-flow/core";
 import type { NodeData } from "@toonflow/nodes-scaffold/connection";
 import { useNodeEvent } from "@toonflow/nodes-scaffold/nodeEvent";
 import type { NodeInputValue } from "@toonflow/nodes-scaffold/values";
+import { useNodeInputs } from "@toonflow/nodes-scaffold/nodeInputs";
 
 export function useNodeReferences(handleId = "in") {
   const { id, node } = useNode<NodeData & { referenceOrder?: Record<string, string[]> }>();
-  const { removeEdges } = useVueFlow();
+  const flow = useVueFlow();
+  const { removeEdges } = flow;
+  const inputs = useNodeInputs(flow);
   const inputValues = ref<NodeInputValue[]>([]);
   const previews = ref(new Map<string, string>());
   const refList = computed({
     get() {
       const order = new Map(node.data.referenceOrder?.[handleId]?.map((key, index) => [key, index]));
-      return [...inputValues.value].sort((a, b) => (order.get(referenceKey(a)) ?? order.size) - (order.get(referenceKey(b)) ?? order.size));
+      const values = inputValues.value.flatMap(item => {
+        if (item.dataType !== "STRING" || !item.sourceHandle.startsWith("row:") || flow.findNode(item.source)?.data.contentKind !== "script") return [item];
+        const images = inputs.getTargetValues(item.source, `rowIn:${item.sourceHandle.slice(4)}`).filter(reference => reference.dataType === "IMAGE");
+        return [item, ...images.map(reference => ({ ...reference, source: item.source, sourceHandle: `${item.sourceHandle}/reference/${encodeURIComponent(JSON.stringify([reference.source, reference.sourceHandle]))}` }))];
+      });
+      return values.sort((a, b) => (order.get(referenceKey(a)) ?? order.size) - (order.get(referenceKey(b)) ?? order.size));
     },
     set(values: NodeInputValue[]) {
       node.data.referenceOrder = { ...node.data.referenceOrder, [handleId]: values.map(referenceKey) };
@@ -42,8 +50,9 @@ export function useNodeReferences(handleId = "in") {
   }
 
   function removeReference(item: NodeInputValue) {
+    const sourceHandle = item.sourceHandle.split("/reference/")[0];
     removeEdges(edges => edges.filter(edge =>
-      edge.target === id && edge.targetHandle === handleId && edge.source === item.source && edge.sourceHandle === item.sourceHandle
+      edge.target === id && edge.targetHandle === handleId && edge.source === item.source && edge.sourceHandle === sourceHandle
     ));
   }
 
