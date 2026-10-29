@@ -64,7 +64,14 @@
     "vue": "^3.5.42",
     "vue-router": "^5.3.1",
     "vue-stream-markdown": "1.1.0",
-    "x-sender": "^1.4.6"
+    "x-sender": "^1.4.6",
+    "@toonflow/node-text": "workspace:*",
+    "@toonflow/node-image-generation": "workspace:*",
+    "@toonflow/node-video-generation": "workspace:*",
+    "@toonflow/node-audio-generation": "workspace:*",
+    "@toonflow/node-image": "workspace:*",
+    "@toonflow/node-video": "workspace:*",
+    "@toonflow/node-audio": "workspace:*"
   },
   "devDependencies": {
     "@types/lodash-es": "^4.17.12",
