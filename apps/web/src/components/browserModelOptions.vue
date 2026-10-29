@@ -1,5 +1,5 @@
 <template>
-  <el-popover v-if="browserConfig.enabled || browserWorkspaceMode" trigger="click" placement="top" :width="300">
+  <el-popover v-if="browserConfig.enabled || browserWorkspaceMode" trigger="click" :hideAfter="0" placement="top" :width="300">
     <template #reference><el-button text aria-label="模型与生成参数">{{ models.find(model => model.id === browserModelSelection[kind])?.label || models[0]?.label || '未接入模型' }} · 参数</el-button></template>
     <el-form labelPosition="top">
       <el-form-item label="生成模型"><el-select v-model="browserModelSelection[kind]" placeholder="选择已接入模型" noDataText="请先在 API 配置接入模型"><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.id" /></el-select></el-form-item>

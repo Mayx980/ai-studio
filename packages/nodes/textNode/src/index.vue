@@ -25,13 +25,11 @@
     </div>
     <template #bottom>
       <el-card class="promptCard" shadow="never" :bodyStyle="{ padding: '14px 16px 12px' }">
-        <div class="promptHeader" v-if="refList.length">
-          <referenceItem
+
+        <promptInput v-model="promptModel" v-model:text="prompt" :references="referenceMentions" :placeholder="isScript ? '描述视频脚本或分镜文案的创作要求' : undefined"><template #references><referenceItem v-if="refList.length"
             v-model="refList"
             @preview="setReferencePreview"
-            @remove="removeReference" />
-        </div>
-        <promptInput v-model="promptModel" v-model:text="prompt" :references="referenceMentions" :placeholder="isScript ? '描述视频脚本或分镜文案的创作要求' : undefined" />
+            @remove="removeReference" /></template></promptInput>
         <div class="promptFooter">
           <el-select v-model="model" class="modelSelect" filterable :loading="modelsLoading" :disabled="generating" placeholder="选择模型" aria-label="生成模型" noDataText="请先在设置中添加模型" placement="top-start" @visible-change="visible => visible && loadModels()">
             <template #prefix><icon-sparkles :size="17" /></template>
@@ -55,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { scriptHeaders, scriptGenerationInstruction } from "./scriptColumns";
+import { scriptHeaders, scriptGenerationInstruction, scriptCellValue } from "./scriptColumns";
 import { computed, inject, onMounted, onScopeDispose, ref, watch } from "vue";
 import { ElAlert, ElButton, ElCard, ElSelect, ElDialog, ElOption, ElOptionGroup, ElMessage, ElMessageBox } from "element-plus";
 import { IconEdit, IconFileText, IconMovie, IconSparkles, IconArrowUp } from "@tabler/icons-vue";
@@ -118,7 +116,7 @@ watch([scriptRows, rowReferences], ([rows, references]) => {
   if (!isScript.value) return;
   const values = outputs.value as Record<string, NodeOutput>;
   for (const key of Object.keys(values)) if (key.startsWith("row:")) delete values[key];
-  for (const row of rows) values[`row:${row.id}`] = { dataType: "STRING", value: [...scriptHeaders.map((header, index) => `${header}：${row.cells[index] ?? ""}`), ...references[row.id]!.map(item => `参考图片：${item.dataType === "IMAGE" && item.value ? item.value.url : "尚未生成"}`)].join("\n") };
+  for (const row of rows) values[`row:${row.id}`] = { dataType: "STRING", value: [...scriptHeaders.flatMap((header, index) => index === 10 ? [] : [`${header}：${scriptCellValue(row.cells, index)}`]), ...references[row.id]!.map(item => `参考图片：${item.dataType === "IMAGE" && item.value ? item.value.url : "尚未生成"}`)].join("\n") };
 }, { deep: true, immediate: true });
 const prompt = computed({ get: () => data.value.prompt ?? "", set: (value: string) => { data.value.prompt = value; } });
 const model = computed({ get: () => data.value.model ?? "", set: (value: string) => { data.value.model = value; } });

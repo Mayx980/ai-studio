@@ -8,9 +8,9 @@
     <el-form v-if="state.stage === 'brief'" labelPosition="top" :disabled="busy || disabled">
       <el-form-item label="本次创作目标"><el-radio-group v-model="state.goal" @change="changed"><el-radio v-for="item in goals" :key="item.value" :value="item.value">{{ item.label }}</el-radio></el-radio-group></el-form-item>
       <el-form-item label="从哪一步开始"><el-radio-group v-model="state.start" @change="changed"><el-radio value="idea">从想法开始</el-radio><el-radio value="story">已有剧情</el-radio><el-radio value="storyboard">已有分镜</el-radio></el-radio-group></el-form-item>
-      <el-form-item v-for="(question, index) in state.questions" :key="index" :label="question.label"><el-checkbox-group v-model="question.selected" @change="answerQuestion(index)"><el-checkbox v-for="option in question.options || []" :key="option" :value="option">{{ option }}</el-checkbox></el-checkbox-group><el-input v-model="question.custom" placeholder="其他想法（选填）" @input="answerQuestion(index)" /></el-form-item>
+      <el-form-item v-for="(question, index) in state.questions.slice(0, 5)" :key="index" :label="question.label"><el-checkbox-group v-model="question.selected" @change="answerQuestion(index)"><el-checkbox v-for="option in (question.options || []).slice(0, 5)" :key="option" :value="option">{{ option }}</el-checkbox></el-checkbox-group><el-input v-model="question.custom" placeholder="其他想法（选填）" @input="answerQuestion(index)" /></el-form-item>
       <el-form-item v-if="state.start !== 'idea'" label="已有剧情／分镜正文"><el-input v-model="sourceText" type="textarea" :rows="6" placeholder="粘贴正文，或使用本轮已引用的文本内容" /></el-form-item>
-      <el-button type="primary" :disabled="!state.questions.every(question => question.answer.trim()) || (state.start !== 'idea' && !sourceText.trim())" @click="makePlans">确认要求，生成方案</el-button>
+      <el-button type="primary" :disabled="!state.questions.slice(0, 5).every(question => question.answer.trim()) || (state.start !== 'idea' && !sourceText.trim())" @click="makePlans">确认要求，生成方案</el-button>
     </el-form>
     <template v-if="state.stage === 'plans'">
       <p>勾选希望继续发展的方案，可多选。</p>
@@ -124,10 +124,10 @@ async function options(instruction: string): Promise<ProfessionalOption[]> {
 }
 function analyze() { return run(async () => {
   sourceText.value = await initialReferences();
-  const result = await textRequest(`用户要求：${props.state.prompt}\n已有文字参考：${sourceText.value}\n请分析当前创作情景，提问最多 6 个尚未明确且影响结果的问题，例如制作目的、时长、受众、主体、风格、比例。每题提供 3～5 个适合当前情景的简短选项，允许多选。已经明确的细节不要重复问，全部明确时 questions 可为空。输出 {"questions":[{"label":"具体问题","options":["选项1","选项2","选项3"]}]}。`);
+  const result = await textRequest(`用户要求：${props.state.prompt}\n已有文字参考：${sourceText.value}\n请分析当前创作情景，按当前语境和重要性排序，优先呈现最关键且必须由用户确定的问题，最多提问 5 个尚未明确且影响结果的问题，例如制作目的、时长、受众、主体、风格、比例。每题提供 2～4 个适合当前情景的简短选项（加上“由你推荐”总共不超过 5 个），允许多选。已经明确的细节不要重复问，全部明确时 questions 可为空。输出 {"questions":[{"label":"具体问题","options":["选项1","选项2","选项3"]}]}。`);
   const questions = (result as { questions?: unknown })?.questions;
-  if (!Array.isArray(questions) || questions.length > 6 || questions.some(item => !item || typeof item.label !== "string" || !item.label.trim() || !Array.isArray(item.options) || item.options.length < 2 || item.options.length > 6 || item.options.some((option: unknown) => typeof option !== "string" || !option.trim()))) throw new Error("模型未返回有效的提问选项，请重新分析");
-  props.state.questions = questions.map(item => ({ label: item.label, options: [...new Set<string>([...item.options, "由你推荐"])], selected: [], custom: "", answer: "" })); props.state.stage = "brief";
+  if (!Array.isArray(questions) || questions.some(item => !item || typeof item.label !== "string" || !item.label.trim() || !Array.isArray(item.options) || item.options.length < 2 || item.options.some((option: unknown) => typeof option !== "string" || !option.trim()))) throw new Error("模型未返回有效的提问选项，请重新分析");
+  props.state.questions = questions.slice(0, 5).map(item => ({ label: item.label, options: [...new Set<string>([...item.options.filter((option: string) => option !== "由你推荐").slice(0, 4), "由你推荐"])], selected: [], custom: "", answer: "" })); props.state.stage = "brief";
 }); }
 function makePlans() { return run(async () => { props.state.plans = await options("根据已补充的细节生成不同创作方案供勾选"); props.state.stage = "plans"; }); }
 async function createDocument(text: string, script: boolean) {

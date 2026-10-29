@@ -44,13 +44,17 @@
       <div v-else-if="multiAngleVisible" ref="multiAngleTarget" />
       <el-card v-else class="promptCard" shadow="never" :bodyStyle="{ padding: '14px 16px 12px' }">
         <el-button v-if="inpaintGuideUrl && editor?.mode !== 'inpaint'" class="inpaintInfo" text :icon="IconBrush" @click="inpaintPreviewVisible = true">查看重绘标注</el-button>
-        <referenceItem
+
+        <promptInput v-if="editor?.mode === 'inpaint'" v-model="data.inpaintPromptModel" v-model:text="data.inpaintPrompt" :references="referenceMentions" expandable><template #references><referenceItem
           v-if="refList.length"
           v-model="refList"
           @preview="setReferencePreview"
-          @remove="removeReference" />
-        <promptInput v-if="editor?.mode === 'inpaint'" v-model="data.inpaintPromptModel" v-model:text="data.inpaintPrompt" :references="referenceMentions" expandable />
-        <promptInput v-else v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable />
+          @remove="removeReference" /></template></promptInput>
+        <promptInput v-else v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable><template #references><referenceItem
+          v-if="refList.length"
+          v-model="refList"
+          @preview="setReferencePreview"
+          @remove="removeReference" /></template></promptInput>
         <div class="promptFooter">
           <el-select
             v-if="editor?.mode !== 'inpaint'"

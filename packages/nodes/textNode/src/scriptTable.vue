@@ -4,15 +4,14 @@
     <div class="tableActions"><el-button :disabled="disabled || importing" :loading="importing" @click="importInput?.click()">导入文档／表格</el-button><el-button :disabled="disabled" @click="addRow">添加镜头</el-button><el-button :disabled="!rows.length" @click="download">导出 Excel</el-button></div>
     <div class="tableScroll" @scroll="updateNodeInternals([nodeId])"><table><colgroup><col v-for="(header, column) in headers.slice(0, 10)" :key="header" :style="{ width: column < 4 ? '100px' : '280px' }" /><col style="width: 260px" /><col style="width: 320px" /></colgroup><thead><tr><th v-for="header in headers.slice(0, 10)" :key="header">{{ header }}</th><th>引用图片</th><th>提示词</th></tr></thead><tbody>
       <tr v-for="(row, index) in rows" :key="row.id" :data-row-id="row.id">
-        <td v-for="(header, column) in headers.slice(0, 10)" :key="header"><handle v-if="column === 0 && !embedded" class="rowInput" :id="`rowIn:${row.id}`" type="target" :position="Position.Left" :connectable="!disabled" :isValidConnection="validateConnection" :title="`镜头${row.cells[0] || index + 1}：连接参考图片`" /><el-input :modelValue="row.cells[column]" type="textarea" :autosize="{ minRows: 1 }" :disabled="disabled" :aria-label="`镜头${index + 1} ${header}`" @update:modelValue="value => { row.cells[column] = value; publish(); }" /><div v-if="column === 0" class="rowActions"><el-button text :disabled="disabled" @click="roleRow = row">角色详情</el-button><el-button text :disabled="disabled || index === 0" :aria-label="`上移镜头${index + 1}`" @click="move(index, -1)">↑</el-button><el-button text :disabled="disabled || index === rows.length - 1" :aria-label="`下移镜头${index + 1}`" @click="move(index, 1)">↓</el-button><el-button text :disabled="disabled" @click="copyRow(index)">复制</el-button><el-button text type="danger" :disabled="disabled" @click="removeRow(index)">删除</el-button></div></td>
+        <td v-for="(header, column) in headers.slice(0, 10)" :key="header"><handle v-if="column === 0 && !embedded" class="rowInput" :id="`rowIn:${row.id}`" type="target" :position="Position.Left" :connectable="!disabled" :isValidConnection="validateConnection" :title="`镜头${row.cells[0] || index + 1}：连接参考图片`" /><el-input :modelValue="row.cells[column]" type="textarea" :autosize="{ minRows: 1 }" :disabled="disabled" :aria-label="`镜头${index + 1} ${header}`" @update:modelValue="value => { row.cells[column] = value; publish(); }" /><div v-if="column === 0" class="rowActions"><el-button text :disabled="disabled || index === 0" :aria-label="`上移镜头${index + 1}`" @click="move(index, -1)">↑</el-button><el-button text :disabled="disabled || index === rows.length - 1" :aria-label="`下移镜头${index + 1}`" @click="move(index, 1)">↓</el-button><el-button text :disabled="disabled" @click="copyRow(index)">复制</el-button><el-button text type="danger" :disabled="disabled" @click="removeRow(index)">删除</el-button></div></td>
         <td><scriptReferences :rowId="row.id" /></td>
-        <td class="rowPrompts"><label v-for="(header, offset) in headers.slice(11)" :key="header">{{ header }}<el-input :modelValue="row.cells[11 + offset]" type="textarea" :autosize="{ minRows: 1 }" :disabled="disabled" :aria-label="`镜头${index + 1} ${header}`" @update:modelValue="value => { row.cells[11 + offset] = value; publish(); }" /></label><handle v-if="!embedded" class="rowOutput" :id="`row:${row.id}`" type="source" :position="Position.Right" :connectable="!disabled" :isValidConnection="validateConnection" :title="`镜头${row.cells[0] || index + 1}：连接一个或多个下游节点`" /></td>
+        <td class="rowPrompts"><label v-for="(header, offset) in headers.slice(11)" :key="header">{{ header }}<el-input :modelValue="scriptCellValue(row.cells, 11 + offset)" type="textarea" :autosize="{ minRows: 1 }" :disabled="disabled" :aria-label="`镜头${index + 1} ${header}`" @update:modelValue="value => { row.cells[11 + offset] = value; if (offset === 1) row.cells[10] = ''; publish(); }" /></label><handle v-if="!embedded" class="rowOutput" :id="`row:${row.id}`" type="source" :position="Position.Right" :connectable="!disabled" :isValidConnection="validateConnection" :title="`镜头${row.cells[0] || index + 1}：连接一个或多个下游节点`" /></td>
       </tr>
     </tbody></table></div>
     <el-dialog v-model="assignmentVisible" title="选择图片适用镜头" appendToBody width="min(720px, 92vw)" @close="cancelAssignment" @closed="openAssignment"><el-checkbox-group v-model="assignedRows"><el-checkbox v-for="(row, index) in rows" :key="row.id" :value="row.id">镜头 {{ row.cells[0] || index + 1 }} · {{ row.cells[4]?.slice(0, 60) }}</el-checkbox></el-checkbox-group><template #footer><el-button @click="assignmentVisible = false">取消</el-button><el-button type="primary" :disabled="!assignedRows.length || disabled" @click="applyAssignment">应用到所选镜头</el-button></template></el-dialog>
     <p v-if="node.data.scriptImportActive?.name && node.data.scriptImportActive.name !== importRecord?.name">已应用的参考：{{ node.data.scriptImportActive.name }}</p>
     <p v-if="importRecord">{{ importRecord.name }}：{{ importRecord.error || (importRecord.applied ? '已应用为创作参考' : '原文件已保留') }} <el-button text :disabled="importing" @click="retryImport">重新解析</el-button></p>
-    <el-dialog :modelValue="!!roleRow" title="角色形象描述" appendToBody width="min(600px, 90vw)" @close="roleRow = undefined"><p>姓名、性格与背景请保留在描述中。当前文本模型不提供图片识别，角色图片不能自动改写此内容。</p><el-input v-if="roleRow" :modelValue="roleRow.cells[10]" type="textarea" :autosize="{ minRows: 4 }" :disabled="disabled" aria-label="角色形象描述" @update:modelValue="value => { if (roleRow) { roleRow.cells[10] = value; publish(); } }" /></el-dialog>
     <el-dialog v-model="importVisible" title="核对解析结果与列对应" appendToBody width="min(900px, 92vw)">
       <template v-if="candidate"><p>{{ importRecord?.name }} · {{ candidate.table ? `${candidate.table.length - 1} 个镜头` : '文档文字参考' }}</p>
       <div v-if="candidate.table" class="columnMapping"><label v-for="(header, i) in headers" :key="header">{{ header }}<el-select v-model="mapping[i]" :aria-label="header + '对应列'"><el-option label="不导入此列" :value="-1" /><el-option v-for="(column, index) in candidate.table[0]" :key="index" :label="column || `第${index + 1}列`" :value="index" /></el-select></label></div><pre class="importPreview">{{ candidate.text }}</pre></template>
@@ -23,7 +22,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import { scriptHeaders } from "./scriptColumns";
+import { scriptHeaders, scriptCellValue } from "./scriptColumns";
 import { ElButton, ElInput, ElMessageBox, ElMessage, ElDialog, ElSelect, ElOption, ElCheckbox, ElCheckboxGroup } from "element-plus";
 import { Handle, Position, useNode, useVueFlow } from "@vue-flow/core";
 import { useNodeFiles } from "@toonflow/nodes-scaffold/workspaceFiles";
@@ -67,7 +66,6 @@ const importInput = ref<HTMLInputElement>();
 const importing = ref(false), importVisible = ref(false);
 const candidate = ref<Awaited<ReturnType<typeof readScriptImport>>>();
 const mapping = ref<number[]>([]);
-const roleRow = ref<{ id: string; cells: string[] }>();
 type ImportRecord = { name: string; path: string; text?: string; applied: boolean; error?: string };
 const importRecord = ref<ImportRecord>(node.data.scriptImport);
 node.data.scriptImportPending = false;
@@ -109,7 +107,7 @@ async function applyImport() {
 let published = "";
 let initial = true;
 function publish() {
-  published = `| ${headers.join(" | ")} |\n| ${headers.map(() => "---").join(" | ")} |\n${rows.value.map(row => `| ${headers.map((_, index) => (row.cells[index] ?? "").replaceAll("|", "&#124;").replaceAll("\n", "<br>")).join(" | ")} |`).join("\n")}`;
+  published = `| ${headers.join(" | ")} |\n| ${headers.map(() => "---").join(" | ")} |\n${rows.value.map(row => `| ${headers.map((_, index) => scriptCellValue(row.cells, index).replaceAll("|", "&#124;").replaceAll("\n", "<br>")).join(" | ")} |`).join("\n")}`;
   model.value = published;
 }
 watch(model, text => {
@@ -138,7 +136,7 @@ async function removeRow(index: number) {
 }
 defineExpose({ chooseImport: () => importInput.value?.click() });
 function download() {
-  const url = URL.createObjectURL(scriptWorkbook([...headers, "引用图片"], rows.value.map(row => [...headers.map((_, index) => row.cells[index] ?? ""), getTargetValues(props.nodeId, `rowIn:${row.id}`, flow.getNodes.value, getEdges.value).flatMap(item => item.dataType === "IMAGE" && item.value ? [item.value.url] : []).join("\n")])));
+  const url = URL.createObjectURL(scriptWorkbook([...headers, "引用图片"], rows.value.map(row => [...headers.map((_, index) => scriptCellValue(row.cells, index)), getTargetValues(props.nodeId, `rowIn:${row.id}`, flow.getNodes.value, getEdges.value).flatMap(item => item.dataType === "IMAGE" && item.value ? [item.value.url] : []).join("\n")])));
   const anchor = document.createElement("a"); anchor.href = url; anchor.download = "分镜脚本.xlsx"; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 </script>

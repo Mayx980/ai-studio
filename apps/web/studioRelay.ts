@@ -18,7 +18,7 @@ export default function studioRelay(): Plugin {
           response.writeHead(400).end("不支持该供应商地址或请求方法"); return;
         }
         const headers = new Headers();
-        for (const name of ["authorization", "content-type", "x-api-key", "x-dashscope-async", "x-dashscope-ossresource-resolve"]) {
+        for (const name of ["authorization", "content-type", "x-api-key", "x-dashscope-async", "x-dashscope-ossresourceresolve"]) {
           const value = request.headers[name];
           if (typeof value === "string") headers.set(name, value);
         }

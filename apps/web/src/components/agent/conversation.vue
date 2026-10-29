@@ -1,6 +1,5 @@
 <template>
   <div class="agentConversation">
-    <creationModeSwitch v-if="props.creationModes && !messages.length" v-model="workspaceStore.creationMode" class="conversationMode" />
     <div class="messageViewport t-chat t-chat--normal">
       <div ref="messageList" class="messageList t-chat__list" role="region" aria-label="对话消息" tabindex="0">
         <chat-item v-if="!messages.length && !disabled" role="assistant" variant="text">
@@ -95,6 +94,7 @@
       <span>正在压缩上下文…</span>
     </div>
     <div class="messageInput" :class="{ draggingAttachments }" @dragenter.capture="dragEnterAttachments" @dragover.capture="dragOverAttachments" @dragleave.capture="dragLeaveAttachments" @drop.capture="dropAttachments">
+      <creationModeSwitch v-if="props.creationModes && !messages.length && !inputStarted" v-model="workspaceStore.creationMode" class="conversationMode" />
       <div v-if="draggingAttachments" class="attachmentDropHint" role="status">
         <icon-paperclip :size="20" aria-hidden="true" />
         <span>松开添加附件</span>
@@ -120,7 +120,7 @@
         @keydown.up.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) + 16)"
         @keydown.down.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) - 16)" />
       <attachmentList v-if="draftAttachments.length" class="draftAttachments" numbered :attachments="draftAttachments" :directory="directory" removable restorable :disabled="locked" @remove="draftAttachments.splice($event, 1)" @restore="restoreTextAttachment" />
-      <div ref="senderElement" class="senderEditor" @keydown.capture="handleSenderKeydown"></div>
+      <div ref="senderElement" class="senderEditor" @pointerdown.capture="inputStarted = true" @input.capture="inputStarted = true" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
       <div class="senderActions">
@@ -128,7 +128,7 @@
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
         <referencePicker :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
         <mentionMenu ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
-        <skillMenu ref="skillMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="skillQuery" :editor="senderElement" @select="selectSkill" @dismiss="skillQuery = undefined" />
+        <skillMenu v-if="!browserWorkspaceMode && !browserConfig.enabled" ref="skillMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="skillQuery" :editor="senderElement" @select="selectSkill" @dismiss="skillQuery = undefined" />
         <el-popover
           v-model:visible="contextMenuVisible"
           trigger="click"
@@ -365,6 +365,7 @@ let controller: AbortController | undefined;
 const senderElement = ref<HTMLElement>();
 const skillMenuRef = ref<InstanceType<typeof skillMenu>>();
 const skillQuery = ref<string>();
+const inputStarted = ref(false);
 const mentionMenuRef = ref<InstanceType<typeof mentionMenu>>();
 const mentionQuery = ref<string>();
 let mentionPosition: { node: ReturnType<xSender["getCurrentNode"]>; remove: number } | undefined;
@@ -1039,7 +1040,7 @@ watch(senderElement, (element, _previous, onCleanup) => {
   instance.bus.on("agentConversation", xSender.EventSet.EVENT_COMMON_SEND, () => void submitMessage());
   instance.bus.on("agentConversation", xSender.EventSet.EVENT_COMMON_CHANGE, () => {
     draftPrompt.value = instance.getText();
-    skillQuery.value = /^\/([^\s/]*)$/.exec(instance.getText())?.[1];
+    skillQuery.value = browserWorkspaceMode || browserConfig.enabled ? undefined : /^\/([^\s/]*)$/.exec(instance.getText())?.[1];
     const targets: typeof draftMentionTargets.value = [];
     for (const line of instance.chatEditor.NODES) for (const tag of line.children) {
       if (tag.type !== "Mention") continue;
@@ -1107,7 +1108,6 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
 </script>
 
 <style lang="scss">
-.conversationMode { margin: 8px 14px 10px auto; flex-shrink: 0; width: min(320px, calc(100% - 28px)); }
 .agentConversation {
   .creationChoices { padding: 10px 0; .el-button { margin: 4px; } }
   display: flex;
@@ -1363,6 +1363,7 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
   }
 
   .messageInput {
+    .conversationMode { position: absolute; bottom: calc(100% + 8px); right: 0; z-index: 2; width: min(320px, 100%); }
     --chat-text: var(--el-text-color-primary);
     --chat-text-placeholder: var(--el-text-color-placeholder);
     --chat-rect-padding: 12px;

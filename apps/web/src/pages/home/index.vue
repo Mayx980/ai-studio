@@ -50,12 +50,14 @@
         </div>
       </section>
       <section v-if="homeSection === 'history'" class="homeHistory" aria-label="历史对话">
-        <h2>历史对话</h2>
+        <h2>历史对话</h2><el-input v-model="historySearch" placeholder="搜索对话名称或项目" aria-label="搜索历史对话" clearable />
         <p v-if="historyLoading" role="status">正在读取历史对话…</p>
         <el-alert v-if="historyError" :title="historyError" type="error" :closable="false" />
-        <button v-for="item in conversationHistory" :key="`${item.directory}:${item.file}`" class="historyEntry" type="button" :disabled="opening || creating" @click="openHistory(item)">
-          <icon-history :size="18" /><span><strong>{{ item.name }}</strong><small>{{ item.projectName }} · {{ item.messageCount }} 条消息</small></span>
-        </button>
+        <div v-for="item in filteredHistory" :key="`${item.directory}:${item.file}`" class="historyEntry">
+          <button class="historyOpen" type="button" :disabled="opening || creating || historyLoading" @click="openHistory(item)"><icon-history :size="18" /><span><strong>{{ item.name }}</strong><small>{{ item.projectName }} · {{ item.messageCount }} 条消息</small></span></button>
+          <el-button text :disabled="historyLoading" :aria-label="`重命名对话 ${item.name}`" @click="renameHistory(item)">重命名</el-button>
+          <el-button text type="danger" :disabled="historyLoading" :aria-label="`删除对话 ${item.name}`" @click="removeHistory(item)">删除</el-button>
+        </div>
       </section>
       <section v-if="homeSection === 'assets'" class="homeAssets"><h2>个人资产</h2><assetLibrary page :modelValue="true" :directory="workspaceStore.project?.directory" /></section>
       <creativeCases v-if="homeSection === 'create'" @apply="applyCase" />
@@ -101,7 +103,7 @@ import { locale, translate } from "@toonflow/i18n/vue";
 import axios from "axios";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox, type InputInstance } from "element-plus";
 import { getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import {
@@ -113,7 +115,7 @@ import {
 } from "@tabler/icons-vue";
 import { inferGenerationKind, configuredBrowserModels, browserConfig, generationError } from "@/stores/browserGeneration";
 import browserModelOptions from "@/components/browserModelOptions.vue";
-import { listBrowserConversations } from "@/components/agent/browserConversations";
+import { listBrowserConversations, renameBrowserConversation, removeBrowserConversation } from "@/components/agent/browserConversations";
 import type { AgentHistory } from "@/components/agent/types";
 import projectThumbnail from "@/components/projectThumbnail.vue";
 import referencePicker from "@/components/referencePicker.vue";
@@ -133,7 +135,11 @@ import creativeCases from "@/components/creativeCases.vue";
 import workspacePicker from "./workspacePicker.vue";
 
 const settingsVisible = ref(false);
-const homeSection = ref("create");
+const route = useRoute();
+const homeSection = computed({
+  get: () => ["create", "history", "assets", "projects"].includes(String(route.query.section)) ? String(route.query.section) : "create",
+  set: section => { void router.replace({ path: "/home", query: { section } }); },
+});
 async function applyCase(value: { prompt: string; references: File[] }) {
   if (prompt.value.trim()) {
     const replace = await ElMessageBox.confirm("应用案例会替换当前提示词，已有附件与引导图将保留。", "保留当前草稿或采用案例", { confirmButtonText: "采用案例", cancelButtonText: "保留草稿" }).then(() => true, () => false);
@@ -355,7 +361,7 @@ async function openProject(project?: Project) {
       if (!directory) return;
       await workspaceStore.openProject(directory, project.directory);
     }
-    await router.push("/workspace");
+    await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
   } catch (err) {
     ElMessage.error(axios.isAxiosError<{ message?: string }>(err)
       ? err.response?.data.message || "无法打开项目，请重试"
@@ -382,6 +388,30 @@ type ConversationHistory = AgentHistory & { directory: string; projectName: stri
 const conversationHistory = ref<ConversationHistory[]>([]);
 const historyLoading = ref(false);
 const historyError = ref("");
+const historySearch = ref("");
+const filteredHistory = computed(() => conversationHistory.value.filter(item => `${item.name} ${item.projectName}`.toLowerCase().includes(historySearch.value.trim().toLowerCase())));
+async function renameHistory(item: ConversationHistory) {
+  const result = await ElMessageBox.prompt("请输入对话名称", "重命名对话", { inputValue: item.name, confirmButtonText: "保存", cancelButtonText: "取消", inputValidator: value => !!value?.trim() && value.trim().length <= 80 || "请输入 1–80 个字符" }).catch(() => null);
+  if (!result) return;
+  historyLoading.value = true;
+  try {
+    const name = result.value.trim();
+    if (browserWorkspaceMode) await renameBrowserConversation(item.directory, item.file, name);
+    else await axios.patch("/api/agent/rename", { directory: item.directory, sessionFile: item.file, name }, { headers: { "x-toonflow-workspace": "1" } });
+    item.name = name;
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "重命名对话失败"); }
+  finally { historyLoading.value = false; }
+}
+async function removeHistory(item: ConversationHistory) {
+  if (!await ElMessageBox.confirm(`删除对话“${item.name}”？已保存到画布的素材会保留。`, "删除对话", { confirmButtonText: "删除", cancelButtonText: "取消", type: "warning" }).then(() => true, () => false)) return;
+  historyLoading.value = true;
+  try {
+    if (browserWorkspaceMode) await removeBrowserConversation(item.directory, item.file);
+    else await useWorkspaceFiles(item.directory).remove(`.agent/sessions/${item.file}`);
+    conversationHistory.value = conversationHistory.value.filter(entry => entry !== item);
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "删除对话失败"); }
+  finally { historyLoading.value = false; }
+}
 watch(homeSection, async section => {
   if (section !== "history") return;
   historyLoading.value = true;
@@ -394,14 +424,14 @@ watch(homeSection, async section => {
     conversationHistory.value = lists.flat().sort((a, b) => b.modified.localeCompare(a.modified));
   } catch (error) { historyError.value = error instanceof Error ? error.message : "读取历史对话失败"; }
   finally { historyLoading.value = false; }
-});
+}, { immediate: true });
 async function openHistory(item: ConversationHistory) {
   if (opening.value || creating.value) return;
   opening.value = true;
   try {
     await workspaceStore.openProject(item.directory);
     workspaceStore.pendingAgentSession = { directory: item.directory, file: item.file };
-    await router.push("/workspace");
+    await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "打开历史对话失败"); }
   finally { opening.value = false; }
 }
@@ -431,7 +461,7 @@ async function createProject(fromPrompt = true) {
       await workspaceStore.openProject(path);
       if (!fromPrompt || name !== "未命名项目") workspaceStore.renameProject(path, name);
       if (fromPrompt && (prompt.value.trim() || promptAttachments.value.length)) workspaceStore.pendingAgentMessage = { directory: path, prompt: prompt.value, attachments: [...promptAttachments.value], model: selectedModel.value, reasoningEffort: reasoningEffort.value };
-      await router.push("/workspace");
+      await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
       return;
     }
     if (!fromPrompt) {
@@ -445,7 +475,7 @@ async function createProject(fromPrompt = true) {
     const { directory, empty } = await useWorkspaceFiles(path).list();
     if (fromPrompt && directory === workspaceStore.project?.directory) {
       workspaceStore.pendingAgentMessage = { directory, prompt: prompt.value, attachments: [...promptAttachments.value], model: selectedModel.value, reasoningEffort: reasoningEffort.value };
-      await router.push("/workspace");
+      await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
       return;
     }
     if (!empty) return ElMessage.warning("该文件夹不为空，请重新选择空文件夹；已有项目请使用“导入项目”或点击项目列表打开。");
@@ -454,7 +484,7 @@ async function createProject(fromPrompt = true) {
     if (fromPrompt && (prompt.value.trim() || promptAttachments.value.length)) {
       workspaceStore.pendingAgentMessage = { directory: workspaceStore.project!.directory, prompt: prompt.value, attachments: [...promptAttachments.value], model: selectedModel.value, reasoningEffort: reasoningEffort.value };
     }
-    await router.push("/workspace");
+    await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
   } catch (err) {
     ElMessage.error(axios.isAxiosError<{ message?: string }>(err)
       ? err.response?.data.message || "创建项目失败，请重试"
@@ -471,7 +501,7 @@ async function createProject(fromPrompt = true) {
   padding-left: 220px;
   isolation: isolate;
 
-  .homeHistory { padding-top: 24px; .historyEntry { display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px; margin: 8px 0; border: 1px solid var(--el-border-color-light); border-radius: 12px; background: var(--el-bg-color); color: var(--el-text-color-primary); text-align: left; cursor: pointer; span { display: grid; gap: 6px; } small { color: var(--el-text-color-secondary); } &:hover { border-color: var(--el-color-primary); } } }
+  .homeHistory { padding-top: 24px; .historyOpen { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; } .historyEntry { display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px; margin: 8px 0; border: 1px solid var(--el-border-color-light); border-radius: 12px; background: var(--el-bg-color); color: var(--el-text-color-primary); text-align: left; cursor: pointer; span { display: grid; gap: 6px; } small { color: var(--el-text-color-secondary); } &:hover { border-color: var(--el-color-primary); } } }
   .homeAssets { padding-top: 24px; :deep(.assetLibrary) { width: 100%; max-height: none; } }
   .studioSidebar {
     position: fixed; inset: 0 auto 0 0; z-index: 6; width: 220px; display: flex; flex-direction: column; gap: 16px; padding: 30px 20px; border-right: 1px solid var(--el-border-color-light); background: var(--el-bg-color);

@@ -1,5 +1,6 @@
 <template>
   <div class="promptInputWrap nodrag nopan nowheel">
+    <div v-if="$slots.references" class="referenceCovers"><slot name="references" /></div>
     <el-tooltip v-if="pickReferences" content="引用" placement="top"><el-button class="referenceButton" text circle aria-label="引用" @click.stop="pickReferences(nodeId)"><icon-paperclip :size="17" /></el-button></el-tooltip>
     <el-button v-if="expandable" class="expandButton" :icon="IconMaximize" text circle title="展开编辑提示词" aria-label="展开编辑提示词" @mousedown.prevent @click.stop="expanded = true" />
     <teleport :to="expandedTarget || 'body'" :disabled="!expanded || !expandedTarget">
@@ -341,6 +342,12 @@ function handleMentionKey(event: KeyboardEvent) {
 .promptInputWrap {
   position: relative;
   margin: 12px 0 16px;
+  padding: 8px 8px 36px;
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
+  .referenceCovers { display: flex; margin-bottom: 8px; overflow-x: auto; }
+  .referenceButton { position: absolute; left: 8px; bottom: 4px; z-index: 1; }
 
   .expandButton {
     position: absolute;
