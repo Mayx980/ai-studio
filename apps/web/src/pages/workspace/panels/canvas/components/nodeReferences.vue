@@ -1,7 +1,7 @@
 <template>
   <el-dialog v-model="visible" title="引用素材" width="min(900px, 94vw)" appendToBody destroyOnClose @close="finish()">
     <el-tabs v-model="scope" @tabChange="load().catch(showError)">
-      <el-tab-pane label="本地上传" name="local"><input type="file" multiple aria-label="上传引用文件" @change="upload" /></el-tab-pane>
+      <el-tab-pane label="本地上传" name="local"><input ref="uploadInput" type="file" multiple hidden aria-label="上传引用文件" @change="upload" /><el-button @click="uploadInput?.click()">选择文件</el-button></el-tab-pane>
       <el-tab-pane label="个人资产" name="personal"><assetLibrary v-if="scope === 'personal'" :modelValue="true" selectable @select="file => finish({ files: [file], sources: [] })" /></el-tab-pane>
       <el-tab-pane label="当前画布资产" name="canvas" />
       <el-tab-pane label="其他项目资产" name="projects" />
@@ -27,6 +27,7 @@ type Asset = { key: string; label: string; directory: string; source: string; so
 const props = defineProps<{ directory: string; nodes: () => { id: string; data: { label?: string; outputs?: Record<string, unknown> } }[] }>();
 const store = useWorkspaceStore();
 const visible = ref(false), scope = ref("local"), loading = ref(false), selectedProject = ref("");
+const uploadInput = ref<HTMLInputElement>();
 const items = ref<Asset[]>([]);
 const otherProjects = computed(() => store.projectList.filter(project => project.directory !== props.directory));
 let resolveChoice: ((value?: Choice) => void) | undefined;

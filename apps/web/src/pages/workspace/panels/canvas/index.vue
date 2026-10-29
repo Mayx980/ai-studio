@@ -68,7 +68,7 @@
         :availableNodes="creationNodes"
         @create="createEmptyNode" />
       <canvasMenu ref="canvasMenuRef" v-model:canvasId="canvasId" :directory="project?.directory" :initialCanvasId="initialCanvasId" :activateCanvas="activateCanvas" :flushSave="flushCanvases ?? flushCanvasSave">
-        <template #actions><div class="sidebarHeader"><el-button text :aria-expanded="sidebarOpen" aria-label="折叠或展开侧栏" @click="sidebarOpen = !sidebarOpen">{{ sidebarOpen ? '收起' : '展开' }}</el-button><el-button text :type="sidebarOpen && !assetsVisible ? 'primary' : 'default'" @click="sidebarOpen = true; assetsVisible = false">显示层级</el-button><el-button text :type="sidebarOpen && assetsVisible ? 'primary' : 'default'" @click="sidebarOpen = true; assetsVisible = true">个人资产</el-button></div></template>
+        <template #actions><div class="sidebarHeader"><el-button text :aria-expanded="sidebarOpen && !assetsVisible" :type="sidebarOpen && !assetsVisible ? 'primary' : 'default'" @click="toggleSidebar(false)">显示层级</el-button><el-button text :aria-expanded="sidebarOpen && assetsVisible" :type="sidebarOpen && assetsVisible ? 'primary' : 'default'" @click="toggleSidebar(true)">个人资产</el-button></div></template>
         <div v-show="sidebarOpen && props.active" class="sidebarContent"><canvasLayers v-if="!assetsVisible" :directory="project?.directory" /><assetLibrary ref="assetLibraryRef" v-model="assetsVisible" :directory="project?.directory" /></div>
       </canvasMenu>
       <canvasControls :active="props.active"
@@ -238,7 +238,11 @@ let gestureScale: number | undefined;
 let copyingNodes = false;
 const showEdges = ref(true);
 const assetsVisible = ref(false);
-const sidebarOpen = ref(true);
+const sidebarOpen = ref(false);
+function toggleSidebar(showAssets: boolean) {
+  sidebarOpen.value = !sidebarOpen.value || assetsVisible.value !== showAssets;
+  assetsVisible.value = sidebarOpen.value && showAssets;
+}
 const assetLibraryRef = ref<InstanceType<typeof assetLibrary>>();
 const edgeDisconnect = ref<{ id: string; x: number; y: number }>();
 const flow = useVueFlow(props.runtimeKey);

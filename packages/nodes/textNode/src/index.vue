@@ -55,6 +55,7 @@
 </template>
 
 <script setup lang="ts">
+import { scriptHeaders, scriptGenerationInstruction } from "./scriptColumns";
 import { computed, inject, onMounted, onScopeDispose, ref, watch } from "vue";
 import { ElAlert, ElButton, ElCard, ElSelect, ElDialog, ElOption, ElOptionGroup, ElMessage, ElMessageBox } from "element-plus";
 import { IconEdit, IconFileText, IconMovie, IconSparkles, IconArrowUp } from "@tabler/icons-vue";
@@ -117,7 +118,7 @@ watch([scriptRows, rowReferences], ([rows, references]) => {
   if (!isScript.value) return;
   const values = outputs.value as Record<string, NodeOutput>;
   for (const key of Object.keys(values)) if (key.startsWith("row:")) delete values[key];
-  for (const row of rows) values[`row:${row.id}`] = { dataType: "STRING", value: [...row.cells.map((value, index) => `${["镜头号", "时长", "景别", "运镜方式", "画面", "台词/音效", "角色表情反应", "环境场景", "分镜图提示词", "视频运动提示词", "角色形象描述"][index]}：${value}`), ...references[row.id]!.map(item => `参考图片：${item.dataType === "IMAGE" && item.value ? item.value.url : "尚未生成"}`)].join("\n") };
+  for (const row of rows) values[`row:${row.id}`] = { dataType: "STRING", value: [...scriptHeaders.map((header, index) => `${header}：${row.cells[index] ?? ""}`), ...references[row.id]!.map(item => `参考图片：${item.dataType === "IMAGE" && item.value ? item.value.url : "尚未生成"}`)].join("\n") };
 }, { deep: true, immediate: true });
 const prompt = computed({ get: () => data.value.prompt ?? "", set: (value: string) => { data.value.prompt = value; } });
 const model = computed({ get: () => data.value.model ?? "", set: (value: string) => { data.value.model = value; } });
@@ -272,7 +273,7 @@ async function generateText() {
       .map(item => item.dataType === "STRING" ? { dataType: item.dataType, value: item.value } : { dataType: item.dataType, value: { ...item.value } });
     if (isScript.value && importedReference.value?.applied && !importedReference.value.error && importedReference.value.text) references.push({ dataType: "STRING", value: importedReference.value.text });
     const rowVersions = refList.value.filter(item => item.sourceHandle.startsWith("row:")).map(item => ({ key: JSON.stringify([item.source, item.sourceHandle]), value: item.value }));
-    const input = { providerId: choice.providerId, modelId: choice.modelId, prompt: isScript.value ? `根据以下要求输出 Markdown 分镜表，表头依次为：镜头号、时长、景别、运镜方式、画面、台词/音效、角色表情反应、环境场景、分镜图提示词、视频运动提示词、角色形象描述。每个镜头一行，不要添加表格以外的文字。\n${prompt.value.trim()}` : prompt.value.trim(), references };
+    const input = { providerId: choice.providerId, modelId: choice.modelId, prompt: isScript.value ? `${scriptGenerationInstruction}\n${prompt.value.trim()}` : prompt.value.trim(), references };
     const directory = references.some(item => item.dataType !== "STRING") ? (await textFiles.list()).directory : undefined;
     const result = await ai.generate({
       ...input,

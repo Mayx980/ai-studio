@@ -58,6 +58,7 @@
 </template>
 
 <script setup lang="ts">
+import { scriptGenerationInstruction } from "@toonflow/node-text/scriptColumns";
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { generateBrowserText } from "@/lib/browserNodeAi";
 import { browserResultFile, generateInBrowser, generationBusy, generationError, generationResults, resolveBrowserModel, stopBrowserGeneration, type BeginBrowserWorkflow, type BrowserWorkflowNode, type ProfessionalCanvas } from "@/stores/browserGeneration";
@@ -146,11 +147,11 @@ function confirmPlans() { return run(async () => {
   } else if (props.state.goal === "image") { props.state.prompts = await options("生成不同角色或场景的图像设计提示词"); props.state.stage = "prompts"; }
   else if (props.state.goal === "audio") { await media("audio", await context()); props.state.stage = "done"; }
   else {
-    props.state.scripts = await options(props.state.goal === "storyboard" ? `生成完整分镜脚本，每项 content 为 Markdown 表格，表头为：${headers}` : "依据勾选的方案生成几个不同的完整剧情脚本");
+    props.state.scripts = await options(props.state.goal === "storyboard" ? `生成完整分镜脚本，每项 content 按以下规则填写：${scriptGenerationInstruction}` : "依据勾选的方案生成几个不同的完整剧情脚本");
     props.state.stage = "scripts";
   }
 }); }
-const headers = "镜头号、时长、景别、运镜方式、画面、台词/音效、角色表情反应、环境场景、分镜图提示词、视频运动提示词、角色形象描述";
+
 function adoptScript() { return run(async () => {
   const option = props.state.scripts.find(item => item.id === props.state.selectedScript);
   if (!option) throw new Error("请选择脚本");
@@ -173,7 +174,7 @@ function confirmDocument() { return run(async () => {
     if (state.goal === "image") { state.prompts = await options("基于当前已修改的剧情，生成角色／场景设计提示词"); state.stage = "prompts"; }
     else if (state.goal === "audio") { await media("audio", await context()); state.stage = "done"; }
     else {
-      const result = await textRequest(`${await context()}\n根据当前剧情生成分镜脚本，输出 {"table":"Markdown表格"}，表头为：${headers}。每个镜头一行。`);
+      const result = await textRequest(`${await context()}\n根据当前剧情生成分镜脚本，输出 {"table":"Markdown表格"}，table 内容遵循：${scriptGenerationInstruction}`);
       const table = (result as { table?: unknown })?.table;
       if (typeof table !== "string" || !table.includes("|")) throw new Error("模型没有返回有效分镜表格");
       state.storyboard = await createDocument(table, true); state.stage = "storyboardReview";

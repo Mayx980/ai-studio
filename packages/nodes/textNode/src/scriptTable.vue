@@ -2,11 +2,11 @@
   <div class="scriptTable nodrag nopan nowheel" @keydown.stop @wheel.stop>
     <input ref="importInput" hidden type="file" accept=".txt,.md,.csv,.xlsx,.docx" @change="selectImport" />
     <div class="tableActions"><el-button :disabled="disabled || importing" :loading="importing" @click="importInput?.click()">导入文档／表格</el-button><el-button :disabled="disabled" @click="addRow">添加镜头</el-button><el-button :disabled="!rows.length" @click="download">导出 Excel</el-button></div>
-    <div class="tableScroll" @scroll="updateNodeInternals([nodeId])"><table><colgroup><col v-for="(header, column) in headers.slice(0, 10)" :key="header" :style="{ width: column < 4 ? '100px' : '280px' }" /><col style="width: 260px" /><col style="width: 180px" /></colgroup><thead><tr><th v-for="header in headers.slice(0, 10)" :key="header">{{ header }}</th><th>引用图片</th><th>操作／行输出</th></tr></thead><tbody>
+    <div class="tableScroll" @scroll="updateNodeInternals([nodeId])"><table><colgroup><col v-for="(header, column) in headers.slice(0, 10)" :key="header" :style="{ width: column < 4 ? '100px' : '280px' }" /><col style="width: 260px" /><col style="width: 320px" /></colgroup><thead><tr><th v-for="header in headers.slice(0, 10)" :key="header">{{ header }}</th><th>引用图片</th><th>提示词</th></tr></thead><tbody>
       <tr v-for="(row, index) in rows" :key="row.id" :data-row-id="row.id">
-        <td v-for="(header, column) in headers.slice(0, 10)" :key="header"><handle v-if="column === 0 && !embedded" class="rowInput" :id="`rowIn:${row.id}`" type="target" :position="Position.Left" :connectable="!disabled" :isValidConnection="validateConnection" :title="`镜头${row.cells[0] || index + 1}：连接参考图片`" /><el-input :modelValue="row.cells[column]" type="textarea" :autosize="{ minRows: 1 }" :disabled="disabled" :aria-label="`镜头${index + 1} ${header}`" @update:modelValue="value => { row.cells[column] = value; publish(); }" /></td>
+        <td v-for="(header, column) in headers.slice(0, 10)" :key="header"><handle v-if="column === 0 && !embedded" class="rowInput" :id="`rowIn:${row.id}`" type="target" :position="Position.Left" :connectable="!disabled" :isValidConnection="validateConnection" :title="`镜头${row.cells[0] || index + 1}：连接参考图片`" /><el-input :modelValue="row.cells[column]" type="textarea" :autosize="{ minRows: 1 }" :disabled="disabled" :aria-label="`镜头${index + 1} ${header}`" @update:modelValue="value => { row.cells[column] = value; publish(); }" /><div v-if="column === 0" class="rowActions"><el-button text :disabled="disabled" @click="roleRow = row">角色详情</el-button><el-button text :disabled="disabled || index === 0" :aria-label="`上移镜头${index + 1}`" @click="move(index, -1)">↑</el-button><el-button text :disabled="disabled || index === rows.length - 1" :aria-label="`下移镜头${index + 1}`" @click="move(index, 1)">↓</el-button><el-button text :disabled="disabled" @click="copyRow(index)">复制</el-button><el-button text type="danger" :disabled="disabled" @click="removeRow(index)">删除</el-button></div></td>
         <td><scriptReferences :rowId="row.id" /></td>
-        <td class="rowActions"><el-button text :disabled="disabled" @click="roleRow = row">角色详情</el-button><el-button text :disabled="disabled || index === 0" :aria-label="`上移镜头${index + 1}`" @click="move(index, -1)">↑</el-button><el-button text :disabled="disabled || index === rows.length - 1" :aria-label="`下移镜头${index + 1}`" @click="move(index, 1)">↓</el-button><el-button text :disabled="disabled" @click="copyRow(index)">复制</el-button><el-button text type="danger" :disabled="disabled" @click="removeRow(index)">删除</el-button><handle v-if="!embedded" class="rowOutput" :id="`row:${row.id}`" type="source" :position="Position.Right" :connectable="!disabled" :isValidConnection="validateConnection" :title="`镜头${row.cells[0] || index + 1}：连接一个或多个下游节点`" /></td>
+        <td class="rowPrompts"><label v-for="(header, offset) in headers.slice(11)" :key="header">{{ header }}<el-input :modelValue="row.cells[11 + offset]" type="textarea" :autosize="{ minRows: 1 }" :disabled="disabled" :aria-label="`镜头${index + 1} ${header}`" @update:modelValue="value => { row.cells[11 + offset] = value; publish(); }" /></label><handle v-if="!embedded" class="rowOutput" :id="`row:${row.id}`" type="source" :position="Position.Right" :connectable="!disabled" :isValidConnection="validateConnection" :title="`镜头${row.cells[0] || index + 1}：连接一个或多个下游节点`" /></td>
       </tr>
     </tbody></table></div>
     <el-dialog v-model="assignmentVisible" title="选择图片适用镜头" appendToBody width="min(720px, 92vw)" @close="cancelAssignment" @closed="openAssignment"><el-checkbox-group v-model="assignedRows"><el-checkbox v-for="(row, index) in rows" :key="row.id" :value="row.id">镜头 {{ row.cells[0] || index + 1 }} · {{ row.cells[4]?.slice(0, 60) }}</el-checkbox></el-checkbox-group><template #footer><el-button @click="assignmentVisible = false">取消</el-button><el-button type="primary" :disabled="!assignedRows.length || disabled" @click="applyAssignment">应用到所选镜头</el-button></template></el-dialog>
@@ -23,6 +23,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
+import { scriptHeaders } from "./scriptColumns";
 import { ElButton, ElInput, ElMessageBox, ElMessage, ElDialog, ElSelect, ElOption, ElCheckbox, ElCheckboxGroup } from "element-plus";
 import { Handle, Position, useNode, useVueFlow } from "@vue-flow/core";
 import { useNodeFiles } from "@toonflow/nodes-scaffold/workspaceFiles";
@@ -35,7 +36,7 @@ import scriptReferences from "./scriptReferences.vue";
 const props = defineProps<{ nodeId: string; disabled?: boolean; embedded?: boolean }>();
 const model = defineModel<string>({ required: true });
 const rows = defineModel<{ id: string; cells: string[] }[]>("rows", { default: () => [] });
-const headers = ["镜头号", "时长", "景别", "运镜方式", "画面", "台词/音效", "角色表情反应", "环境场景", "分镜图提示词", "视频运动提示词", "角色形象描述"];
+const headers = scriptHeaders;
 const flow = useVueFlow();
 const { getEdges, updateNodeInternals, addEdges, removeEdges } = flow;
 const { node } = useNode();
@@ -108,7 +109,7 @@ async function applyImport() {
 let published = "";
 let initial = true;
 function publish() {
-  published = `| ${headers.join(" | ")} |\n| ${headers.map(() => "---").join(" | ")} |\n${rows.value.map(row => `| ${row.cells.map(value => value.replaceAll("|", "&#124;").replaceAll("\n", "<br>")).join(" | ")} |`).join("\n")}`;
+  published = `| ${headers.join(" | ")} |\n| ${headers.map(() => "---").join(" | ")} |\n${rows.value.map(row => `| ${headers.map((_, index) => (row.cells[index] ?? "").replaceAll("|", "&#124;").replaceAll("\n", "<br>")).join(" | ")} |`).join("\n")}`;
   model.value = published;
 }
 watch(model, text => {
@@ -137,7 +138,7 @@ async function removeRow(index: number) {
 }
 defineExpose({ chooseImport: () => importInput.value?.click() });
 function download() {
-  const url = URL.createObjectURL(scriptWorkbook([...headers, "引用图片"], rows.value.map(row => [...row.cells, getTargetValues(props.nodeId, `rowIn:${row.id}`, flow.getNodes.value, getEdges.value).flatMap(item => item.dataType === "IMAGE" && item.value ? [item.value.url] : []).join("\n")])));
+  const url = URL.createObjectURL(scriptWorkbook([...headers, "引用图片"], rows.value.map(row => [...headers.map((_, index) => row.cells[index] ?? ""), getTargetValues(props.nodeId, `rowIn:${row.id}`, flow.getNodes.value, getEdges.value).flatMap(item => item.dataType === "IMAGE" && item.value ? [item.value.url] : []).join("\n")])));
   const anchor = document.createElement("a"); anchor.href = url; anchor.download = "分镜脚本.xlsx"; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 </script>
@@ -154,6 +155,7 @@ function download() {
   .rowInput, .rowOutput { width: 14px; height: 14px; background: var(--el-color-primary); border: 2px solid var(--el-bg-color); z-index: 4; }
   .rowInput { left: -6px; }
   .rowOutput { right: -6px; }
+  .rowPrompts { label { display: block; margin-bottom: 8px; } }
   .rowActions { font-size: 12px; .el-button { margin: 0 4px 4px 0; } }
   .columnMapping { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; label { min-width: 0; } }
   .importPreview { max-height: 300px; overflow: auto; white-space: pre-wrap; }

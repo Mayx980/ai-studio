@@ -172,6 +172,7 @@
 </template>
 
 <script setup lang="ts">
+import { scriptGenerationInstruction } from "@toonflow/node-text/scriptColumns";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { saveBrowserConversation } from "./browserConversations";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
@@ -591,7 +592,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       await persistBrowserMessages();
       const previousIds = new Set(generationResults.value.map(item => item.id));
       const textReferences = await Promise.all(files.filter(file => file.type.startsWith("text/") || file.type === "application/json").map(async file => { const text = await file.text(); if (text.length > 100000) throw new Error("文字引用最多支持 100000 字符，请缩小内容"); return `${file.name}：\n${text}`; }));
-      const generationPrompt = isStoryboard ? `${prompt}\n请输出 Markdown 分镜表，列为：镜头号、时长、景别、运镜方式、画面、台词/音效、角色表情反应、环境场景、分镜图提示词、视频运动提示词、角色形象描述。每镜头一行，仅输出表格。` : !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
+      const generationPrompt = isStoryboard ? `${prompt}\n${scriptGenerationInstruction}` : !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
       const success = await generateInBrowser([generationPrompt, ...textReferences].join("\n\n"), files.filter(file => file.type.startsWith("image/")), directory, outputKind);
       const results = generationResults.value.filter(item => !previousIds.has(item.id) && item.directory === directory);
       reply.browserResultIds = results.filter(item => item.kind !== "text").map(item => item.id);

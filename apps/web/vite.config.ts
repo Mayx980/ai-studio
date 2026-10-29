@@ -11,13 +11,13 @@ import { i18nPlugin } from "@toonflow/i18n/vite";
 import studioRelay from "./studioRelay";
 
 // ACT: 内置节点按包的公开导出解析，不依赖另一台机器是否已重建 workspace 链接。
-const builtinNodeAliases = ["textNode", "imageGenerationNode", "videoGenerationNode", "audioGenerationNode", "imageNode", "videoNode", "audioNode"].map(name => {
+const builtinNodeAliases = ["textNode", "imageGenerationNode", "videoGenerationNode", "audioGenerationNode", "imageNode", "videoNode", "audioNode"].flatMap(name => {
   const packageRoot = new URL(`../../packages/nodes/${name}/`, import.meta.url);
   const packageInfo = JSON.parse(readFileSync(new URL("package.json", packageRoot), "utf8"));
-  return {
-    find: `${packageInfo.name}/component`,
-    replacement: fileURLToPath(new URL(packageInfo.exports["./component"], packageRoot)),
-  };
+  return Object.entries(packageInfo.exports as Record<string, string>).map(([path, target]) => ({
+    find: `${packageInfo.name}/${path.slice(2)}`,
+    replacement: fileURLToPath(new URL(target, packageRoot)),
+  }));
 });
 
 export default defineConfig(({ mode }) => ({

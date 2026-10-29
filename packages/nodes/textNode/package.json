@@ -39,6 +39,7 @@
     "vue-tsc": "^3.3.11"
   },
   "exports": {
-    "./component": "./src/index.vue"
+    "./component": "./src/index.vue",
+    "./scriptColumns": "./src/scriptColumns.ts"
   }
 }
