@@ -9,7 +9,6 @@
       <el-select v-model="mediaFilter" aria-label="素材类别"><el-option label="全部素材" value="all" /><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="音频" value="audio" /></el-select>
       <el-select v-model="tagFilter" aria-label="按标签分类" clearable :valueOnClear="'all'" :emptyValues="[undefined, null]" placeholder="全部标签"><el-option label="全部标签" value="all" /><el-option v-for="item in assetCategories" :key="item" :label="item" :value="item" /></el-select>
     </div>
-    <p class="tagHint">标签随应用设置保存；同名分类文件夹会自动归类。</p>
     <el-scrollbar class="libraryScroll" :maxHeight="page ? undefined : 'min(440px, calc(100dvh - 198px))'">
       <div v-if="page" class="assetGrid">
         <article v-for="item in pageAssets" :key="item.path" class="assetCard">

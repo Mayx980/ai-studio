@@ -5,7 +5,6 @@
         <icon-file-text :size="18" />
         <span>{{ attachment.name }}</span>
       </button>
-      <el-button v-if="restorable" class="restoreAttachment" text size="small" :disabled="disabled" @click="emit('restore')">还原到输入框</el-button>
     </template>
     <el-image
       v-else-if="attachment.mimeType.startsWith('image/')"
@@ -29,6 +28,7 @@
       <icon-video class="videoIcon" :size="16" />
     </button>
     <div v-else class="fileAttachmentCard" :title="attachment.name"><icon-file-text :size="18" /><span>{{ attachment.name }}</span></div>
+    <el-tooltip v-if="restorable" content="还原到输入框" placement="bottom"><el-button class="restoreAttachment" text circle size="small" :disabled="disabled" aria-label="还原到输入框" @click="emit('restore')"><icon-arrow-back-up :size="14" /></el-button></el-tooltip>
     <el-button v-if="removable" class="removeAttachment" circle :disabled="disabled" :aria-label="`移除 ${attachment.name}`" title="移除附件" @click="emit('remove')"><icon-x :size="10" /></el-button>
     <el-dialog v-model="videoPreviewVisible" :title="attachment.name" width="min(800px, 90vw)" alignCenter appendToBody destroyOnClose>
       <video v-if="videoPreviewVisible" class="videoPreview" :src="thumbnailUrl" controls playsinline preload="metadata" />
@@ -43,7 +43,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type { ImageInstance } from "element-plus";
-import { IconFileText, IconPhoto, IconVideo, IconX } from "@tabler/icons-vue";
+import { IconFileText, IconPhoto, IconVideo, IconX, IconArrowBackUp } from "@tabler/icons-vue";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import type { AgentAttachment } from "./types";
 import { readTextAttachment } from "./textAttachments";
@@ -112,6 +112,8 @@ watch([textPreviewVisible, () => props.attachment, () => props.directory], async
   flex-shrink: 0;
   width: 38px;
   height: 38px;
+  &:has(.restoreAttachment) { margin-bottom: 26px; }
+  .restoreAttachment { position: absolute; top: calc(100% + 2px); left: 0; margin: 0; width: 24px; height: 22px; }
 
   &.fileAttachment {
     display: flex;
@@ -143,7 +145,6 @@ watch([textPreviewVisible, () => props.attachment, () => props.directory], async
       span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     }
 
-    .restoreAttachment { height: 20px; margin: 2px 0 0 24px; padding: 0; font-size: 11px; }
   }
 
   .thumbnailButton,

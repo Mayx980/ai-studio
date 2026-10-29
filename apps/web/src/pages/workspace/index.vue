@@ -70,7 +70,7 @@
 
 <script setup lang="ts">
 import { browserNodeAi } from "@/lib/browserNodeAi";
-import { browserConfig, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
+import { browserConfig, additionalBrowserModels, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
 import { computed, defineAsyncComponent, nextTick, onMounted, onScopeDispose, provide, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
 import axios from "axios";
@@ -87,7 +87,7 @@ import workspaceMenu from "./components/workspaceMenu.vue";
 import floatingAgent from "./components/floatingAgent.vue";
 
 provide("nodeAi", browserNodeAi);
-watch(() => [browserConfig.enabled, browserConfig.endpoint, ...Object.values(browserConfig.keys)], () => { window.dispatchEvent(new Event("toonflow:provider-config-changed")); });
+watch(() => [browserConfig.enabled, browserConfig.endpoint, ...Object.values(browserConfig.keys), JSON.stringify(additionalBrowserModels)], () => { window.dispatchEvent(new Event("toonflow:provider-config-changed")); });
 
 const documentPanel = defineAsyncComponent(() => import("./panels/document/index.vue"));
 
@@ -119,14 +119,14 @@ async function enterCanvas() {
     agentVisible.value = false;
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "无法进入画布"); }
 }
-provide("importBrowserResult", async (file: File, directory: string) => {
+provide("importBrowserResult", async (file: File, directory: string, script = false) => {
   if (!canvasPanelRef.value) throw new Error("画布尚未就绪");
   workspaceStore.creationMode = "professional";
   activePanel.value = "canvas";
   await nextTick();
   await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
   await canvasPanelRef.value.waitUntilReady();
-  await canvasPanelRef.value.importBrowserResult(file, directory);
+  await canvasPanelRef.value.importBrowserResult(file, directory, script);
   agentVisible.value = false;
 });
 provide("beginBrowserWorkflow", (async (...args) => {
@@ -138,6 +138,17 @@ provide("beginBrowserWorkflow", (async (...args) => {
   return panel.beginBrowserWorkflow(...args);
 }) as BeginBrowserWorkflow);
 provide("canvas", () => canvasPanelRef.value?.getCanvasContext());
+provide("professionalCanvas", {
+  async read(directory: string, node: { canvasPath: string; nodeId: string }) {
+    if (!canvasPanelRef.value) throw new Error("画布尚未就绪");
+    const document = await canvasPanelRef.value.readDocumentNode(directory, node.canvasPath, node.nodeId);
+    return document.outputs.find(output => output.id === "text")?.text ?? "";
+  },
+  async mount(directory: string, node: { canvasPath: string; nodeId: string }, target: HTMLElement) {
+    if (!canvasPanelRef.value) throw new Error("画布尚未就绪");
+    return canvasPanelRef.value.mountDocumentNode(directory, node.canvasPath, node.nodeId, target);
+  },
+});
 provide("mentionCanvas", () => canvasPanelRef.value?.mentionSource);
 provide("activateCanvasPanel", () => switchPanel("canvas"));
 provide("performWorkspaceFileAction", (directory: string, action: "copy" | "rename" | "move" | "delete", path: string, target?: string, entryType: "canvas" | "directory" = "canvas") =>

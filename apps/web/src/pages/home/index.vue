@@ -14,13 +14,6 @@
       <button v-for="item in sortedProjects.slice(0, 5)" :key="item.directory" class="recentProject" :title="item.name" @click="openProject(item)"><icon-folder :size="16" />{{ item.name }}</button>
       <div class="sidebarFooter"><el-button text :icon="IconPalette" @click="settingsVisible = true">外观与设置</el-button></div>
     </aside>
-    <el-header class="pageHeader">
-      <div class="headerActions">
-        <el-badge isDot :hidden="!hasDesktopUpdate">
-          <el-button round size="large" :icon="IconSettings" :aria-label="hasDesktopUpdate ? '设置，有新版本可用' : '设置'" @click="settingsVisible = true">设置</el-button>
-        </el-badge>
-      </div>
-    </el-header>
     <el-main class="pageContent">
       <section v-show="homeSection === 'create'" class="creationPanel" aria-label="创建项目">
         <div class="brand">
@@ -112,13 +105,13 @@ import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox, type InputInstance } from "element-plus";
 import { getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import {
-  IconSettings, IconPlus, IconSparkles, IconPalette, IconHistory,
+  IconPlus, IconSparkles, IconPalette, IconHistory,
   IconArrowUp, IconLayoutGrid,
   IconList, IconSortDescending,
   IconSortAscending, IconFolder, IconEdit,
   IconFolderMinus, IconFolderPlus, IconFolderOpen, IconPaperclip,
 } from "@tabler/icons-vue";
-import { inferGenerationKind, browserConfig, generationError } from "@/stores/browserGeneration";
+import { inferGenerationKind, configuredBrowserModels, browserConfig, generationError } from "@/stores/browserGeneration";
 import browserModelOptions from "@/components/browserModelOptions.vue";
 import { listBrowserConversations } from "@/components/agent/browserConversations";
 import type { AgentHistory } from "@/components/agent/types";
@@ -130,7 +123,6 @@ import { createPastedTextFile, readTextAttachment } from "@/components/agent/tex
 import type { AgentAttachment } from "@/components/agent/types";
 import logoUrl from "@toonflow/assets/logo.svg";
 import { useWorkspaceStore, type Project } from "@/stores/workspace";
-import { hasDesktopUpdate } from "@/stores/desktopUpdate";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import settings from "@/components/settings/index.vue";
@@ -417,7 +409,7 @@ async function openHistory(item: ConversationHistory) {
 async function createProject(fromPrompt = true) {
   if (fromPrompt && !prompt.value.trim()) return;
   if (fromPrompt && browserWorkspaceMode && !browserConfig.enabled && workspaceStore.creationMode === "simple") { generationError.value = "请先在设置 → API 配置中启用模型并输入 Key"; return; }
-  if (fromPrompt && browserConfig.enabled && workspaceStore.creationMode === "simple" && !browserConfig.keys[inferGenerationKind(prompt.value)].trim()) {
+  if (fromPrompt && browserConfig.enabled && workspaceStore.creationMode === "simple" && !configuredBrowserModels(inferGenerationKind(prompt.value)).length) {
     generationError.value = "请先在设置 → API 配置中输入当前模型的 Key。";
     return;
   }

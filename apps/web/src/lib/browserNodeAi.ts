@@ -1,31 +1,24 @@
 import type { NodeAiAdapter, NodeAiRequest, NodeMediaModel } from "@toonflow/nodes-scaffold/nodeAi";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
-import { browserConfig, browserModels } from "@/stores/browserGeneration";
+import { browserConfig, browserModels, configuredBrowserModels, resolveBrowserModel } from "@/stores/browserGeneration";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { studioFetch } from "@/lib/studioFetch";
 
 function availableBrowserModels(): NodeMediaModel[] {
-  if (!browserConfig.enabled) return [];
-  const providers = browserModels;
-  return [
-    ...providers.image.models.map(model => ({ ...model, type: "image" as const, providerId: providers.image.id, providerLabel: providers.image.label, modelId: model.id })),
-    ...providers.video.models.map(({ audio, ...model }) => ({ ...model, audio: audio === "optional" ? "optional" as const : undefined, type: "video" as const, providerId: providers.video.id, providerLabel: providers.video.label, modelId: model.id })),
-    ...providers.audio.models.map(model => ({ ...model, type: "audio" as const, providerId: providers.audio.id, providerLabel: providers.audio.label, modelId: model.id })),
-  ].filter(model => browserConfig.keys[model.type].trim());
+  return (["image", "video", "audio"] as const).flatMap(kind => configuredBrowserModels(kind).map(model => ({
+    ...browserModels[kind].models[0]!, type: kind, audio: kind === "video" ? "optional" as const : undefined,
+    providerId: model.id, providerLabel: model.label, modelId: model.modelId, label: model.label,
+  })));
 }
-
-function modelContext(kind: keyof typeof browserModels, signal?: AbortSignal) {
-  if (!browserConfig.enabled) throw new Error("请先在设置 → API 配置中启用模型并输入 Key");
-  const apiKey = browserConfig.keys[kind].trim();
-  if (!apiKey) throw new Error(`请先在设置 → API 配置中输入${browserModels[kind].label}的 Key`);
-  if ((kind === "text" || kind === "image") && !/^https:\/\//i.test(browserConfig.endpoint)) throw new Error("接口地址必须使用 HTTPS");
+function modelContext(kind: keyof typeof browserModels, providerId: string, modelId: string, signal?: AbortSignal) {
+  const model = resolveBrowserModel(kind, providerId, modelId);
+  if (!/^https:\/\//i.test(model.endpoint)) throw new Error("接口地址必须使用 HTTPS");
   signal?.throwIfAborted();
-  return { config: { apiKey, endpoint: browserConfig.endpoint }, signal, tool: { fetch: studioFetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" } };
+  return { config: { apiKey: model.apiKey.trim(), endpoint: model.endpoint }, signal, tool: { fetch: studioFetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" } };
 }
 
 export async function generateBrowserText(input: NodeAiRequest) {
-  const context = modelContext("text", input.signal);
-  if (input.providerId !== browserModels.text.id || input.modelId !== browserModels.text.models[0]!.id) throw new Error("所选文本模型与 API 配置不一致，请重新选择");
+  const context = modelContext("text", input.providerId, input.modelId, input.signal);
   const references = input.references ?? [];
   if (references.some(item => item.dataType !== "STRING")) throw new Error("当前文本模型仅支持文字参考，请移除图片、视频或文件引用后重试");
   if (input.tools?.length) throw new Error("当前浏览器文本适配器不支持工具调用");
@@ -83,25 +76,22 @@ export const browserNodeAi: NodeAiAdapter = {
   enabled: () => browserWorkspaceMode || browserConfig.enabled,
   async getModels(signal) {
     signal?.throwIfAborted();
-    return browserConfig.enabled && browserConfig.keys.text.trim() ? browserModels.text.models.map(model => ({ providerId: browserModels.text.id, providerLabel: browserModels.text.label, modelId: model.id, label: model.label, protocol: "openai-completions" as const })) : [];
+    return configuredBrowserModels("text").map(model => ({ providerId: model.id, providerLabel: model.label, modelId: model.modelId, label: model.label, protocol: "openai-completions" as const }));
   },
   async getMediaModels(signal) { signal?.throwIfAborted(); return availableBrowserModels(); },
   async generateImage(input, signal) {
-    const context = modelContext("image", signal);
-    if (input.providerId !== browserModels.image.id || !browserModels.image.models.some(model => model.id === input.modelId)) throw new Error("请选择 API 配置中已接入的图片模型");
+    const context = modelContext("image", input.providerId, input.modelId, signal);
     const assets = await browserModels.image.generateImage.call(context, { ...input, model: input.modelId, images: await imageInputs(input.directory, input.images) });
     return await saveAssets(assets, input, "image", signal) as Awaited<ReturnType<NodeAiAdapter["generateImage"]>>;
   },
   async generateVideo(input, signal) {
-    const context = modelContext("video", signal);
-    if (input.providerId !== browserModels.video.id || !browserModels.video.models.some(model => model.id === input.modelId)) throw new Error("请选择 API 配置中已接入的视频模型");
+    const context = modelContext("video", input.providerId, input.modelId, signal);
     const frame = async (item?: { path: string; mimeType: string }) => item ? (await imageInputs(input.directory, [item]))[0] : undefined;
     const assets = await browserModels.video.generateVideo.call(context, { ...input, model: input.modelId, images: await imageInputs(input.directory, input.images), videos: await imageInputs(input.directory, input.videos), audios: await imageInputs(input.directory, input.audios), firstFrame: await frame(input.firstFrame), lastFrame: await frame(input.lastFrame) });
     return await saveAssets(assets, input, "video", signal) as Awaited<ReturnType<NodeAiAdapter["generateVideo"]>>;
   },
   async generateAudio(input, signal) {
-    const context = modelContext("audio", signal);
-    if (input.providerId !== browserModels.audio.id || !browserModels.audio.models.some(model => model.id === input.modelId)) throw new Error("请选择 API 配置中已接入的音频模型");
+    const context = modelContext("audio", input.providerId, input.modelId, signal);
     if (input.audios?.length || input.images?.length) throw new Error("当前音频模型仅支持文字输入");
     const { images, audios, language, ...parameters } = input;
     const prompt = [input.prompt, language ? `生成语言：${language}` : ""].filter(Boolean).join("\n");

@@ -1,6 +1,7 @@
 <template>
   <nodeSkeleton
     v-bind="nodeProps"
+    :icon="isScript ? IconMovie : IconFileText"
     :hiddenHandles="isScript ? scriptRows.map(row => `row:${row.id}`) : []"
     :style="isScript ? { width: '1120px' } : undefined"
     v-model:bottomVisible="node.selected"
@@ -55,7 +56,7 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, onScopeDispose, ref, watch } from "vue";
 import { ElAlert, ElButton, ElCard, ElSelect, ElDialog, ElOption, ElOptionGroup, ElMessage, ElMessageBox } from "element-plus";
-import { IconEdit, IconFileText, IconSparkles, IconArrowUp } from "@tabler/icons-vue";
+import { IconEdit, IconFileText, IconMovie, IconSparkles, IconArrowUp } from "@tabler/icons-vue";
 import { nodeSkeleton, nodeTools, useNode, z, type NodeAiModel, type NodeHandle } from "@toonflow/nodes-scaffold/runtime";
 import { groupNodeModels } from "@toonflow/node-shared/groupNodeModels";
 import { useNodeReferences } from "@toonflow/node-shared/useNodeReferences";

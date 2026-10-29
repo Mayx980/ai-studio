@@ -8,7 +8,7 @@
       <video v-else-if="item.kind === 'video'" :src="item.url" controls playsinline preload="metadata" />
       <audio v-else :src="item.url" controls />
       <div class="resultActions">
-        <el-button v-if="importResult && item.kind !== 'text'" text type="primary" :disabled="importing || disabled" @click="addToCanvas(item)">进入画布</el-button>
+        <el-tooltip v-if="showCanvas && importResult" content="加入画布"><el-button text circle type="primary" :disabled="importing || disabled" aria-label="加入画布" @click="addToCanvas(item)"><icon-square-plus :size="17" /></el-button></el-tooltip>
         <el-button v-if="showReference && item.kind !== 'text'" text circle :disabled="importing || disabled" aria-label="引用素材" title="引用到输入框" @click="referenceResult(item)"><icon-paperclip :size="17" /></el-button>
       </div>
     </article>
@@ -16,11 +16,11 @@
 </template>
 
 <script setup lang="ts">
-import { IconPaperclip } from "@tabler/icons-vue";
+import { IconPaperclip, IconSquarePlus } from "@tabler/icons-vue";
 import { computed, inject, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { browserConfig, generationBusy, generationError, generationResults, selectedBrowserModel, browserResultFile } from "@/stores/browserGeneration";
-const props = withDefaults(defineProps<{ directory?: string; resultIds?: string[]; showStatus?: boolean; disabled?: boolean; showReference?: boolean }>(), { showStatus: true, showReference: true });
+const props = withDefaults(defineProps<{ directory?: string; resultIds?: string[]; showStatus?: boolean; disabled?: boolean; showCanvas?: boolean; showReference?: boolean }>(), { showCanvas: true, showStatus: true, showReference: true });
 const emit = defineEmits<{ reference: [file: File] }>();
 const importResult = inject<((file: File, directory: string) => Promise<void>) | undefined>("importBrowserResult", undefined);
 const importing = ref(false);

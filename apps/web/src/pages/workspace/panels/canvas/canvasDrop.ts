@@ -68,6 +68,7 @@ export function isCanvasFileDrag(event: DragEvent) {
 type CanvasFileContext = {
   directory: string;
   throwOnError?: boolean;
+  script?: boolean;
   availableNodes: { type: string }[];
   signal: AbortSignal;
   flow: Pick<ReturnType<typeof useVueFlow>, "addNodes" | "screenToFlowCoordinate">;
@@ -121,7 +122,7 @@ export async function importCanvasFiles(droppedFiles: File[], position: { x: num
       }
       signal.throwIfAborted();
       flow.addNodes({ id, type, position: { x: position.x + index * 32, y: position.y + index * 32 },
-        data: kind === "text" ? { label: file.name, textSnapshot } : { label: file.name, outputs: { [kind]: output } } });
+        data: kind === "text" ? { label: file.name, textSnapshot, ...(context.script ? { contentKind: "script" } : {}) } : { label: file.name, outputs: { [kind]: output } } });
       createdIds.push(id);
     } catch (error) {
       if (copiedPath) await files.remove(copiedPath).catch(showError);

@@ -27,12 +27,12 @@ export default {
   async generateVideo(this: any, request: any): Promise<any[]> {
     const apiKey = String(this.config?.apiKey ?? "").trim();
     if (!apiKey) throw new Error("请先在 ai-studio 供应商配置中填写阿里云百炼 API Key。");
-    if (request.model !== "wan3Video") throw new Error("当前适配器只支持万相 3.0 视频生成模型。");
+    if (!request.model?.trim()) throw new Error("请选择已配置的模型");
     if (typeof request.prompt !== "string" || !request.prompt.trim()) throw new Error("请填写视频提示词。");
 
     const workspaceId = "llm-d7hnbcsabhzqr44p";
-    const modelName = "wan3.0-video";
-    const apiBase = `https://${workspaceId}.cn-beijing.maas.aliyuncs.com/api/v1`;
+    const modelName = request.model === "wan3Video" ? "wan3.0-video" : request.model;
+    const apiBase = `${String(this.config?.endpoint || `https://${workspaceId}.cn-beijing.maas.aliyuncs.com`).replace(/\/+$/, "")}/api/v1`;
     const controllerSignals: AbortSignal[] = [AbortSignal.timeout(30 * 60 * 1000)];
     if (this.signal) controllerSignals.push(this.signal);
     const signal = AbortSignal.any(controllerSignals);

@@ -68,12 +68,9 @@
         :availableNodes="creationNodes"
         @create="createEmptyNode" />
       <canvasMenu ref="canvasMenuRef" v-model:canvasId="canvasId" :directory="project?.directory" :initialCanvasId="initialCanvasId" :activateCanvas="activateCanvas" :flushSave="flushCanvases ?? flushCanvasSave">
-
+        <template #actions><div class="sidebarHeader"><el-button text :aria-expanded="sidebarOpen" aria-label="折叠或展开侧栏" @click="sidebarOpen = !sidebarOpen">{{ sidebarOpen ? '收起' : '展开' }}</el-button><el-button text :type="sidebarOpen && !assetsVisible ? 'primary' : 'default'" @click="sidebarOpen = true; assetsVisible = false">显示层级</el-button><el-button text :type="sidebarOpen && assetsVisible ? 'primary' : 'default'" @click="sidebarOpen = true; assetsVisible = true">个人资产</el-button></div></template>
+        <div v-show="sidebarOpen && props.active" class="sidebarContent"><canvasLayers v-if="!assetsVisible" :directory="project?.directory" /><assetLibrary ref="assetLibraryRef" v-model="assetsVisible" :directory="project?.directory" /></div>
       </canvasMenu>
-      <panel v-if="props.active" class="canvasSidebar" position="top-left">
-        <div class="sidebarHeader"><el-button text :aria-expanded="sidebarOpen" aria-label="折叠或展开侧栏" @click="sidebarOpen = !sidebarOpen">{{ sidebarOpen ? '收起' : '展开' }}</el-button><template v-if="sidebarOpen"><el-button text :type="!assetsVisible ? 'primary' : 'default'" @click="assetsVisible = false">显示层级</el-button><el-button text :type="assetsVisible ? 'primary' : 'default'" @click="assetsVisible = true">个人资产</el-button></template></div>
-        <div v-show="sidebarOpen" class="sidebarContent"><canvasLayers v-if="!assetsVisible" /><assetLibrary ref="assetLibraryRef" v-model="assetsVisible" :directory="project?.directory" /></div>
-      </panel>
       <canvasControls :active="props.active"
         :canUndo="canUndo" :canRedo="canRedo" :undo="() => changeHistory('undo')" :redo="() => changeHistory('redo')"
         ref="canvasControlsRef"
@@ -127,9 +124,8 @@
 </template>
 
 <script setup lang="ts">
-import { Panel } from "@vue-flow/core";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
-import { browserModels, browserConfig, generationResults, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
+import { browserConfig, resolveBrowserModel, generationResults, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
 import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, onScopeDispose, provide, ref, shallowReactive, shallowRef, watch } from "vue";
 import axios from "axios";
 import { debounce } from "lodash-es";
@@ -329,7 +325,7 @@ async function fitCreationNodes(ids: string[]) {
   if (!nodes.length) return;
   await flow.setViewport(vueFlowRuntime.getTransformForBounds(vueFlowRuntime.getRectOfNodes(nodes), Math.max(240, bounds.width - agentWidth), bounds.height, flow.minZoom.value, 1, 0.25));
 }
-async function importBrowserResult(file: File, directory: string) {
+async function importBrowserResult(file: File, directory: string, script = false) {
   if (directory !== project.value?.directory || !canvasReady.value) throw new Error("工作区已切换或画布尚未就绪，请重新操作");
   const resultPath = generationResults.value.find(result => result.file === file && result.directory === directory)?.path;
   const existing = resultPath ? flow.getNodes.value.find(node => Object.values(node.data.outputs ?? {}).some(output => isNodeOutput(output) && output.value && typeof output.value === "object" && "url" in output.value && output.value.url === resultPath)) : undefined;
@@ -337,7 +333,7 @@ async function importBrowserResult(file: File, directory: string) {
   const position = pastePosition();
   if (!position) throw new Error("画布尚未就绪");
   const signal = canvasController.signal;
-  const ids = await canvasHistory.batch(() => importCanvasFiles([file], position, { directory, availableNodes: availableNodes.value, signal, flow, throwOnError: true }));
+  const ids = await canvasHistory.batch(() => importCanvasFiles([file], position, { directory, availableNodes: availableNodes.value, signal, flow, throwOnError: true, script }));
   signal.throwIfAborted();
   if (!ids.length) throw new Error("素材节点未能创建，请重试");
   // ACT: 新节点插件需要异步挂载并测量；只有 nextTick 时 fitView 会因尺寸为零直接跳过。
@@ -361,27 +357,29 @@ async function importBrowserResult(file: File, directory: string) {
   signal.throwIfAborted();
   await flushCanvasSave();
 }
-const beginBrowserWorkflow: BeginBrowserWorkflow = async (prompt, kind, references, script) => {
+const beginBrowserWorkflow: BeginBrowserWorkflow = async (prompt, kind, references, script, _visible, sources = []) => {
   await waitUntilReady();
   const directory = project.value?.directory;
   const position = pastePosition();
   if (!directory || !position) throw new Error("画布尚未就绪");
   const canvas = canvasId.value;
+  if (sources.some(source => source.canvasPath !== canvas || !flow.findNode(source.nodeId))) throw new Error("前序节点所在画布已切换或节点已删除，请回到原画布继续");
   const signal = canvasController.signal;
   const type = kind === "text" ? "remote-textNode" : `remote-${kind}GenerationNode`;
   if (!availableNodes.value.some(node => node.type === type)) throw new Error("请先安装并启用对应节点");
   const targetId = crypto.randomUUID();
   const ids = await canvasHistory.batch(async () => {
     const sourceIds = await importCanvasFiles([new File([prompt], "创作要求.md", { type: "text/markdown" }), ...references], position, { directory, availableNodes: availableNodes.value, signal, flow, throwOnError: true });
-    const provider = browserModels[kind];
+    const provider = resolveBrowserModel(kind);
     addNodes({ id: targetId, type, position: { x: position.x + 640, y: position.y }, data: {
       label: script ? "脚本" : ({ text: "方案／文字", image: "图片", video: "视频", audio: "音频" })[kind],
-      contentKind: script ? "script" : undefined, prompt, promptModel: prompt.split("\n").map(text => [{ type: "Write", text }]), model: JSON.stringify([provider.id, provider.models[0]!.id]),
+      contentKind: script ? "script" : undefined, prompt, promptModel: prompt.split("\n").map(text => [{ type: "Write", text }]), model: JSON.stringify([provider.id, provider.modelId]),
       ...(browserConfig.ratio ? { ratio: browserConfig.ratio } : {}), ...(browserConfig.resolution ? (kind === "image" ? { size: browserConfig.resolution } : { resolution: browserConfig.resolution }) : {}),
       ...(browserConfig.duration ? { duration: Number(browserConfig.duration) } : {}),
     } });
     sourceIds.forEach((id, index) => flow.updateNode(id, { position: { x: position.x, y: position.y + index * 360 } }));
     addEdges(sourceIds.map((id, index) => ({ id: crypto.randomUUID(), source: id, sourceHandle: index === 0 ? "text" : references[index - 1]?.type.startsWith("image/") ? "image" : references[index - 1]?.type.startsWith("video/") ? "video" : references[index - 1]?.type.startsWith("audio/") ? "audio" : "text", target: targetId, targetHandle: "in" })));
+    addEdges(sources.map(source => { const node = flow.findNode(source.nodeId)!; const handle = Object.keys(node.data.outputs ?? {}).find(key => !key.startsWith("row:")) || "text"; return { id: crypto.randomUUID(), source: source.nodeId, sourceHandle: handle, target: targetId, targetHandle: "in" }; }));
     return [...sourceIds, targetId];
   });
   await flushCanvasSave();
@@ -391,7 +389,7 @@ const beginBrowserWorkflow: BeginBrowserWorkflow = async (prompt, kind, referenc
   const node = flow.findNode(targetId)!;
   const configuration = () => JSON.stringify([node.data.prompt, node.data.model, node.data.ratio, node.data.size, node.data.resolution, node.data.duration, node.data.outputs, flow.getEdges.value.filter(edge => edge.target === targetId).map(edge => [edge.id, edge.source, edge.sourceHandle, edge.targetHandle, flow.findNode(edge.source)?.data.outputs])]);
   const initialConfiguration = configuration();
-  return { async complete(results) {
+  return { node: { canvasPath: canvas, nodeId: targetId }, async complete(results) {
     signal.throwIfAborted();
     if (project.value?.directory !== directory || canvasId.value !== canvas || !flow.findNode(targetId)) throw new Error("画布或节点已变化，生成结果保留在对话中，请手动加入画布");
     if (configuration() !== initialConfiguration) throw new Error("节点内容、配置或连线已修改，生成结果保留在对话中，请确认后手动加入画布");
@@ -1367,5 +1365,6 @@ const defaultEdgeOptions = markRaw({
 </style>
 
 <style scoped lang="scss">
-.canvasSidebar.vue-flow__panel { top: 68px; left: 0; max-width: calc(100vw - 32px); background: var(--el-bg-color); border: 1px solid var(--el-border-color); border-radius: 12px; .sidebarHeader { display: flex; padding: 4px; } .sidebarContent { width: 300px; max-width: calc(100vw - 32px); max-height: calc(100dvh - 220px); overflow: auto; padding: 10px; :deep(.assetLibrary) { width: 100%; } } }
+.sidebarHeader { display: flex; align-items: center; gap: 2px; }
+.sidebarContent { width: 320px; max-width: calc(100vw - 120px); max-height: calc(100dvh - 180px); overflow: auto; padding: 12px; border: 1px solid var(--el-border-color); border-radius: 12px; background: var(--el-bg-color); box-shadow: var(--el-box-shadow-light); :deep(.assetLibrary) { width: 100%; } }
 </style>

@@ -1,4 +1,5 @@
 import type { AgentToolCall, AgentStats, AgentContext, AgentSubAgent, AgentMention } from "@toonflow/server/agent/types";
+import type { ProfessionalCreation } from "./professionalCreation";
 
 export type AgentAttachment = { name: string; path: string; mimeType: string; file?: File };
 
@@ -19,6 +20,7 @@ export type AgentMessage = {
   streaming?: boolean;
   browserResultIds?: string[];
   creationChoice?: { prompt: string; needsDetails?: boolean; resolved?: boolean };
+  professional?: ProfessionalCreation;
   error?: string;
   report?: { file: string; name: string };
 };

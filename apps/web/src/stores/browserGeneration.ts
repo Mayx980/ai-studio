@@ -13,16 +13,37 @@ export type ModelKind = "image" | "video" | "audio" | "text";
 export const browserModels = { image: imageModel, video: videoModel, audio: audioModel, text: textModel };
 // ACT: 原型直接使用供应商协议；Key 不进入持久化 Store 或服务端配置。
 export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: "", duration: "", resolution: "" });
+export const additionalBrowserModels = reactive<{ id: string; kind: ModelKind; label: string; modelId: string; endpoint: string; apiKey: string }[]>([]);
+export const browserModelSelection = reactive<Record<ModelKind, string>>({ image: "", video: "", audio: "", text: "" });
+export function configuredBrowserModels(kind: ModelKind) {
+  if (!browserConfig.enabled) return [];
+  const adapter = browserModels[kind];
+  return [
+    ...adapter.models.map(model => ({ id: adapter.id, kind, label: model.label, modelId: model.id, endpoint: browserConfig.endpoint, apiKey: browserConfig.keys[kind] })),
+    ...additionalBrowserModels.filter(model => model.kind === kind),
+  ].filter(model => model.apiKey.trim() && model.modelId.trim() && model.label.trim());
+}
+export function resolveBrowserModel(kind: ModelKind, providerId?: string, modelId?: string) {
+  const models = configuredBrowserModels(kind);
+  const model = providerId ? models.find(model => model.id === providerId && model.modelId === modelId) : models.find(model => model.id === browserModelSelection[kind]) ?? models[0];
+  if (!model) throw new Error("请先在设置 → API 配置中接入并选择对应模型");
+  return model;
+}
 export const generationBusy = ref(false);
 export const generationError = ref("");
 export type BrowserGenerationResult = { id: string; kind: ModelKind; url?: string; text?: string; file?: File; directory?: string; path?: string };
-export type BrowserWorkflow = { complete(results: BrowserGenerationResult[]): Promise<void> };
-export type BeginBrowserWorkflow = (prompt: string, kind: ModelKind, references: File[], script: boolean, visible?: boolean) => Promise<BrowserWorkflow>;
+export type BrowserWorkflowNode = { canvasPath: string; nodeId: string };
+export type ProfessionalCanvas = {
+  read(directory: string, node: BrowserWorkflowNode): Promise<string>;
+  mount(directory: string, node: BrowserWorkflowNode, target: HTMLElement): Promise<() => void>;
+};
+export type BrowserWorkflow = { node: BrowserWorkflowNode; complete(results: BrowserGenerationResult[]): Promise<void> };
+export type BeginBrowserWorkflow = (prompt: string, kind: ModelKind, references: File[], script: boolean, visible?: boolean, sources?: BrowserWorkflowNode[]) => Promise<BrowserWorkflow>;
 export const generationResults = ref<BrowserGenerationResult[]>([]);
-export const selectedBrowserModel = computed(() => browserModels[browserConfig.kind].models[0]!);
+export const selectedBrowserModel = computed(() => configuredBrowserModels(browserConfig.kind).find(model => model.id === browserModelSelection[browserConfig.kind]) ?? configuredBrowserModels(browserConfig.kind)[0] ?? { label: "未接入模型" });
 let controller: AbortController | undefined;
 export function stopBrowserGeneration() { controller?.abort(); }
-export function clearBrowserKeys() { stopBrowserGeneration(); for (const key of Object.keys(browserConfig.keys) as ModelKind[]) browserConfig.keys[key] = ""; }
+export function clearBrowserKeys() { stopBrowserGeneration(); for (const key of Object.keys(browserConfig.keys) as ModelKind[]) browserConfig.keys[key] = ""; additionalBrowserModels.forEach(model => { model.apiKey = ""; }); }
 
 export async function restoreBrowserResults(directory: string) {
   if (!browserWorkspaceMode) return;
@@ -62,9 +83,9 @@ async function saveBrowserResults(directory: string, signal?: AbortSignal) {
 export function explicitGenerationKind(prompt: string): ModelKind | undefined {
   const text = prompt.replace(/(?:不要|无需|不需要|不生成|不做)\s*(?:生成|制作)?\s*(?:图片|视频|短片|动画|音频|脚本|方案)/g, "");
   const kindFor = (target: string): ModelKind => /脚本|方案|策划|文案|大纲|故事|文字|文本|script|plan/i.test(target) ? "text" : /音频|音乐|配音|旁白|音效|audio|music/i.test(target) ? "audio" : /视频|短片|动画|video/i.test(target) ? "video" : "image";
-  const targets = [...text.matchAll(/(?:生成|制作|绘制|设计|输出|写一|写个|编写|创作|画一|做一|做成|变成|转(?:为|成)?|给我|我要|generate|create).{0,16}?(视频封面|剧情脚本|分镜脚本|视频脚本|脚本|方案|策划|文案|大纲|故事|文字|文本|短视频|视频|短片|动画|音频|音乐|配音|旁白|音效|图片|图像|海报|封面|插画|照片|肖像|截图|壁纸|静态图|script|plan|image|photo|poster|video|audio|music)/gi)];
+  const targets = [...text.matchAll(/(?:生成|制作|绘制|设计|输出|写一|写个|编写|创作|画一|做一|做成|变成|转(?:为|成)?|给我|我要|generate|create).{0,16}?(视频封面|剧情脚本|分镜脚本|分镜设计|剧情|视频脚本|脚本|方案|策划|文案|大纲|故事|文字|文本|短视频|视频|短片|动画|音频|音乐|配音|旁白|音效|图片|图像|海报|封面|插画|照片|肖像|截图|壁纸|静态图|script|plan|image|photo|poster|video|audio|music)/gi)];
   if (targets.length) return kindFor(targets.at(-1)![1]!);
-  const target = text.match(/视频封面|剧情脚本|分镜脚本|视频脚本|脚本|方案|策划|文案|大纲|文字|文本|音频|音乐|配音|旁白|音效|视频|短片|动画|海报|封面|插画|壁纸|静态图|图片|图像|script|plan|image|photo|poster|video|audio|music/i)?.[0];
+  const target = text.match(/视频封面|剧情脚本|分镜脚本|分镜设计|剧情|视频脚本|脚本|方案|策划|文案|大纲|文字|文本|音频|音乐|配音|旁白|音效|视频|短片|动画|海报|封面|插画|壁纸|静态图|图片|图像|script|plan|image|photo|poster|video|audio|music/i)?.[0];
   return target ? kindFor(target) : undefined;
 }
 export function inferGenerationKind(prompt: string): ModelKind { return explicitGenerationKind(prompt) ?? "image"; }
@@ -74,8 +95,10 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   if (!browserConfig.enabled) { generationError.value = "请先在设置 → API 配置中启用模型联调"; return false; }
   const kind: ModelKind = requestedKind ?? inferGenerationKind(prompt);
   browserConfig.kind = kind;
-  const { endpoint, ratio, duration, resolution } = browserConfig;
-  const apiKey = browserConfig.keys[kind].trim();
+  const chosen = configuredBrowserModels(kind).find(model => model.id === browserModelSelection[kind]) ?? configuredBrowserModels(kind)[0];
+  const { ratio, duration, resolution } = browserConfig;
+  const endpoint = chosen?.endpoint || browserConfig.endpoint;
+  const apiKey = chosen?.apiKey.trim() ?? "";
   generationError.value = "";
   if (!apiKey || !prompt.trim()) { generationError.value = "请填写提示词，并在设置 → API 配置中输入当前模型的 Key。"; return false; }
   if (!/^https:\/\//i.test(endpoint)) { generationError.value = "接口地址必须使用 HTTPS。"; return false; }
@@ -103,7 +126,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   generationBusy.value = true;
   try {
     if (kind === "text") {
-      const { text } = await generateBrowserText({ providerId: textModel.id, modelId: textModel.models[0]!.id, prompt, signal });
+      const { text } = await generateBrowserText({ providerId: chosen!.id, modelId: chosen!.modelId, prompt, signal });
       signal.throwIfAborted();
       generationResults.value.push({ id: crypto.randomUUID(), kind, text, directory });
       return true;
@@ -111,8 +134,8 @@ export async function generateInBrowser(prompt: string, references: File[], dire
     const images = await Promise.all(references.map(async file => ({ type: "binary" as const, data: new Uint8Array(await file.arrayBuffer()), mimeType: file.type, name: file.name })));
     const tool = { fetch: studioFetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" };
     const context = { config: { apiKey, endpoint }, signal, tool };
-    const assets = kind === "audio" ? await audioModel.generateAudio.call(context, { model: audioModel.models[0]!.id, prompt }) : kind === "image" ? await imageModel.generateImage.call(context, { model: imageModel.models[0]!.id, prompt, images, ...(ratio ? { ratio } : {}), ...(resolution ? { size: resolution } : {}) })
-      : await videoModel.generateVideo.call(context, { model: videoModel.models[0]!.id, prompt, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: images[firstFrameIndex!] } : { mode: images.length ? ["imageReference:10"] : "text", images }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
+    const assets = kind === "audio" ? await audioModel.generateAudio.call(context, { model: chosen!.modelId, prompt }) : kind === "image" ? await imageModel.generateImage.call(context, { model: chosen!.modelId, prompt, images, ...(ratio ? { ratio } : {}), ...(resolution ? { size: resolution } : {}) })
+      : await videoModel.generateVideo.call(context, { model: chosen!.modelId, prompt, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: images[firstFrameIndex!] } : { mode: images.length ? ["imageReference:10"] : "text", images }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
     signal.throwIfAborted();
     if (!assets.length) throw new Error("模型未返回生成素材");
     for (const asset of assets) {
@@ -129,6 +152,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
 }
 
 export async function browserResultFile(item: BrowserGenerationResult) {
+  if (item.kind === "text") return new File([item.text || ""], "生成文字.md", { type: "text/markdown" });
   let file = item.file;
   if (!file) {
     const response = await studioFetch(item.url!);

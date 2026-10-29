@@ -1,5 +1,6 @@
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import type { AgentConversation, AgentMessage } from "./types";
+import { isProfessionalCreation } from "./professionalCreation";
 
 const folder = ".agent/browserSessions";
 async function sessionFiles(directory: string) {
@@ -17,6 +18,7 @@ export async function readBrowserConversation(directory: string, file: string) {
   if (!/^[\w-]+\.json$/.test(file)) throw new Error("对话名称无效");
   const session = await useWorkspaceFiles(directory).readJson<AgentConversation>(`${folder}/${file}`);
   if (session?.file !== file || typeof session.name !== "string" || !Array.isArray(session.messages) || session.messages.some(message => !message || typeof message.id !== "string" || !["user", "assistant"].includes(message.role) || typeof message.content !== "string")) throw new Error("浏览器对话数据无效");
+  if (session.messages.some(message => message.professional !== undefined && !isProfessionalCreation(message.professional))) throw new Error("专业创作流程数据无效，请保留当前项目并检查对话文件");
   return session;
 }
 export async function listBrowserConversations(directory: string) {

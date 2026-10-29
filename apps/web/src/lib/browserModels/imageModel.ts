@@ -18,7 +18,7 @@ export default {
     this.signal?.throwIfAborted();
     const apiKey = this.config.apiKey?.trim();
     if (!apiKey) throw new Error("请先填写百炼 API Key");
-    if (request.model !== "qwen-image-3.0-pro") throw new Error("不支持的千问图像模型");
+    if (!request.model?.trim()) throw new Error("请选择已配置的模型");
     const prompt = request.prompt?.trim();
     if (!prompt) throw new Error("请输入图片提示词");
     if (prompt.length > 20000) throw new Error("提示词过长，请缩短后重试");
@@ -136,7 +136,7 @@ export default {
     }
 
     const body = {
-      model: "qwen-image-3.0-pro",
+      model: request.model,
       input: { messages: [{ role: "user", content }] },
       parameters,
     };

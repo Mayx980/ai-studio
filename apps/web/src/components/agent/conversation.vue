@@ -57,7 +57,8 @@
                   </template>
                   <attachmentList v-if="item.attachments?.length" :attachments="item.attachments" :directory="directory" />
                   <div v-if="item.role === 'user'" class="messageText"><mentionContent :content="item.content" :mentions="item.mentions" :directory="directory" /></div>
-                  <browserModelResults v-if="item.browserResultIds?.length" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showReference="false" :disabled="locked" @reference="referenceGeneratedFile" />
+                  <browserModelResults v-if="item.browserResultIds?.length && !item.professional" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showCanvas="false" :showReference="false" :disabled="locked" @reference="referenceGeneratedFile" />
+                  <professionalCreation v-if="item.professional && directory" :state="item.professional" :directory="directory" :stopToken="professionalStopToken" :attachments="messages.find(message => message.id === item.replyTo)?.attachments ?? []" :disabled="props.disabled || busy || browserSubmitting || deletingId !== undefined" @busy="professionalBusy = $event" @change="saveProfessionalProgress" @results="item.browserResultIds = $event" />
                   <div v-if="item.creationChoice && !item.creationChoice.resolved" class="creationChoices" role="group" aria-label="选择创作内容">
                     <p>{{ item.creationChoice.needsDetails ? "请先补充创作主体或用途，再确认要生成的内容。" : "你希望生成哪种内容？确认后我会在画布搭建节点和连线。" }}</p>
                     <el-button v-for="choice in item.creationChoice.needsDetails ? [] : creationChoices" :key="choice.label" size="small" :disabled="locked" @click="continueCreation(item, choice.kind, choice.script, choice.label)">{{ choice.label }}</el-button>
@@ -79,6 +80,7 @@
                 <el-tooltip v-if="item.role === 'assistant'" content="引用到输入框" placement="top">
                   <el-button class="messageAction" text circle :disabled="locked" aria-label="引用到输入框" @click="referenceMessageResults(item)"><icon-paperclip :size="14" /></el-button>
                 </el-tooltip>
+                <el-tooltip v-if="item.role === 'assistant'" content="加入画布" placement="top"><el-button class="messageAction" text circle :disabled="locked" aria-label="加入画布" @click="addMessageToCanvas(item)"><icon-square-plus :size="14" /></el-button></el-tooltip>
                 <el-button v-if="!item.report" class="messageAction" text circle :loading="deletingId === item.id" :disabled="locked || remoteRunning" aria-label="删除消息" title="删除消息" @click="deleteMessage(item)"><icon-trash v-if="deletingId !== item.id" :size="14" /></el-button>
               </template>
             </div>
@@ -182,12 +184,13 @@ import axios from "axios";
 import {
   IconArrowUp, IconArrowDown, IconAtom, IconChevronDown, IconChevronRight, IconCopy,
   IconCircleDashed, IconPencil, IconX, IconLoader2,
-  IconTrash, IconVector, IconMovie, IconPhoto, IconArrowUpRight, IconUsersGroup, IconPaperclip,
+  IconTrash, IconVector, IconMovie, IconPhoto, IconArrowUpRight, IconUsersGroup, IconPaperclip, IconSquarePlus,
 } from "@tabler/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { getReadableFileExtension, getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import logoUrl from "@toonflow/assets/logo.svg";
-import { browserConfig, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, browserResultFile, type ModelKind, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
+import { browserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, browserResultFile, type ModelKind } from "@/stores/browserGeneration";
+import professionalCreation from "./professionalCreation.vue";
 import browserModelOptions from "@/components/browserModelOptions.vue";
 import browserModelResults from "@/components/browserModelResults.vue";
 import referencePicker from "@/components/referencePicker.vue";
@@ -230,7 +233,6 @@ const draggingAttachments = ref(false);
 let attachmentDragDepth = 0;
 const attachmentAccept = `image/*,video/*,${readableFileAccept}`;
 const createCanvasContext = inject<(() => CanvasContext | undefined) | undefined>("canvas", undefined);
-const beginBrowserWorkflow = inject<BeginBrowserWorkflow | undefined>("beginBrowserWorkflow", undefined);
 const sessionMode = ref(props.initialSession?.creationMode);
 watch(() => props.active, active => { if (active && sessionMode.value) workspaceStore.creationMode = sessionMode.value; }, { immediate: true });
 const creationChoices = [
@@ -271,8 +273,10 @@ const stats = ref(props.initialSession?.stats);
 const contextUsage = ref(props.initialSession?.contextUsage);
 const busy = ref(false);
 const browserSubmitting = ref(false);
+const professionalBusy = ref(false);
+const professionalStopToken = ref(0);
 let browserCancelled = false;
-const sending = computed(() => busy.value || browserSubmitting.value || (props.creationModes && generationBusy.value));
+const sending = computed(() => busy.value || browserSubmitting.value || professionalBusy.value || (props.creationModes && generationBusy.value));
 const compacting = ref(false);
 const deletingId = ref<string>();
 const restoringAttachment = ref(false);
@@ -288,7 +292,7 @@ let messageListInitialized = false;
 let messageScrollOffset = 0;
 const messageKeys = computed(() => displayedMessages.value.map(item => item.id));
 // ACT: 只常驻当前轮的实时画面，历史浏览器消息仍按需挂载，避免长对话累积连接和 DOM。
-const retainedMessages = computed(() => displayedMessages.value.flatMap((item, index) => item.streaming || item.id === editingId.value || item.id === browserMessages.value.liveMessageId ? [index] : []));
+const retainedMessages = computed(() => displayedMessages.value.flatMap((item, index) => item.streaming || (item.professional && item.professional.stage !== 'done') || item.id === editingId.value || item.id === browserMessages.value.liveMessageId ? [index] : []));
 const messageVirtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>(computed(() => {
   const keys = messageKeys.value;
   const retained = retainedMessages.value;
@@ -480,8 +484,38 @@ async function removeDraftMention(id: string) {
   if (!locked.value) await sender?.removeMention([id]);
 }
 
+let browserSaveQueue: Promise<void> = Promise.resolve();
 async function persistBrowserMessages() {
-  if (browserWorkspaceMode && directory && props.sessionFile) await saveBrowserConversation(directory, props.sessionFile, messages.value, sessionMode.value);
+  const file = props.sessionFile;
+  const save = browserSaveQueue.catch(() => {}).then(async () => {
+    if (browserWorkspaceMode && directory && file) await saveBrowserConversation(directory, file, messages.value, sessionMode.value);
+  });
+  browserSaveQueue = save;
+  return save;
+}
+function saveProfessionalProgress() { void persistBrowserMessages().catch(error => ElMessage.error(error instanceof Error ? error.message : "创作流程保存失败")); }
+const importMessageResult = inject<((file: File, directory: string, script?: boolean) => Promise<void>)>("importBrowserResult");
+function messageText(item: AgentMessage) {
+  const text = item.content.trim() || item.parts?.filter(part => part.type === "text").map(part => part.content).join("\n") || "";
+  if (text || !item.professional) return text;
+  const state = item.professional;
+  return [state.prompt, ...state.questions.map(question => `${question.label}：${question.answer}`), ...[...state.plans, ...state.scripts, ...state.prompts].map(option => `${option.title}\n${option.content}`)].join("\n\n");
+}
+async function addMessageToCanvas(item: AgentMessage) {
+  if (locked.value || !importMessageResult || !directory) return;
+  browserSubmitting.value = true;
+  try {
+    const results = generationResults.value.filter(result => item.browserResultIds?.includes(result.id) && result.directory === directory);
+    const text = messageText(item);
+    if (!results.length && !text) throw new Error("这条消息还没有可加入画布的内容");
+    for (const result of results) await importMessageResult(await browserResultFile(result), directory);
+    if (text) {
+      const script = /\|[^\n]*镜头[^\n]*\|/.test(text) && /\|\s*:?-{3,}/.test(text);
+      await importMessageResult(new File([text], script ? "分镜脚本.md" : "对话文字.md", { type: "text/markdown" }), directory, script);
+    }
+    ElMessage.success("已加入画布");
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "加入画布失败"); }
+  finally { browserSubmitting.value = false; }
 }
 
 async function continueCreation(item: AgentMessage, kind: ModelKind, script = false, label?: string) {
@@ -502,7 +536,7 @@ async function applyCreativeCase(value: { prompt: string; references: File[] }) 
 async function referenceMessageResults(item: AgentMessage) {
   try {
     const results = generationResults.value.filter(result => item.browserResultIds?.includes(result.id) && result.directory === directory && result.kind !== "text");
-    const text = item.content.trim() || item.parts?.filter(part => part.type === "text").map(part => part.content).join("\n") || (item.creationChoice ? `${item.creationChoice.needsDetails ? "请先补充创作主体或用途，再确认要生成的内容。" : "你希望生成哪种内容？确认后我会在画布搭建节点和连线。"}\n${item.creationChoice.prompt}` : "");
+    const text = messageText(item) || (item.creationChoice ? `${item.creationChoice.needsDetails ? "请先补充创作主体或用途，再确认要生成的内容。" : "你希望生成哪种内容？确认后我会在画布搭建节点和连线。"}\n${item.creationChoice.prompt}` : "");
     const files = await Promise.all(results.map(browserResultFile));
     if (text) files.unshift(new File([text], "对话引用.txt", { type: "text/plain" }));
     addAttachments(files);
@@ -542,21 +576,18 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       emit("sent", prompt);
       await sender?.reset({ clearHistory: false });
       draftAttachments.value = [];
-      // ACT: 先明确输出类型与主体；没有主体时继续对话，不为供应商提交空泛生成任务。
-      const needsDetails = !prompt.replace(/\d+\s*(?:秒|分钟|张|个)/g, "").replace(/(?:请|帮我|我想|想要|给我|生成|制作|创作|输出|一份|一段|一个|一部|一张|一些|剧情脚本|分镜脚本|视频脚本|脚本|方案|图片|图像|视频|短片|音频|文字|文本|的|补充要求|[\s，。！？:：、,!?.])/g, "").trim();
-      if (professional && (!kind || needsDetails)) {
-        reply.creationChoice = { prompt, needsDetails };
+      if (professional) {
+        const goal = /分镜/.test(prompt) && kind === "text" ? "storyboard" : kind === "text" ? "story" : kind ?? "video";
+        reply.professional = { prompt, goal, start: "idea", stage: "analyze", questions: [], plans: [], scripts: [], prompts: [], selectedPlans: [], selectedScript: "", selectedPrompt: "", images: [], imageResultIds: [], resultIds: [] };
         return;
       }
       const outputKind = kind ?? "image";
       if (!browserConfig.enabled) throw new Error("请先在设置 → API 配置中启用模型联调并输入 Key");
-      if (!browserConfig.keys[outputKind].trim()) throw new Error("请先在设置 → API 配置中输入当前模型的 Key");
+      if (!configuredBrowserModels(outputKind).length) throw new Error("请先在设置 → API 配置中输入当前模型的 Key");
       if ((outputKind === "text" || outputKind === "audio") && files.some(file => !file.type.startsWith("text/") && file.type !== "application/json")) throw new Error("当前文字／音频适配器只支持文字输入，请移除引用素材后重试");
       if ((outputKind === "image" || outputKind === "video") && files.some(file => !file.type.startsWith("image/") && !file.type.startsWith("text/") && file.type !== "application/json")) throw new Error("当前图片／视频适配器的参考输入仅支持图片，素材已保留，请调整引用后重试");
       const isStoryboard = choice?.script ?? /分镜/.test(prompt);
-      const workflow = await beginBrowserWorkflow?.(prompt, outputKind, files, isStoryboard, professional);
-      if (professional && !workflow) throw new Error("画布尚未就绪，输入已保留");
-      if (browserCancelled) throw new Error("已停止发送；已创建的画布节点保留供修改");
+        if (browserCancelled) throw new Error("已停止发送；已创建的画布节点保留供修改");
       await persistBrowserMessages();
       const previousIds = new Set(generationResults.value.map(item => item.id));
       const textReferences = await Promise.all(files.filter(file => file.type.startsWith("text/") || file.type === "application/json").map(async file => { const text = await file.text(); if (text.length > 100000) throw new Error("文字引用最多支持 100000 字符，请缩小内容"); return `${file.name}：\n${text}`; }));
@@ -567,7 +598,6 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       const text = results.filter(item => item.kind === "text").map(item => item.text).join("\n\n");
       if (text) { reply.content = text; reply.parts = [{ id: crypto.randomUUID(), type: "text", content: text }]; }
       if (!success) throw new Error(browserCancelled ? "已停止发送，输入已保留。" : generationError.value);
-      await workflow?.complete(results);
     } catch (error) {
       const message = error instanceof Error ? error.message : "生成失败，输入已保留";
       if (reply) reply.error = message;
@@ -591,6 +621,7 @@ function referenceGeneratedFile(file: File) {
 }
 
 function stopGeneration() {
+  professionalStopToken.value++;
   browserCancelled = true;
   if (props.creationModes && generationBusy.value) stopBrowserGeneration();
   else stopMessage();

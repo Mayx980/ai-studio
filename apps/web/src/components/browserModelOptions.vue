@@ -1,8 +1,8 @@
 <template>
   <el-popover v-if="browserConfig.enabled || browserWorkspaceMode" trigger="click" placement="top" :width="300">
-    <template #reference><el-button text aria-label="模型与生成参数">{{ browserModels[kind].models[0]!.label }} · 参数</el-button></template>
+    <template #reference><el-button text aria-label="模型与生成参数">{{ models.find(model => model.id === browserModelSelection[kind])?.label || models[0]?.label || '未接入模型' }} · 参数</el-button></template>
     <el-form labelPosition="top">
-      <el-form-item label="生成模型"><span>{{ browserModels[kind].models[0]!.label }}</span></el-form-item>
+      <el-form-item label="生成模型"><el-select v-model="browserModelSelection[kind]" placeholder="选择已接入模型" noDataText="请先在 API 配置接入模型"><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.id" /></el-select></el-form-item>
       <template v-if="kind === 'image' || kind === 'video'">
         <el-form-item label="比例"><el-select v-model="browserConfig.ratio" aria-label="比例"><el-option label="AI 推荐" value="" /><el-option v-for="item in ratios" :key="item" :label="item" :value="item" /></el-select></el-form-item>
         <el-form-item label="分辨率"><el-select v-model="browserConfig.resolution" aria-label="分辨率"><el-option label="AI 推荐" value="" /><el-option v-for="item in resolutions" :key="item" :label="item" :value="item" /></el-select></el-form-item>
@@ -19,9 +19,10 @@
 <script setup lang="ts">
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { computed, watch } from "vue";
-import { browserConfig, browserModels, generationBusy, inferGenerationKind } from "@/stores/browserGeneration";
+import { browserConfig, browserModels, browserModelSelection, configuredBrowserModels, generationBusy, inferGenerationKind } from "@/stores/browserGeneration";
 const props = withDefaults(defineProps<{ prompt?: string }>(), { prompt: "" });
 const kind = computed(() => generationBusy.value ? browserConfig.kind : inferGenerationKind(props.prompt));
+const models = computed(() => configuredBrowserModels(kind.value));
 watch(() => inferGenerationKind(props.prompt), () => { if (props.prompt.trim() && !generationBusy.value) resetParameters(); });
 const ratios = computed(() => kind.value === "image" ? browserModels.image.models[0]!.imageRatios : ["16:9", "9:16", "1:1"]);
 const resolutions = computed(() => kind.value === "image" ? ["1K", "2K", "auto"] : ["480P", "720P", "1080P"]);
