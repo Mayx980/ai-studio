@@ -124,6 +124,7 @@
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
       <div class="senderActions">
+        <simpleGenerationTools v-if="props.creationModes && workspaceStore.creationMode === 'simple'" />
         <browserModelOptions v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :prompt="draftPrompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
         <referencePicker :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
@@ -176,6 +177,7 @@ import { scriptGenerationInstruction } from "@toonflow/node-text/scriptColumns";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { saveBrowserConversation } from "./browserConversations";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
+import { applyTemplateParameters, templatePromptModel, type TemplateApplication } from "@/lib/creationTemplates";
 import creativeCases from "@/components/creativeCases.vue";
 import creationModeSwitch from "@/components/creationModeSwitch.vue";
 import { locale, t, translate } from "@toonflow/i18n/vue";
@@ -190,8 +192,9 @@ import {
 import { ElMessage, ElMessageBox } from "element-plus";
 import { getReadableFileExtension, getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import logoUrl from "@toonflow/assets/logo.svg";
-import { browserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, browserResultFile, type ModelKind } from "@/stores/browserGeneration";
+import { browserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, inferGenerationKind, browserResultFile, type ModelKind } from "@/stores/browserGeneration";
 import professionalCreation from "./professionalCreation.vue";
+import simpleGenerationTools from "@/components/simpleGenerationTools.vue";
 import browserModelOptions from "@/components/browserModelOptions.vue";
 import browserModelResults from "@/components/browserModelResults.vue";
 import referencePicker from "@/components/referencePicker.vue";
@@ -528,9 +531,10 @@ async function continueCreation(item: AgentMessage, kind: ModelKind, script = fa
   await submitMessage({ prompt, kind, script, attachments: source?.attachments ?? [] });
 }
 
-async function applyCreativeCase(value: { prompt: string; references: File[] }) {
+async function applyCreativeCase(value: TemplateApplication) {
   if (locked.value) return;
   if (sender?.getText().trim() && !await ElMessageBox.confirm("应用案例会替换当前提示词，引用素材保留。", "应用创意案例", { confirmButtonText: "采用案例", cancelButtonText: "保留草稿" }).then(() => true, () => false)) return;
+  applyTemplateParameters(value.template);
   await fillPrompt(value.prompt);
   addAttachments(value.references);
 }
@@ -559,7 +563,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
     if (pending?.creationChoice) pending.creationChoice.resolved = true;
     sessionMode.value ??= workspaceStore.creationMode;
     const professional = sessionMode.value === "professional";
-    const kind = choice?.kind ?? explicitGenerationKind(prompt);
+    const kind = choice?.kind ?? (professional ? explicitGenerationKind(prompt) : inferGenerationKind(prompt));
     browserCancelled = false;
     browserSubmitting.value = true;
     let reply: AgentMessage | undefined;
@@ -604,7 +608,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       const message = error instanceof Error ? error.message : "生成失败，输入已保留";
       if (reply) reply.error = message;
       else ElMessage.error(message);
-      await sender?.reset({ clearHistory: false, chatNode: [[{ type: "Write", text: prompt }]] });
+      await sender?.reset({ clearHistory: false, chatNode: templatePromptModel(prompt) });
       draftAttachments.value = attachments;
     } finally {
       if (reply) reply.streaming = false;
@@ -647,7 +651,7 @@ async function fillPrompt(prompt: string) {
   const instance = sender;
   if (!instance || locked.value) return;
   draftMentions.value = [];
-  await instance.reset({ clearHistory: false, chatNode: [[{ type: "Write", text: prompt }]] });
+  await instance.reset({ clearHistory: false, chatNode: templatePromptModel(prompt) });
   if (sender === instance) instance.focus("last");
 }
 
@@ -1109,6 +1113,7 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
 
 <style lang="scss">
 .agentConversation {
+  .senderEditor .chat-tag-input { color: var(--el-text-color-primary); font-weight: 600; background: var(--el-fill-color-dark); }
   .creationChoices { padding: 10px 0; .el-button { margin: 4px; } }
   display: flex;
   flex: 1;
@@ -1481,6 +1486,7 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
 
     .senderActions {
       display: flex;
+      flex-wrap: wrap;
       justify-content: flex-end;
       align-items: center;
       gap: 12px;

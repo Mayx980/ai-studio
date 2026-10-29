@@ -1,3 +1,4 @@
+import { defaultImageSize, defaultRatio, defaultVideoResolution } from "@toonflow/node-shared/generationDefaults";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
@@ -12,7 +13,7 @@ import textModel from "@/lib/browserModels/textModel";
 export type ModelKind = "image" | "video" | "audio" | "text";
 export const browserModels = { image: imageModel, video: videoModel, audio: audioModel, text: textModel };
 // ACT: 原型直接使用供应商协议；Key 不进入持久化 Store 或服务端配置。
-export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: "", duration: "", resolution: "" });
+export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: defaultRatio, imageSize: defaultImageSize, count: 1, style: "", outputKind: "image" as "image" | "video", outputChosen: false, duration: "", resolution: defaultVideoResolution });
 export const additionalBrowserModels = reactive<{ id: string; kind: ModelKind; label: string; modelId: string; endpoint: string; apiKey: string }[]>([]);
 export const browserModelSelection = reactive<Record<ModelKind, string>>({ image: "", video: "", audio: "", text: "" });
 export function configuredBrowserModels(kind: ModelKind) {
@@ -89,7 +90,10 @@ export function explicitGenerationKind(prompt: string): ModelKind | undefined {
   const target = text.match(/视频封面|剧情脚本|分镜脚本|分镜设计|剧情|视频脚本|脚本|方案|策划|文案|大纲|文字|文本|音频|音乐|配音|旁白|音效|视频|短片|动画|海报|封面|插画|壁纸|静态图|图片|图像|script|plan|image|photo|poster|video|audio|music/i)?.[0];
   return target ? kindFor(target) : undefined;
 }
-export function inferGenerationKind(prompt: string): ModelKind { return explicitGenerationKind(prompt) ?? "image"; }
+export function inferGenerationKind(prompt: string): ModelKind {
+  const kind = explicitGenerationKind(prompt);
+  return browserConfig.outputChosen ? browserConfig.outputKind : kind ?? browserConfig.outputKind;
+}
 
 export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind) {
   if (generationBusy.value) return false;
@@ -97,7 +101,9 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   const kind: ModelKind = requestedKind ?? inferGenerationKind(prompt);
   browserConfig.kind = kind;
   const chosen = configuredBrowserModels(kind).find(model => model.id === browserModelSelection[kind]) ?? configuredBrowserModels(kind)[0];
-  const { ratio, duration, resolution } = browserConfig;
+  const { ratio, duration, resolution, imageSize, count, style } = browserConfig;
+  if (!Number.isInteger(count) || count < 1 || count > 6) { generationError.value = "图片生成数量须为 1–6 张"; return false; }
+  if (style && (kind === "image" || kind === "video")) prompt += `\n视觉风格：${style}。`;
   const endpoint = chosen?.endpoint || browserConfig.endpoint;
   const apiKey = chosen?.apiKey.trim() ?? "";
   generationError.value = "";
@@ -135,7 +141,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
     const images = await Promise.all(references.map(async file => ({ type: "binary" as const, data: new Uint8Array(await file.arrayBuffer()), mimeType: file.type, name: file.name })));
     const tool = { fetch: studioFetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" };
     const context = { config: { apiKey, endpoint }, signal, tool };
-    const assets = kind === "audio" ? await audioModel.generateAudio.call(context, { model: chosen!.modelId, prompt }) : kind === "image" ? await imageModel.generateImage.call(context, { model: chosen!.modelId, prompt, images, ...(ratio ? { ratio } : {}), ...(resolution ? { size: resolution } : {}) })
+    const assets = kind === "audio" ? await audioModel.generateAudio.call(context, { model: chosen!.modelId, prompt }) : kind === "image" ? await imageModel.generateImage.call(context, { model: chosen!.modelId, prompt, images, ...(ratio ? { ratio } : {}), size: imageSize, n: count })
       : await videoModel.generateVideo.call(context, { model: chosen!.modelId, prompt, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: images[firstFrameIndex!] } : { mode: images.length ? ["imageReference:10"] : "text", images }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
     signal.throwIfAborted();
     if (!assets.length) throw new Error("模型未返回生成素材");
@@ -152,7 +158,17 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   } finally { generationBusy.value = false; controller = undefined; }
 }
 
-export async function browserResultFile(item: BrowserGenerationResult) {
+const pendingResultFiles = new WeakMap<BrowserGenerationResult, Promise<File>>();
+export async function browserResultFile(item: BrowserGenerationResult): Promise<File> {
+  if (item.file) return item.file;
+  let pending = pendingResultFiles.get(item);
+  if (!pending) {
+    pending = readBrowserResultFile(item).finally(() => pendingResultFiles.delete(item));
+    pendingResultFiles.set(item, pending);
+  }
+  return pending;
+}
+async function readBrowserResultFile(item: BrowserGenerationResult) {
   if (item.kind === "text") return new File([item.text || ""], "生成文字.md", { type: "text/markdown" });
   let file = item.file;
   if (!file) {

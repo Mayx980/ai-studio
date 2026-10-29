@@ -30,12 +30,13 @@
             </div>
             <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="creating || opening" @change="selectAttachments" />
             <attachmentList v-if="promptAttachments.length" class="promptAttachments" numbered :attachments="promptAttachments" removable restorable :disabled="creating || opening" @remove="promptAttachments.splice($event, 1)" @restore="restoreAttachment" />
-            <el-input ref="promptInput" v-model="prompt" type="textarea" :rows="4" resize="vertical" :disabled="creating || opening" :placeholder="promptPlaceholder" aria-label="创作描述" @paste.capture="pasteAttachments" @keydown="handlePromptKeydown" />
+            <creationPrompt ref="promptInput" v-model="prompt" :disabled="creating || opening" :placeholder="promptPlaceholder" @paste="pasteAttachments" @send="createProject()" />
             <template #footer>
               <div class="composerFooter">
-                <span v-if="browserWorkspaceMode" class="workspaceHint">项目与素材保存在当前浏览器</span>
+                <browserProjectPicker v-if="browserWorkspaceMode" ref="browserProjectPickerRef" v-model="workspaceDirectory" :disabled="creating || opening" />
                 <workspacePicker v-else ref="promptWorkspacePicker" v-model="workspaceDirectory" :disabled="creating || opening" />
                 <el-space class="sendActions" wrap :size="12">
+                  <simpleGenerationTools v-if="workspaceStore.creationMode === 'simple'" />
                   <referencePicker :disabled="creating || opening" @local="attachmentInput?.click()" @files="addAttachments" />
                   <browserModelOptions v-if="browserConfig.enabled || browserWorkspaceMode" :prompt="prompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" class="modelSelect" :disabled="creating || opening" />
                   <el-button class="sendButton" type="primary" :circle="!!workspaceDirectory" :icon="workspaceDirectory || browserWorkspaceMode ? IconArrowUp : IconFolder" :loading="creating" :disabled="creating || opening" :aria-label="workspaceDirectory || browserWorkspaceMode ? '发送' : '选择工作目录'" @click="workspaceDirectory || browserWorkspaceMode ? createProject() : promptWorkspacePicker?.chooseDirectory()">
@@ -104,7 +105,7 @@ import axios from "axios";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { ElMessage, ElMessageBox, type InputInstance } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import {
   IconPlus, IconSparkles, IconPalette, IconHistory,
@@ -114,6 +115,10 @@ import {
   IconFolderMinus, IconFolderPlus, IconFolderOpen, IconPaperclip,
 } from "@tabler/icons-vue";
 import { inferGenerationKind, configuredBrowserModels, browserConfig, generationError } from "@/stores/browserGeneration";
+import creationPrompt from "@/components/creationPrompt.vue";
+import { applyTemplateParameters, type TemplateApplication } from "@/lib/creationTemplates";
+import browserProjectPicker from "@/components/browserProjectPicker.vue";
+import simpleGenerationTools from "@/components/simpleGenerationTools.vue";
 import browserModelOptions from "@/components/browserModelOptions.vue";
 import { listBrowserConversations, renameBrowserConversation, removeBrowserConversation } from "@/components/agent/browserConversations";
 import type { AgentHistory } from "@/components/agent/types";
@@ -135,16 +140,18 @@ import creativeCases from "@/components/creativeCases.vue";
 import workspacePicker from "./workspacePicker.vue";
 
 const settingsVisible = ref(false);
+const browserProjectPickerRef = ref<InstanceType<typeof browserProjectPicker>>();
 const route = useRoute();
 const homeSection = computed({
   get: () => ["create", "history", "assets", "projects"].includes(String(route.query.section)) ? String(route.query.section) : "create",
   set: section => { void router.replace({ path: "/home", query: { section } }); },
 });
-async function applyCase(value: { prompt: string; references: File[] }) {
+async function applyCase(value: TemplateApplication) {
   if (prompt.value.trim()) {
     const replace = await ElMessageBox.confirm("应用案例会替换当前提示词，已有附件与引导图将保留。", "保留当前草稿或采用案例", { confirmButtonText: "采用案例", cancelButtonText: "保留草稿" }).then(() => true, () => false);
     if (!replace) return;
   }
+  applyTemplateParameters(value.template);
   prompt.value = value.prompt;
   addAttachments(value.references);
   await nextTick();
@@ -156,7 +163,7 @@ const opening = ref(false);
 const promptWorkspacePicker = ref<InstanceType<typeof workspacePicker>>();
 const relocationPicker = ref<InstanceType<typeof workspacePicker>>();
 const prompt = ref("");
-const promptInput = ref<InputInstance>();
+const promptInput = ref<InstanceType<typeof creationPrompt>>();
 const promptAttachments = ref<AgentAttachment[]>([]);
 const attachmentInput = ref<HTMLInputElement>();
 const attachmentAccept = `image/*,video/*,${readableFileAccept}`;
@@ -338,7 +345,6 @@ async function restoreAttachment(index: number) {
     promptAttachments.value.splice(currentIndex, 1);
     await nextTick();
     promptInput.value?.focus();
-    promptInput.value?.textarea?.setSelectionRange(prompt.value.length, prompt.value.length);
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : "取回文本失败，请重试");
   }
@@ -378,12 +384,6 @@ async function renameProject(project: Project) {
 }
 
 function changeCreationMode() { promptInput.value?.focus(); }
-function handlePromptKeydown(event: Event | KeyboardEvent) {
-  if (!(event instanceof KeyboardEvent)) return;
-  if (event.key !== "Enter" || event.shiftKey || event.isComposing || event.keyCode === 229) return;
-  event.preventDefault();
-  if (!creating.value && !opening.value && prompt.value.trim()) void createProject();
-}
 type ConversationHistory = AgentHistory & { directory: string; projectName: string };
 const conversationHistory = ref<ConversationHistory[]>([]);
 const historyLoading = ref(false);
@@ -438,6 +438,11 @@ async function openHistory(item: ConversationHistory) {
 
 async function createProject(fromPrompt = true) {
   if (fromPrompt && !prompt.value.trim()) return;
+  if (fromPrompt && browserWorkspaceMode && !workspaceDirectory.value) {
+    const chosen = await browserProjectPickerRef.value?.choose();
+    if (!chosen) return;
+    workspaceDirectory.value = chosen;
+  }
   if (fromPrompt && browserWorkspaceMode && !browserConfig.enabled && workspaceStore.creationMode === "simple") { generationError.value = "请先在设置 → API 配置中启用模型并输入 Key"; return; }
   if (fromPrompt && browserConfig.enabled && workspaceStore.creationMode === "simple" && !configuredBrowserModels(inferGenerationKind(prompt.value)).length) {
     generationError.value = "请先在设置 → API 配置中输入当前模型的 Key。";
@@ -454,7 +459,7 @@ async function createProject(fromPrompt = true) {
         if (!result) return;
         name = result.value.trim();
       }
-      if (!fromPrompt || !workspaceStore.project) path = `browser://${crypto.randomUUID()}`;
+      if (!fromPrompt) path = `browser://${crypto.randomUUID()}`;
       const files = useWorkspaceFiles(path);
       const { entries } = await files.list();
       if (!entries.length) await files.writeJson("画布1.json", { toonflowCanvas: true, nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }, true);

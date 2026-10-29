@@ -18,6 +18,7 @@ export type NodeMediaModel = Omit<MediaModel, "mode"> & {
   mode?: (string | string[])[];
 };
 export type NodeImageRequest = {
+  n?: number;
   directory: string;
   providerId: string;
   modelId: string;

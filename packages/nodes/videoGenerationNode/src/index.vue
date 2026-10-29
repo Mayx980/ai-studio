@@ -130,7 +130,8 @@ const data = computed(() => node.data as { prompt: string; promptModel: PromptMo
 data.value.prompt ??= "";
 data.value.promptModel ??= [];
 data.value.model ??= "";
-data.value.resolution ??= "";
+data.value.duration ??= 5;
+data.value.resolution ??= "480P";
 data.value.mode ??= "";
 data.value.generateAudio ??= true;
 data.value.ratio ??= "9:16";
@@ -199,7 +200,7 @@ watch([selectedModel, () => data.value.duration], ([choice]) => {
   const durations = getDurations(choice);
   if (!durations.includes(data.value.duration!)) data.value.duration = durations[0];
   const resolutions = getResolutions(choice, data.value.duration);
-  if (!resolutions.includes(data.value.resolution)) data.value.resolution = resolutions[0] ?? "";
+  if (!resolutions.includes(data.value.resolution)) data.value.resolution = resolutions.includes("480P") ? "480P" : resolutions[0] ?? "";
   if (!ratioOptions.includes(data.value.ratio)) data.value.ratio = "9:16";
   if (choice.audio !== "optional") data.value.generateAudio = choice.audio === true;
 }, { flush: "sync" });

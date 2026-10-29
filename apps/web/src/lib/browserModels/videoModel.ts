@@ -21,6 +21,7 @@ export default {
       type: "video",
       mode: ["text", "singleImage", ["imageReference:10", "videoReference:5"]],
       audio: "optional",
+      durationResolutionMap: [{ duration: [2, 3, 5, 10, 15, 20, 30], resolution: ["480P", "720P", "1080P"] }],
     },
   ],
 
@@ -177,7 +178,7 @@ export default {
       for (const video of videos) media.push({ type: "reference_video", url: await uploadLocalMedia(video, "video") });
     }
 
-    const resolutionRaw = String(request.resolution ?? "1080P").toUpperCase();
+    const resolutionRaw = String(request.resolution ?? "480P").toUpperCase();
     const resolutionMap: Record<string, string> = { "1080P": "1080P", "720P": "720P", "480P": "480P" };
     const resolution = resolutionMap[resolutionRaw];
     if (!resolution) throw new Error("分辨率仅支持 1080P、720P 或 480P。");
@@ -222,7 +223,6 @@ export default {
 
     const deadline = Date.now() + 30 * 60 * 1000;
     while (Date.now() < deadline) {
-      await sleep(15000);
       const taskResponse = await this.tool.fetch(`${apiBase}/tasks/${encodeURIComponent(taskId)}`, {
         method: "GET",
         headers: {
@@ -246,6 +246,7 @@ export default {
         throw new Error(`万相视频生成${status === "CANCELED" ? "已取消" : "失败"}：${String(detail).slice(0, 700)}`);
       }
       if (!["PENDING", "RUNNING"].includes(status)) throw new Error(`万相返回了无法识别的任务状态：${status || "空状态"}。`);
+      await sleep(5000);
     }
     throw new Error("等待万相视频生成超过 30 分钟，已停止等待。远端任务可能仍在运行；请稍后在百炼任务记录中查看，避免重复提交。");
   },

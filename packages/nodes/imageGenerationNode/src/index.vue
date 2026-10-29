@@ -77,7 +77,7 @@
                 :value="JSON.stringify([item.providerId, item.modelId])" />
             </el-option-group>
           </el-select>
-          <generationSettings
+          <generationSettings v-model:count="data.n"
             v-if="editor?.mode !== 'inpaint'"
             v-model:size="data.size"
             v-model:ratio="data.ratio"
@@ -145,14 +145,15 @@ const { id, node, nodeProps, nodeEvent, outputs, files, ai, updateNodeInternals 
   label: "图片",
 });
 type PromptModel = NonNullable<InstanceType<typeof promptInput>["$props"]["modelValue"]>;
-const data = computed(() => node.data as { prompt: string; promptModel: PromptModel; inpaintPrompt: string; inpaintPromptModel: PromptModel; model: string; size: string; ratio: string; inpaint?: ImageInpaint });
+const data = computed(() => node.data as { prompt: string; promptModel: PromptModel; inpaintPrompt: string; inpaintPromptModel: PromptModel; model: string; size: string; ratio: string; n?: number; inpaint?: ImageInpaint });
 data.value.prompt ??= "";
 data.value.promptModel ??= [];
 data.value.inpaintPrompt ??= "";
 data.value.inpaintPromptModel ??= [];
 data.value.model ??= "";
-data.value.size ??= "";
-data.value.ratio ??= "16:9";
+data.value.size ??= "720*1280";
+data.value.ratio ??= "9:16";
+data.value.n ??= 1;
 const { refList, referenceMentions, setReferencePreview, removeReference } = useNodeReferences();
 const models = ref<NodeMediaModel[]>([]);
 const modelsLoading = ref(false);
@@ -190,7 +191,7 @@ watch(
     if (!sizeOptions.value.includes(data.value.size)) data.value.size = sizeOptions.value.toSorted((left, right) =>
       (Number.parseFloat(left) || Infinity) - (Number.parseFloat(right) || Infinity)
     )[0]!;
-    if (!ratioOptions.value.includes(data.value.ratio)) data.value.ratio = ratioOptions.value.includes("16:9") ? "16:9" : ratioOptions.value[0]!;
+    if (!ratioOptions.value.includes(data.value.ratio)) data.value.ratio = ratioOptions.value.includes("9:16") ? "9:16" : ratioOptions.value[0]!;
   },
   { flush: "sync" }
 );
@@ -212,6 +213,7 @@ const generationInput = computed<Omit<NodeImageRequest, "directory"> | undefined
     providerId: choice.providerId,
     modelId: choice.modelId,
     prompt: generationPrompt.value,
+    n: data.value.n,
     size: data.value.size,
     ratio: data.value.ratio,
     outputDirectory: `assets/${id}`,

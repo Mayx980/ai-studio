@@ -71,7 +71,8 @@
     "@toonflow/node-audio-generation": "workspace:*",
     "@toonflow/node-image": "workspace:*",
     "@toonflow/node-video": "workspace:*",
-    "@toonflow/node-audio": "workspace:*"
+    "@toonflow/node-audio": "workspace:*",
+    "@toonflow/node-shared": "workspace:*"
   },
   "devDependencies": {
     "@types/lodash-es": "^4.17.12",
