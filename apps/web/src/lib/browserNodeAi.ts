@@ -1,3 +1,4 @@
+import { saveProjectCover } from "@/lib/projectCover";
 import type { NodeAiAdapter, NodeAiRequest, NodeMediaModel } from "@toonflow/nodes-scaffold/nodeAi";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { browserConfig, browserModels, configuredBrowserModels, resolveBrowserModel } from "@/stores/browserGeneration";
@@ -56,7 +57,7 @@ async function saveAssets(assets: { type: string; data?: string | Uint8Array; ur
     directory = directory ? `${directory}/${part}` : part;
     await files.mkdir(directory).catch(error => { if (error.code !== "EEXIST" && error.response?.data?.data?.code !== "EEXIST") throw error; });
   }
-  return Promise.all(assets.map(async asset => {
+  const saved = await Promise.all(assets.map(async asset => {
     signal?.throwIfAborted();
     const fallback = `${kind}/${kind === "image" ? "png" : kind === "video" ? "mp4" : "mpeg"}`;
     let blob: Blob;
@@ -74,6 +75,8 @@ async function saveAssets(assets: { type: string; data?: string | Uint8Array; ur
     await files.write(path, blob, true);
     return { path, mimeType, mediaType: kind };
   }));
+  if (saved[0]) await saveProjectCover(input.directory, saved[0].path, saved[0].mimeType);
+  return saved;
 }
 
 export const browserNodeAi: NodeAiAdapter = {

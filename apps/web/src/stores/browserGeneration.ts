@@ -1,3 +1,4 @@
+import { saveProjectCover } from "@/lib/projectCover";
 import { generationStyles } from "@/lib/generationStyles";
 import { defaultImageSize, defaultRatio, defaultVideoResolution } from "@toonflow/node-shared/generationDefaults";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
@@ -14,7 +15,7 @@ import textModel from "@/lib/browserModels/textModel";
 export type ModelKind = "image" | "video" | "audio" | "text";
 export const browserModels = { image: imageModel, video: videoModel, audio: audioModel, text: textModel };
 // ACT: 原型直接使用供应商协议；Key 不进入持久化 Store 或服务端配置。
-export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: defaultRatio, imageSize: defaultImageSize, count: 1, style: "", outputKind: "image" as "image" | "video", outputChosen: false, duration: "", resolution: defaultVideoResolution });
+export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: defaultRatio, imageSize: defaultImageSize, imageResolution: "720P", count: 1, style: "", outputKind: "image" as "image" | "video", outputChosen: false, duration: "", resolution: defaultVideoResolution });
 export const additionalBrowserModels = reactive<{ id: string; kind: ModelKind; label: string; modelId: string; endpoint: string; apiKey: string }[]>([]);
 export const browserModelSelection = reactive<Record<ModelKind, string>>({ image: "", video: "", audio: "", text: "" });
 export function configuredBrowserModels(kind: ModelKind) {
@@ -75,6 +76,7 @@ async function saveBrowserResults(directory: string, signal?: AbortSignal) {
     }
     signal?.throwIfAborted();
     item.path = await uploadNodeFile(files, item.id, item.file);
+    await saveProjectCover(directory, item.path, item.file.type);
     if (item.url?.startsWith("blob:")) URL.revokeObjectURL(item.url);
     item.url = URL.createObjectURL(item.file);
   }

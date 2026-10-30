@@ -116,7 +116,7 @@ async function enterCanvas() {
     await nextTick();
     if (!canvasPanelRef.value) throw new Error("画布正在初始化，请稍后重试");
     await canvasPanelRef.value.waitUntilReady();
-    agentVisible.value = false;
+    agentVisible.value = true;
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "无法进入画布"); }
 }
 provide("importBrowserResult", async (file: File, directory: string, script = false) => {
@@ -127,7 +127,7 @@ provide("importBrowserResult", async (file: File, directory: string, script = fa
   await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
   await canvasPanelRef.value.waitUntilReady();
   await canvasPanelRef.value.importBrowserResult(file, directory, script);
-  agentVisible.value = false;
+  agentVisible.value = true;
 });
 provide("beginBrowserWorkflow", (async (...args) => {
   if (args[4] !== false) workspaceStore.creationMode = "professional";
@@ -327,7 +327,7 @@ function saveDocumentNode(directory: string, canvasPath: string, nodeId: string,
   .workspaceMenu {
     position: absolute;
     top: 15px;
-    right: 15px;
+    right: calc(var(--agentWidth, 0px) + 15px);
     z-index: 5;
   }
 

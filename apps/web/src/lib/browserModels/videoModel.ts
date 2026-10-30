@@ -183,7 +183,7 @@ export default {
     const resolution = resolutionMap[resolutionRaw];
     if (!resolution) throw new Error("分辨率仅支持 1080P、720P 或 480P。");
     const ratio = String(request.ratio ?? "adaptive");
-    if (!["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"].includes(ratio)) throw new Error("视频比例不受支持。");
+    if (!["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16", "2:3", "3:2"].includes(ratio)) throw new Error("视频比例不受支持。");
     const duration = request.duration === undefined ? 5 : Number(request.duration);
     if (!Number.isInteger(duration) || (duration !== -1 && (duration < 2 || duration > 30))) throw new Error("视频时长请设置为 -1 或 2–30 秒的整数。");
     const other = request.other && typeof request.other === "object" ? request.other : {};

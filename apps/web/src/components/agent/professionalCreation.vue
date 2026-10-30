@@ -2,7 +2,7 @@
   <section class="professionalCreation" aria-label="专业创作流程">
     <p class="stageLabel">专业创作 · {{ stageLabels[state.stage] }}</p>
     <section v-if="historyEntries.length" class="creationHistory" aria-label="专业创作历史内容">
-      <article v-for="entry in historyEntries" :key="entry.id"><h4>{{ entry.title }}</h4><messageMarkdown :content="entry.content" :directory="directory" /></article>
+      <article v-for="group in historyGroups" :key="group.id"><h4>{{ group.title }}</h4><div v-if="group.entries.length > 1" class="optionTabs" role="tablist" :aria-label="group.title"><button v-for="(entry, index) in group.entries" :key="entry.id" type="button" role="tab" :aria-selected="activeEntry(group)?.id === entry.id" :id="`${historyTabsId}-${entry.id}`" :aria-controls="`${historyTabsId}-${group.id}-panel`" :tabindex="activeEntry(group)?.id === entry.id ? 0 : -1" @keydown="moveHistoryTab($event, group, index)" @click="activeHistoryIds[group.id] = entry.id">方案{{ index + 1 }}</button></div><section v-if="activeEntry(group)" role="tabpanel" :id="`${historyTabsId}-${group.id}-panel`" :aria-labelledby="group.entries.length > 1 ? `${historyTabsId}-${activeEntry(group)!.id}` : undefined"><h5>{{ activeEntry(group)!.title }}</h5><messageMarkdown :content="activeEntry(group)!.content" :directory="directory" /></section></article>
     </section>
     <browserModelResults v-if="archivedResultIds.length" :directory="directory" :resultIds="archivedResultIds" :showStatus="false" :showCanvas="false" :showReference="false" />
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
@@ -63,7 +63,7 @@
 
 <script setup lang="ts">
 import { scriptGenerationInstruction } from "@toonflow/node-text/scriptColumns";
-import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, reactive, ref, useId, watch } from "vue";
 import { generateBrowserText } from "@/lib/browserNodeAi";
 import { browserResultFile, generateInBrowser, generationBusy, generationError, generationResults, resolveBrowserModel, stopBrowserGeneration, type BeginBrowserWorkflow, type BrowserWorkflowNode, type ProfessionalCanvas } from "@/stores/browserGeneration";
 import { readTextAttachment } from "./textAttachments";
@@ -102,6 +102,23 @@ const historyEntries = computed(() => {
   const saved = props.state.history ?? [];
   return [...saved, ...optionHistory().filter(item => !saved.some(entry => entry.id === item.id))];
 });
+const historyTabsId = useId();
+const activeHistoryIds = reactive<Record<string, string>>({});
+type HistoryGroup = { id: string; title: string; entries: NonNullable<ProfessionalCreation["history"]> };
+const historyGroups = computed<HistoryGroup[]>(() => {
+  const prefixes = ["设计方案", "剧情脚本", "分镜脚本", "设计提示词"];
+  const groups = prefixes.map(title => ({ id: title, title: title === "设计提示词" ? "图片提示词" : title, entries: historyEntries.value.filter(entry => entry.title.startsWith(`${title} · `) && !entry.title.endsWith("画布版本") && !entry.title.endsWith("确认版本")) })).filter(group => group.entries.length);
+  const grouped = new Set(groups.flatMap(group => group.entries.map(entry => entry.id)));
+  return [...groups, ...historyEntries.value.filter(entry => !grouped.has(entry.id)).map(entry => ({ id: entry.id, title: entry.title, entries: [entry] }))];
+});
+function activeEntry(group: HistoryGroup) { return group.entries.find(entry => entry.id === activeHistoryIds[group.id]) ?? group.entries[0]; }
+function moveHistoryTab(event: KeyboardEvent, group: HistoryGroup, index: number) {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const next = event.key === "Home" ? 0 : event.key === "End" ? group.entries.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + group.entries.length) % group.entries.length;
+  activeHistoryIds[group.id] = group.entries[next]!.id;
+  ((event.currentTarget as HTMLElement).parentElement?.children[next] as HTMLElement)?.focus();
+}
 function retainDocument(title: string, content: string) {
   if (!content.trim() || props.state.history?.some(item => item.title === title && item.content === content)) return;
   (props.state.history ??= []).push({ id: crypto.randomUUID(), title, content });
@@ -289,6 +306,7 @@ onBeforeUnmount(() => { disposed = true; stop(); releaseEditor?.(); });
 
 <style scoped lang="scss">
 .professionalCreation {
+  .optionTabs { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 12px; button { flex: none; padding: 9px 18px; border: 1px solid var(--el-border-color); border-radius: 8px; color: var(--el-text-color-primary); background: var(--el-fill-color-light); cursor: pointer; &[aria-selected="true"] { color: var(--el-color-primary); border-color: var(--el-color-primary); background: var(--el-color-primary-light-9); } } }
   .creationHistory { article { margin: 12px 0; padding: 12px; border: 1px solid var(--el-border-color); border-radius: 10px; overflow-x: auto; h4 { margin: 0 0 10px; } } }
   .stageLabel { color: var(--el-color-primary); font-weight: 600; }
   .el-form { margin-top: 12px; }

@@ -168,7 +168,6 @@
         </el-button>
       </div>
     </div>
-    <creativeCases v-if="props.creationModes" compact @apply="applyCreativeCase" />
   </div>
 </template>
 
@@ -177,8 +176,7 @@ import { scriptGenerationInstruction } from "@toonflow/node-text/scriptColumns";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { saveBrowserConversation } from "./browserConversations";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
-import { applyTemplateParameters, templatePromptModel, type TemplateApplication } from "@/lib/creationTemplates";
-import creativeCases from "@/components/creativeCases.vue";
+import { templatePromptModel } from "@/lib/creationTemplates";
 import creationModeSwitch from "@/components/creationModeSwitch.vue";
 import { locale, t, translate } from "@toonflow/i18n/vue";
 import { computed, inject, nextTick, reactive, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
@@ -529,14 +527,6 @@ async function continueCreation(item: AgentMessage, kind: ModelKind, script = fa
   const prompt = `${label ? `生成${label}` : script ? "生成分镜脚本" : ({ text: "生成方案", image: "生成图片", video: "生成视频", audio: "生成音频" })[kind]}：${item.creationChoice.prompt}`;
   item.creationChoice.resolved = true;
   await submitMessage({ prompt, kind, script, attachments: source?.attachments ?? [] });
-}
-
-async function applyCreativeCase(value: TemplateApplication) {
-  if (locked.value) return;
-  if (sender?.getText().trim() && !await ElMessageBox.confirm("应用案例会替换当前提示词，引用素材保留。", "应用创意案例", { confirmButtonText: "采用案例", cancelButtonText: "保留草稿" }).then(() => true, () => false)) return;
-  applyTemplateParameters(value.template);
-  await fillPrompt(value.prompt);
-  addAttachments(value.references);
 }
 
 async function referenceMessageResults(item: AgentMessage) {

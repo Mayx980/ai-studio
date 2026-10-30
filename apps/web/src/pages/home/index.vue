@@ -3,7 +3,7 @@
     <bg class="pageBackground" />
     <aside class="studioSidebar" aria-label="主导航">
       <button class="studioBrand" @click="homeSection = 'create'">ai-studio</button>
-      <el-button type="primary" :icon="IconPlus" @click="homeSection = 'create'; promptInput?.focus()">新建创作</el-button>
+      <el-button type="primary" :icon="IconPlus" @click="newCreation">新建创作</el-button>
       <nav>
         <button :aria-current="homeSection === 'create' ? 'page' : undefined" @click="homeSection = 'create'"><icon-sparkles :size="18" />创作</button>
         <button :aria-current="homeSection === 'history' ? 'page' : undefined" @click="homeSection = 'history'"><icon-history :size="18" />历史对话</button>
@@ -11,7 +11,7 @@
         <button :aria-current="homeSection === 'projects' ? 'page' : undefined" @click="homeSection = 'projects'"><icon-folder :size="18" />我的项目</button>
       </nav>
       <p>最近项目</p>
-      <button v-for="item in sortedProjects.slice(0, 5)" :key="item.directory" class="recentProject" :title="item.name" @click="openProject(item)"><icon-folder :size="16" />{{ item.name }}</button>
+      <button v-for="item in sortedProjects.slice(0, 5)" :key="item.directory" class="recentProject" :title="item.name" @click="openProject(item)"><projectThumbnail :directory="item.directory" /><span><strong>{{ item.name }}</strong><small>{{ new Date(item.lastOpenedAt).toLocaleString(locale, { hour12: false }) }}</small></span></button>
       <div class="sidebarFooter"><el-button text :icon="IconPalette" @click="settingsVisible = true">外观与设置</el-button></div>
     </aside>
     <el-main class="pageContent">
@@ -146,13 +146,22 @@ const homeSection = computed({
   get: () => ["create", "history", "assets", "projects"].includes(String(route.query.section)) ? String(route.query.section) : "create",
   set: section => { void router.replace({ path: "/home", query: { section } }); },
 });
-async function applyCase(value: TemplateApplication) {
-  if (prompt.value.trim()) {
-    const replace = await ElMessageBox.confirm("应用案例会替换当前提示词，已有附件与引导图将保留。", "保留当前草稿或采用案例", { confirmButtonText: "采用案例", cancelButtonText: "保留草稿" }).then(() => true, () => false);
-    if (!replace) return;
+const appliedTemplate = ref(false);
+async function newCreation() {
+  homeSection.value = "create";
+  await nextTick();
+  if (await browserProjectPickerRef.value?.choose(true)) {
+    prompt.value = ""; promptAttachments.value = []; appliedTemplate.value = false; promptInput.value?.focus();
   }
+}
+async function applyCase(value: TemplateApplication) {
+  if (!appliedTemplate.value && (prompt.value.trim() || promptAttachments.value.length)) {
+    if (!await ElMessageBox.confirm("应用模板将替换当前提示词和引用素材。", "应用模板", { confirmButtonText: "应用模板", cancelButtonText: "保留草稿" }).then(() => true, () => false)) return;
+  }
+  appliedTemplate.value = true;
   applyTemplateParameters(value.template);
   prompt.value = value.prompt;
+  promptAttachments.value = [];
   addAttachments(value.references);
   await nextTick();
   promptInput.value?.focus();
@@ -513,7 +522,7 @@ async function createProject(fromPrompt = true) {
     .studioBrand { font-size: 24px; font-weight: 700; letter-spacing: -.8px; color: var(--el-text-color-primary); border: 0; background: transparent; text-align: left; padding: 0 0 14px; cursor: pointer; }
     nav { display: grid; gap: 5px; button { display: flex; align-items: center; gap: 10px; padding: 12px; border: 0; border-radius: var(--el-border-radius-base); background: transparent; color: var(--el-text-color-regular); font: inherit; font-size: 14px; cursor: pointer; &[aria-current="page"] { background: var(--el-color-primary-light-9); color: var(--el-color-primary); } } }
     p { margin: 8px 10px 0; color: var(--el-text-color-secondary); font-size: 12px; }
-    .recentProject { display: flex; align-items: center; gap: 8px; padding: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; background: transparent; color: var(--el-text-color-regular); text-align: left; cursor: pointer; svg { flex: none; } }
+    .recentProject { :deep(.projectThumbnail) { width: 48px; height: 48px; border-radius: 8px; } span { min-width: 0; display: grid; gap: 5px; } strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; } small { font-size: 10px; white-space: normal; color: var(--el-text-color-secondary); } display: flex; align-items: center; gap: 8px; padding: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; background: transparent; color: var(--el-text-color-regular); text-align: left; cursor: pointer; svg { flex: none; } }
     .sidebarFooter { margin-top: auto; display: grid; gap: 6px; .el-button { justify-content: flex-start; margin: 0; } }
   }
   @media (max-width: 760px) { padding-left: 0; .studioSidebar { display: none; } }

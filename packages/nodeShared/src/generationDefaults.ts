@@ -8,3 +8,9 @@ export const imageDimensions: Record<string, string[]> = {
 export const defaultImageSize = "720*1280";
 export const defaultRatio = "9:16";
 export const defaultVideoResolution = "480P";
+
+export const imageClaritySizes: Record<string, Record<string, string>> = {
+  "480P": { "1:1": "512*512", "2:3": "480*720", "3:2": "720*480", "9:16": "480*854", "16:9": "854*480" },
+  "720P": { "1:1": "720*720", "2:3": "720*1080", "3:2": "1080*720", "9:16": "720*1280", "16:9": "1280*720" },
+  "1080P": { "1:1": "1080*1080", "2:3": "1080*1620", "3:2": "1620*1080", "9:16": "1080*1920", "16:9": "1920*1080" },
+};
