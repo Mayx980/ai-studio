@@ -61,7 +61,7 @@
         </div>
       </section>
       <section v-if="homeSection === 'assets'" class="homeAssets"><h2>个人资产</h2><assetLibrary page :modelValue="true" :directory="workspaceStore.project?.directory" /></section>
-      <creativeCases v-if="homeSection === 'create'" @apply="applyCase" />
+      <creativeCases ref="templateCenter" v-show="homeSection === 'create'" @apply="applyCase" />
       <section v-show="homeSection === 'projects'" class="projectList" aria-labelledby="projectListTitle">
         <div class="sectionHeader">
           <h2 id="projectListTitle">我的项目</h2>
@@ -87,6 +87,7 @@
               </span>
             </button>
             <div class="projectActions">
+              <el-button v-if="browserWorkspaceMode" text :icon="IconTemplate" :disabled="creating || opening" :aria-label="`制作模板 ${project.name}`" title="制作模板" @click="templateCenter?.openProjectTemplate(project)" />
               <el-button text :icon="IconEdit" :disabled="creating || opening" :aria-label="`重命名项目 ${project.name}`" title="编辑" @click="renameProject(project)" />
               <el-button text type="danger" :icon="IconTrash" :disabled="creating || opening" :aria-label="`移除项目 ${project.name}`" title="删除" @click="workspaceStore.removeProject(project.directory)" />
             </div>
@@ -112,7 +113,7 @@ import {
   IconArrowUp, IconLayoutGrid,
   IconList, IconSortDescending,
   IconSortAscending, IconFolder, IconEdit,
-  IconTrash, IconFolderPlus, IconFolderOpen, IconPaperclip,
+  IconTemplate, IconTrash, IconFolderPlus, IconFolderOpen, IconPaperclip,
 } from "@tabler/icons-vue";
 import { inferGenerationKind, configuredBrowserModels, browserConfig, generationError } from "@/stores/browserGeneration";
 import creationPrompt from "@/components/creationPrompt.vue";
@@ -137,6 +138,7 @@ import bg from "./bg.vue";
 import creationModeSwitch from "@/components/creationModeSwitch.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import creativeCases from "@/components/creativeCases.vue";
+const templateCenter = ref<InstanceType<typeof creativeCases>>();
 import workspacePicker from "./workspacePicker.vue";
 
 const settingsVisible = ref(false);

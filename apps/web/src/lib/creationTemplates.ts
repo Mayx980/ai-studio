@@ -5,7 +5,8 @@ import { browserConfig, browserModelSelection, configuredBrowserModels } from "@
 import { imageClaritySizes, imageDimensions } from "@toonflow/node-shared/generationDefaults";
 
 export type TemplateMedia = { path: string; mimeType: string; name: string };
-export type CreationTemplate = { id: string; name: string; category: string; prompt: string; media: TemplateMedia; references: TemplateMedia[]; kind: "image" | "video"; modelId?: string; ratio?: string; resolution?: string; imageSize?: string; duration?: number };
+export type TemplateProject = { files: { path: string; sha256: string }[]; canvases: string[] };
+export type CreationTemplate = { id: string; name: string; category: string; prompt: string; media: TemplateMedia; references: TemplateMedia[]; kind: "image" | "video"; modelId?: string; ratio?: string; resolution?: string; imageSize?: string; duration?: number; project?: TemplateProject };
 export type TemplateApplication = { prompt: string; references: File[]; template?: CreationTemplate };
 export const templateDirectory = "browser://personalTemplates";
 const personal = ref<CreationTemplate[]>([]);
@@ -58,33 +59,47 @@ export async function readTemplateFile(item: TemplateMedia) {
   const blob = isPublicTemplateMedia(item.path) ? await fetch(item.path).then(response => { if (!response.ok) throw new Error(`模板素材读取失败（HTTP ${response.status}）`); return response.blob(); }) : new Blob([await useWorkspaceFiles(templateDirectory).read(item.path)], { type: item.mimeType });
   return new File([blob], item.name || "模板素材", { type: item.mimeType });
 }
-export async function saveCreationTemplate(template: Omit<CreationTemplate, "id" | "media" | "references">, preview: File, references: File[]) {
+export async function saveCreationTemplate(template: Omit<CreationTemplate, "id" | "media" | "references" | "project">, preview: File, references: File[], projectSnapshot?: { files: Map<string, ArrayBuffer>; project: TemplateProject }) {
   await loadCreationTemplates();
   if (template.kind !== "video") throw new Error("模板中心仅支持视频模板");
   if (!template.name.trim() || !template.prompt.trim()) throw new Error("请填写模板名称和提示词");
   if (references.length > 10) throw new Error("每个模板最多保存 10 张参考图片");
-  const id = `template${crypto.randomUUID().replaceAll("-", "")}`, files = useWorkspaceFiles(templateDirectory), created: string[] = [];
+  const id = `template${crypto.randomUUID().replaceAll("-", "")}`, files = useWorkspaceFiles(templateDirectory);
+  let createdRoot = false;
   const put = async (file: File, index: number): Promise<TemplateMedia> => {
     const header = new Uint8Array(await file.slice(0, 16).arrayBuffer());
     const mimeType = header[0] === 0x89 && header[1] === 0x50 ? "image/png" : header[0] === 0xff && header[1] === 0xd8 ? "image/jpeg" : String.fromCharCode(...header.slice(0, 4)) === "RIFF" && String.fromCharCode(...header.slice(8, 12)) === "WEBP" ? "image/webp" : String.fromCharCode(...header.slice(4, 8)) === "ftyp" ? "video/mp4" : "";
     if (!mimeType || !file.size || file.size > (mimeType === "video/mp4" ? 100 : 10) * 1024 * 1024 || (index && !mimeType.startsWith("image/"))) throw new Error("预览支持 JPG、PNG、WebP、MP4，参考素材仅支持 JPG、PNG、WebP，图片不超过 10 MB，视频不超过 100 MB");
     const path = `assets/${id}/${index ? `reference${index}` : "preview"}.${mimeType === "video/mp4" ? "mp4" : mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg"}`;
-    await files.write(path, file, true); created.push(path); return { path, mimeType, name: file.name };
+    await files.write(path, file, true); return { path, mimeType, name: file.name };
   };
   try {
     await files.mkdir("assets").catch(error => { if (error.code !== "EEXIST") throw error; });
-    await files.mkdir(`assets/${id}`);
+    await files.mkdir(`assets/${id}`); createdRoot = true;
     const media = await put(preview, 0), images: TemplateMedia[] = [];
     if (media.mimeType !== "video/mp4") throw new Error("请上传 MP4 视频模板");
     for (const [index, file] of references.entries()) images.push(await put(file, index + 1));
-    const value: CreationTemplate = { ...template, kind: media.mimeType.startsWith("video/") ? "video" : "image", id, media, references: images };
+    if (projectSnapshot) {
+      const directories = new Set<string>();
+      for (const [path, bytes] of projectSnapshot.files) {
+        const destination = `assets/${id}/project/${path}`;
+        const parts = destination.split("/"); parts.pop();
+        for (let i = 3; i <= parts.length; i++) {
+          const parent = parts.slice(0, i).join("/");
+          if (!directories.has(parent)) { await files.mkdir(parent); directories.add(parent); }
+        }
+        await files.write(destination, bytes, true);
+      }
+    }
+    const value: CreationTemplate = { ...template, kind: media.mimeType.startsWith("video/") ? "video" : "image", id, media, references: images, ...(projectSnapshot ? { project: projectSnapshot.project } : {}) };
     const snapshot = await files.readTextSnapshot("templates.json").catch(error => { if (error.code !== "ENOENT") throw error; return undefined; });
     const next = [value, ...(snapshot ? parseTemplates(snapshot.text) : [])];
     if (snapshot) await files.writeTextSnapshot("templates.json", JSON.stringify(next), snapshot); else await files.writeJson("templates.json", next, true);
     personal.value = next; creationTemplates.value = [...next.filter(item => item.kind === "video"), ...builtin.filter(item => item.kind === "video")]; return value;
   } catch (error) {
-    await Promise.allSettled(created.map(path => files.remove(path)));
-    await files.remove(`assets/${id}`).catch(() => {});
+    if (!createdRoot) throw error;
+    const cleanup = await files.remove(`assets/${id}`, true).then(() => true, error => error.code === "ENOENT");
+    if (!cleanup) throw new Error(`模板保存失败，部分临时文件未能清理：${error instanceof Error ? error.message : "存储错误"}`);
     throw error;
   }
 }
