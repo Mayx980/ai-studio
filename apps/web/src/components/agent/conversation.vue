@@ -174,7 +174,7 @@
 <script setup lang="ts">
 import { scriptGenerationInstruction } from "@toonflow/node-text/scriptColumns";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
-import { saveBrowserConversation } from "./browserConversations";
+import { createBrowserConversation, saveBrowserConversation } from "./browserConversations";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { templatePromptModel } from "@/lib/creationTemplates";
 import creationModeSwitch from "@/components/creationModeSwitch.vue";
@@ -488,10 +488,17 @@ async function removeDraftMention(id: string) {
 }
 
 let browserSaveQueue: Promise<void> = Promise.resolve();
+let browserSessionFile = props.sessionFile;
+watch(() => props.sessionFile, file => { if (file) browserSessionFile = file; });
 async function persistBrowserMessages() {
-  const file = props.sessionFile;
   const save = browserSaveQueue.catch(() => {}).then(async () => {
-    if (browserWorkspaceMode && directory && file) await saveBrowserConversation(directory, file, messages.value, sessionMode.value);
+    if (!browserWorkspaceMode || !directory) return;
+    if (!browserSessionFile) {
+      const session = await createBrowserConversation(directory);
+      browserSessionFile = session.file;
+      emit("session", session.file);
+    }
+    await saveBrowserConversation(directory, browserSessionFile, messages.value, sessionMode.value);
   });
   browserSaveQueue = save;
   return save;
@@ -569,6 +576,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       messages.value.push({ id: userId, role: "user", content: prompt, attachments });
       messages.value.push({ id: assistantId, replyTo: userId, role: "assistant", content: "", streaming: true });
       reply = messages.value.find(item => item.id === assistantId)!;
+      if (!professional) await persistBrowserMessages();
       emit("sent", prompt);
       await sender?.reset({ clearHistory: false });
       draftAttachments.value = [];
@@ -584,7 +592,6 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       if ((outputKind === "image" || outputKind === "video") && files.some(file => !file.type.startsWith("image/") && !file.type.startsWith("text/") && file.type !== "application/json")) throw new Error("当前图片／视频适配器的参考输入仅支持图片，素材已保留，请调整引用后重试");
       const isStoryboard = choice?.script ?? /分镜/.test(prompt);
         if (browserCancelled) throw new Error("已停止发送；已创建的画布节点保留供修改");
-      await persistBrowserMessages();
       const previousIds = new Set(generationResults.value.map(item => item.id));
       const textReferences = await Promise.all(files.filter(file => file.type.startsWith("text/") || file.type === "application/json").map(async file => { const text = await file.text(); if (text.length > 100000) throw new Error("文字引用最多支持 100000 字符，请缩小内容"); return `${file.name}：\n${text}`; }));
       const generationPrompt = isStoryboard ? `${prompt}\n${scriptGenerationInstruction}` : !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
