@@ -139,6 +139,9 @@ provide("beginBrowserWorkflow", (async (...args) => {
 }) as BeginBrowserWorkflow);
 provide("canvas", () => canvasPanelRef.value?.getCanvasContext());
 provide("professionalCanvas", {
+  async focus(directory, node) {
+    await focusDocumentNode(directory, node.canvasPath, node.nodeId);
+  },
   async read(directory: string, node: { canvasPath: string; nodeId: string }) {
     if (!canvasPanelRef.value) throw new Error("画布尚未就绪");
     await canvasPanelRef.value.waitUntilReady();

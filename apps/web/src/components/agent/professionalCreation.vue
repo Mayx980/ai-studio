@@ -36,10 +36,10 @@
     <el-button v-if="state.stage === 'storyReview' && !busy" :disabled="disabled" @click="confirmDocument">继续生成分镜脚本</el-button>
     <section v-if="state.storyboard" class="storyboardContent" aria-label="分镜脚本">
       <div class="storyboardHeader"><h4>分镜脚本</h4><el-button text :icon="IconMaximize" aria-label="放大分镜脚本" @click="editorExpanded = true" /></div>
-      <div ref="editorTarget" class="nodeEditor" data-node-content-only="true" />
-      <el-button v-if="state.stage === 'storyboardReview'" type="primary" :disabled="busy || disabled || !editorReady" @click="confirmDocument">完成编辑，下一步</el-button>
+      <div v-if="state.stage === 'storyboardReview'" ref="editorTarget" class="nodeEditor" data-node-content-only="true" /><div v-else class="storyboardPreview"><messageMarkdown :content="storyboardText" :directory="directory" /></div>
+      <el-button v-if="state.stage === 'storyboardReview'" type="primary" :disabled="busy || disabled || !editorReady" @click="confirmDocument">确认分镜并同步到画布</el-button>
     </section>
-    <el-dialog v-model="editorExpanded" title="分镜脚本" fullscreen appendToBody destroyOnClose><div ref="expandedEditorTarget" class="expandedNodeEditor" data-node-content-only="true" /></el-dialog>
+    <el-dialog v-model="editorExpanded" title="分镜脚本" fullscreen appendToBody destroyOnClose @closed="saveStoryboardPreview"><div ref="expandedEditorTarget" class="expandedNodeEditor" data-node-content-only="true" /></el-dialog>
     <template v-if="state.stage === 'referenceConsent'">
       <p>是否根据分镜脚本生成图片设计提示词？</p>
       <el-button type="primary" :disabled="busy || disabled" @click="makePrompts">生成设计提示词供我选择</el-button><el-button :disabled="busy || disabled" @click="skipImages">暂不生成设计提示词</el-button>
@@ -171,7 +171,8 @@ async function restoreDocumentHistory() {
 }
 function draftLabel(id: string) { return props.state.mediaDrafts?.find(item => item.resultId === id)?.label; }
 function answerQuestion(index: number) { const question = props.state.questions[index]!; question.answer = [...question.selected ?? [], question.custom || ""].filter(Boolean).join("、"); changed(); }
-const reviewNode = computed(() => props.state.storyboard);
+const reviewNode = computed(() => props.state.stage === "storyboardReview" || editorExpanded.value ? props.state.storyboard : undefined);
+const storyboardText = computed(() => props.state.history?.find(entry => entry.title === "分镜脚本")?.content || "");
 function changed() { props.state.history = historyEntries.value; emit("change"); }
 function stop() { controller?.abort(); if (mediaWaiting) stopBrowserGeneration(); }
 async function run(action: () => Promise<void>) {
@@ -285,7 +286,17 @@ async function advanceDocument() {
     if (!content.trim()) throw new Error("请先保存有效分镜内容");
     retainDocument("分镜脚本", content);
     state.stage = "referenceConsent";
+    await nextTick();
+    try { await canvas.focus(props.directory, state.storyboard); }
+    catch (reason) { state.stage = "storyboardReview"; throw reason; }
   }
+}
+async function saveStoryboardPreview() {
+  if (!canvas || !props.state.storyboard || props.state.stage === "storyboardReview") return;
+  try {
+    const content = await canvas.read(props.directory, props.state.storyboard);
+    if (!disposed) retainDocument("分镜脚本", content);
+  } catch (reason) { if (!disposed) error.value = reason instanceof Error ? reason.message : "分镜内容读取失败"; }
 }
 function makePrompts() { return run(async () => { props.state.prompts = await options("基于当前已修改的剧情和分镜生成几个角色／场景设计提示词，保持主体一致"); props.state.stage = "prompts"; }); }
 function skipImages() { props.state.stage = props.state.goal === "video" ? "videoConsent" : "done"; changed(); }
@@ -369,6 +380,7 @@ onBeforeUnmount(() => { disposed = true; editorMountVersion++; stop(); releaseEd
   .optionActions { display: flex; justify-content: flex-end; margin-top: 12px; }
   .storyboardHeader { display: flex; justify-content: space-between; align-items: center; }
   .expandedNodeEditor { height: calc(100dvh - 100px); overflow: auto; }
+  .storyboardPreview { max-height: 55vh; overflow: auto; }
   .nodeEditor { max-height: 55vh; overflow: auto; border: 1px solid var(--el-border-color); border-radius: 10px; margin: 12px 0; }
   > .el-button { margin: 6px 6px 6px 0; }
 }

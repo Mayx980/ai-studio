@@ -37,6 +37,7 @@ export const generationError = ref("");
 export type BrowserGenerationResult = { id: string; kind: ModelKind; url?: string; text?: string; file?: File; directory?: string; path?: string };
 export type BrowserWorkflowNode = { canvasPath: string; nodeId: string };
 export type ProfessionalCanvas = {
+  focus(directory: string, node: BrowserWorkflowNode): Promise<void>;
   read(directory: string, node: BrowserWorkflowNode): Promise<string>;
   mount(directory: string, node: BrowserWorkflowNode, target: HTMLElement): Promise<() => void>;
   apply(directory: string, result: BrowserGenerationResult, sources: BrowserWorkflowNode[], label: string, model?: string, prompt?: string): Promise<BrowserWorkflowNode>;
