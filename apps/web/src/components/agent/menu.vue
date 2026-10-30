@@ -186,6 +186,7 @@ async function renameHistory(item: AgentHistory) {
 <style lang="scss" scoped>
 .agentMenu {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
@@ -203,7 +204,7 @@ async function renameHistory(item: AgentHistory) {
   }
 
   .conversationName {
-    flex: 1;
+    flex: 1 1 120px;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -220,7 +221,10 @@ async function renameHistory(item: AgentHistory) {
 
   .menuActions {
     display: flex;
-    flex-shrink: 0;
+    flex-wrap: wrap;
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: 100%;
     gap: 4px;
 
     .subAgentTrigger {
@@ -246,6 +250,7 @@ async function renameHistory(item: AgentHistory) {
     }
 
     :deep(.el-button) {
+      flex-shrink: 0;
       width: 28px;
       height: 28px;
       margin: 0;

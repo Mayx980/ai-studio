@@ -2,7 +2,7 @@
   <teleport to="body">
     <aside v-show="visible" id="agentPanel" class="agentSidebar" :class="{ expanded }" :style="panelStyle" aria-label="智能助手对话侧栏">
       <div v-if="!expanded" class="resizeHandle" role="separator" aria-label="调整对话侧栏宽度" aria-orientation="vertical" :aria-valuemin="minimumWidth" :aria-valuemax="maximumWidth" :aria-valuenow="width" tabindex="0" @pointerdown="startResize" @pointermove="resize" @pointerup="stopResize" @pointercancel="stopResize" @lostpointercapture="stopResize" @keydown.left.prevent="preferredWidth = width + 16" @keydown.right.prevent="preferredWidth = width - 16" />
-      <agent v-model="visible" creationModes :closable="!expanded"><template #menuActions><el-button v-if="expanded" text :icon="IconVector" aria-label="进入画布" @click="emit('enterCanvas')">进入画布</el-button></template></agent>
+      <agent v-model="visible" creationModes :closable="!expanded"><template #menuActions><el-button v-if="expanded" class="enterCanvasButton" text :icon="IconVector" aria-label="进入画布" @click="emit('enterCanvas')">进入画布</el-button></template></agent>
     </aside>
   </teleport>
 </template>
