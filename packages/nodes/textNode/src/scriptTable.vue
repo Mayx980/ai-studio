@@ -1,17 +1,17 @@
 <template>
   <div class="scriptTable nodrag nopan nowheel" @keydown.stop @wheel.stop>
     <input ref="importInput" hidden type="file" accept=".txt,.md,.csv,.xlsx,.docx" @change="selectImport" />
-    <div class="tableActions"><el-button :disabled="disabled || importing" :loading="importing" @click="importInput?.click()">导入文档／表格</el-button><el-button :disabled="disabled" @click="addRow">添加镜头</el-button><el-button :disabled="!rows.length" @click="download">导出 Excel</el-button></div>
-    <div class="tableScroll" @scroll="updateNodeInternals([nodeId])"><table><colgroup><col v-for="(header, column) in headers.slice(0, 10)" :key="header" :style="{ width: column < 4 ? '100px' : '280px' }" /><col style="width: 260px" /><col style="width: 320px" /></colgroup><thead><tr><th v-for="header in headers.slice(0, 10)" :key="header">{{ header }}</th><th>引用图片</th><th>提示词</th></tr></thead><tbody>
+    <div v-if="!contentOnly" class="tableActions"><el-button :disabled="disabled || importing" :loading="importing" @click="importInput?.click()">导入文档／表格</el-button><el-button :disabled="disabled" @click="addRow">添加镜头</el-button><el-button :disabled="!rows.length" @click="download">导出 Excel</el-button></div>
+    <div class="tableScroll" @scroll="updateNodeInternals([nodeId])"><table><colgroup><col v-for="(header, column) in headers.slice(0, 10)" :key="header" :style="{ width: column < 4 ? '120px' : '380px' }" /><col style="width: 260px" /><col style="width: 420px" /></colgroup><thead><tr><th v-for="header in headers.slice(0, 10)" :key="header">{{ header }}</th><th>引用图片</th><th>提示词</th></tr></thead><tbody>
       <tr v-for="(row, index) in rows" :key="row.id" :data-row-id="row.id">
-        <td v-for="(header, column) in headers.slice(0, 10)" :key="header"><handle v-if="column === 0 && !embedded" class="rowInput" :id="`rowIn:${row.id}`" type="target" :position="Position.Left" :connectable="!disabled" :isValidConnection="validateConnection" :title="`镜头${row.cells[0] || index + 1}：连接参考图片`" /><el-input :modelValue="row.cells[column]" type="textarea" :autosize="{ minRows: 1 }" :disabled="disabled" :aria-label="`镜头${index + 1} ${header}`" @update:modelValue="value => { row.cells[column] = value; publish(); }" /><div v-if="column === 0" class="rowActions"><el-button text :disabled="disabled || index === 0" :aria-label="`上移镜头${index + 1}`" @click="move(index, -1)">↑</el-button><el-button text :disabled="disabled || index === rows.length - 1" :aria-label="`下移镜头${index + 1}`" @click="move(index, 1)">↓</el-button><el-button text :disabled="disabled" @click="copyRow(index)">复制</el-button><el-button text type="danger" :disabled="disabled" @click="removeRow(index)">删除</el-button></div></td>
-        <td><scriptReferences :rowId="row.id" /></td>
-        <td class="rowPrompts"><label v-for="(header, offset) in headers.slice(11)" :key="header">{{ header }}<el-input :modelValue="scriptCellValue(row.cells, 11 + offset)" type="textarea" :autosize="{ minRows: 1 }" :disabled="disabled" :aria-label="`镜头${index + 1} ${header}`" @update:modelValue="value => { row.cells[11 + offset] = value; if (offset === 1) row.cells[10] = ''; publish(); }" /></label><handle v-if="!embedded" class="rowOutput" :id="`row:${row.id}`" type="source" :position="Position.Right" :connectable="!disabled" :isValidConnection="validateConnection" :title="`镜头${row.cells[0] || index + 1}：连接一个或多个下游节点`" /></td>
+        <td v-for="(header, column) in headers.slice(0, 10)" :key="header"><handle v-if="column === 0 && !embedded" class="rowInput" :id="`rowIn:${row.id}`" type="target" :position="Position.Left" :connectable="!disabled" :isValidConnection="validateConnection" :title="`镜头${row.cells[0] || index + 1}：连接参考图片`" /><el-input :modelValue="row.cells[column]" type="textarea" :autosize="false" :disabled="disabled" :aria-label="`镜头${index + 1} ${header}`" @update:modelValue="value => { row.cells[column] = value; publish(); }" /><div v-if="column === 0" class="rowActions"><el-button text :disabled="disabled || index === 0" :aria-label="`上移镜头${index + 1}`" @click="move(index, -1)">↑</el-button><el-button text :disabled="disabled || index === rows.length - 1" :aria-label="`下移镜头${index + 1}`" @click="move(index, 1)">↓</el-button><el-button text :disabled="disabled" @click="copyRow(index)">复制</el-button><el-button text type="danger" :disabled="disabled" @click="removeRow(index)">删除</el-button></div></td>
+        <td><div class="rowReferences"><scriptReferences :rowId="row.id" /></div></td>
+        <td class="rowPrompts"><label v-for="(header, offset) in headers.slice(11)" :key="header">{{ header }}<el-input :modelValue="scriptCellValue(row.cells, 11 + offset)" type="textarea" :autosize="false" :disabled="disabled" :aria-label="`镜头${index + 1} ${header}`" @update:modelValue="value => { row.cells[11 + offset] = value; if (offset === 1) row.cells[10] = ''; publish(); }" /></label><handle v-if="!embedded" class="rowOutput" :id="`row:${row.id}`" type="source" :position="Position.Right" :connectable="!disabled" :isValidConnection="validateConnection" :title="`镜头${row.cells[0] || index + 1}：连接一个或多个下游节点`" /></td>
       </tr>
     </tbody></table></div>
     <el-dialog v-model="assignmentVisible" title="选择图片适用镜头" appendToBody width="min(720px, 92vw)" @close="cancelAssignment" @closed="openAssignment"><el-checkbox-group v-model="assignedRows"><el-checkbox v-for="(row, index) in rows" :key="row.id" :value="row.id">镜头 {{ row.cells[0] || index + 1 }} · {{ row.cells[4]?.slice(0, 60) }}</el-checkbox></el-checkbox-group><template #footer><el-button @click="assignmentVisible = false">取消</el-button><el-button type="primary" :disabled="!assignedRows.length || disabled" @click="applyAssignment">应用到所选镜头</el-button></template></el-dialog>
-    <p v-if="node.data.scriptImportActive?.name && node.data.scriptImportActive.name !== importRecord?.name">已应用的参考：{{ node.data.scriptImportActive.name }}</p>
-    <p v-if="importRecord">{{ importRecord.name }}：{{ importRecord.error || (importRecord.applied ? '已应用为创作参考' : '原文件已保留') }} <el-button text :disabled="importing" @click="retryImport">重新解析</el-button></p>
+    <p v-if="!contentOnly && node.data.scriptImportActive?.name && node.data.scriptImportActive.name !== importRecord?.name">已应用的参考：{{ node.data.scriptImportActive.name }}</p>
+    <p v-if="!contentOnly && importRecord">{{ importRecord.name }}：{{ importRecord.error || (importRecord.applied ? '已应用为创作参考' : '原文件已保留') }} <el-button text :disabled="importing" @click="retryImport">重新解析</el-button></p>
     <el-dialog v-model="importVisible" title="核对解析结果与列对应" appendToBody width="min(900px, 92vw)">
       <template v-if="candidate"><p>{{ importRecord?.name }} · {{ candidate.table ? `${candidate.table.length - 1} 个镜头` : '文档文字参考' }}</p>
       <div v-if="candidate.table" class="columnMapping"><label v-for="(header, i) in headers" :key="header">{{ header }}<el-select v-model="mapping[i]" :aria-label="header + '对应列'"><el-option label="不导入此列" :value="-1" /><el-option v-for="(column, index) in candidate.table[0]" :key="index" :label="column || `第${index + 1}列`" :value="index" /></el-select></label></div><pre class="importPreview">{{ candidate.text }}</pre></template>
@@ -32,7 +32,7 @@ import { getTargetValues } from "@toonflow/nodes-scaffold/nodeInputs";
 import { validateConnection } from "@toonflow/nodes-scaffold/connection";
 import type { NodeInputValue } from "@toonflow/nodes-scaffold/values";
 import scriptReferences from "./scriptReferences.vue";
-const props = defineProps<{ nodeId: string; disabled?: boolean; embedded?: boolean }>();
+const props = defineProps<{ nodeId: string; disabled?: boolean; embedded?: boolean; contentOnly?: boolean }>();
 const model = defineModel<string>({ required: true });
 const rows = defineModel<{ id: string; cells: string[] }[]>("rows", { default: () => [] });
 const headers = scriptHeaders;
@@ -146,13 +146,17 @@ function download() {
   width: 100%;
   .tableActions { display: flex; gap: 8px; margin-bottom: 8px; }
   .tableScroll { overflow: visible; }
-  table { border-collapse: collapse; table-layout: fixed; width: 100%; }
-  th, td { position: relative; border: 1px solid var(--el-border-color); padding: 6px; vertical-align: top; }
-  th { background: var(--el-fill-color); }
-  td:first-child { padding-left: 14px; }
+  table { border-collapse: collapse; table-layout: fixed; width: 100%; min-width: 3400px; }
+  th, td { position: relative; border: 1px solid var(--el-border-color); padding: 6px; vertical-align: top; height: 248px; }
+  th { height: auto; background: var(--el-fill-color); }
+  td :deep(.el-textarea__inner) { height: 224px; min-height: 224px; resize: none; overflow-y: auto; }
+  td:first-child { padding-left: 14px; :deep(.el-textarea__inner) { height: 148px; min-height: 148px; } }
+  .rowPrompts :deep(.el-textarea__inner) { height: 48px; min-height: 48px; }
+
   .rowInput, .rowOutput { width: 14px; height: 14px; background: var(--el-color-primary); border: 2px solid var(--el-bg-color); z-index: 4; }
   .rowInput { left: -6px; }
   .rowOutput { right: -6px; }
+  .rowReferences { height: 224px; overflow: auto; }
   .rowPrompts { label { display: block; margin-bottom: 8px; } }
   .rowActions { font-size: 12px; .el-button { margin: 0 4px 4px 0; } }
   .columnMapping { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; label { min-width: 0; } }

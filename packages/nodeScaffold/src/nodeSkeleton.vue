@@ -25,7 +25,7 @@
       </template>
     </el-dropdown>
     <div
-      v-if="documentTarget || (topVisible && slotsVisible)"
+      v-if="!documentContentOnly && (documentTarget || (topVisible && slotsVisible))"
       class="floatingSlot topSlot nodrag nopan nowheel"
       :style="{ width: typeof topWidth === 'number' ? `${topWidth}px` : topWidth }"
       @pointerdown.stop
@@ -70,7 +70,7 @@
       </slot>
     </div>
     <div
-      v-if="$slots.bottom && (documentTarget || (bottomVisible && slotsVisible))"
+      v-if="!documentContentOnly && $slots.bottom && (documentTarget || (bottomVisible && slotsVisible))"
       class="floatingSlot bottomSlot nodrag nopan nowheel"
       :style="{ width: typeof bottomWidth === 'number' ? `${bottomWidth}px` : bottomWidth }"
       @pointerdown.stop
@@ -223,6 +223,7 @@ const cardHeight = computed(() => Math.max(100, ...handleGroups.value.map((group
 const { id: nodeId, node } = useNode();
 const documentContext = inject<NodeDocumentContext | undefined>("nodeDocument", undefined);
 const documentTarget = computed(() => documentContext?.targets.get(nodeId));
+const documentContentOnly = computed(() => documentTarget.value?.dataset.nodeContentOnly === "true");
 const skeletonElement = ref<HTMLElement>();
 const canvasSize = shallowRef<{ width: string; height: string }>();
 let documentLease: symbol | undefined;

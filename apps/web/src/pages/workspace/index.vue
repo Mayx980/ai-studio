@@ -141,11 +141,13 @@ provide("canvas", () => canvasPanelRef.value?.getCanvasContext());
 provide("professionalCanvas", {
   async read(directory: string, node: { canvasPath: string; nodeId: string }) {
     if (!canvasPanelRef.value) throw new Error("画布尚未就绪");
+    await canvasPanelRef.value.waitUntilReady();
     const document = await canvasPanelRef.value.readDocumentNode(directory, node.canvasPath, node.nodeId);
     return document.outputs.find(output => output.id === "text")?.text ?? "";
   },
   async mount(directory: string, node: { canvasPath: string; nodeId: string }, target: HTMLElement) {
     if (!canvasPanelRef.value) throw new Error("画布尚未就绪");
+    await canvasPanelRef.value.waitUntilReady();
     return canvasPanelRef.value.mountDocumentNode(directory, node.canvasPath, node.nodeId, target);
   },
   async apply(directory, result, sources, label, model, prompt) {

@@ -87,8 +87,8 @@
               </span>
             </button>
             <div class="projectActions">
-              <el-button text :icon="IconEdit" :disabled="creating || opening" :aria-label="`重命名项目 ${project.name}`" title="重命名" @click="renameProject(project)" />
-              <el-button text type="danger" :icon="IconFolderMinus" :disabled="creating || opening" :aria-label="`移除项目 ${project.name}`" title="从列表移除，不删除文件" @click="workspaceStore.removeProject(project.directory)" />
+              <el-button text :icon="IconEdit" :disabled="creating || opening" :aria-label="`重命名项目 ${project.name}`" title="编辑" @click="renameProject(project)" />
+              <el-button text type="danger" :icon="IconTrash" :disabled="creating || opening" :aria-label="`移除项目 ${project.name}`" title="删除" @click="workspaceStore.removeProject(project.directory)" />
             </div>
           </el-card>
         </div>
@@ -112,7 +112,7 @@ import {
   IconArrowUp, IconLayoutGrid,
   IconList, IconSortDescending,
   IconSortAscending, IconFolder, IconEdit,
-  IconFolderMinus, IconFolderPlus, IconFolderOpen, IconPaperclip,
+  IconTrash, IconFolderPlus, IconFolderOpen, IconPaperclip,
 } from "@tabler/icons-vue";
 import { inferGenerationKind, configuredBrowserModels, browserConfig, generationError } from "@/stores/browserGeneration";
 import creationPrompt from "@/components/creationPrompt.vue";
@@ -515,7 +515,7 @@ async function createProject(fromPrompt = true) {
   padding-left: 220px;
   isolation: isolate;
 
-  .homeHistory { padding-top: 24px; .historyOpen { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; } .historyEntry { display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px; margin: 8px 0; border: 1px solid var(--el-border-color-light); border-radius: 12px; background: var(--el-bg-color); color: var(--el-text-color-primary); text-align: left; cursor: pointer; span { display: grid; gap: 6px; } small { color: var(--el-text-color-secondary); } &:hover { border-color: var(--el-color-primary); } } }
+  .homeHistory { padding-top: 24px; .historyOpen { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; } .historyEntry { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 10px; margin: 6px 0; border: 1px solid var(--el-border-color-light); border-radius: 12px; background: var(--el-bg-color); color: var(--el-text-color-primary); text-align: left; cursor: pointer; span { display: grid; gap: 6px; } small { color: var(--el-text-color-secondary); font-size: 11px; } strong { font-size: 13px; } &:hover { border-color: var(--el-color-primary); } } }
   .homeAssets { padding-top: 24px; :deep(.assetLibrary) { width: 100%; max-height: none; } }
   .studioSidebar {
     position: fixed; inset: 0 auto 0 0; z-index: 6; width: 220px; display: flex; flex-direction: column; gap: 16px; padding: 30px 20px; border-right: 1px solid var(--el-border-color-light); background: var(--el-bg-color);
@@ -680,11 +680,11 @@ async function createProject(fromPrompt = true) {
 
       .projectItems {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(180px, 210px));
         gap: 16px;
         margin-top: 16px;
 
-        &.listView { grid-template-columns: 1fr; }
+        &.listView { grid-template-columns: repeat(auto-fill, minmax(200px, 240px)); .projectEntry { height: 138px; flex-direction: row; align-items: center; :deep(.projectThumbnail) { width: 72px; height: 100px; } .projectInfo { flex: 1; } } }
 
         .projectCard {
           position: relative;
@@ -704,9 +704,11 @@ async function createProject(fromPrompt = true) {
           display: flex;
           flex-direction: column;
           align-items: flex-start;
-          gap: 12px;
+          gap: 6px;
           width: 100%;
-          padding: 16px;
+          padding: 10px;
+          :deep(.projectThumbnail) { height: 72px; border-radius: 8px; }
+          .projectInfo { gap: 3px; width: 100%; }
           border: 0;
           background: transparent;
           color: inherit;
@@ -722,7 +724,7 @@ async function createProject(fromPrompt = true) {
           .projectInfo {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 3px;
             min-width: 0;
 
             .projectName, .projectPath {
@@ -731,9 +733,9 @@ async function createProject(fromPrompt = true) {
               white-space: nowrap;
             }
 
-            .projectName { font-weight: 600; }
-            .projectPath { font-size: 13px; color: var(--el-text-color-regular); }
-            .projectTime { font-size: 12px; color: var(--el-text-color-secondary); }
+            .projectName { font-size: 13px; line-height: 18px; font-weight: 600; }
+            .projectPath { font-size: 11px; line-height: 16px; color: var(--el-text-color-regular); }
+            .projectTime { font-size: 10px; line-height: 14px; color: var(--el-text-color-secondary); }
           }
         }
       }

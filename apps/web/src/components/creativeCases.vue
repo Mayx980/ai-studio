@@ -7,7 +7,7 @@
       <div v-if="preview" class="detailLayout"><div class="detailMedia"><templateMedia ref="previewMedia" :media="preview.media" controls /></div><div class="detailContent"><h3>创作详情</h3><p class="templatePrompt">{{ preview.prompt }}</p><p class="templateParameters">{{ preview.modelId || '当前模型' }} ｜ {{ preview.ratio || '当前比例' }} ｜ {{ preview.resolution || preview.imageSize || '当前清晰度' }}<span v-if="preview.duration"> ｜ {{ preview.duration }}秒</span></p><el-button type="primary" :loading="applying" @click="applyPreview">一键同款</el-button></div></div>
     </el-dialog>
     <el-dialog v-model="uploadOpen" title="上传个人模板" width="min(640px, 94vw)" alignCenter appendToBody class="templateUpload">
-      <el-form labelPosition="top"><el-form-item label="模板名称"><el-input v-model="draft.name" maxlength="60" /></el-form-item><el-form-item label="分类"><el-input v-model="draft.category" maxlength="30" /></el-form-item><el-form-item label="模板视频"><input type="file" accept="video/mp4" @change="selectPreview" /></el-form-item><el-form-item label="创作提示词"><el-input v-model="draft.prompt" type="textarea" :rows="5" /></el-form-item><el-form-item label="生成模型（可选）"><el-select v-model="draft.modelId" clearable><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.modelId" /></el-select></el-form-item><el-form-item label="比例（可选）"><el-select v-model="draft.ratio" clearable><el-option v-for="ratio in Object.keys(imageDimensions)" :key="ratio" :value="ratio" /></el-select></el-form-item><el-form-item label="视频清晰度（可选）"><el-select v-model="draft.resolution" clearable><el-option v-for="value in ['480P','720P','1080P']" :key="value" :value="value" /></el-select></el-form-item></el-form>
+      <el-form labelPosition="top"><el-form-item label="模板名称"><el-input v-model="draft.name" maxlength="60" /></el-form-item><el-form-item label="分类"><el-select v-model="draft.category" placeholder="选择分类"><el-option v-for="category in ['产品展示','达人种草','短剧带货','真实测评']" :key="category" :value="category" /></el-select></el-form-item><el-form-item label="模板视频"><input type="file" accept="video/mp4" @change="selectPreview" /></el-form-item><el-form-item label="创作提示词"><el-input v-model="draft.prompt" type="textarea" :rows="5" /></el-form-item><el-form-item label="生成模型（可选）"><el-select v-model="draft.modelId" clearable><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.modelId" /></el-select></el-form-item><el-form-item label="比例（可选）"><el-select v-model="draft.ratio" clearable><el-option v-for="ratio in Object.keys(imageDimensions)" :key="ratio" :value="ratio" /></el-select></el-form-item><el-form-item label="视频清晰度（可选）"><el-select v-model="draft.resolution" clearable><el-option v-for="value in ['480P','720P','1080P']" :key="value" :value="value" /></el-select></el-form-item></el-form>
       <template #footer><el-button type="primary" :loading="saving" @click="saveTemplate">保存到个人模板中心</el-button></template>
     </el-dialog>
   </section>
@@ -23,7 +23,7 @@ defineProps<{ compact?: boolean }>();
 const emit = defineEmits<{ apply: [value: TemplateApplication] }>();
 const category = ref("全部"), preview = ref<CreationTemplate>(), previewMedia = ref<InstanceType<typeof templateMedia>>();
 const applying = ref(false), uploadOpen = ref(false), saving = ref(false), uploadFile = ref<File>();
-const draft = reactive({ name: "", category: "", prompt: "", modelId: "", ratio: "", resolution: "" });
+const draft = reactive({ name: "", category: "产品展示", prompt: "", modelId: "", ratio: "", resolution: "" });
 const categories = computed(() => ["全部", ...new Set(creationTemplates.value.map(item => item.category))]);
 const visibleCases = computed(() => creationTemplates.value.filter(item => category.value === "全部" || item.category === category.value));
 const uploadVideo = computed(() => uploadFile.value?.type === "video/mp4" || uploadFile.value?.name.toLowerCase().endsWith(".mp4"));
@@ -50,7 +50,7 @@ async function saveTemplate() {
   if (!uploadVideo.value) { ElMessage.warning("模板中心仅支持视频模板"); return; }
   saving.value = true;
   try {
-    await saveCreationTemplate({ ...draft, category: draft.category.trim() || "个人模板", kind: "video", resolution: draft.resolution }, uploadFile.value, []);
+    await saveCreationTemplate({ ...draft, category: draft.category, kind: "video", resolution: draft.resolution }, uploadFile.value, []);
     uploadOpen.value = false; ElMessage.success("模板已保存在当前浏览器，跨项目可用");
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "模板保存失败"); }
   finally { saving.value = false; }

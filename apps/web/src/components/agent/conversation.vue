@@ -79,7 +79,7 @@
                 <el-tooltip v-if="item.role === 'assistant'" content="引用到输入框" placement="top">
                   <el-button class="messageAction" text circle :disabled="locked" aria-label="引用到输入框" @click="referenceMessageResults(item)"><icon-paperclip :size="14" /></el-button>
                 </el-tooltip>
-                <el-tooltip v-if="item.role === 'assistant'" content="加入画布" placement="top"><el-button class="messageAction" text circle :disabled="locked" aria-label="加入画布" @click="addMessageToCanvas(item)"><icon-square-plus :size="14" /></el-button></el-tooltip>
+                <el-tooltip v-if="item.role === 'assistant' && !item.professional && (sessionMode ?? workspaceStore.creationMode) === 'simple'" content="加入画布" placement="top"><el-button class="messageAction" text circle :disabled="locked" aria-label="加入画布" @click="addMessageToCanvas(item)"><icon-square-plus :size="14" /></el-button></el-tooltip>
                 <el-button v-if="!item.report" class="messageAction" text circle :loading="deletingId === item.id" :disabled="locked || remoteRunning" aria-label="删除消息" title="删除消息" @click="deleteMessage(item)"><icon-trash v-if="deletingId !== item.id" :size="14" /></el-button>
               </template>
             </div>

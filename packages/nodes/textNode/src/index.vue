@@ -3,7 +3,7 @@
     v-bind="nodeProps"
     :icon="isScript ? IconMovie : IconFileText"
     :hiddenHandles="isScript ? scriptRows.flatMap(row => [`row:${row.id}`, `rowIn:${row.id}`]) : []"
-    :style="isScript ? { width: '2600px' } : undefined"
+    :style="isScript ? { width: '3400px' } : undefined"
     v-model:bottomVisible="node.selected"
     :topVisible="node.selected"
     topWidth="max-content"
@@ -16,8 +16,8 @@
         <el-button text size="small" :disabled="generating || textReloading" @click="editing = true">查看并复制当前正文</el-button>
         <el-button text size="small" :disabled="generating" :loading="textReloading" @click="reloadText">重新读取磁盘</el-button>
       </el-alert>
-      <span v-if="isScript && textReady" class="scriptSaveStatus" role="status">{{ documentState.error ? '保存失败，内容已保留' : documentState.dirty ? '正在保存…' : '已保存' }}</span>
-      <scriptTable ref="scriptTableRef" v-if="isScript && textReady" v-model="outputs.text.value" v-model:rows="scriptRows" :nodeId="node.id" :disabled="generating || !!documentState.error" />
+      <span v-if="isScript && textReady && !contentOnly" class="scriptSaveStatus" role="status">{{ documentState.error ? '保存失败，内容已保留' : documentState.dirty ? '正在保存…' : '已保存' }}</span>
+      <scriptTable ref="scriptTableRef" v-if="isScript && textReady" v-model="outputs.text.value" v-model:rows="scriptRows" :nodeId="node.id" :embedded="contentOnly" :contentOnly="contentOnly" :disabled="generating || !!documentState.error" />
       <div v-else-if="outputs.text.value.trim() && previewReady" class="textPreview nopan nowheel" :aria-label="isScript ? '脚本与分镜内容' : '文本内容'">
         <markdownPreview :modelValue="outputs.text.value" :files="textReady ? textFiles : undefined" :path="textPath" :active="previewReady" />
       </div>
@@ -89,11 +89,12 @@ const scriptTableRef = ref<InstanceType<typeof scriptTable>>();
 const editing = ref(false);
 const fullscreen = ref(false);
 function openScript(event: MouseEvent) {
-  if (!isScript.value || (event.target as Element).closest("button, input, textarea, .el-input, .el-image, .vue-flow__handle")) return;
+  if (!isScript.value || contentOnly.value || (event.target as Element).closest("button, input, textarea, .el-input, .el-image, .vue-flow__handle")) return;
   fullscreen.value = true; editing.value = true;
 }
 const downloadUrl = ref("");
 const documentContext = inject<NodeDocumentContext | undefined>("nodeDocument", undefined);
+const contentOnly = computed(() => documentContext?.targets.get(node.id)?.dataset.nodeContentOnly === "true");
 watch([() => outputs.value.text.value, () => node.selected || !!documentContext?.targets.has(node.id)], ([text, visible], _previous, onCleanup) => {
   downloadUrl.value = "";
   if (!visible || !text.trim()) return;

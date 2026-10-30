@@ -12,8 +12,6 @@
         <el-form-item v-if="kind === 'video'" :label="`生成时长 · ${videoDuration} 秒`"><el-slider v-model="videoDuration" :min="3" :max="30" :step="1" :marks="{3:'3',5:'5',10:'10',15:'15',20:'20',25:'25',30:'30'}" aria-label="视频生成时长" /></el-form-item>
       </template>
       <p>模型按当前生成类型显示，文字模型供助手和脚本使用，不能用于图片或视频生成。</p>
-      <p>图片默认 9:16、720p、1 张；视频默认 480p。</p>
-      <p v-if="kind === 'video'">图片默认作为参考；首帧请在输入中指定“图1作为首帧”。当前模型不支持尾帧。</p>
       <p v-if="kind === 'audio' || kind === 'text'">当前适配器仅支持文字输入。</p>
     </el-form>
   </el-popover>
