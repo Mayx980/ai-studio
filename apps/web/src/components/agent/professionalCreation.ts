@@ -2,6 +2,7 @@ import type { BrowserWorkflowNode, ModelKind } from "@/stores/browserGeneration"
 
 export type ProfessionalOption = { id: string; title: string; content: string };
 export type ProfessionalCreation = {
+  history?: { id: string; title: string; content: string }[];
   prompt: string;
   sourceText?: string;
   goal: ModelKind | "story" | "storyboard";
@@ -31,7 +32,7 @@ export function isProfessionalCreation(value: unknown): value is ProfessionalCre
   const state = value as Partial<ProfessionalCreation>;
   const nodeReference = (node: unknown) => !!node && typeof node === "object" && "canvasPath" in node && typeof node.canvasPath === "string" && "nodeId" in node && typeof node.nodeId === "string";
   const options = (items: unknown) => Array.isArray(items) && items.every(item => item && typeof item.id === "string" && typeof item.title === "string" && typeof item.content === "string");
-  return typeof state.prompt === "string" && (state.sourceText === undefined || typeof state.sourceText === "string")
+  return (state.history === undefined || options(state.history)) && typeof state.prompt === "string" && (state.sourceText === undefined || typeof state.sourceText === "string")
     && ["text", "story", "storyboard", "image", "video", "audio"].includes(state.goal ?? "")
     && ["idea", "story", "storyboard"].includes(state.start ?? "")
     && ["analyze", "brief", "plans", "scripts", "storyReview", "storyboardReview", "referenceConsent", "prompts", "imageReview", "videoConsent", "videoReview", "done"].includes(state.stage ?? "")

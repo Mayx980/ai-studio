@@ -1,3 +1,4 @@
+import { generationStyles } from "@/lib/generationStyles";
 import { defaultImageSize, defaultRatio, defaultVideoResolution } from "@toonflow/node-shared/generationDefaults";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
@@ -95,15 +96,15 @@ export function inferGenerationKind(prompt: string): ModelKind {
   return browserConfig.outputChosen ? browserConfig.outputKind : kind ?? browserConfig.outputKind;
 }
 
-export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind) {
+export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "") {
   if (generationBusy.value) return false;
   if (!browserConfig.enabled) { generationError.value = "请先在设置 → API 配置中启用模型联调"; return false; }
   const kind: ModelKind = requestedKind ?? inferGenerationKind(prompt);
   browserConfig.kind = kind;
   const chosen = configuredBrowserModels(kind).find(model => model.id === browserModelSelection[kind]) ?? configuredBrowserModels(kind)[0];
-  const { ratio, duration, resolution, imageSize, count, style } = browserConfig;
+  const { ratio, duration, resolution, imageSize, count } = browserConfig;
   if (!Number.isInteger(count) || count < 1 || count > 6) { generationError.value = "图片生成数量须为 1–6 张"; return false; }
-  if (style && (kind === "image" || kind === "video")) prompt += `\n视觉风格：${style}。`;
+  if (kind === "image" && generationStyles[style]) prompt += `\n图片风格要求：${style}。${generationStyles[style]}保留用户指定的主体、产品特征与构图要求，不额外添加文字或水印。`;
   const endpoint = chosen?.endpoint || browserConfig.endpoint;
   const apiKey = chosen?.apiKey.trim() ?? "";
   generationError.value = "";

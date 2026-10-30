@@ -598,7 +598,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       const previousIds = new Set(generationResults.value.map(item => item.id));
       const textReferences = await Promise.all(files.filter(file => file.type.startsWith("text/") || file.type === "application/json").map(async file => { const text = await file.text(); if (text.length > 100000) throw new Error("文字引用最多支持 100000 字符，请缩小内容"); return `${file.name}：\n${text}`; }));
       const generationPrompt = isStoryboard ? `${prompt}\n${scriptGenerationInstruction}` : !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
-      const success = await generateInBrowser([generationPrompt, ...textReferences].join("\n\n"), files.filter(file => file.type.startsWith("image/")), directory, outputKind);
+      const success = await generateInBrowser([generationPrompt, ...textReferences].join("\n\n"), files.filter(file => file.type.startsWith("image/")), directory, outputKind, browserConfig.style);
       const results = generationResults.value.filter(item => !previousIds.has(item.id) && item.directory === directory);
       reply.browserResultIds = results.filter(item => item.kind !== "text").map(item => item.id);
       const text = results.filter(item => item.kind === "text").map(item => item.text).join("\n\n");

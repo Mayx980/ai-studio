@@ -1,6 +1,10 @@
 <template>
   <section class="professionalCreation" aria-label="专业创作流程">
     <p class="stageLabel">专业创作 · {{ stageLabels[state.stage] }}</p>
+    <section v-if="historyEntries.length" class="creationHistory" aria-label="专业创作历史内容">
+      <article v-for="entry in historyEntries" :key="entry.id"><h4>{{ entry.title }}</h4><messageMarkdown :content="entry.content" :directory="directory" /></article>
+    </section>
+    <browserModelResults v-if="archivedResultIds.length" :directory="directory" :resultIds="archivedResultIds" :showStatus="false" :showCanvas="false" :showReference="false" />
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <p v-if="busy" role="status">正在处理，请稍候…</p>
     <el-button v-if="busy" text @click="stop">停止等待</el-button>
@@ -14,12 +18,12 @@
     </el-form>
     <template v-if="state.stage === 'plans'">
       <p>勾选希望继续发展的方案，可多选。</p>
-      <el-checkbox-group v-model="state.selectedPlans" :disabled="busy || disabled" @change="changed"><el-checkbox v-for="option in state.plans" :key="option.id" :value="option.id"><strong>{{ option.title }}</strong><p>{{ option.content }}</p></el-checkbox></el-checkbox-group>
+      <el-checkbox-group v-model="state.selectedPlans" :disabled="busy || disabled" @change="changed"><el-checkbox v-for="option in state.plans" :key="option.id" :value="option.id"><strong>{{ option.title }}</strong></el-checkbox></el-checkbox-group>
       <el-button type="primary" :disabled="busy || disabled || !state.selectedPlans.length" @click="confirmPlans">采用方案，继续</el-button>
     </template>
     <template v-if="state.stage === 'scripts'">
       <p>选择一个{{ state.goal === 'storyboard' ? '分镜' : '剧情' }}脚本，加入画布后可以继续修改。</p>
-      <el-radio-group v-model="state.selectedScript" :disabled="busy || disabled" @change="changed"><el-radio v-for="option in state.scripts" :key="option.id" :value="option.id"><strong>{{ option.title }}</strong><p>{{ option.content }}</p></el-radio></el-radio-group>
+      <el-radio-group v-model="state.selectedScript" :disabled="busy || disabled" @change="changed"><el-radio v-for="option in state.scripts" :key="option.id" :value="option.id"><strong>{{ option.title }}</strong></el-radio></el-radio-group>
       <el-button type="primary" :disabled="busy || disabled || !state.selectedScript" @click="adoptScript">采用脚本，加入画布</el-button>
     </template>
     <template v-if="state.stage === 'storyReview' || state.stage === 'storyboardReview'">
@@ -34,7 +38,7 @@
     </template>
     <template v-if="state.stage === 'prompts'">
       <p>勾选角色／场景设计提示词，可多选，分别生成参考图。</p>
-      <el-checkbox-group v-model="selectedPrompts" :disabled="busy || disabled" @change="changed"><el-checkbox v-for="option in state.prompts" :key="option.id" :value="option.id"><strong>{{ option.title }}</strong><p>{{ option.content }}</p></el-checkbox></el-checkbox-group>
+      <el-checkbox-group v-model="selectedPrompts" :disabled="busy || disabled" @change="changed"><el-checkbox v-for="option in state.prompts" :key="option.id" :value="option.id"><strong>{{ option.title }}</strong></el-checkbox></el-checkbox-group>
       <el-button type="primary" :disabled="busy || disabled || !selectedPrompts.length" @click="makeImages">生成选中的参考图</el-button>
     </template>
     <template v-if="state.stage === 'imageReview'">
@@ -53,7 +57,7 @@
       <el-button type="primary" :disabled="busy || disabled" @click="makeVideo">确认生成视频</el-button><el-button :disabled="busy || disabled" @click="state.stage = 'done'; changed()">暂不生成</el-button>
       <el-button v-if="imageDraftIds.length" :disabled="busy || disabled" @click="state.stage = 'imageReview'; changed()">调整参考图</el-button>
     </template>
-    <template v-if="state.stage === 'done'"><p>所选内容已加入画布，可继续编辑。</p><browserModelResults v-if="appliedResultIds.length" :directory="directory" :resultIds="appliedResultIds" :showStatus="false" :showCanvas="false" :showReference="false" /></template>
+    <template v-if="state.stage === 'done'"><p>所选内容已加入画布，可继续编辑。</p></template>
   </section>
 </template>
 
@@ -66,6 +70,7 @@ import { readTextAttachment } from "./textAttachments";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import type { AgentAttachment } from "./types";
 import type { ProfessionalCreation, ProfessionalOption } from "./professionalCreation";
+import messageMarkdown from "@/components/messageMarkdown.vue";
 import browserModelResults from "@/components/browserModelResults.vue";
 const props = defineProps<{ state: ProfessionalCreation; directory: string; attachments: AgentAttachment[]; disabled?: boolean; stopToken?: number }>();
 const emit = defineEmits<{ change: []; busy: [value: boolean]; results: [ids: string[]] }>();
@@ -76,6 +81,7 @@ const sourceText = computed({ get: () => props.state.sourceText || "", set: valu
 const editorTarget = ref<HTMLElement>();
 let controller: AbortController | undefined;
 let mediaWaiting = false;
+let disposed = false;
 let releaseEditor: (() => void) | undefined;
 const goals = [{ label: "剧情", value: "story" }, { label: "分镜设计", value: "storyboard" }, { label: "图片", value: "image" }, { label: "视频", value: "video" }, { label: "音频", value: "audio" }];
 const stageLabels = { analyze: "分析要求", brief: "勾选创作细节", plans: "选择方案", scripts: "选择脚本", storyReview: "预览修改剧情", storyboardReview: "预览修改分镜", referenceConsent: "确认参考图", prompts: "选择设计提示词", imageReview: "预览参考图", videoConsent: "确认视频生成", videoReview: "预览并应用视频", done: "已加入画布" };
@@ -84,11 +90,39 @@ const selectedImages = computed({ get: () => props.state.selectedImages ?? props
 const selectedVideos = computed({ get: () => props.state.selectedVideos ?? videoDraftIds.value, set: value => { props.state.selectedVideos = value; } });
 const imageDraftIds = computed(() => [...new Set([...(props.state.mediaDrafts ?? []).filter(item => item.kind === "image").map(item => item.resultId), ...props.state.imageResultIds])]);
 const videoDraftIds = computed(() => (props.state.mediaDrafts ?? []).filter(item => item.kind === "video").map(item => item.resultId));
-const appliedResultIds = computed(() => props.state.mediaDrafts ? props.state.mediaDrafts.filter(item => item.node).map(item => item.resultId) : props.state.resultIds);
+const archivedResultIds = computed(() => props.state.resultIds.filter(id => !(props.state.stage === "imageReview" && imageDraftIds.value.includes(id)) && !(props.state.stage === "videoReview" && videoDraftIds.value.includes(id))));
+function optionHistory() {
+  return [
+    ...props.state.plans.map(item => ({ ...item, title: `设计方案 · ${item.title}` })),
+    ...props.state.scripts.map(item => ({ ...item, title: `${props.state.goal === "storyboard" ? "分镜脚本" : "剧情脚本"} · ${item.title}` })),
+    ...props.state.prompts.map(item => ({ ...item, title: `设计提示词 · ${item.title}` })),
+  ];
+}
+const historyEntries = computed(() => {
+  const saved = props.state.history ?? [];
+  return [...saved, ...optionHistory().filter(item => !saved.some(entry => entry.id === item.id))];
+});
+function retainDocument(title: string, content: string) {
+  if (!content.trim() || props.state.history?.some(item => item.title === title && item.content === content)) return;
+  (props.state.history ??= []).push({ id: crypto.randomUUID(), title, content });
+  changed();
+}
+async function restoreDocumentHistory() {
+  if (!canvas) return;
+  for (const [node, title] of [[props.state.story, "剧情脚本 · 画布版本"], [props.state.storyboard, "分镜脚本 · 画布版本"]] as const) {
+    if (!node || props.state.history?.some(item => item.title === title)) continue;
+    try {
+      const content = await canvas.read(props.directory, node);
+      if (disposed) return;
+      retainDocument(title, content);
+    }
+    catch (reason) { if (disposed) return; error.value = `历史文档读取失败：${reason instanceof Error ? reason.message : "请检查原画布文件"}`; }
+  }
+}
 function draftLabel(id: string) { return props.state.mediaDrafts?.find(item => item.resultId === id)?.label; }
 function answerQuestion(index: number) { const question = props.state.questions[index]!; question.answer = [...question.selected ?? [], question.custom || ""].filter(Boolean).join("、"); changed(); }
 const reviewNode = computed(() => props.state.stage === "storyReview" ? props.state.story : props.state.stage === "storyboardReview" ? props.state.storyboard : undefined);
-function changed() { emit("change"); }
+function changed() { props.state.history = historyEntries.value; emit("change"); }
 function stop() { controller?.abort(); if (mediaWaiting) stopBrowserGeneration(); }
 async function run(action: () => Promise<void>) {
   if (busy.value || props.disabled) return;
@@ -132,6 +166,7 @@ function analyze() { return run(async () => {
 function makePlans() { return run(async () => { props.state.plans = await options("根据已补充的细节生成不同创作方案供勾选"); props.state.stage = "plans"; }); }
 async function createDocument(text: string, script: boolean) {
   controller?.signal.throwIfAborted();
+  retainDocument(script ? "分镜脚本 · 画布版本" : "剧情脚本 · 画布版本", text);
   if (!begin) throw new Error("画布尚未就绪");
   const workflow = await begin(props.state.prompt, "text", [], script, true, sources());
   await workflow.complete([{ id: crypto.randomUUID(), kind: "text", text, directory: props.directory }]);
@@ -168,7 +203,10 @@ async function mountEditor() {
 }
 function confirmDocument() { return run(async () => {
   const node = reviewNode.value;
-  if (!node || !canvas || !(await canvas.read(props.directory, node)).trim()) throw new Error("请先保存有效节点内容");
+  if (!node || !canvas) throw new Error("请先保存有效节点内容");
+  const content = await canvas.read(props.directory, node);
+  if (!content.trim()) throw new Error("请先保存有效节点内容");
+  retainDocument(props.state.stage === "storyReview" ? "剧情脚本 · 确认版本" : "分镜脚本 · 确认版本", content);
   const state = props.state;
   if (state.stage === "storyReview" && state.goal !== "story" && state.goal !== "text") {
     if (state.goal === "image") { state.prompts = await options("基于当前已修改的剧情，生成角色／场景设计提示词"); state.stage = "prompts"; }
@@ -245,12 +283,13 @@ function makeVideo() { return run(async () => { const ids = await media("video",
 watch(reviewNode, () => { void mountEditor(); }, { flush: "post" });
 watch(() => props.stopToken, stop);
 watch(() => props.disabled, disabled => { if (!disabled && props.state.stage === "analyze" && !busy.value) void analyze(); });
-onMounted(() => { for (const question of props.state.questions) { question.options ??= ["由你推荐"]; question.selected ??= []; question.custom ??= question.answer; } if (props.state.stage === "analyze" && !props.disabled) void analyze(); else void mountEditor(); });
-onBeforeUnmount(() => { stop(); releaseEditor?.(); });
+onMounted(() => { void restoreDocumentHistory(); for (const question of props.state.questions) { question.options ??= ["由你推荐"]; question.selected ??= []; question.custom ??= question.answer; } if (props.state.stage === "analyze" && !props.disabled) void analyze(); else void mountEditor(); });
+onBeforeUnmount(() => { disposed = true; stop(); releaseEditor?.(); });
 </script>
 
 <style scoped lang="scss">
 .professionalCreation {
+  .creationHistory { article { margin: 12px 0; padding: 12px; border: 1px solid var(--el-border-color); border-radius: 10px; overflow-x: auto; h4 { margin: 0 0 10px; } } }
   .stageLabel { color: var(--el-color-primary); font-weight: 600; }
   .el-form { margin-top: 12px; }
   .el-checkbox-group, .el-radio-group { display: grid; gap: 10px; margin: 12px 0; .el-checkbox, .el-radio { align-items: flex-start; height: auto; margin: 0; padding: 12px; border: 1px solid var(--el-border-color); border-radius: 10px; :deep(.el-checkbox__label), :deep(.el-radio__label) { min-width: 0; white-space: normal; } p { white-space: pre-wrap; line-height: 1.7; margin: 6px 0 0; } } }
