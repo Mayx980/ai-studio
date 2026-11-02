@@ -104,7 +104,6 @@ declare module 'vue' {
     IconList: typeof import('@tabler/icons-vue')['IconList']
     IconLogin: typeof import('@tabler/icons-vue')['IconLogin']
     IconMovie: typeof import('@tabler/icons-vue')['IconMovie']
-    IconPhoto: typeof import('@tabler/icons-vue')['IconPhoto']
     IconSitemap: typeof import('@tabler/icons-vue')['IconSitemap']
     IconSparkles: typeof import('@tabler/icons-vue')['IconSparkles']
     IconTextSize: typeof import('@tabler/icons-vue')['IconTextSize']

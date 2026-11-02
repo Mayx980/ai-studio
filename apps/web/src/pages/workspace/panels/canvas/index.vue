@@ -1473,6 +1473,6 @@ const defaultEdgeOptions = markRaw({
 </style>
 
 <style scoped lang="scss">
-.sidebarHeader { display: flex; align-items: center; gap: 2px; }
-.sidebarContent { width: 320px; max-width: calc(100vw - 120px); max-height: calc(100dvh - 180px); overflow: auto; padding: 12px; border: 1px solid var(--el-border-color); border-radius: 12px; background: var(--el-bg-color); box-shadow: var(--el-box-shadow-light); :deep(.assetLibrary) { width: 100%; } }
+.sidebarHeader { display: flex; align-items: center; gap: 4px; flex-basis: 100%; padding: 10px 0 8px; border-top: 1px solid var(--el-border-color-light); margin-top: 6px; .el-button { margin: 0; height: 28px; border-radius: 10px; font-size: 12px; &[aria-expanded="true"] { background: var(--el-fill-color); color: var(--el-text-color-primary); } } }
+.sidebarContent { width: 100%; max-height: calc(100dvh - 220px); overflow: auto; padding: 10px; border: 1px solid var(--el-border-color); border-top: 0; border-radius: 0 0 16px 16px; background: var(--el-bg-color); box-shadow: var(--el-box-shadow-light); :deep(.assetLibrary) { width: 100%; max-height: none; border: 0; box-shadow: none; background: transparent; .el-card__body { padding: 0 !important; } .assetFilters { gap: 6px; margin: 8px 0; .el-select { width: 50%; } } .el-tree-node__content { min-height: 42px; } .assetThumbnail, .fileIcon { width: 32px; height: 32px; border-radius: 8px; } } }
 </style>

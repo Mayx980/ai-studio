@@ -4,7 +4,7 @@
       <div class="menuContent">
         <el-input v-model="projectNameDraft" class="workspaceNameInput" :style="{ '--workspaceName': JSON.stringify(projectNameDraft || ' ') }" size="small" :title="browserWorkspaceMode ? '当前浏览器' : directory" :disabled="!workspaceStore.project" aria-label="项目名称"
           @keydown.stop @keydown.enter="saveProjectName" @keydown.esc.prevent="projectNameDraft = workspaceName" @blur="saveProjectName" />
-        <el-divider direction="vertical" />
+        <el-divider direction="vertical" /><span class="currentCanvas">{{ canvasId?.replace(/\.json$/, "") }}</span>
         <slot name="actions" />
       </div>
     </el-card>
@@ -763,10 +763,11 @@ defineExpose({ getCanvases, peekCanvases, initialized, addCanvas, switchCanvas, 
 <style lang="scss" scoped>
 .canvasMenuPanel.vue-flow__panel {
   left: 0;
+  top: 56px;
   display: flex;
   align-items: center;
   gap: 12px;
-  max-width: calc(100% - 300px);
+  max-width: calc(100% - 30px);
 }
 
 .canvasPicker {
@@ -895,4 +896,12 @@ defineExpose({ getCanvases, peekCanvases, initialized, addCanvas, switchCanvas, 
 <style scoped lang="scss">
 .canvasMenuPanel { .canvasMenu { max-width: 100%; } .menuContent { min-width: 0; .canvasTrigger { flex-shrink: 0; white-space: nowrap; } .workspaceNameInput { max-width: 160px; min-width: 40px; } } }
 @media (max-width: 640px) { .canvasMenuPanel.vue-flow__panel { top: 62px; left: 0; max-width: calc(100% - 24px); } }
+</style>
+
+<style scoped lang="scss">
+.currentCanvas { font-size: 12px; color: var(--el-text-color-secondary); max-width: 100px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+</style>
+
+<style scoped lang="scss">
+.canvasMenuPanel.vue-flow__panel { width: min(300px, calc(100vw - 30px)); .canvasMenu { width: 100%; border-radius: 16px 16px 0 0; .menuContent { flex-wrap: wrap; padding: 7px 5px 0; .workspaceNameInput { max-width: 180px; flex: 1; } } } .menuExtension { top: 100%; width: 100%; } }
 </style>

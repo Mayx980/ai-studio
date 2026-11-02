@@ -65,3 +65,17 @@ body,
 *::-webkit-scrollbar-track {
   background-color: transparent;
 }
+
+html.dark {
+  --el-bg-color-page: #202226;
+  --el-bg-color: #282a2f;
+  --el-bg-color-overlay: #303238;
+  --el-fill-color: #383b42;
+  --el-fill-color-light: #34373d;
+  --el-fill-color-lighter: #303238;
+  --el-fill-color-extra-light: #2c2e34;
+  --el-fill-color-dark: #24262b;
+  --el-border-color: #494d55;
+  --el-border-color-light: #40444c;
+  --el-border-color-lighter: #383c43;
+}

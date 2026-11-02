@@ -3,11 +3,12 @@
     <el-input v-model="query" placeholder="搜索节点" aria-label="搜索层级节点" clearable />
     <el-scrollbar maxHeight="min(480px, 60vh)">
       <el-collapse v-model="expanded">
-        <el-collapse-item v-for="group in groups" :key="group.id" :name="group.id" :title="`${group.label}（${group.nodes.length}）`">
+        <el-collapse-item v-for="group in groups.filter(group => group.nodes.length)" :key="group.id" :name="group.id" :title="`${group.label}（${group.nodes.length}）`">
           <div v-for="node in group.nodes" :key="node.id" class="layerItem">
             <button class="layerNode" type="button" :aria-pressed="node.selected" @click="focusNode(node.id)">
               <img v-if="previews[node.id]?.kind === 'IMAGE'" :src="previews[node.id]?.url" alt="节点封面" />
               <video v-else-if="previews[node.id]?.kind === 'VIDEO'" :src="previews[node.id]?.url" muted playsinline preload="metadata" @loadedmetadata="videoCover" />
+              <span v-else class="layerIcon"><component :is="group.id === 'image' ? IconPhoto : group.id === 'video' ? IconMovie : group.id === 'audio' ? IconMusic : IconFileText" :size="18" /></span>
               <span><strong>{{ node.data.label || group.label }}</strong><small v-if="node.data.outputs?.text?.value">{{ String(node.data.outputs.text.value).slice(0, 100) }}</small><small v-else>{{ group.label }}</small></span>
             </button>
             <audio v-if="previews[node.id]?.kind === 'AUDIO'" :src="previews[node.id]?.url" controls preload="none" aria-label="节点音频预览" />
@@ -15,11 +16,13 @@
         </el-collapse-item>
       </el-collapse>
     </el-scrollbar>
+    <footer class="layersFooter">共 {{ flow.getNodes.value.length }} 节点</footer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { IconPhoto, IconMovie, IconMusic, IconFileText } from "@tabler/icons-vue";
 import { useVueFlow } from "@vue-flow/core";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { isNodeOutput } from "@toonflow/nodes-scaffold/values";
@@ -65,4 +68,8 @@ function focusNode(id: string) {
   .el-input { margin-bottom: 12px; }
   .layerItem { audio { width: 100%; height: 32px; } .layerNode { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; text-align: left; font: inherit; color: var(--el-text-color-primary); background: transparent; cursor: pointer; img, video { width: 64px; height: 48px; object-fit: cover; border-radius: 6px; } span { min-width: 0; flex: 1; strong, small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } small { margin-top: 4px; color: var(--el-text-color-secondary); } } &:hover, &[aria-pressed="true"] { color: var(--el-color-primary); background: var(--el-color-primary-light-9); } } }
 }
+</style>
+
+<style scoped lang="scss">
+.canvasLayers { :deep(.el-input__wrapper) { background: transparent; box-shadow: none; border-bottom: 1px solid var(--el-border-color-light); border-radius: 0; } .layersFooter { margin: 12px -10px -10px; padding: 10px 14px; border-top: 1px solid var(--el-border-color-light); color: var(--el-text-color-secondary); text-align: right; font-size: 11px; } :deep(.el-collapse) { border: 0; } :deep(.el-collapse-item__header) { height: 34px; padding: 0 6px; font-size: 12px; color: var(--el-text-color-secondary); border: 0; background: transparent; } :deep(.el-collapse-item__wrap) { background: transparent; border: 0; } :deep(.el-collapse-item__content) { padding-bottom: 6px; } .layerItem { .layerNode { padding: 5px 6px; gap: 10px; min-height: 42px; img, video, .layerIcon { flex: none; width: 32px; height: 32px; border-radius: 8px; } .layerIcon { display: grid; place-items: center; background: var(--el-fill-color); color: var(--el-text-color-secondary); } span strong { font-size: 13px; font-weight: 400; } span small { display: none; } } } }
 </style>

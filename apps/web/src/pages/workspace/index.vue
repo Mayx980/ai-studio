@@ -1,5 +1,5 @@
 <template>
-  <main class="workspacePage" :style="{ '--agentWidth': `${agentVisible ? agentWidth : 0}px` }">
+  <main class="workspacePage" :class="{ simpleWorkspace: workspaceStore.creationMode === 'simple' }" :style="{ '--agentWidth': `${agentVisible ? agentWidth : 0}px` }">
     <canvasPanel
       :key="workspaceStore.project?.directory"
       v-model:selectedTool="selectedTool"
@@ -401,9 +401,12 @@ function saveDocumentNode(directory: string, canvasPath: string, nodeId: string,
   .workspaceMenu {
     position: absolute;
     top: 15px;
-    right: calc(var(--agentWidth, 0px) + 15px);
-    z-index: 5;
+    left: 16px;
+    z-index: 1100;
   }
+
+  &.simpleWorkspace .workspaceMenu { left: 104px; }
+  @media(max-width:700px) { &.simpleWorkspace .workspaceMenu { left: 64px; } }
 
   .canvasToolDock {
     position: absolute;
