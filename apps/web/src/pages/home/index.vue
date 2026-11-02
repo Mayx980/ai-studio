@@ -1,377 +1,108 @@
 <template>
-  <el-container class="home" :class="{ materialSplitActive: !!materialEditorState }" :inert="!!materialEditorState">
+  <el-container class="home">
     <bg class="pageBackground" />
     <aside class="studioSidebar" aria-label="主导航">
       <button class="studioBrand" aria-label="AFXEN 首页" @click="homeSection = 'create'"><brandLogo compact /><span>AFXEN</span></button>
-      <el-button type="primary" :icon="IconPlus" @click="newCreation">新建创作</el-button>
+      <el-button type="primary" :icon="IconHome" @click="homeSection = 'create'">首页</el-button>
       <nav>
-        <button :aria-current="homeSection === 'create' ? 'page' : undefined" @click="homeSection = 'create'"><icon-sparkles :size="18" />创作</button>
+        <button :disabled="creating || opening" @click="startAgent"><icon-sparkles :size="18" />Agent 助手</button>
+        <button :aria-current="homeSection === 'templates' ? 'page' : undefined" @click="homeSection = 'templates'"><icon-template :size="18" />模板中心</button>
         <button :aria-current="homeSection === 'history' ? 'page' : undefined" @click="homeSection = 'history'"><icon-history :size="18" />历史对话</button>
         <button @click="homeSection = 'assets'"><icon-photo :size="18" />个人资产</button>
         <button :aria-current="homeSection === 'projects' ? 'page' : undefined" @click="homeSection = 'projects'"><icon-folder :size="18" />我的项目</button>
       </nav>
       <p>最近项目</p>
-      <button v-for="item in sortedProjects.slice(0, 5)" :key="item.directory" class="recentProject" :title="item.name" @click="openProject(item)"><projectThumbnail :directory="item.directory" /><span><strong>{{ item.name }}</strong><small>{{ new Date(item.lastOpenedAt).toLocaleString(locale, { hour12: false }) }}</small></span></button>
+      <button v-for="item in recentProjects" :key="item.directory" class="recentProject" :title="item.name" @click="openProject(item)"><projectThumbnail :directory="item.directory" /><span><strong>{{ item.name }}</strong><small>{{ formatTime(item.lastOpenedAt) }}</small></span></button>
       <div class="sidebarFooter"><el-button text :icon="IconPalette" @click="settingsVisible = true">外观与设置</el-button></div>
     </aside>
     <el-main class="pageContent">
-      <section v-show="homeSection === 'create'" class="creationPanel" aria-label="创建项目">
-        <div class="brand">
-          <brandLogo />
-          <h1 class="brandName">AFXEN</h1>
-        </div>
-        <div class="promptArea" :class="{ materialSplit: !!materialEditorState }" :inert="!!materialEditorState">
-          <creationModeSwitch v-model="workspaceStore.creationMode" @update:modelValue="changeCreationMode" />
-          <el-card class="promptCard" :class="{ draggingAttachments }" shadow="never" :bodyStyle="{ padding: '20px' }" :footerStyle="{ padding: '12px 16px' }" @dragenter.capture="dragEnterAttachments" @dragover.capture="dragOverAttachments" @dragleave.capture="dragLeaveAttachments" @drop.capture="dropAttachments">
-            <div v-if="draggingAttachments" class="attachmentDropOverlay" role="status" aria-live="polite">
-              <icon-paperclip :size="20" aria-hidden="true" />
-              <strong>松开添加附件</strong>
-              <span>图片、视频、文档或代码文件</span>
-            </div>
-            <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="creating || opening" @change="selectAttachments" />
-            <simpleReferenceSlots v-if="workspaceStore.creationMode === 'simple'" v-model="promptAttachments" :directory="workspaceDirectory" :ensureDirectory="ensureMaterialDirectory" :disabled="creating || opening" />
-            <attachmentList v-if="unassignedPromptAttachments.length" class="promptAttachments" numbered :attachments="unassignedPromptAttachments" removable restorable :disabled="creating || opening" @remove="removePromptAttachment($event)" @restore="restorePromptAttachment" />
-            <creationPrompt ref="promptInput" v-model="prompt" :disabled="creating || opening" :placeholder="promptPlaceholder" @paste="pasteAttachments" @send="createProject()" />
-            <template #footer>
-              <div class="composerFooter">
-                <browserProjectPicker v-if="browserWorkspaceMode" ref="browserProjectPickerRef" v-model="workspaceDirectory" :disabled="creating || opening" />
-                <workspacePicker v-else ref="promptWorkspacePicker" v-model="workspaceDirectory" :disabled="creating || opening" />
-                <el-space class="sendActions" wrap :size="12">
-                  <simpleGenerationTools v-if="workspaceStore.creationMode === 'simple'" />
-                  <referencePicker :disabled="creating || opening" @local="attachmentInput?.click()" @files="addAttachments" />
-                  <browserModelOptions v-if="browserConfig.enabled || browserWorkspaceMode" :prompt="prompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" class="modelSelect" :disabled="creating || opening" />
-                  <el-button class="sendButton" type="primary" :circle="!!workspaceDirectory" :icon="workspaceDirectory || browserWorkspaceMode ? IconArrowUp : IconFolder" :loading="creating" :disabled="creating || opening" :aria-label="workspaceDirectory || browserWorkspaceMode ? '发送' : '选择工作目录'" @click="workspaceDirectory || browserWorkspaceMode ? createProject() : promptWorkspacePicker?.chooseDirectory()">
-                    <template v-if="!workspaceDirectory && !browserWorkspaceMode" #default>选择工作目录</template>
-                  </el-button>
-                </el-space>
-              </div>
-              <p v-if="!workspaceDirectory && !browserWorkspaceMode" class="workspaceHint" role="status">请先选择一个空文件夹作为工作目录，画布和素材会保存在这里。</p>
-            </template>
-          </el-card>
-          <el-alert v-if="generationError" :title="generationError" type="error" :closable="false" />
-        </div>
+      <section v-if="homeSection === 'create'" class="homeLanding" aria-label="首页">
+        <button class="newCanvasEntry" type="button" :disabled="creating || opening" @click="createCanvas(true)"><span class="canvasPlus"><icon-plus :size="28" /></span><strong>新建画布创作</strong></button>
+        <div class="nodeShortcuts" aria-label="节点快捷创作"><button v-for="item in nodeShortcuts" :key="item.type" type="button" :disabled="creating || opening" :aria-label="`新建${item.label}节点项目`" @click="createCanvas(false, item.type)"><span><component :is="item.icon" :size="26" /></span>{{ item.label }}</button></div>
+        <section class="recentSection" aria-label="最近项目"><div class="sectionHeader"><h2>最近项目</h2><el-button text @click="homeSection = 'projects'">查看全部</el-button></div><div class="recentCards"><button v-for="item in recentProjects" :key="item.directory" type="button" class="recentCard" :disabled="creating || opening" :aria-label="`打开项目 ${item.name}`" @click="openProject(item)"><projectThumbnail :directory="item.directory" /><span><strong>{{ item.name }}</strong><small>最近打开 {{ formatTime(item.lastOpenedAt) }}</small></span></button></div></section>
+        <creativeCases curated />
       </section>
+      <creativeCases ref="templateCenter" v-show="homeSection === 'templates'" @apply="applyCase" />
       <section v-if="homeSection === 'history'" class="homeHistory" aria-label="历史对话">
         <h2>历史对话</h2><el-input v-model="historySearch" placeholder="搜索对话名称或项目" aria-label="搜索历史对话" clearable />
-        <p v-if="historyLoading" role="status">正在读取历史对话…</p>
-        <el-alert v-if="historyError" :title="historyError" type="error" :closable="false" />
-        <div v-for="item in filteredHistory" :key="`${item.directory}:${item.file}`" class="historyEntry">
-          <button class="historyOpen" type="button" :disabled="opening || creating || historyLoading" @click="openHistory(item)"><icon-history :size="18" /><span><strong>{{ item.name }}</strong><small>{{ item.projectName }} · {{ item.messageCount }} 条消息</small></span></button>
-          <el-button text :disabled="historyLoading" :aria-label="`重命名对话 ${item.name}`" @click="renameHistory(item)">重命名</el-button>
-          <el-button text type="danger" :disabled="historyLoading" :aria-label="`删除对话 ${item.name}`" @click="removeHistory(item)">删除</el-button>
-        </div>
+        <p v-if="historyLoading" role="status">正在读取历史对话…</p><el-alert v-if="historyError" :title="historyError" type="error" :closable="false" />
+        <div v-for="item in filteredHistory" :key="`${item.directory}:${item.file}`" class="historyEntry"><button class="historyOpen" type="button" :disabled="opening || creating || historyLoading" @click="openHistory(item)"><icon-history :size="18" /><span><strong>{{ item.name }}</strong><small>{{ item.projectName }} · {{ item.messageCount }} 条消息</small></span></button><el-button text :disabled="historyLoading" @click="renameHistory(item)">重命名</el-button><el-button text type="danger" :disabled="historyLoading" @click="removeHistory(item)">删除</el-button></div>
       </section>
       <section v-if="homeSection === 'assets'" class="homeAssets"><h2>个人资产</h2><assetLibrary page :modelValue="true" :directory="workspaceStore.project?.directory" /></section>
-      <creativeCases ref="templateCenter" v-show="homeSection === 'create'" @apply="applyCase" />
       <section v-show="homeSection === 'projects'" class="projectList" aria-labelledby="projectListTitle">
-        <div class="sectionHeader">
-          <h2 id="projectListTitle">我的项目</h2>
-          <el-input v-model="projectSearch" placeholder="按项目名搜索" aria-label="按项目名搜索" clearable style="max-width: 240px" />
-          <el-space wrap>
-            <el-button v-if="!browserWorkspaceMode" :icon="IconFolderOpen" :disabled="creating || opening" @click="openProject()">导入项目</el-button>
-            <el-button :icon="IconFolderPlus" :disabled="creating || opening" @click="createProject(false)">添加项目</el-button>
-            <el-button circle :icon="sortDescending ? IconSortDescending : IconSortAscending" :aria-label="sortDescending ? '按时间降序' : '按时间升序'" @click="sortDescending = !sortDescending" />
-            <el-radio-group v-model="viewMode" aria-label="项目视图">
-              <el-radio-button value="grid" aria-label="网格视图"><icon-layout-grid :size="16" /></el-radio-button>
-              <el-radio-button value="list" aria-label="列表视图"><icon-list :size="16" /></el-radio-button>
-            </el-radio-group>
-          </el-space>
-        </div>
-        <div class="projectItems" :class="{ listView: viewMode === 'list' }">
-          <el-card v-for="project in filteredProjects" :key="project.directory" class="projectCard" shadow="hover" :bodyStyle="{ padding: '0' }">
-            <button class="projectEntry" type="button" :disabled="creating || opening" :aria-label="`打开项目 ${project.name}`" @click="openProject(project)">
-              <projectThumbnail :directory="project.directory" />
-              <span class="projectInfo">
-                <span class="projectName" :title="project.name">{{ project.name }}</span>
-                <span class="projectPath" :title="browserWorkspaceMode ? '当前浏览器 · 刷新后保留' : project.directory">{{ browserWorkspaceMode ? '当前浏览器 · 刷新后保留' : project.directory }}</span>
-                <span class="projectTime">最近打开 {{ new Date(project.lastOpenedAt).toLocaleString(locale, { hour12: false }) }}</span>
-              </span>
-            </button>
-            <div class="projectActions">
-              <el-button v-if="browserWorkspaceMode" text :icon="IconTemplate" :disabled="creating || opening" :aria-label="`制作模板 ${project.name}`" title="制作模板" @click="templateCenter?.openProjectTemplate(project)" />
-              <el-button text :icon="IconEdit" :disabled="creating || opening" :aria-label="`重命名项目 ${project.name}`" title="编辑" @click="renameProject(project)" />
-              <el-button text type="danger" :icon="IconTrash" :disabled="creating || opening" :aria-label="`移除项目 ${project.name}`" title="删除" @click="workspaceStore.removeProject(project.directory)" />
-            </div>
-          </el-card>
-        </div>
+        <div class="sectionHeader"><h2 id="projectListTitle">我的项目</h2><el-input v-model="projectSearch" placeholder="按项目名搜索" aria-label="按项目名搜索" clearable style="max-width:240px" /><el-space wrap><el-button v-if="!browserWorkspaceMode" :icon="IconFolderOpen" @click="openProject()">导入项目</el-button><el-button :icon="IconPlus" :disabled="creating || opening" @click="createCanvas(true)">添加项目</el-button><el-button circle :icon="sortDescending ? IconSortDescending : IconSortAscending" aria-label="切换时间排序" @click="sortDescending = !sortDescending" /><el-radio-group v-model="viewMode" aria-label="项目视图"><el-radio-button value="grid" aria-label="网格视图"><icon-layout-grid :size="16" /></el-radio-button><el-radio-button value="list" aria-label="列表视图"><icon-list :size="16" /></el-radio-button></el-radio-group></el-space></div>
+        <div class="projectItems" :class="{ listView: viewMode === 'list' }"><el-card v-for="project in filteredProjects" :key="project.directory" class="projectCard" shadow="hover" :bodyStyle="{ padding: '0' }"><button class="projectEntry" type="button" :disabled="creating || opening" :aria-label="`打开项目 ${project.name}`" @click="openProject(project)"><projectThumbnail :directory="project.directory" /><span class="projectInfo"><strong :title="project.name">{{ project.name }}</strong><small>最近打开 {{ formatTime(project.lastOpenedAt) }}</small></span></button><div class="projectActions"><el-button v-if="browserWorkspaceMode" text :icon="IconTemplate" :disabled="creating || opening" title="制作模板" :aria-label="`制作模板 ${project.name}`" @click="templateCenter?.openProjectTemplate(project)" /><el-button text :icon="IconEdit" :disabled="creating || opening" title="编辑" @click="renameProject(project)" /><el-button text type="danger" :icon="IconTrash" :disabled="creating || opening" title="删除" @click="workspaceStore.removeProject(project.directory)" /></div></el-card></div>
       </section>
     </el-main>
-    <settings v-model="settingsVisible" />
-    <workspacePicker ref="relocationPicker" hideTrigger />
+    <settings v-model="settingsVisible" /><workspacePicker ref="relocationPicker" hideTrigger />
   </el-container>
 </template>
-
 <script setup lang="ts">
-import { locale, translate } from "@toonflow/i18n/vue";
+import { locale } from "@toonflow/i18n/vue";
 import axios from "axios";
-import { storeToRefs } from "pinia";
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
-import {
-  IconPlus, IconSparkles, IconPalette, IconHistory,
-  IconArrowUp, IconLayoutGrid,
-  IconList, IconSortDescending,
-  IconSortAscending, IconFolder, IconEdit,
-  IconTemplate, IconTrash, IconFolderPlus, IconFolderOpen, IconPaperclip,
-} from "@tabler/icons-vue";
-import { inferGenerationKind, configuredBrowserModels, browserConfig, generationError } from "@/stores/browserGeneration";
-import creationPrompt from "@/components/creationPrompt.vue";
+import { IconHome, IconPlus, IconPalette, IconFolderOpen, IconTemplate, IconEdit, IconTrash, IconSortAscending, IconSortDescending, IconFileText, IconMovie, IconPhoto, IconVideo, IconVolume } from "@tabler/icons-vue";
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { useWorkspaceStore, type Project } from "@/stores/workspace";
+import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { applyTemplateParameters, type TemplateApplication } from "@/lib/creationTemplates";
-import browserProjectPicker from "@/components/browserProjectPicker.vue";
-import simpleGenerationTools from "@/components/simpleGenerationTools.vue";
-import browserModelOptions from "@/components/browserModelOptions.vue";
 import { listBrowserConversations, renameBrowserConversation, removeBrowserConversation } from "@/components/agent/browserConversations";
 import type { AgentHistory } from "@/components/agent/types";
-import projectThumbnail from "@/components/projectThumbnail.vue";
-import referencePicker from "@/components/referencePicker.vue";
-import modelPopover from "@/components/modelPopover.vue";
-import attachmentList from "@/components/agent/attachmentList.vue";
-import { createPastedTextFile, readTextAttachment } from "@/components/agent/textAttachments";
-import type { AgentAttachment } from "@/components/agent/types";
 import brandLogo from "@/components/brandLogo.vue";
-import { useWorkspaceStore, type Project } from "@/stores/workspace";
-import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
-import useWorkspaceFiles from "@/lib/workspaceFiles";
-import settings from "@/components/settings/index.vue";
-import bg from "./bg.vue";
-import simpleReferenceSlots from "@/components/simpleReferenceSlots.vue";
-import { materialEditorState } from "@/stores/materialEditor";
-import creationModeSwitch from "@/components/creationModeSwitch.vue";
-import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import creativeCases from "@/components/creativeCases.vue";
-const templateCenter = ref<InstanceType<typeof creativeCases>>();
+import projectThumbnail from "@/components/projectThumbnail.vue";
+import settings from "@/components/settings/index.vue";
+import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import workspacePicker from "./workspacePicker.vue";
-
-const settingsVisible = ref(false);
-const browserProjectPickerRef = ref<InstanceType<typeof browserProjectPicker>>();
-const route = useRoute();
-const homeSection = computed({
-  get: () => ["create", "history", "assets", "projects"].includes(String(route.query.section)) ? String(route.query.section) : "create",
-  set: section => { void router.replace({ path: "/home", query: { section } }); },
-});
-const appliedTemplate = ref(false);
-async function newCreation() {
-  homeSection.value = "create";
-  await nextTick();
-  if (await browserProjectPickerRef.value?.choose(true)) {
-    prompt.value = ""; promptAttachments.value = []; appliedTemplate.value = false; promptInput.value?.focus();
-  }
+import bg from "./bg.vue";
+const workspaceStore = useWorkspaceStore(), router = useRouter(), route = useRoute();
+const homeSection = computed({ get: () => ["create", "templates", "history", "assets", "projects"].includes(String(route.query.section)) ? String(route.query.section) : "create", set: section => { void router.replace({ path: "/home", query: { section } }); } });
+const settingsVisible = ref(false), creating = ref(false), opening = ref(false), sortDescending = ref(true), viewMode = ref("grid"), projectSearch = ref("");
+const templateCenter = ref<InstanceType<typeof creativeCases>>(), relocationPicker = ref<InstanceType<typeof workspacePicker>>();
+const sortedProjects = computed(() => [...workspaceStore.projectList].sort((a, b) => sortDescending.value ? b.lastOpenedAt - a.lastOpenedAt : a.lastOpenedAt - b.lastOpenedAt));
+const filteredProjects = computed(() => sortedProjects.value.filter(item => item.name.toLowerCase().includes(projectSearch.value.trim().toLowerCase())));
+const recentProjects = computed(() => [...workspaceStore.projectList].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt).slice(0, 4));
+const nodeShortcuts = [{ type: "remote-textNode", label: "文本", icon: IconFileText }, { type: "scriptNode", label: "脚本", icon: IconMovie }, { type: "remote-imageGenerationNode", label: "图片", icon: IconPhoto }, { type: "remote-videoGenerationNode", label: "视频", icon: IconVideo }, { type: "remote-audioGenerationNode", label: "音频", icon: IconVolume }];
+function formatTime(value: number) { return new Date(value).toLocaleString(locale.value, { hour12: false }); }
+async function createCanvas(named: boolean, nodeType?: string) {
+  if (creating.value || opening.value) return;
+  creating.value = true;
+  try {
+    let name = "未命名项目";
+    if (named) {
+      const result = await ElMessageBox.prompt("输入项目名称", "新建项目", { inputValue: name, confirmButtonText: "创建", cancelButtonText: "取消", inputValidator: value => !!value?.trim() && value.trim().length <= 80 || "请输入1–80个字符" }).catch(() => null);
+      if (!result) return;
+      name = result.value.trim();
+    }
+    const project = await workspaceStore.createProject(name);
+    workspaceStore.creationMode = "professional";
+    workspaceStore.pendingCanvasEntry = { directory: project.directory, nodeType };
+    await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "项目创建失败"); }
+  finally { creating.value = false; }
+}
+async function startAgent() {
+  if (creating.value || opening.value) return;
+  creating.value = true;
+  try {
+    await workspaceStore.createProject(); workspaceStore.creationMode = "simple";
+    await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "新建对话失败"); }
+  finally { creating.value = false; }
 }
 async function applyCase(value: TemplateApplication) {
-  if (!appliedTemplate.value && (prompt.value.trim() || promptAttachments.value.length)) {
-    if (!await ElMessageBox.confirm("应用模板将替换当前提示词和引用素材。", "应用模板", { confirmButtonText: "应用模板", cancelButtonText: "保留草稿" }).then(() => true, () => false)) return;
-  }
-  appliedTemplate.value = true;
-  applyTemplateParameters(value.template);
-  prompt.value = value.prompt;
-  promptAttachments.value = [];
-  addAttachments(value.references);
-  await nextTick();
-  promptInput.value?.focus();
-}
-const router = useRouter();
-const creating = ref(false);
-const opening = ref(false);
-const promptWorkspacePicker = ref<InstanceType<typeof workspacePicker>>();
-const relocationPicker = ref<InstanceType<typeof workspacePicker>>();
-const prompt = ref("");
-const promptInput = ref<InstanceType<typeof creationPrompt>>();
-const promptAttachments = ref<AgentAttachment[]>([]);
-const unassignedPromptAttachments = computed(() => workspaceStore.creationMode === "simple" ? promptAttachments.value.filter(item => !item.referenceRole) : promptAttachments.value);
-function removePromptAttachment(index: number) { const item = unassignedPromptAttachments.value[index]; promptAttachments.value = promptAttachments.value.filter(value => value !== item); }
-function restorePromptAttachment(index: number) { void restoreAttachment(promptAttachments.value.indexOf(unassignedPromptAttachments.value[index]!)); }
-async function ensureMaterialDirectory() {
-  const directory = workspaceDirectory.value || (browserWorkspaceMode ? await browserProjectPickerRef.value?.choose() : await promptWorkspacePicker.value?.chooseDirectory());
-  if (directory) workspaceDirectory.value = directory;
-  return directory || undefined;
-}
-const attachmentInput = ref<HTMLInputElement>();
-const attachmentAccept = `image/*,video/*,${readableFileAccept}`;
-const draggingAttachments = ref(false);
-let attachmentDragDepth = 0;
-const workspaceStore = useWorkspaceStore();
-const { project, projectList } = storeToRefs(workspaceStore);
-const workspaceDirectory = ref(project.value?.directory ?? "");
-const placeholderPhrases = [
-  "描述你想创作的内容，让灵感从这里开始…",
-  "把一个故事灵感，变成一段精彩的短片…",
-  "为你的主角设计独特的外形和性格…",
-  "创作一段雨夜街头的电影感镜头…",
-  "把这段文字拆解成连贯的分镜画面…",
-  "为一场奇幻冒险生成场景和角色…",
-  "为你的画面配上一段合适的音乐…",
-  "写一段温暖的旁白，讲述这个故事…",
-  "设计一支富有想象力的产品宣传片…",
-  "从一句话开始，搭建你的创作工作流…",
-];
-const promptPlaceholder = ref(translate(placeholderPhrases[0]!));
-
-onMounted(() => {
-  window.addEventListener("dragend", clearAttachmentDrag, true);
-  window.addEventListener("drop", clearAttachmentDrag, true);
-  window.addEventListener("blur", clearAttachmentDrag);
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let phraseIndex = 0;
-  watch([() => !!prompt.value, locale], ([hasInput], _previous, onCleanup) => {
-    if (reduceMotion) {
-      promptPlaceholder.value = translate(placeholderPhrases[0]!);
-      return;
-    }
-    if (hasInput) return;
-    const segmenter = new Intl.Segmenter(locale.value, { granularity: "grapheme" });
-    const phrases = placeholderPhrases.map(phrase => [...segmenter.segment(translate(phrase))].map(part => part.segment));
-    let characterCount = 0;
-    let deleting = false;
-    let timer: ReturnType<typeof setTimeout>;
-    promptPlaceholder.value = "";
-
-    function typePlaceholder() {
-      const phrase = phrases[phraseIndex]!;
-      characterCount += deleting ? -1 : 1;
-      promptPlaceholder.value = phrase.slice(0, characterCount).join("");
-      let delay = deleting ? 35 : 85;
-      if (characterCount === phrase.length) {
-        deleting = true;
-        delay = 1800;
-      } else if (characterCount === 0) {
-        deleting = false;
-        phraseIndex = (phraseIndex + 1) % placeholderPhrases.length;
-        delay = 300;
-      }
-      timer = setTimeout(typePlaceholder, delay);
-    }
-
-    timer = setTimeout(typePlaceholder, 300);
-    onCleanup(() => clearTimeout(timer));
-  }, { immediate: true });
-});
-
-onUnmounted(() => {
-  window.removeEventListener("dragend", clearAttachmentDrag, true);
-  window.removeEventListener("drop", clearAttachmentDrag, true);
-  window.removeEventListener("blur", clearAttachmentDrag);
-});
-watch([creating, opening], ([creating, opening]) => {
-  if (creating || opening) clearAttachmentDrag();
-}, { flush: "sync" });
-
-const selectedModel = ref("");
-const reasoningEffort = ref("");
-const projectSearch = ref("");
-const filteredProjects = computed(() => sortedProjects.value.filter(item => item.name.toLocaleLowerCase().includes(projectSearch.value.trim().toLocaleLowerCase())));
-const sortDescending = ref(true);
-const viewMode = ref("grid");
-const sortedProjects = computed(() => [...projectList.value].sort((left, right) =>
-  sortDescending.value ? right.lastOpenedAt - left.lastOpenedAt : left.lastOpenedAt - right.lastOpenedAt
-));
-
-function pasteAttachments(event: ClipboardEvent) {
   if (creating.value || opening.value) return;
+  creating.value = true;
   try {
-    const files = Array.from(event.clipboardData?.files ?? []);
-    if (!files.length) {
-      const file = createPastedTextFile(event.clipboardData?.getData("text/plain") ?? "");
-      if (file) files.push(file);
-    }
-    if (!files.length) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    addAttachments(files);
-  } catch (error) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    ElMessage.error(error instanceof Error ? error.message : "添加附件失败，请重试");
-  }
+    const project = await workspaceStore.createProject();
+    workspaceStore.creationMode = "simple"; applyTemplateParameters(value.template);
+    workspaceStore.pendingAgentMessage = { directory: project.directory, prompt: value.prompt, attachments: value.references.map(file => ({ file, name: file.name, path: "", mimeType: file.type })), model: "", reasoningEffort: "", send: false };
+    await router.push({ path: "/workspace", query: { returnSection: "templates" } });
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "模板应用失败"); }
+  finally { creating.value = false; }
 }
-
-function selectAttachments(event: Event) {
-  const input = event.target as HTMLInputElement;
-  addAttachments(Array.from(input.files ?? []));
-  input.value = "";
-}
-
-function clearAttachmentDrag() {
-  attachmentDragDepth = 0;
-  draggingAttachments.value = false;
-}
-
-function dragEnterAttachments(event: DragEvent) {
-  if (!event.dataTransfer?.types.includes("Files")) return;
-  event.preventDefault();
-  event.stopPropagation();
-  if (creating.value || opening.value) return clearAttachmentDrag();
-  attachmentDragDepth++;
-  draggingAttachments.value = true;
-}
-
-function dragOverAttachments(event: DragEvent) {
-  if (!event.dataTransfer?.types.includes("Files")) return;
-  event.preventDefault();
-  event.stopPropagation();
-  event.dataTransfer.dropEffect = creating.value || opening.value ? "none" : "copy";
-  if (creating.value || opening.value) return clearAttachmentDrag();
-  attachmentDragDepth = Math.max(1, attachmentDragDepth);
-  draggingAttachments.value = true;
-}
-
-function dragLeaveAttachments(event: DragEvent) {
-  if (!draggingAttachments.value) return;
-  attachmentDragDepth = Math.max(0, attachmentDragDepth - 1);
-  const target = event.currentTarget;
-  if (!attachmentDragDepth || (target instanceof Node && event.relatedTarget instanceof Node && !target.contains(event.relatedTarget))) clearAttachmentDrag();
-}
-
-function dropAttachments(event: DragEvent) {
-  if (!event.dataTransfer?.types.includes("Files")) return;
-  event.preventDefault();
-  event.stopPropagation();
-  clearAttachmentDrag();
-  addAttachments(Array.from(event.dataTransfer.files));
-}
-
-function addAttachments(files: File[]) {
-  if (creating.value || opening.value) return;
-  for (const file of files) {
-    const readableMimeType = getReadableFileMimeType(file.name, file.type);
-    const mimeType = readableMimeType ?? file.type.split(";")[0]!.trim().toLowerCase();
-    if (!readableMimeType && !/^(image|video)\//.test(mimeType)) {
-      ElMessage.warning("只支持图片、视频和受支持的文本或文档文件");
-      continue;
-    }
-    if (!file.size || file.size > 100 * 1024 * 1024) {
-      ElMessage.warning("附件不能为空且不能超过 100 MB");
-      continue;
-    }
-    if (mimeType === "text/plain" && file.size > 400000) {
-      ElMessage.warning("文本附件不能超过 400000 字节");
-      continue;
-    }
-    if (promptAttachments.value.length >= 20) {
-      ElMessage.warning("每条消息最多添加 20 个附件");
-      break;
-    }
-    promptAttachments.value.push({ name: file.name, path: "", mimeType, file });
-  }
-}
-
-async function restoreAttachment(index: number) {
-  const attachment = promptAttachments.value[index];
-  if (attachment?.mimeType !== "text/plain" || creating.value || opening.value) return;
-  try {
-    const text = await readTextAttachment(attachment);
-    const currentIndex = promptAttachments.value.indexOf(attachment);
-    if (currentIndex < 0 || creating.value || opening.value) return;
-    prompt.value += `${prompt.value ? "\n" : ""}${text}`;
-    promptAttachments.value.splice(currentIndex, 1);
-    await nextTick();
-    promptInput.value?.focus();
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : "取回文本失败，请重试");
-  }
-}
-
 async function openProject(project?: Project) {
   if (creating.value || opening.value) return;
   opening.value = true;
@@ -389,6 +120,8 @@ async function openProject(project?: Project) {
       if (!directory) return;
       await workspaceStore.openProject(directory, project.directory);
     }
+    workspaceStore.creationMode = "professional";
+    workspaceStore.pendingCanvasEntry = { directory: workspaceStore.project!.directory };
     await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
   } catch (err) {
     ElMessage.error(axios.isAxiosError<{ message?: string }>(err)
@@ -405,7 +138,6 @@ async function renameProject(project: Project) {
   if (result) workspaceStore.renameProject(project.directory, result.value);
 }
 
-function changeCreationMode() { promptInput.value?.focus(); }
 type ConversationHistory = AgentHistory & { directory: string; projectName: string };
 const conversationHistory = ref<ConversationHistory[]>([]);
 const historyLoading = ref(false);
@@ -453,315 +185,31 @@ async function openHistory(item: ConversationHistory) {
   try {
     await workspaceStore.openProject(item.directory);
     workspaceStore.pendingAgentSession = { directory: item.directory, file: item.file };
+    workspaceStore.creationMode = "simple";
     await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "打开历史对话失败"); }
   finally { opening.value = false; }
 }
-
-async function createProject(fromPrompt = true) {
-  if (fromPrompt && !prompt.value.trim()) return;
-  if (fromPrompt && browserWorkspaceMode && !workspaceDirectory.value) {
-    const chosen = await browserProjectPickerRef.value?.choose();
-    if (!chosen) return;
-    workspaceDirectory.value = chosen;
-  }
-  if (fromPrompt && browserWorkspaceMode && !browserConfig.enabled && workspaceStore.creationMode === "simple") { generationError.value = "请先在设置 → API 配置中启用模型并输入 Key"; return; }
-  if (fromPrompt && browserConfig.enabled && workspaceStore.creationMode === "simple" && !configuredBrowserModels(inferGenerationKind(prompt.value)).length) {
-    generationError.value = "请先在设置 → API 配置中输入当前模型的 Key。";
-    return;
-  }
-  if (creating.value || opening.value || (fromPrompt && !workspaceDirectory.value && !browserWorkspaceMode)) return;
-  creating.value = true;
-  try {
-    let path = workspaceDirectory.value;
-    if (browserWorkspaceMode) {
-      let name = "未命名项目";
-      if (!fromPrompt) {
-        const result = await ElMessageBox.prompt("输入项目名称，画布与素材将保存在当前浏览器", "添加项目", { inputValue: "未命名项目", confirmButtonText: "创建", cancelButtonText: "取消", inputValidator: value => !!value?.trim() || "请输入项目名称" }).catch(() => null);
-        if (!result) return;
-        name = result.value.trim();
-      }
-      if (!fromPrompt) path = `browser://${crypto.randomUUID()}`;
-      const files = useWorkspaceFiles(path);
-      const { entries } = await files.list();
-      if (!entries.length) await files.writeJson("画布1.json", { toonflowCanvas: true, nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }, true);
-      await workspaceStore.openProject(path);
-      if (!fromPrompt || name !== "未命名项目") workspaceStore.renameProject(path, name);
-      if (fromPrompt && (prompt.value.trim() || promptAttachments.value.length)) workspaceStore.pendingAgentMessage = { directory: path, prompt: prompt.value, attachments: [...promptAttachments.value], model: selectedModel.value, reasoningEffort: reasoningEffort.value };
-      await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
-      return;
-    }
-    if (!fromPrompt) {
-      const confirmed = await ElMessageBox.confirm("请选择一个空文件夹作为项目目录，画布和素材将保存在其中。", "添加项目", {
-        confirmButtonText: "选择空文件夹", cancelButtonText: "取消", type: "info",
-      }).then(() => true, () => false);
-      if (!confirmed) return;
-      path = await relocationPicker.value?.chooseDirectory() ?? "";
-      if (!path) return;
-    }
-    const { directory, empty } = await useWorkspaceFiles(path).list();
-    if (fromPrompt && directory === workspaceStore.project?.directory) {
-      workspaceStore.pendingAgentMessage = { directory, prompt: prompt.value, attachments: [...promptAttachments.value], model: selectedModel.value, reasoningEffort: reasoningEffort.value };
-      await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
-      return;
-    }
-    if (!empty) return ElMessage.warning("该文件夹不为空，请重新选择空文件夹；已有项目请使用“导入项目”或点击项目列表打开。");
-    await useWorkspaceFiles(directory).writeJson("画布1.json", { toonflowCanvas: true, nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }, true);
-    await workspaceStore.openProject(directory);
-    if (fromPrompt && (prompt.value.trim() || promptAttachments.value.length)) {
-      workspaceStore.pendingAgentMessage = { directory: workspaceStore.project!.directory, prompt: prompt.value, attachments: [...promptAttachments.value], model: selectedModel.value, reasoningEffort: reasoningEffort.value };
-    }
-    await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
-  } catch (err) {
-    ElMessage.error(axios.isAxiosError<{ message?: string }>(err)
-      ? err.response?.data.message || "创建项目失败，请重试"
-      : err instanceof Error ? err.message : "创建项目失败，请重试");
-  } finally {
-    creating.value = false;
-  }
-}
 </script>
-
-<style lang="scss" scoped>
-.home {
-  position: relative;
-  padding-left: 220px;
-  isolation: isolate;
-  &.materialSplitActive { isolation: auto; }
-
-  .homeHistory { padding-top: 24px; .historyOpen { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; } .historyEntry { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 10px; margin: 6px 0; border: 1px solid var(--el-border-color-light); border-radius: 12px; background: var(--el-bg-color); color: var(--el-text-color-primary); text-align: left; cursor: pointer; span { display: grid; gap: 6px; } small { color: var(--el-text-color-secondary); font-size: 11px; } strong { font-size: 13px; } &:hover { border-color: var(--el-color-primary); } } }
-  .homeAssets { padding-top: 24px; :deep(.assetLibrary) { width: 100%; max-height: none; } }
-  .studioSidebar {
-    position: fixed; inset: 0 auto 0 0; z-index: 6; width: 220px; display: flex; flex-direction: column; gap: 16px; padding: 30px 20px; border-right: 1px solid var(--el-border-color-light); background: var(--el-bg-color);
-    .studioBrand { display: flex; align-items: center; gap: 8px; font-size: 24px; font-weight: 700; letter-spacing: -.8px; color: var(--el-text-color-primary); border: 0; background: transparent; text-align: left; padding: 0 0 14px; cursor: pointer; }
-    nav { display: grid; gap: 5px; button { display: flex; align-items: center; gap: 10px; padding: 12px; border: 0; border-radius: var(--el-border-radius-base); background: transparent; color: var(--el-text-color-regular); font: inherit; font-size: 14px; cursor: pointer; &[aria-current="page"] { background: var(--el-color-primary-light-9); color: var(--el-color-primary); } } }
+<style scoped lang="scss">
+.home { position: relative; padding-left: 220px; isolation: isolate; min-height: 100dvh;
+  .pageBackground { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+  .studioSidebar { position: fixed; inset: 0 auto 0 0; z-index: 6; width: 220px; display: flex; flex-direction: column; gap: 16px; padding: 30px 20px; border-right: 1px solid var(--el-border-color-light); background: var(--el-bg-color);
+    .studioBrand { display: flex; align-items: center; gap: 8px; font-size: 24px; font-weight: 700; color: var(--el-text-color-primary); border: 0; background: transparent; padding: 0 0 14px; cursor: pointer; }
+    nav { display: grid; gap: 5px; button { display: flex; align-items: center; gap: 10px; padding: 12px; border: 0; border-radius: 8px; background: transparent; color: var(--el-text-color-regular); font: inherit; cursor: pointer; &[aria-current="page"] { background: var(--el-color-primary-light-9); color: var(--el-color-primary); } } }
     p { margin: 8px 10px 0; color: var(--el-text-color-secondary); font-size: 12px; }
-    .recentProject { :deep(.projectThumbnail) { width: 48px; height: 48px; border-radius: 8px; } span { min-width: 0; display: grid; gap: 5px; } strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; } small { font-size: 10px; white-space: normal; color: var(--el-text-color-secondary); } display: flex; align-items: center; gap: 8px; padding: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; background: transparent; color: var(--el-text-color-regular); text-align: left; cursor: pointer; svg { flex: none; } }
-    .sidebarFooter { margin-top: auto; display: grid; gap: 6px; .el-button { justify-content: flex-start; margin: 0; } }
+    .recentProject { display: flex; gap: 8px; align-items: center; padding: 8px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; :deep(.projectThumbnail) { width: 42px; height: 42px; border-radius: 8px; } span { min-width: 0; display: grid; gap: 5px; } strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } small { font-size: 10px; color: var(--el-text-color-secondary); } }
+    .sidebarFooter { margin-top: auto; }
   }
-  @media (max-width: 760px) { padding-left: 0; .studioSidebar { display: none; } }
-
-  min-height: 100dvh;
-  color: var(--el-text-color-primary);
-
-  .pageBackground {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
+  .pageContent { padding: 28px clamp(20px, 3vw, 48px) 40px; min-width: 0;
+    h2 { margin: 0; font-size: 17px; }
+    .sectionHeader { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+    .newCanvasEntry { width: 100%; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; border: 1px solid var(--el-border-color); border-radius: 14px; color: var(--el-text-color-primary); background: radial-gradient(circle, var(--el-border-color) 1px, transparent 1px) 0 0 / 18px 18px, linear-gradient(var(--el-fill-color-extra-light),var(--el-fill-color)); cursor: pointer; strong { font-size: 15px; } .canvasPlus { display: grid; place-items: center; width: 74px; height: 50px; border-radius: 14px; color: var(--el-bg-color); background: var(--el-text-color-primary); } }
+    .nodeShortcuts { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 20px; margin: 26px 0 36px; button { display: grid; justify-items: center; gap: 10px; padding: 0; border: 0; background: transparent; color: var(--el-text-color-primary); font: inherit; font-size: 13px; cursor: pointer; span { display: grid; place-items: center; width: 100%; height: 64px; border: 1px solid var(--el-border-color-light); border-radius: 16px; background: var(--el-fill-color-light); } &:hover span { border-color: var(--el-color-primary); } } }
+    .recentCards { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 12px; .recentCard { min-width: 0; display: flex; align-items: center; gap: 12px; padding: 6px; border: 1px solid var(--el-border-color-light); border-radius: 18px; background: var(--el-bg-color); color: var(--el-text-color-primary); text-align: left; cursor: pointer; :deep(.projectThumbnail) { flex: none; width: 78px; height: 66px; border-radius: 13px; } > span { display: grid; gap: 9px; min-width: 0; } strong { font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } small { font-size: 10px; color: var(--el-text-color-secondary); } } }
+    .projectItems { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 12px; &.listView { grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); .projectEntry { flex-direction: row; :deep(.projectThumbnail) { width: 80px; height: 96px; } } } .projectCard { position: relative; border-radius: 12px; } .projectEntry { display: flex; flex-direction: column; width: 100%; border: 0; padding: 0; background: none; color: inherit; text-align: left; cursor: pointer; :deep(.projectThumbnail) { width: 100%; height: 96px; } .projectInfo { min-width: 0; padding: 10px; display: grid; gap: 6px; strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } small { font-size: 10px; color: var(--el-text-color-secondary); } } } .projectActions { display: flex; justify-content: flex-end; padding: 2px 6px; .el-button { width: 26px; height: 26px; margin: 0; padding: 0; } } }
+    .homeHistory { .historyEntry { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--el-border-color-light); border-radius: 10px; margin: 8px 0; .historyOpen { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; border: 0; background: none; color: inherit; cursor: pointer; span { display: grid; gap: 4px; min-width: 0; } strong { font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } small { font-size: 11px; color: var(--el-text-color-secondary); } } } }
   }
-
-
-
-  .pageHeader {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 72px;
-    padding: 0 clamp(20px, 4vw, 56px);
-
-    .headerActions { display: flex; align-items: center; gap: 12px; }
-
-    a {
-      text-decoration: none;
-    }
-
-
-  }
-
-  .pageContent {
-    padding: 24px clamp(20px, 4vw, 56px) 56px;
-
-    .creationPanel {
-      max-width: 800px;
-      margin: clamp(32px, 6vh, 64px) auto 56px;
-
-      .brand { display: flex; align-items: center; justify-content: center; margin-bottom: 24px;
-        .brandName { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-      }
-
-      .promptArea {
-        &.materialSplit { position: fixed; z-index: 1901; left: 0; top: 0; width: 50vw; height: 100dvh; max-width: none; max-height: none; display: flex; flex-direction: column; overflow: auto; background: var(--el-bg-color);
-          > .creationModeSwitch { flex: none; margin: 16px; }
-          > .promptCard { flex: 1; min-height: 0; display: flex; flex-direction: column; border-radius: 0; border: 0; box-shadow: none;
-            :deep(.el-card__body) { flex: 1; overflow: auto; }
-          }
-          @media(max-width:700px) { width: 100vw; height: 50dvh; }
-        }
-        position: relative;
-
-
-
-        .promptCard {
-          position: relative;
-          border-radius: calc(var(--ui-radius) * 2.5);
-          border-color: var(--el-border-color-lighter);
-          box-shadow: var(--el-box-shadow-lighter);
-
-          &:focus-within {
-            border-color: var(--el-color-primary-light-5);
-          }
-
-          &.draggingAttachments {
-            border-color: var(--el-color-primary-light-5);
-          }
-
-          .attachmentDropOverlay {
-            position: absolute;
-            inset: 0;
-            z-index: 2;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            border-radius: inherit;
-            background: var(--el-bg-color);
-            color: var(--el-text-color-primary);
-            pointer-events: none;
-
-            > svg { color: var(--el-text-color-secondary); }
-            strong { font-size: 14px; font-weight: 500; }
-            span { color: var(--el-text-color-secondary); font-size: 12px; }
-          }
-
-          .promptAttachments {
-            margin-bottom: 12px;
-            :deep(.thumbnailItem) { width: 68px; height: 68px; }
-          }
-
-          :deep(.el-textarea__inner) {
-            padding: 4px 0;
-            box-shadow: none;
-            background: transparent;
-            font-size: 15px;
-            line-height: 1.8;
-          }
-
-          :deep(.el-card__footer) {
-            background: var(--el-fill-color-extra-light);
-          }
-
-          .composerFooter {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 12px;
-
-            .sendActions {
-              margin-left: auto;
-              justify-content: flex-end;
-
-              .modelSelect {
-                width: 190px;
-              }
-
-              .sendButton {
-                height: 36px;
-
-                &.is-circle { width: 36px; }
-              }
-            }
-          }
-
-          .workspaceHint {
-            margin: 12px 0 0;
-            color: var(--el-text-color-regular);
-            font-size: 13px;
-            line-height: 1.6;
-          }
-        }
-      }
-    }
-
-    .projectList {
-      max-width: 1040px;
-      margin: 0 auto;
-
-      .projectItems {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 210px));
-        gap: 16px;
-        margin-top: 16px;
-
-        &.listView { grid-template-columns: repeat(auto-fill, minmax(200px, 240px)); .projectEntry { height: 138px; flex-direction: row; align-items: center; :deep(.projectThumbnail) { width: 72px; height: 100px; } .projectInfo { flex: 1; } } }
-
-        .projectCard {
-          position: relative;
-
-          .projectActions {
-            position: absolute;
-            top: 12px;
-            right: 8px;
-            display: flex;
-            gap: 4px;
-
-            .el-button { width: 32px; height: 32px; margin: 0; padding: 0; }
-          }
-        }
-
-        .projectEntry {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 6px;
-          width: 100%;
-          padding: 10px;
-          :deep(.projectThumbnail) { height: 72px; border-radius: 8px; }
-          .projectInfo { gap: 3px; width: 100%; }
-          border: 0;
-          background: transparent;
-          color: inherit;
-          font: inherit;
-          text-align: left;
-          cursor: pointer;
-
-          &:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: -2px; }
-          &:disabled { cursor: wait; opacity: 0.6; }
-
-          .projectIcon { flex-shrink: 0; color: var(--el-text-color-secondary); }
-
-          .projectInfo {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            min-width: 0;
-
-            .projectName, .projectPath {
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-            }
-
-            .projectName { font-size: 13px; line-height: 18px; font-weight: 600; }
-            .projectPath { font-size: 11px; line-height: 16px; color: var(--el-text-color-regular); }
-            .projectTime { font-size: 10px; line-height: 14px; color: var(--el-text-color-secondary); }
-          }
-        }
-      }
-
-      .sectionHeader {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 16px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid var(--el-border-color-lighter);
-
-        h2 {
-          margin: 0;
-          font-size: 18px;
-          font-weight: 600;
-        }
-      }
-    }
-  }
-}
-
-@keyframes hintNudge {
-  0%, 100% { transform: translateX(0) rotate(-3deg); }
-  50% { transform: translateX(-6px) rotate(-5deg); }
+  @media(max-width:700px) { padding-left: 0; flex-direction: column; .studioSidebar { position: relative; inset: auto; width: 100%; padding: 12px; gap: 10px; .studioBrand, .recentProject, > p { display: none; } nav { display: flex; overflow: auto; button { flex: none; padding: 8px; } } > .el-button { align-self: flex-start; min-width: 100px; } .sidebarFooter { position: absolute; right: 10px; top: 12px; } } .pageContent { padding: 16px; .nodeShortcuts { gap: 8px; button span { height: 52px; } } } }
 }
 </style>

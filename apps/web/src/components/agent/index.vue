@@ -39,7 +39,7 @@
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { createBrowserConversation, readBrowserConversation, listBrowserConversations, renameBrowserConversation, removeBrowserConversation } from "./browserConversations";
 import { restoreBrowserResults } from "@/stores/browserGeneration";
-import { computed, onBeforeUnmount, ref, watch, type ComponentPublicInstance } from "vue";
+import { computed, inject, onBeforeUnmount, ref, watch, type ComponentPublicInstance } from "vue";
 import axios from "axios";
 import { translate } from "@toonflow/i18n/vue";
 import { ElMessage } from "element-plus";
@@ -151,8 +151,16 @@ function setSessionFile(item: OpenConversation, file: string) {
   }
 }
 
+const startNewProject = inject<((mode: "simple" | "professional") => Promise<void>) | undefined>("startNewProject", undefined);
 async function newConversation() {
   if (loading.value || historyLoading.value) return;
+  if (props.creationModes && browserWorkspaceMode) {
+    try {
+      if (startNewProject) await startNewProject("simple");
+      else { workspaceStore.creationMode = "simple"; await workspaceStore.createProject(); }
+    } catch (error) { ElMessage.error(error instanceof Error ? error.message : "新建对话失败"); }
+    return;
+  }
   const directory = workspaceStore.project?.directory;
   if (!directory) return ElMessage.warning("请先打开项目");
   if (props.creationModes) workspaceStore.creationMode = "simple";

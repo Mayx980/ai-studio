@@ -200,3 +200,15 @@ Qwen 3.0／2.1 图像模型按[厂商异步协议](https://help.aliyun.com/zh/mo
 最终透明素材使用内置 imagegen 处理，提示词如下（原文保留供素材复用）：
 
 > Edit only the provided transparent AFXEN logo asset. Keep the exact AF monogram geometry, existing blue/cyan/purple metallic colors, triangular play detail, exact three-row composition and proportions unchanged. Targeted correction for use on a near-black website: the AFXEN wordmark and subtitle are currently too dark. Change the AFXEN letters to luminous silver-white chrome, ALL FIVE LETTERS equally clearly legible on dark navy/black, retaining subtle metallic shading but no nearly-black letters. Change exact subtitle 'Ai Video Platform' to clear light silver-gray flat lettering, no dark outline that swallows the text. Keep the actual background fully transparent with alpha including counters/holes; no opaque rectangle, no white background, no black background, no fake checkerboard, no dark fog. Remove excessive soft gray background glow, retaining only a very subtle tight blue/purple edge glow if needed. Keep the same framing, typography and asset dimensions/composition. This is a background-free website logo cutout, not a scene or mockup.
+
+## 首页画布入口、自动项目与创作优选
+
+本节对应 Issue #7 本轮确认的首页调整，替代旧首页输入框、创作前选择项目目录，以及首页完整品牌大图的描述。侧栏保留 AFXEN 透明标识，主按钮为“首页”；Agent 助手、模板中心、历史对话、个人资产和我的项目仍为独立入口。
+
+首页从上到下展示“新建画布创作”、文本／脚本／图片／视频／音频五类节点快捷入口、最近项目、创作优选。顶部入口先打开项目命名弹窗，确认后保存项目并进入画布；取消不创建。节点快捷入口跳过命名，直接创建未命名项目和对应节点，等待节点加载、定位并保存；脚本复用文字节点的脚本类型，不增加第二套节点。最近项目取最近新建／打开的四项，显示名称和最近打开时间，封面复用已有真实图片／视频缩略图能力，没有媒体时使用原有项目标识，不补示例内容。
+
+浏览器原型统一使用工作区文件入口先将初始画布写入 IndexedDB，再注册项目。进入首页 Agent 助手、点击新建对话，均直接创建独立未命名项目；从画布内新建对话前先完成旧项目保存，写入失败保留旧项目并明确提示。直接进入工作区且尚无项目时自动创建初始项目。编辑、自动保存和历史对话复用现有实现，不要求选择本地文件夹。素材编辑分屏是原项目内部子对话，不另建项目。服务端／桌面模式的自动目录分配未在本轮原型新增，现有本地项目导入仍保留；浏览器项目保存不等于云端同步。
+
+创作优选复用个人项目模板，只展示具有真实项目快照的条目，不将只有视频和提示词的模板伪造成画布流程。卡片点击或悬浮后出现的“查看创作过程”均打开同一个只读详情，不提供一键同款。只读详情复用现有画布预览，可平移、缩放、查看节点配置和文字内容，不挂载可执行、可写入的插件。右上角“复制项目”沿用完整快照与素材校验，全部文件成功复制后才注册新项目并打开可编辑画布；失败明确提示，不登记不完整项目。副本与原模板使用独立目录，编辑副本不写入模板。
+
+独立模板中心保留现有分类、语义搜索和视频详情。卡片右下角悬浮／键盘聚焦时出现“一键同款”图标，触屏直接展示。点击读取真实模板提示词、参数与参考素材，创建新未命名项目并填入简单模式草稿，由用户明确发送后调用模型；不会因点击卡片操作自动付费生成。模板素材无法解码、读取或提帧时显示错误并保留当前页面，不伪造参考帧。卡片整卡点击仍进入视频详情，操作按钮与整卡按钮并列，避免嵌套按钮。

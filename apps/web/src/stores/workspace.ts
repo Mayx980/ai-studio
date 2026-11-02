@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { settingsStorage } from "@/stores/settings";
 import axios from "axios";
+import useWorkspaceFiles from "@/lib/workspaceFiles";
 import type { AgentAttachment } from "@/components/agent/types";
 
 export type Project = {
@@ -16,10 +17,12 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const project = ref<Project | null>(null);
   const projectList = ref<Project[]>([]);
   const pendingAgentSession = ref<{ directory: string; file: string } | null>(null);
-  const pendingAgentMessage = ref<{ directory: string; prompt: string; attachments?: AgentAttachment[]; model: string; reasoningEffort: string } | null>(null);
+  const pendingAgentMessage = ref<{ directory: string; prompt: string; attachments?: AgentAttachment[]; model: string; reasoningEffort: string; send?: boolean } | null>(null);
+  const pendingCanvasEntry = ref<{ directory: string; nodeType?: string } | null>(null);
 
   async function openProject(path: string, previousDirectory = path, signal?: AbortSignal) {
     pendingAgentSession.value = null;
+    pendingCanvasEntry.value = null;
     if (browserWorkspaceMode) {
       if (!path.trim()) throw new Error("项目标识不能为空");
       signal?.throwIfAborted();
@@ -45,6 +48,16 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     ];
   }
 
+  async function createProject(name = "未命名项目"): Promise<Project> {
+    if (!browserWorkspaceMode) throw new Error("当前自动创作项目使用浏览器保存，请在浏览器原型模式打开");
+    if (!name.trim() || name.trim().length > 80) throw new Error("请输入1–80个字符的项目名称");
+    const directory = `browser://${crypto.randomUUID()}`;
+    await useWorkspaceFiles(directory).writeJson("画布1.json", { toonflowCanvas: true, nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }, true);
+    await openProject(directory);
+    renameProject(directory, name);
+    return project.value!;
+  }
+
   function renameProject(path: string, name: string) {
     const target = projectList.value.find(item => item.directory === path);
     if (!target || !name.trim()) return;
@@ -57,7 +70,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (project.value?.directory === path) project.value = null;
   }
 
-  return { creationMode, project, projectList, pendingAgentMessage, pendingAgentSession, openProject, renameProject, removeProject };
+  return { creationMode, project, projectList, pendingAgentMessage, pendingAgentSession, pendingCanvasEntry, createProject, openProject, renameProject, removeProject };
 }, {
   persist: {
     key: browserWorkspaceMode ? "aiStudio.browserProjects" : "toonflow.projectList",

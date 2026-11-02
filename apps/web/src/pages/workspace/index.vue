@@ -69,6 +69,7 @@
 </template>
 
 <script setup lang="ts">
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { browserNodeAi } from "@/lib/browserNodeAi";
 import { browserConfig, browserResultFile, additionalBrowserModels, type ProfessionalCanvas, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
 import { computed, defineAsyncComponent, nextTick, onMounted, onScopeDispose, provide, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
@@ -95,7 +96,7 @@ const activePanel = ref<"canvas" | "document">("canvas");
 const selectedTool = ref<"move" | "hand">("move");
 onMounted(() => anonymousData.track("workspace.canvas"));
 const workspaceStore = useWorkspaceStore();
-const agentVisible = ref(true);
+const agentVisible = ref(!workspaceStore.pendingCanvasEntry);
 watch(() => workspaceStore.creationMode, () => { agentVisible.value = true; });
 const agentWidth = ref(0);
 const settingsVisible = ref(false);
@@ -109,6 +110,35 @@ function setDocumentPanel(value: Element | ComponentPublicInstance | null) {
   // KeepAlive 失活会清空模板 ref，保留同一工作区实例以协调后台文档保存和文件操作。
   if (value && directory) documentPanelCache.value = { directory, instance: value as InstanceType<typeof documentPanel> };
 }
+let startingProject = false;
+async function startNewProject(mode: "simple" | "professional") {
+  if (startingProject) return;
+  startingProject = true;
+  try {
+    await flushSave();
+    const project = await workspaceStore.createProject();
+    workspaceStore.creationMode = mode;
+    if (mode === "professional") workspaceStore.pendingCanvasEntry = { directory: project.directory };
+    agentVisible.value = mode === "simple";
+  } finally { startingProject = false; }
+}
+provide("startNewProject", startNewProject);
+onMounted(() => { if (browserWorkspaceMode && !workspaceStore.project) void startNewProject("professional").catch(error => ElMessage.error(error.message)); });
+watch(() => workspaceStore.pendingCanvasEntry, async entry => {
+  if (!entry || entry.directory !== workspaceStore.project?.directory) return;
+  workspaceStore.pendingCanvasEntry = null;
+  try {
+    workspaceStore.creationMode = "professional";
+    activePanel.value = "canvas";
+    await nextTick();
+    const panel = canvasPanelRef.value;
+    if (!panel) throw new Error("画布正在初始化，请稍后重试");
+    await panel.waitUntilReady();
+    if (entry.directory !== workspaceStore.project?.directory) return;
+    if (entry.nodeType) await panel.createInitialNode(entry.nodeType);
+    agentVisible.value = false;
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "画布打开失败，项目已保留"); }
+}, { immediate: true, flush: "post" });
 async function enterCanvas() {
   try {
     workspaceStore.creationMode = "professional";

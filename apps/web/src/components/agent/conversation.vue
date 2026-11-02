@@ -1109,14 +1109,14 @@ watch(senderElement, (element, _previous, onCleanup) => {
   });
 });
 
-watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMessage && props.active && !locked.value && !!senderElement.value && ((props.creationModes && browserConfig.enabled) || !!createCanvasContext?.()), async ready => {
+watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMessage && props.active && !locked.value && !!senderElement.value && (workspaceStore.pendingAgentMessage?.send === false || (props.creationModes && browserConfig.enabled) || !!createCanvasContext?.()), async ready => {
   const message = workspaceStore.pendingAgentMessage;
   const instance = sender;
   if (!ready || !message || !instance || message.directory !== directory) return;
   workspaceStore.pendingAgentMessage = null;
   draftAttachments.value = [...message.attachments ?? []];
   await fillPrompt(message.prompt);
-  if (sender === instance && props.active) void submitMessage();
+  if (sender === instance && props.active && message.send !== false) void submitMessage();
 }, { immediate: true, flush: "post" });
 </script>
 

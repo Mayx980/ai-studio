@@ -1,17 +1,17 @@
 <template>
   <section class="creativeCases" :class="{ compact }">
-    <div class="caseHeader"><h2>模板中心</h2><el-button v-if="!professional" text type="primary" @click="openUpload()">上传模板</el-button></div>
-    <div class="caseFilters"><div class="caseCategories"><button v-for="item in categories" :key="item" :aria-pressed="category === item" @click="category = item">{{ item }}</button></div>
+    <div class="caseHeader"><h2>{{ curated ? '创作优选' : '模板中心' }}</h2><el-button v-if="!professional" text type="primary" @click="openUpload()">上传模板</el-button></div>
+    <div v-if="!curated" class="caseFilters"><div class="caseCategories"><button v-for="item in categories" :key="item" :aria-pressed="category === item" @click="category = item">{{ item }}</button></div>
     <form class="templateSearch" role="search" @submit.prevent="searchTemplates"><el-input v-model="query" clearable aria-label="搜索视频模板" placeholder="搜索关键词或描述想要的视频" @input="invalidateSearch"><template #append><el-button nativeType="submit" :loading="searching">搜索</el-button></template></el-input></form></div>
     <p v-if="searching" role="status" aria-live="polite">正在理解需求并查找相关模板…</p>
     <el-alert v-else-if="searchError || loadError" :title="searchError || loadError" type="error" :closable="false"><el-button text @click="loadError ? loadTemplates() : searchTemplates()">重试</el-button></el-alert>
     <p v-else-if="query.trim() && !rankedIds" role="status">按回车或点击搜索，查找语义相关的模板。</p>
     <p v-else-if="!visibleCases.length" role="status">{{ query.trim() ? '没有找到相关模板，试试调整描述或分类。' : professional ? '当前分类暂无项目模板，可从“我的项目”制作模板。' : '当前分类暂无视频模板。' }}</p>
-    <div v-else class="caseGrid" :aria-busy="searching"><article v-for="item in visibleCases" :key="item.id"><button class="caseCard" :aria-label="`查看模板 ${item.name}`" @pointerenter="playPreview" @pointerleave="pausePreview" @focus="playPreview" @blur="pausePreview" @click="preview = item"><span class="casePreview"><templateMedia :media="item.media" /></span><span class="caseName" :title="item.name">{{ item.name }}</span></button></article></div>
+    <div v-else class="caseGrid" :aria-busy="searching"><article v-for="item in visibleCases" :key="item.id"><button class="caseCard" :aria-label="`${curated ? '查看创作过程' : '查看模板'} ${item.name}`" @pointerenter="playPreview" @pointerleave="pausePreview" @focus="playPreview" @blur="pausePreview" @click="preview = item"><span class="casePreview"><templateMedia :ref="value => setCardMedia(item.id, value)" :media="item.media" /></span><span class="caseName" :title="item.name">{{ item.name }}</span></button><el-tooltip :content="curated ? '查看创作过程' : '一键同款'"><el-button class="cardAction" circle :icon="curated ? IconVector : IconCopy" :aria-label="`${curated ? '查看创作过程' : '一键同款'} ${item.name}`" :loading="!curated && applying" @click.stop="curated ? preview = item : applyTemplate(item, cardMedia.get(item.id))" /></el-tooltip></article></div>
     <el-dialog :modelValue="!!preview" :title="preview?.name" class="templateDetail" :width="professional ? 'min(1600px, 98vw)' : 'min(1120px, 96vw)'" alignCenter appendToBody destroyOnClose :closeOnClickModal="!copying" :closeOnPressEscape="!copying" :showClose="!copying" @opened="projectPreview?.fitView()" @update:modelValue="preview = undefined">
+      <template v-if="professional" #header="{ titleId, titleClass }"><div class="detailHeader"><h3 :id="titleId" :class="titleClass">{{ preview?.name }}</h3><el-button type="primary" :loading="copying" @click="copyProject">复制项目</el-button></div></template>
       <templateProjectPreview ref="projectPreview" v-if="preview && professional" :template="preview" />
       <div v-else-if="preview" class="detailLayout"><div class="detailMedia"><templateMedia ref="previewMedia" :media="preview.media" controls /></div><div class="detailContent"><h3>创作详情</h3><p class="templatePrompt">{{ preview.prompt }}</p><p class="templateParameters">{{ preview.modelId || '当前模型' }} ｜ {{ preview.ratio || '当前比例' }} ｜ {{ preview.resolution || preview.imageSize || '当前清晰度' }}<span v-if="preview.duration"> ｜ {{ preview.duration }}秒</span></p><el-button type="primary" :loading="applying" @click="applyPreview">一键同款</el-button></div></div>
-      <template v-if="professional" #footer><el-button type="primary" :loading="copying" @click="copyProject">复制项目</el-button></template>
     </el-dialog>
     <el-dialog v-model="uploadOpen" :title="sourceProject ? '制作项目模板' : '上传个人模板'" :closeOnClickModal="!saving" :closeOnPressEscape="!saving" :showClose="!saving" width="min(640px, 94vw)" alignCenter appendToBody destroyOnClose class="templateUpload">
       <el-form :disabled="saving" labelPosition="top"><el-form-item label="模板名称"><el-input v-model="draft.name" maxlength="60" /></el-form-item><el-form-item label="分类"><el-select v-model="draft.category" placeholder="选择分类"><el-option v-for="category in ['产品展示','达人种草','短剧带货','真实测评']" :key="category" :value="category" /></el-select></el-form-item><el-form-item label="模板视频"><input type="file" accept="video/mp4" :disabled="saving" @change="selectPreview" /></el-form-item><el-form-item :label="sourceProject ? '模板描述' : '创作提示词'"><el-input v-model="draft.prompt" type="textarea" :rows="5" /></el-form-item><el-form-item v-if="!sourceProject" label="生成模型（可选）"><el-select v-model="draft.modelId" clearable><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.modelId" /></el-select></el-form-item><el-form-item v-if="!sourceProject" label="比例（可选）"><el-select v-model="draft.ratio" clearable><el-option v-for="ratio in Object.keys(imageDimensions)" :key="ratio" :value="ratio" /></el-select></el-form-item><el-form-item v-if="!sourceProject" label="视频清晰度（可选）"><el-select v-model="draft.resolution" clearable><el-option v-for="value in ['480P','720P','1080P']" :key="value" :value="value" /></el-select></el-form-item></el-form>
@@ -21,6 +21,7 @@
 </template>
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { IconCopy, IconVector } from "@tabler/icons-vue";
 import { ElMessage } from "element-plus";
 import { useRouter } from "vue-router";
 import { useWorkspaceStore, type Project } from "@/stores/workspace";
@@ -31,11 +32,13 @@ import templateMedia from "@/components/templateMedia.vue";
 import { creationTemplates, loadCreationTemplates, readTemplateFile, saveCreationTemplate, type CreationTemplate, type TemplateApplication } from "@/lib/creationTemplates";
 import { browserModelSelection, configuredBrowserModels } from "@/stores/browserGeneration";
 import { imageDimensions } from "@toonflow/node-shared/generationDefaults";
-defineProps<{ compact?: boolean }>();
+const props = defineProps<{ compact?: boolean; curated?: boolean }>();
 const emit = defineEmits<{ apply: [value: TemplateApplication] }>();
 const workspace = useWorkspaceStore(), router = useRouter();
-const professional = computed(() => workspace.creationMode === "professional");
+const professional = computed(() => !!props.curated);
 const projectPreview = ref<InstanceType<typeof templateProjectPreview>>();
+const cardMedia = new Map<string, InstanceType<typeof templateMedia>>();
+function setCardMedia(id: string, value: unknown) { if (value) cardMedia.set(id, value as InstanceType<typeof templateMedia>); else cardMedia.delete(id); }
 const sourceProject = ref<Project>(), copying = ref(false);
 const query = ref(""), searching = ref(false), searchError = ref(""), loadError = ref(""), rankedIds = ref<string[]>();
 let searchRequest: AbortController | undefined;
@@ -91,6 +94,8 @@ async function copyProject() {
   try {
     const directory = await copyTemplateProject(template);
     await workspace.openProject(directory);
+    workspace.creationMode = "professional";
+    workspace.pendingCanvasEntry = { directory };
     workspace.renameProject(directory, `${template.name} 副本`);
     preview.value = undefined;
     await router.push({ path: "/workspace", query: { returnSection: "create" } });
@@ -131,7 +136,9 @@ async function saveTemplate() {
   .caseFilters { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
   .caseCategories { flex: 1; min-width: 0; display: flex; gap: 20px; overflow: auto; margin-bottom: 0; button { flex: none; border: 0; background: none; padding: 8px 0; color: var(--el-text-color-secondary); cursor: pointer; &[aria-pressed="true"] { color: var(--el-color-primary); border-bottom: 2px solid; } } }
   .templateSearch { flex: 0 1 340px; min-width: 200px; width: 30%; margin: 0; }
-  .caseGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 6px; article { min-width: 0; }
+  .cardAction { position: absolute; right: 8px; bottom: 46px; z-index: 1; opacity: 0; pointer-events: none; transition: opacity .15s; background: var(--el-bg-color-overlay); color: var(--el-text-color-primary); }
+  @media(hover:none) { .cardAction { opacity: 1; pointer-events: auto; } }
+  .caseGrid { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 6px; article { min-width: 0; position: relative; &:hover .cardAction, &:focus-within .cardAction { opacity: 1; pointer-events: auto; } &:hover .caseCard::after { opacity: 1; } }
     .caseCard { position: relative; width: 100%; padding: 0; border: 0; border-radius: 10px; overflow: hidden; text-align: left; color: var(--el-text-color-primary); background: var(--el-bg-color); cursor: pointer;
       &::after { content: ""; position: absolute; inset: 0; background: rgba(100,100,100,.25); opacity: 0; pointer-events: none; transition: opacity .15s; }
       &:hover::after { opacity: 1; }
@@ -145,6 +152,7 @@ async function saveTemplate() {
   @media(max-width:420px) { .caseGrid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; } }
 }
 
+.detailHeader { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-right: 32px; h3 { margin: 0; } }
 .detailLayout { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(260px,1fr); gap: 28px; height: min(680px,76dvh); .detailMedia { min-height: 0; background: #161616; border-radius: 12px; overflow: hidden; } .detailContent { min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: stretch; h3 { margin-top: 0; } .templatePrompt { white-space: pre-wrap; line-height: 1.8; margin: 0; overflow: auto; } .templateParameters { color: var(--el-text-color-secondary); font-size: 12px; margin-top: auto; padding-top: 20px; } .el-button { flex-shrink: 0; margin-top: 10px; } } @media(max-width:700px) { grid-template-columns: 1fr; grid-template-rows: minmax(180px,1fr) minmax(180px,1fr); height: 76dvh; gap: 16px; } }
 </style>
 <style lang="scss">

@@ -419,6 +419,11 @@ defineExpose({
     return panel.importBrowserResult(...args);
   },
   canvasId, canvasReady, canvasListReady, getCanvasContext, readDocumentNode, readDocumentNodes, focusDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, resolveDocumentNodeFile, performFileAction, flushSave, cancelSave,
+  createInitialNode: async (type: string) => {
+    const panel = activeInstance.value;
+    if (!panel) throw new Error("画布尚未就绪");
+    return panel.createInitialNode(type);
+  },
   addNodeAtPointer: () => activeInstance.value?.addNodeAtPointer(),
   mentionSource,
   get saveBusy() { return fileActionBusy || [...instances.values()].some(panel => panel.saveBusy); },

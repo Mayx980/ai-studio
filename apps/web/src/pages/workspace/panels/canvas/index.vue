@@ -424,7 +424,7 @@ const beginBrowserWorkflow: BeginBrowserWorkflow = async (prompt, kind, referenc
   } };
 };
 
-defineExpose({ beginBrowserWorkflow, waitUntilReady, importBrowserResult, canvasId, canvasReady, getCanvasContext, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
+defineExpose({ beginBrowserWorkflow, waitUntilReady, importBrowserResult, canvasId, canvasReady, getCanvasContext, createInitialNode, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
   getCanvases: (signal?: AbortSignal) => {
     if (!canvasMenuRef.value) throw new Error("画布菜单尚未就绪");
     return canvasMenuRef.value.getCanvases(signal);
@@ -668,11 +668,25 @@ function openNodeMenu(event: MouseEvent) {
 }
 
 function createEmptyNode(type: string) {
-  if (!props.active || props.settingsVisible || !project.value?.directory || !canvasReady.value || flow.getNodes.value.length) return;
+  if (flow.getNodes.value.length) return;
+  void createInitialNode(type).catch(error => ElMessage.error(error instanceof Error ? error.message : "节点创建失败"));
+}
+async function createInitialNode(type: string) {
+  await waitUntilReady();
+  if (!props.active || props.settingsVisible || !creationNodes.value.some(item => item.type === type)) throw new Error("该节点尚未启用或画布不可编辑");
   const rect = canvasElement.value?.getBoundingClientRect();
-  if (!rect) return;
+  if (!rect || !nodeMenuRef.value) throw new Error("画布正在初始化，请稍后重试");
+  const ids = new Set(flow.getNodes.value.map(node => node.id));
   const center = screenToFlowCoordinate({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-  void nodeMenuRef.value?.addNode(type, { x: center.x - 200, y: center.y - 160 });
+  await nodeMenuRef.value.addNode(type, { x: center.x - 200, y: center.y - 160 });
+  const node = flow.getNodes.value.find(item => !ids.has(item.id));
+  if (!node) throw new Error("节点创建失败，项目已保留，可在画布重试");
+  await nextTick();
+  await waitUntilReady();
+  await waitForControlValue(() => node.dimensions.width > 0 && node.dimensions.height > 0 ? true : undefined, AbortSignal.any([canvasController.signal, AbortSignal.timeout(10000)]));
+  await fitCreationNodes([node.id]);
+  await flushCanvasSave();
+  return node.id;
 }
 
 function addNodeAtPointer() {
