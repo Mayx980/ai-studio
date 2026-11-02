@@ -5,6 +5,7 @@ import { settingsStorage } from "@/stores/settings";
 import axios from "axios";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import type { AgentAttachment } from "@/components/agent/types";
+import { currentAccount } from "@/stores/prototypeAccount";
 
 export type Project = {
   directory: string;
@@ -73,8 +74,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   return { creationMode, project, projectList, pendingAgentMessage, pendingAgentSession, pendingCanvasEntry, createProject, openProject, renameProject, removeProject };
 }, {
   persist: {
-    key: browserWorkspaceMode ? "aiStudio.browserProjects" : "toonflow.projectList",
-    storage: browserWorkspaceMode ? { getItem: (key: string) => localStorage.getItem(key) ?? settingsStorage.getItem("toonflow.projectList"), setItem: (key: string, value: string) => localStorage.setItem(key, value) } : settingsStorage,
+    key: browserWorkspaceMode ? currentAccount.value?.id === "admin" ? "aiStudio.browserProjects.admin" : "aiStudio.browserProjects" : "toonflow.projectList",
+    storage: browserWorkspaceMode ? { getItem: (key: string) => localStorage.getItem(key) ?? (key === "aiStudio.browserProjects" ? settingsStorage.getItem("toonflow.projectList") : null), setItem: (key: string, value: string) => localStorage.setItem(key, value) } : settingsStorage,
     pick: ["project", "projectList"],
   },
 });

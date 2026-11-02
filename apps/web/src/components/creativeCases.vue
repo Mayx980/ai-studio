@@ -15,7 +15,7 @@
     </el-dialog>
     <el-dialog v-model="uploadOpen" :title="sourceProject ? '制作项目模板' : '上传个人模板'" :closeOnClickModal="!saving" :closeOnPressEscape="!saving" :showClose="!saving" width="min(640px, 94vw)" alignCenter appendToBody destroyOnClose class="templateUpload">
       <el-form :disabled="saving" labelPosition="top"><el-form-item label="模板名称"><el-input v-model="draft.name" maxlength="60" /></el-form-item><el-form-item label="分类"><el-select v-model="draft.category" placeholder="选择分类"><el-option v-for="category in ['产品展示','达人种草','短剧带货','真实测评']" :key="category" :value="category" /></el-select></el-form-item><el-form-item label="模板视频"><input type="file" accept="video/mp4" :disabled="saving" @change="selectPreview" /></el-form-item><el-form-item :label="sourceProject ? '模板描述' : '创作提示词'"><el-input v-model="draft.prompt" type="textarea" :rows="5" /></el-form-item><el-form-item v-if="!sourceProject" label="生成模型（可选）"><el-select v-model="draft.modelId" clearable><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.modelId" /></el-select></el-form-item><el-form-item v-if="!sourceProject" label="比例（可选）"><el-select v-model="draft.ratio" clearable><el-option v-for="ratio in Object.keys(imageDimensions)" :key="ratio" :value="ratio" /></el-select></el-form-item><el-form-item v-if="!sourceProject" label="视频清晰度（可选）"><el-select v-model="draft.resolution" clearable><el-option v-for="value in ['480P','720P','1080P']" :key="value" :value="value" /></el-select></el-form-item></el-form>
-      <template #footer><el-button type="primary" :loading="saving" @click="saveTemplate">保存到个人模板中心</el-button></template>
+      <template #footer><el-button type="primary" :loading="saving" @click="saveTemplate">提交审核</el-button></template>
     </el-dialog>
   </section>
 </template>
@@ -125,7 +125,7 @@ async function saveTemplate() {
     const snapshot = sourceProject.value ? await captureTemplateProject(sourceProject.value.directory) : undefined;
     await saveCreationTemplate({ ...draft, category: draft.category, kind: "video", resolution: draft.resolution }, uploadFile.value, [], snapshot);
     invalidateSearch();
-    uploadOpen.value = false; ElMessage.success("模板已保存在当前浏览器，跨项目可用");
+    uploadOpen.value = false; ElMessage.success("模板已提交，审核通过后公开展示");
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "模板保存失败"); }
   finally { saving.value = false; }
 }

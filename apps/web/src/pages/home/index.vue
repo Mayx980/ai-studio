@@ -10,10 +10,11 @@
         <button :aria-current="homeSection === 'history' ? 'page' : undefined" @click="homeSection = 'history'"><icon-history :size="18" />历史对话</button>
         <button @click="homeSection = 'assets'"><icon-photo :size="18" />个人资产</button>
         <button :aria-current="homeSection === 'projects' ? 'page' : undefined" @click="homeSection = 'projects'"><icon-folder :size="18" />我的项目</button>
+        <button :aria-current="homeSection === 'reviews' ? 'page' : undefined" @click="homeSection = 'reviews'"><icon-check :size="18" />{{ currentAccount?.role === 'admin' ? '模板审核' : '我的模板提交' }}</button>
       </nav>
       <p>最近项目</p>
       <button v-for="item in recentProjects" :key="item.directory" class="recentProject" :title="item.name" @click="openProject(item)"><projectThumbnail :directory="item.directory" /><span><strong>{{ item.name }}</strong><small>{{ formatTime(item.lastOpenedAt) }}</small></span></button>
-      <div class="sidebarFooter"><el-button text :icon="IconPalette" @click="settingsVisible = true">外观与设置</el-button></div>
+      <div class="sidebarFooter"><accountMenu /><el-button text :icon="IconPalette" @click="settingsVisible = true">外观与设置</el-button></div>
     </aside>
     <el-main class="pageContent">
       <section v-if="homeSection === 'create'" class="homeLanding" aria-label="首页">
@@ -23,6 +24,7 @@
         <creativeCases curated />
       </section>
       <creativeCases ref="templateCenter" v-show="homeSection === 'templates'" @apply="applyCase" />
+      <templateReview v-if="homeSection === 'reviews'" />
       <section v-if="homeSection === 'history'" class="homeHistory" aria-label="历史对话">
         <h2>历史对话</h2><el-input v-model="historySearch" placeholder="搜索对话名称或项目" aria-label="搜索历史对话" clearable />
         <p v-if="historyLoading" role="status">正在读取历史对话…</p><el-alert v-if="historyError" :title="historyError" type="error" :closable="false" />
@@ -57,8 +59,11 @@ import settings from "@/components/settings/index.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import workspacePicker from "./workspacePicker.vue";
 import bg from "./bg.vue";
+import accountMenu from "@/components/accountMenu.vue";
+import templateReview from "@/components/templateReview.vue";
+import { currentAccount } from "@/stores/prototypeAccount";
 const workspaceStore = useWorkspaceStore(), router = useRouter(), route = useRoute();
-const homeSection = computed({ get: () => ["create", "templates", "history", "assets", "projects"].includes(String(route.query.section)) ? String(route.query.section) : "create", set: section => { void router.replace({ path: "/home", query: { section } }); } });
+const homeSection = computed({ get: () => ["create", "templates", "history", "assets", "projects", "reviews"].includes(String(route.query.section)) ? String(route.query.section) : "create", set: section => { void router.replace({ path: "/home", query: { section } }); } });
 const settingsVisible = ref(false), creating = ref(false), opening = ref(false), sortDescending = ref(true), viewMode = ref("grid"), projectSearch = ref("");
 const templateCenter = ref<InstanceType<typeof creativeCases>>(), relocationPicker = ref<InstanceType<typeof workspacePicker>>();
 const sortedProjects = computed(() => [...workspaceStore.projectList].sort((a, b) => sortDescending.value ? b.lastOpenedAt - a.lastOpenedAt : a.lastOpenedAt - b.lastOpenedAt));
@@ -210,6 +215,6 @@ async function openHistory(item: ConversationHistory) {
     .projectItems { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 12px; &.listView { grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); .projectEntry { flex-direction: row; :deep(.projectThumbnail) { width: 80px; height: 96px; } } } .projectCard { position: relative; border-radius: 12px; } .projectEntry { display: flex; flex-direction: column; width: 100%; border: 0; padding: 0; background: none; color: inherit; text-align: left; cursor: pointer; :deep(.projectThumbnail) { width: 100%; height: 96px; } .projectInfo { min-width: 0; padding: 10px; display: grid; gap: 6px; strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } small { font-size: 10px; color: var(--el-text-color-secondary); } } } .projectActions { display: flex; justify-content: flex-end; padding: 2px 6px; .el-button { width: 26px; height: 26px; margin: 0; padding: 0; } } }
     .homeHistory { .historyEntry { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--el-border-color-light); border-radius: 10px; margin: 8px 0; .historyOpen { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; border: 0; background: none; color: inherit; cursor: pointer; span { display: grid; gap: 4px; min-width: 0; } strong { font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } small { font-size: 11px; color: var(--el-text-color-secondary); } } } }
   }
-  @media(max-width:700px) { padding-left: 0; flex-direction: column; .studioSidebar { position: relative; inset: auto; width: 100%; padding: 12px; gap: 10px; .studioBrand, .recentProject, > p { display: none; } nav { display: flex; overflow: auto; button { flex: none; padding: 8px; } } > .el-button { align-self: flex-start; min-width: 100px; } .sidebarFooter { position: absolute; right: 10px; top: 12px; } } .pageContent { padding: 16px; .nodeShortcuts { gap: 8px; button span { height: 52px; } } } }
+  @media(max-width:700px) { padding-left: 0; flex-direction: column; .studioSidebar { position: relative; inset: auto; width: 100%; padding: 12px; gap: 10px; .studioBrand, .recentProject, > p { display: none; } nav { display: flex; overflow: auto; button { flex: none; padding: 8px; } } > .el-button { align-self: flex-start; min-width: 100px; } .sidebarFooter { display: flex; justify-content: space-between; margin: 0; } } .pageContent { padding: 16px; .nodeShortcuts { gap: 8px; button span { height: 52px; } } } }
 }
 </style>

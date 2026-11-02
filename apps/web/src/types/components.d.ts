@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     About: typeof import('./../components/settings/panels/about.vue')['default']
+    AccountMenu: typeof import('./../components/accountMenu.vue')['default']
     Agent: typeof import('./../components/agent/index.vue')['default']
     AttachmentList: typeof import('./../components/agent/attachmentList.vue')['default']
     AttachmentPreview: typeof import('./../components/agent/attachmentPreview.vue')['default']
@@ -90,6 +91,7 @@ declare module 'vue' {
     IconArrowGuide: typeof import('@tabler/icons-vue')['IconArrowGuide']
     IconArrowRight: typeof import('@tabler/icons-vue')['IconArrowRight']
     IconBorderRadius: typeof import('@tabler/icons-vue')['IconBorderRadius']
+    IconCheck: typeof import('@tabler/icons-vue')['IconCheck']
     IconExternalLink: typeof import('@tabler/icons-vue')['IconExternalLink']
     IconFolder: typeof import('@tabler/icons-vue')['IconFolder']
     IconHistory: typeof import('@tabler/icons-vue')['IconHistory']
@@ -102,6 +104,7 @@ declare module 'vue' {
     IconSitemap: typeof import('@tabler/icons-vue')['IconSitemap']
     IconSparkles: typeof import('@tabler/icons-vue')['IconSparkles']
     IconTextSize: typeof import('@tabler/icons-vue')['IconTextSize']
+    IconUser: typeof import('@tabler/icons-vue')['IconUser']
     IconX: typeof import('@tabler/icons-vue')['IconX']
     KeyInput: typeof import('./../components/settings/panels/general/keyInput.vue')['default']
     LanguageModel: typeof import('./../components/settings/panels/languageModel/index.vue')['default']
@@ -133,6 +136,7 @@ declare module 'vue' {
     SkillMenu: typeof import('./../components/agent/skillMenu.vue')['default']
     TemplateMedia: typeof import('./../components/templateMedia.vue')['default']
     TemplateProjectPreview: typeof import('./../components/templateProjectPreview.vue')['default']
+    TemplateReview: typeof import('./../components/templateReview.vue')['default']
     TfAccount: typeof import('./../components/settings/tfAccount.vue')['default']
     TfRechargeDialog: typeof import('./../components/settings/tfRechargeDialog.vue')['default']
     ToolMessage: typeof import('./../components/agent/toolMessage.vue')['default']
