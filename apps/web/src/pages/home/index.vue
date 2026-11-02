@@ -1,21 +1,7 @@
 <template>
   <el-container class="home">
     <bg class="pageBackground" />
-    <aside class="studioSidebar" aria-label="主导航">
-      <button class="studioBrand" aria-label="AFXEN 首页" @click="homeSection = 'create'"><brandLogo compact /><span>AFXEN</span></button>
-      <el-button type="primary" :icon="IconHome" @click="homeSection = 'create'">首页</el-button>
-      <nav>
-        <button :disabled="creating || opening" @click="startAgent"><icon-sparkles :size="18" />Agent 助手</button>
-        <button :aria-current="homeSection === 'templates' ? 'page' : undefined" @click="homeSection = 'templates'"><icon-template :size="18" />模板中心</button>
-        <button :aria-current="homeSection === 'history' ? 'page' : undefined" @click="homeSection = 'history'"><icon-history :size="18" />历史对话</button>
-        <button @click="homeSection = 'assets'"><icon-photo :size="18" />个人资产</button>
-        <button :aria-current="homeSection === 'projects' ? 'page' : undefined" @click="homeSection = 'projects'"><icon-folder :size="18" />我的项目</button>
-        <button :aria-current="homeSection === 'reviews' ? 'page' : undefined" @click="homeSection = 'reviews'"><icon-check :size="18" />{{ currentAccount?.role === 'admin' ? '模板审核' : '我的模板提交' }}</button>
-      </nav>
-      <p>最近项目</p>
-      <button v-for="item in recentProjects" :key="item.directory" class="recentProject" :title="item.name" @click="openProject(item)"><projectThumbnail :directory="item.directory" /><span><strong>{{ item.name }}</strong><small>{{ formatTime(item.lastOpenedAt) }}</small></span></button>
-      <div class="sidebarFooter"><accountMenu /><el-button text :icon="IconPalette" @click="settingsVisible = true">外观与设置</el-button></div>
-    </aside>
+    <studioSidebar :activeSection="homeSection" :disabled="creating || opening" @navigate="homeSection = $event" @newAgent="startAgent" @openProject="openProject" @openSettings="settingsVisible = true" />
     <el-main class="pageContent">
       <section v-if="homeSection === 'create'" class="homeLanding" aria-label="首页">
         <button class="newCanvasEntry" type="button" :disabled="creating || opening" @click="createCanvas(true)"><span class="canvasPlus"><icon-plus :size="28" /></span><strong>新建画布创作</strong></button>
@@ -45,23 +31,21 @@ import axios from "axios";
 import { computed, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { IconHome, IconPlus, IconPalette, IconFolderOpen, IconTemplate, IconEdit, IconTrash, IconSortAscending, IconSortDescending, IconFileText, IconMovie, IconPhoto, IconVideo, IconVolume } from "@tabler/icons-vue";
+import { IconPlus, IconFolderOpen, IconTemplate, IconEdit, IconTrash, IconSortAscending, IconSortDescending, IconFileText, IconMovie, IconPhoto, IconVideo, IconVolume } from "@tabler/icons-vue";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { useWorkspaceStore, type Project } from "@/stores/workspace";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { applyTemplateParameters, type TemplateApplication } from "@/lib/creationTemplates";
 import { listBrowserConversations, renameBrowserConversation, removeBrowserConversation } from "@/components/agent/browserConversations";
 import type { AgentHistory } from "@/components/agent/types";
-import brandLogo from "@/components/brandLogo.vue";
 import creativeCases from "@/components/creativeCases.vue";
 import projectThumbnail from "@/components/projectThumbnail.vue";
 import settings from "@/components/settings/index.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import workspacePicker from "./workspacePicker.vue";
 import bg from "./bg.vue";
-import accountMenu from "@/components/accountMenu.vue";
+import studioSidebar from "@/components/studioSidebar.vue";
 import templateReview from "@/components/templateReview.vue";
-import { currentAccount } from "@/stores/prototypeAccount";
 const workspaceStore = useWorkspaceStore(), router = useRouter(), route = useRoute();
 const homeSection = computed({ get: () => ["create", "templates", "history", "assets", "projects", "reviews"].includes(String(route.query.section)) ? String(route.query.section) : "create", set: section => { void router.replace({ path: "/home", query: { section } }); } });
 const settingsVisible = ref(false), creating = ref(false), opening = ref(false), sortDescending = ref(true), viewMode = ref("grid"), projectSearch = ref("");
@@ -199,13 +183,6 @@ async function openHistory(item: ConversationHistory) {
 <style scoped lang="scss">
 .home { position: relative; padding-left: 220px; isolation: isolate; min-height: 100dvh;
   .pageBackground { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
-  .studioSidebar { position: fixed; inset: 0 auto 0 0; z-index: 6; width: 220px; display: flex; flex-direction: column; gap: 16px; padding: 30px 20px; border-right: 1px solid var(--el-border-color-light); background: var(--el-bg-color);
-    .studioBrand { display: flex; align-items: center; gap: 8px; font-size: 24px; font-weight: 700; color: var(--el-text-color-primary); border: 0; background: transparent; padding: 0 0 14px; cursor: pointer; }
-    nav { display: grid; gap: 5px; button { display: flex; align-items: center; gap: 10px; padding: 12px; border: 0; border-radius: 8px; background: transparent; color: var(--el-text-color-regular); font: inherit; cursor: pointer; &[aria-current="page"] { background: var(--el-color-primary-light-9); color: var(--el-color-primary); } } }
-    p { margin: 8px 10px 0; color: var(--el-text-color-secondary); font-size: 12px; }
-    .recentProject { display: flex; gap: 8px; align-items: center; padding: 8px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; :deep(.projectThumbnail) { width: 42px; height: 42px; border-radius: 8px; } span { min-width: 0; display: grid; gap: 5px; } strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } small { font-size: 10px; color: var(--el-text-color-secondary); } }
-    .sidebarFooter { margin-top: auto; }
-  }
   .pageContent { padding: 28px clamp(20px, 3vw, 48px) 40px; min-width: 0;
     h2 { margin: 0; font-size: 17px; }
     .sectionHeader { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
@@ -215,6 +192,6 @@ async function openHistory(item: ConversationHistory) {
     .projectItems { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 12px; &.listView { grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); .projectEntry { flex-direction: row; :deep(.projectThumbnail) { width: 80px; height: 96px; } } } .projectCard { position: relative; border-radius: 12px; } .projectEntry { display: flex; flex-direction: column; width: 100%; border: 0; padding: 0; background: none; color: inherit; text-align: left; cursor: pointer; :deep(.projectThumbnail) { width: 100%; height: 96px; } .projectInfo { min-width: 0; padding: 10px; display: grid; gap: 6px; strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } small { font-size: 10px; color: var(--el-text-color-secondary); } } } .projectActions { display: flex; justify-content: flex-end; padding: 2px 6px; .el-button { width: 26px; height: 26px; margin: 0; padding: 0; } } }
     .homeHistory { .historyEntry { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--el-border-color-light); border-radius: 10px; margin: 8px 0; .historyOpen { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; border: 0; background: none; color: inherit; cursor: pointer; span { display: grid; gap: 4px; min-width: 0; } strong { font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } small { font-size: 11px; color: var(--el-text-color-secondary); } } } }
   }
-  @media(max-width:700px) { padding-left: 0; flex-direction: column; .studioSidebar { position: relative; inset: auto; width: 100%; padding: 12px; gap: 10px; .studioBrand, .recentProject, > p { display: none; } nav { display: flex; overflow: auto; button { flex: none; padding: 8px; } } > .el-button { align-self: flex-start; min-width: 100px; } .sidebarFooter { display: flex; justify-content: space-between; margin: 0; } } .pageContent { padding: 16px; .nodeShortcuts { gap: 8px; button span { height: 52px; } } } }
+  @media(max-width:700px) { padding-left: 68px; .pageContent { padding: 16px; .nodeShortcuts { gap: 8px; button span { height: 52px; } } } }
 }
 </style>

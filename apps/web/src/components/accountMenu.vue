@@ -1,7 +1,7 @@
 <template>
-  <el-dropdown v-if="currentAccount" class="accountMenu" @command="logout">
-    <el-button text aria-label="账号菜单"><icon-user :size="16" />{{ currentAccount.name }}</el-button>
-    <template #dropdown><el-dropdown-menu><el-dropdown-item command="switch">切换账号</el-dropdown-item><el-dropdown-item command="logout">退出登录</el-dropdown-item></el-dropdown-menu></template>
+  <el-dropdown v-if="currentAccount" class="accountMenu" @command="handleCommand">
+    <el-button class="userCenterButton" text aria-label="用户中心"><icon-user :size="20" /><span class="userCenterText"><strong class="userCenterLabel">用户中心</strong><small class="accountName">{{ currentAccount.name }}</small></span></el-button>
+    <template #dropdown><el-dropdown-menu><el-dropdown-item command="settings">外观与设置</el-dropdown-item><el-dropdown-item command="switch">切换账号</el-dropdown-item><el-dropdown-item command="logout">退出登录</el-dropdown-item></el-dropdown-menu></template>
   </el-dropdown>
 </template>
 <script setup lang="ts">
@@ -9,6 +9,8 @@ import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { currentAccount, signOutPrototype } from "@/stores/prototypeAccount";
 const router = useRouter();
+const emit = defineEmits<{ openSettings: [] }>();
+function handleCommand(command: string) { if (command === "settings") emit("openSettings"); else void logout(); }
 let leaving = false;
 async function logout() {
   if (leaving) return;
@@ -22,3 +24,7 @@ async function logout() {
   finally { leaving = false; }
 }
 </script>
+
+<style scoped lang="scss">
+.accountMenu { .userCenterButton { display: flex; justify-content: flex-start; gap: 10px; height: 54px; width: 100%; border-radius: 12px; color: #d6d9df; background: #202227; :deep(> span) { display: flex; align-items: center; gap: 10px; } .userCenterText { display: grid; gap: 4px; text-align: left; strong { font-size: 13px; font-weight: 500; } small { font-size: 11px; color: #969aa5; } } } }
+</style>

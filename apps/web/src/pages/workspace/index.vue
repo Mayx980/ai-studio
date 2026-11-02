@@ -25,7 +25,7 @@
         :fileAction="performFileAction"
         :saveNode="saveDocumentNode" />
     </keep-alive>
-    <workspaceMenu class="workspaceMenu" @openSettings="settingsVisible = true" />
+    <workspaceMenu v-show="workspaceStore.creationMode === 'professional'" class="workspaceMenu" @openSettings="settingsVisible = true" />
     <div v-show="workspaceStore.creationMode === 'professional'" class="canvasToolDock">
       <div class="bottomTools">
         <el-card v-if="activePanel === 'canvas'" class="toolMenu" shadow="never" :bodyStyle="{ padding: '3px 6px' }">
@@ -61,7 +61,7 @@
         </el-tooltip>
       </div>
     </div>
-    <floatingAgent @enterCanvas="enterCanvas" v-model="agentVisible" :expanded="workspaceStore.creationMode === 'simple'" @resize="agentWidth = $event" />
+    <floatingAgent @openSettings="settingsVisible = true" @applyTemplate="applyAssistantTemplate" @enterCanvas="enterCanvas" v-model="agentVisible" :expanded="workspaceStore.creationMode === 'simple'" @resize="agentWidth = $event" />
     <settings v-model="settingsVisible" />
     <shortcutHelp v-model="shortcutsVisible" />
     <canvasTutorial v-if="tutorialNodeId && workspaceStore.creationMode === 'professional'" :nodeId="tutorialNodeId" :imageIds="tutorialImageIds" :focusNode="id => canvasPanelRef?.focusTutorialNode(id)" @complete="finishTutorial" />
@@ -88,6 +88,7 @@ import type { DocumentNodeOptions } from "./panels/canvas/canvasFiles";
 import workspaceMenu from "./components/workspaceMenu.vue";
 import floatingAgent from "./components/floatingAgent.vue";
 import canvasTutorial from "@/components/canvasTutorial.vue";
+import { applyTemplateParameters, type TemplateApplication } from "@/lib/creationTemplates";
 import { currentAccount } from "@/stores/prototypeAccount";
 
 provide("nodeAi", browserNodeAi);
@@ -161,6 +162,25 @@ async function startNewProject(mode: "simple" | "professional") {
   } finally { startingProject = false; }
 }
 provide("startNewProject", startNewProject);
+provide("openSidebarProject", async (directory: string) => {
+  await flushSave();
+  await workspaceStore.openProject(directory);
+  workspaceStore.creationMode = "professional";
+  workspaceStore.pendingCanvasEntry = { directory };
+});
+let applyingAssistantTemplate = false;
+async function applyAssistantTemplate(value: TemplateApplication) {
+  if (startingProject || applyingAssistantTemplate) return;
+  applyingAssistantTemplate = true;
+  try {
+    await startNewProject("simple");
+    const directory = workspaceStore.project?.directory;
+    if (!directory) throw new Error("项目创建失败");
+    applyTemplateParameters(value.template);
+    workspaceStore.pendingAgentMessage = { directory, prompt: value.prompt, attachments: value.references.map(file => ({ file, name: file.name, path: "", mimeType: file.type })), model: "", reasoningEffort: "", send: false };
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "模板应用失败"); }
+  finally { applyingAssistantTemplate = false; }
+}
 onMounted(() => { if (browserWorkspaceMode && !workspaceStore.project) void startNewProject("professional").catch(error => ElMessage.error(error.message)); });
 watch(() => workspaceStore.pendingCanvasEntry, async entry => {
   if (!entry || entry.directory !== workspaceStore.project?.directory) return;
