@@ -99,7 +99,7 @@ export function inferGenerationKind(prompt: string): ModelKind {
   return browserConfig.outputChosen ? browserConfig.outputKind : kind ?? browserConfig.outputKind;
 }
 
-export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "") {
+export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "", referenceRoles?: ("firstFrame" | "reference" | "lastFrame" | undefined)[]) {
   if (generationBusy.value) return false;
   if (!browserConfig.enabled) { generationError.value = "请先在设置 → API 配置中启用模型联调"; return false; }
   const kind: ModelKind = requestedKind ?? inferGenerationKind(prompt);
@@ -116,6 +116,10 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   if ((kind === "text" || kind === "audio") && references.length) { generationError.value = "当前文字／音频适配器仅支持文字输入，请移除引用素材；输入与素材已保留。"; return false; }
   if (references.some(file => !file.type.startsWith("image/"))) { generationError.value = "当前创作入口的参考素材仅支持图片。"; return false; }
   let firstFrameIndex: number | undefined;
+  if (referenceRoles && (referenceRoles.length !== references.length || referenceRoles.some(role => role !== undefined && !["firstFrame", "reference", "lastFrame"].includes(role)))) { generationError.value = "素材用途与图片不匹配，请重新选择素材"; return false; }
+  const selectedFirstFrame = referenceRoles?.indexOf("firstFrame") ?? -1;
+  const selectedLastFrame = referenceRoles?.indexOf("lastFrame") ?? -1;
+  if (kind !== "video" && (selectedFirstFrame >= 0 || selectedLastFrame >= 0)) { generationError.value = "首帧和尾帧用于视频生成，请选择视频产物或将图片放入参考图。素材已保留。"; return false; }
   if (kind === "video") {
     // ACT: 只识别明确编号或唯一图片的首尾帧指令；多图映射不明确时要求补充，不猜测用途。
     const rolePrompt = prompt.replace(/(?:不要|无需|不必|不需要|不使用)\s*(?:把|将)?\s*(?:图(?:片)?\s*\d+|第[一二三四五六七八九十\d]+张(?:图(?:片)?)?)?\s*(?:作为|用作|当作|设为|设置为)?\s*(?:首帧|尾帧)/g, "");
@@ -127,8 +131,9 @@ export async function generateInBrowser(prompt: string, references: File[], dire
       if (references.length === 1 && new RegExp(`(?:作为|用作|当作|设为|设置为)\\s*${role}|${role}\\s*(?:使用|用|采用|为|是)\\s*(?:这|该)`).test(rolePrompt)) return 0;
     };
     const lastFrameIndex = frameIndex("尾帧");
-    firstFrameIndex = frameIndex("首帧");
-    if (lastFrameIndex !== undefined || /(?:作为|用作|设为|设置为)\s*尾帧|分别.{0,6}首尾帧/.test(rolePrompt)) { generationError.value = "当前视频模型不支持尾帧，素材已保留。请更换支持尾帧的模型或修改要求。"; return false; }
+    firstFrameIndex = selectedFirstFrame >= 0 ? selectedFirstFrame : frameIndex("首帧");
+    if (selectedLastFrame >= 0 || lastFrameIndex !== undefined || /(?:作为|用作|设为|设置为)\s*尾帧|分别.{0,6}首尾帧/.test(rolePrompt)) { generationError.value = "当前视频模型不支持尾帧，素材已保留。请更换支持尾帧的模型或修改要求。"; return false; }
+    if ((referenceRoles?.filter(role => role === "firstFrame").length ?? 0) > 1 || selectedFirstFrame >= 0 && frameIndex("首帧") !== undefined && frameIndex("首帧") !== selectedFirstFrame) { generationError.value = "首帧选择与输入要求冲突，请确认后重试。素材已保留。"; return false; }
     if (firstFrameIndex !== undefined && (!references[firstFrameIndex] || references.length !== 1)) { generationError.value = "当前首帧模式仅接受一张图片，请仅保留指定的首帧图片；其他图片不会被静默忽略。"; return false; }
     if (firstFrameIndex === undefined && /(?:作为|用作|设为|设置为)\s*首帧/.test(rolePrompt)) { generationError.value = "请明确指定首帧图片，例如“图1作为首帧”。"; return false; }
   }

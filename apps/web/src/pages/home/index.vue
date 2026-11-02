@@ -1,5 +1,5 @@
 <template>
-  <el-container class="home">
+  <el-container class="home" :class="{ materialSplitActive: !!materialEditorState }" :inert="!!materialEditorState">
     <bg class="pageBackground" />
     <aside class="studioSidebar" aria-label="主导航">
       <button class="studioBrand" @click="homeSection = 'create'">ai-studio</button>
@@ -20,7 +20,7 @@
           <el-image class="brandLogo" :src="logoUrl" fit="contain" alt="ai-studio" />
           <h1>ai-studio</h1>
         </div>
-        <div class="promptArea">
+        <div class="promptArea" :class="{ materialSplit: !!materialEditorState }" :inert="!!materialEditorState">
           <creationModeSwitch v-model="workspaceStore.creationMode" @update:modelValue="changeCreationMode" />
           <el-card class="promptCard" :class="{ draggingAttachments }" shadow="never" :bodyStyle="{ padding: '20px' }" :footerStyle="{ padding: '12px 16px' }" @dragenter.capture="dragEnterAttachments" @dragover.capture="dragOverAttachments" @dragleave.capture="dragLeaveAttachments" @drop.capture="dropAttachments">
             <div v-if="draggingAttachments" class="attachmentDropOverlay" role="status" aria-live="polite">
@@ -29,7 +29,8 @@
               <span>图片、视频、文档或代码文件</span>
             </div>
             <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="creating || opening" @change="selectAttachments" />
-            <attachmentList v-if="promptAttachments.length" class="promptAttachments" numbered :attachments="promptAttachments" removable restorable :disabled="creating || opening" @remove="promptAttachments.splice($event, 1)" @restore="restoreAttachment" />
+            <simpleReferenceSlots v-if="workspaceStore.creationMode === 'simple'" v-model="promptAttachments" :directory="workspaceDirectory" :ensureDirectory="ensureMaterialDirectory" :disabled="creating || opening" />
+            <attachmentList v-if="unassignedPromptAttachments.length" class="promptAttachments" numbered :attachments="unassignedPromptAttachments" removable restorable :disabled="creating || opening" @remove="removePromptAttachment($event)" @restore="restorePromptAttachment" />
             <creationPrompt ref="promptInput" v-model="prompt" :disabled="creating || opening" :placeholder="promptPlaceholder" @paste="pasteAttachments" @send="createProject()" />
             <template #footer>
               <div class="composerFooter">
@@ -135,6 +136,8 @@ import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import settings from "@/components/settings/index.vue";
 import bg from "./bg.vue";
+import simpleReferenceSlots from "@/components/simpleReferenceSlots.vue";
+import { materialEditorState } from "@/stores/materialEditor";
 import creationModeSwitch from "@/components/creationModeSwitch.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import creativeCases from "@/components/creativeCases.vue";
@@ -176,6 +179,14 @@ const relocationPicker = ref<InstanceType<typeof workspacePicker>>();
 const prompt = ref("");
 const promptInput = ref<InstanceType<typeof creationPrompt>>();
 const promptAttachments = ref<AgentAttachment[]>([]);
+const unassignedPromptAttachments = computed(() => workspaceStore.creationMode === "simple" ? promptAttachments.value.filter(item => !item.referenceRole) : promptAttachments.value);
+function removePromptAttachment(index: number) { const item = unassignedPromptAttachments.value[index]; promptAttachments.value = promptAttachments.value.filter(value => value !== item); }
+function restorePromptAttachment(index: number) { void restoreAttachment(promptAttachments.value.indexOf(unassignedPromptAttachments.value[index]!)); }
+async function ensureMaterialDirectory() {
+  const directory = workspaceDirectory.value || (browserWorkspaceMode ? await browserProjectPickerRef.value?.choose() : await promptWorkspacePicker.value?.chooseDirectory());
+  if (directory) workspaceDirectory.value = directory;
+  return directory || undefined;
+}
 const attachmentInput = ref<HTMLInputElement>();
 const attachmentAccept = `image/*,video/*,${readableFileAccept}`;
 const draggingAttachments = ref(false);
@@ -516,6 +527,7 @@ async function createProject(fromPrompt = true) {
   position: relative;
   padding-left: 220px;
   isolation: isolate;
+  &.materialSplitActive { isolation: auto; }
 
   .homeHistory { padding-top: 24px; .historyOpen { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; } .historyEntry { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 10px; margin: 6px 0; border: 1px solid var(--el-border-color-light); border-radius: 12px; background: var(--el-bg-color); color: var(--el-text-color-primary); text-align: left; cursor: pointer; span { display: grid; gap: 6px; } small { color: var(--el-text-color-secondary); font-size: 11px; } strong { font-size: 13px; } &:hover { border-color: var(--el-color-primary); } } }
   .homeAssets { padding-top: 24px; :deep(.assetLibrary) { width: 100%; max-height: none; } }
@@ -589,6 +601,9 @@ async function createProject(fromPrompt = true) {
       }
 
       .promptArea {
+          &.materialSplit { position: fixed; z-index: 1901; left: 12px; top: 72px; width: calc(50vw - 24px); max-width: none; max-height: calc(100dvh - 92px); overflow: auto;
+            @media(max-width:700px) { left: 8px; top: 8px; width: calc(100vw - 16px); max-height: calc(50dvh - 16px); }
+          }
         position: relative;
 
 

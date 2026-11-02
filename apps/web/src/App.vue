@@ -6,6 +6,7 @@
           <component :is="currentComponent" />
         </transition>
       </router-view>
+      <customMaterialEditor />
       <ffmpegRequired />
       <updateBox
         v-if="updateBoxBuild && !installFailure"
@@ -39,6 +40,7 @@
 </template>
 
 <script setup lang="ts">
+import customMaterialEditor from "@/components/customMaterialEditor.vue";
 import { computed, onBeforeUnmount, ref, shallowRef, watch, watchEffect } from "vue";
 import { ElMessage, useZIndex } from "element-plus";
 import { elementLocales } from "@toonflow/i18n/elementPlus";

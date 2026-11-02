@@ -5,6 +5,7 @@
 </template>
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { captureVideoFrame } from "@/lib/videoFrame";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { isPublicTemplateMedia, templateDirectory, type TemplateMedia } from "@/lib/creationTemplates";
 const props = defineProps<{ media: TemplateMedia; controls?: boolean }>();
@@ -20,18 +21,7 @@ watch(() => props.media, async (media, _previous, cleanup) => {
 async function referenceFrame() {
   const player = video.value;
   if (!player || failed.value) throw new Error("视频尚未就绪，无法读取参考帧");
-  if (player.readyState < 2) {
-    await new Promise<void>((resolve, reject) => {
-      const cleanup = () => { clearTimeout(timer); player.removeEventListener("loadeddata", ready); player.removeEventListener("error", fail); };
-      const ready = () => { cleanup(); resolve(); }, fail = () => { cleanup(); reject(new Error("视频参考帧读取失败")); };
-      const timer = setTimeout(fail, 15000); player.addEventListener("loadeddata", ready, { once: true }); player.addEventListener("error", fail, { once: true }); player.load();
-    });
-  }
-  const canvas = document.createElement("canvas"); canvas.width = player.videoWidth; canvas.height = player.videoHeight;
-  const context = canvas.getContext("2d"); if (!context || !canvas.width || !canvas.height) throw new Error("视频没有可读取的画面");
-  context.drawImage(player, 0, 0);
-  const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error("参考帧转换失败")), "image/png"));
-  return new File([blob], "模板视频参考帧.png", { type: "image/png" });
+  return captureVideoFrame(player);
 }
 defineExpose({ referenceFrame });
 </script>

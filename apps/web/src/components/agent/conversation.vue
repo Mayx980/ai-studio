@@ -2,7 +2,7 @@
   <div class="agentConversation">
     <div class="messageViewport t-chat t-chat--normal">
       <div ref="messageList" class="messageList t-chat__list" role="region" aria-label="对话消息" tabindex="0">
-        <chat-item v-if="!messages.length && !disabled" role="assistant" variant="text">
+        <chat-item v-if="!messages.length && !disabled && !props.materialEditor" role="assistant" variant="text">
           <template #content>
             <section class="welcomeMessage" aria-label="开始新对话">
               <div class="welcomeHeader">
@@ -56,7 +56,7 @@
                   </template>
                   <attachmentList v-if="item.attachments?.length" :attachments="item.attachments" :directory="directory" />
                   <div v-if="item.role === 'user'" class="messageText"><mentionContent :content="item.content" :mentions="item.mentions" :directory="directory" /></div>
-                  <browserModelResults v-if="item.browserResultIds?.length && !item.professional" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showCanvas="false" :showReference="false" :disabled="locked" @reference="referenceGeneratedFile" />
+                  <browserModelResults v-if="item.browserResultIds?.length && !item.professional" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showCanvas="false" :showReference="false" :applicationLabel="props.materialEditor ? props.materialLabel : undefined" :framePosition="props.materialRole === 'lastFrame' ? 'last' : 'first'" :disabled="locked" @busy="setMaterialBusy" @apply="emit('applyMaterial', $event)" @reference="referenceGeneratedFile" />
                   <professionalCreation v-if="item.professional && directory" :state="item.professional" :directory="directory" :stopToken="professionalStopToken" :attachments="messages.find(message => message.id === item.replyTo)?.attachments ?? []" :disabled="props.disabled || busy || browserSubmitting || deletingId !== undefined" @busy="professionalBusy = $event" @change="saveProfessionalProgress" @results="item.browserResultIds = $event" />
                   <div v-if="item.creationChoice && !item.creationChoice.resolved" class="creationChoices" role="group" aria-label="选择创作内容">
                     <p>{{ item.creationChoice.needsDetails ? "请先补充创作主体或用途，再确认要生成的内容。" : "你希望生成哪种内容？确认后我会在画布搭建节点和连线。" }}</p>
@@ -79,7 +79,7 @@
                 <el-tooltip v-if="item.role === 'assistant'" content="引用到输入框" placement="top">
                   <el-button class="messageAction" text circle :disabled="locked" aria-label="引用到输入框" @click="referenceMessageResults(item)"><icon-paperclip :size="14" /></el-button>
                 </el-tooltip>
-                <el-tooltip v-if="item.role === 'assistant' && !item.professional && (sessionMode ?? workspaceStore.creationMode) === 'simple'" content="加入画布" placement="top"><el-button class="messageAction" text circle :disabled="locked" aria-label="加入画布" @click="addMessageToCanvas(item)"><icon-square-plus :size="14" /></el-button></el-tooltip>
+                <el-tooltip v-if="item.role === 'assistant' && !item.professional && !props.materialEditor && (sessionMode ?? workspaceStore.creationMode) === 'simple'" content="加入画布" placement="top"><el-button class="messageAction" text circle :disabled="locked" aria-label="加入画布" @click="addMessageToCanvas(item)"><icon-square-plus :size="14" /></el-button></el-tooltip>
                 <el-button v-if="!item.report" class="messageAction" text circle :loading="deletingId === item.id" :disabled="locked || remoteRunning" aria-label="删除消息" title="删除消息" @click="deleteMessage(item)"><icon-trash v-if="deletingId !== item.id" :size="14" /></el-button>
               </template>
             </div>
@@ -94,7 +94,7 @@
       <span>正在压缩上下文…</span>
     </div>
     <div class="messageInput" :class="{ draggingAttachments }" @dragenter.capture="dragEnterAttachments" @dragover.capture="dragOverAttachments" @dragleave.capture="dragLeaveAttachments" @drop.capture="dropAttachments">
-      <creationModeSwitch v-if="props.creationModes && !messages.length && !inputStarted" v-model="workspaceStore.creationMode" class="conversationMode" />
+      <creationModeSwitch v-if="props.creationModes && !props.materialEditor && !messages.length && !inputStarted" v-model="workspaceStore.creationMode" class="conversationMode" />
       <div v-if="draggingAttachments" class="attachmentDropHint" role="status">
         <icon-paperclip :size="20" aria-hidden="true" />
         <span>松开添加附件</span>
@@ -119,7 +119,8 @@
         @lostpointercapture="stopSenderResize"
         @keydown.up.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) + 16)"
         @keydown.down.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) - 16)" />
-      <attachmentList v-if="draftAttachments.length" class="draftAttachments" numbered :attachments="draftAttachments" :directory="directory" removable restorable :disabled="locked" @remove="draftAttachments.splice($event, 1)" @restore="restoreTextAttachment" />
+      <simpleReferenceSlots v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" :directory="directory" :disabled="locked" />
+      <attachmentList v-if="unassignedAttachments.length" class="draftAttachments" numbered :attachments="unassignedAttachments" :directory="directory" removable restorable :disabled="locked" @remove="removeVisibleAttachment($event)" @restore="restoreVisibleAttachment" />
       <div ref="senderElement" class="senderEditor" @pointerdown.capture="inputStarted = true" @input.capture="inputStarted = true" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
@@ -192,6 +193,8 @@ import { getReadableFileExtension, getReadableFileMimeType, readableFileAccept }
 import logoUrl from "@toonflow/assets/logo.svg";
 import { browserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, inferGenerationKind, browserResultFile, type ModelKind } from "@/stores/browserGeneration";
 import professionalCreation from "./professionalCreation.vue";
+import simpleReferenceSlots from "@/components/simpleReferenceSlots.vue";
+import { materialEditorState } from "@/stores/materialEditor";
 import simpleGenerationTools from "@/components/simpleGenerationTools.vue";
 import browserModelOptions from "@/components/browserModelOptions.vue";
 import browserModelResults from "@/components/browserModelResults.vue";
@@ -224,11 +227,16 @@ import "tdesign-vue-next/es/style/index.css";
 import "@tdesign-vue-next/chat/es/style/index.css";
 import "x-sender/lib/XSender.css";
 
-const props = defineProps<{ active: boolean; initialSession: AgentConversation | null; sessionFile?: string; disabled: boolean; creationModes?: boolean }>();
-const emit = defineEmits<{ session: [file: string]; sent: [prompt: string]; event: [event: AgentEvent] }>();
+const props = defineProps<{ active: boolean; initialSession: AgentConversation | null; sessionFile?: string; disabled: boolean; creationModes?: boolean; materialEditor?: boolean; materialDirectory?: string; materialLabel?: string; materialRole?: "firstFrame" | "reference" | "lastFrame" }>();
+const emit = defineEmits<{ session: [file: string]; sent: [prompt: string]; event: [event: AgentEvent]; applyMaterial: [file: File]; materialBusy: [value: boolean] }>();
 const workspaceStore = useWorkspaceStore();
-const directory = workspaceStore.project?.directory;
+const directory = props.materialDirectory ?? workspaceStore.project?.directory;
 const draftAttachments = ref<AgentAttachment[]>([]);
+const unassignedAttachments = computed(() => props.creationModes && !props.materialEditor && workspaceStore.creationMode === "simple" ? draftAttachments.value.filter(item => !item.referenceRole) : draftAttachments.value);
+function removeVisibleAttachment(index: number) { const item = unassignedAttachments.value[index]; draftAttachments.value = draftAttachments.value.filter(value => value !== item); }
+function restoreVisibleAttachment(index: number) { void restoreTextAttachment(draftAttachments.value.indexOf(unassignedAttachments.value[index]!)); }
+const materialResultBusy = ref(false);
+function setMaterialBusy(value: boolean) { if (props.materialEditor) { materialResultBusy.value = value; emit("materialBusy", value); } }
 const draftPrompt = ref("");
 const attachmentInput = ref<HTMLInputElement>();
 const draggingAttachments = ref(false);
@@ -282,7 +290,7 @@ const sending = computed(() => busy.value || browserSubmitting.value || professi
 const compacting = ref(false);
 const deletingId = ref<string>();
 const restoringAttachment = ref(false);
-const locked = computed(() => props.disabled || sending.value || deletingId.value !== undefined || restoringAttachment.value);
+const locked = computed(() => props.disabled || materialResultBusy.value || (!props.materialEditor && !!materialEditorState.value) || sending.value || deletingId.value !== undefined || restoringAttachment.value);
 const editingId = ref<string>();
 const draftMentions = ref<AgentMention[]>([]);
 const draftMentionTargets = shallowRef<{ key: symbol; element: HTMLElement; mention: AgentMention }[]>([]);
@@ -549,8 +557,9 @@ async function referenceMessageResults(item: AgentMessage) {
 
 async function submitMessage(choice?: { prompt: string; kind: ModelKind; script: boolean; attachments: AgentAttachment[] }) {
   if (locked.value) return;
+  if (props.materialEditor && !browserConfig.enabled) { ElMessage.warning("请先在设置 → API 配置中启用图片或视频模型并填写 Key"); return; }
   if (browserWorkspaceMode && !browserConfig.enabled && workspaceStore.creationMode !== "professional") { ElMessage.warning("请先在设置 → API 配置中启用模型联调并输入 Key"); return; }
-  if (props.creationModes && (browserWorkspaceMode || browserConfig.enabled)) {
+  if (props.creationModes && (props.materialEditor || browserWorkspaceMode || browserConfig.enabled)) {
     const input = choice?.prompt ?? sender?.getText() ?? "";
     if (!input.trim()) return;
     const pending = !choice ? messages.value.findLast(item => item.creationChoice && !item.creationChoice.resolved) : undefined;
@@ -559,8 +568,9 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
     const attachments = [...sourceAttachments, ...(choice?.attachments ?? draftAttachments.value)];
     if (pending?.creationChoice) pending.creationChoice.resolved = true;
     sessionMode.value ??= workspaceStore.creationMode;
-    const professional = sessionMode.value === "professional";
-    const kind = choice?.kind ?? (professional ? explicitGenerationKind(prompt) : inferGenerationKind(prompt));
+    const professional = !props.materialEditor && sessionMode.value === "professional";
+    const kind = choice?.kind ?? (professional ? explicitGenerationKind(prompt) : props.materialEditor ? explicitGenerationKind(prompt) ?? inferGenerationKind(prompt) : inferGenerationKind(prompt));
+    if (props.materialEditor && kind !== "image" && kind !== "video") { ElMessage.warning("自定义素材对话用于生成或编辑图片、视频，请选择图片或视频产物"); return; }
     browserCancelled = false;
     browserSubmitting.value = true;
     let reply: AgentMessage | undefined;
@@ -594,10 +604,12 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
         if (browserCancelled) throw new Error("已停止发送；已创建的画布节点保留供修改");
       const previousIds = new Set(generationResults.value.map(item => item.id));
       const textReferences = await Promise.all(files.filter(file => file.type.startsWith("text/") || file.type === "application/json").map(async file => { const text = await file.text(); if (text.length > 100000) throw new Error("文字引用最多支持 100000 字符，请缩小内容"); return `${file.name}：\n${text}`; }));
+      const referenceDescriptions = attachments.filter(item => item.mimeType.startsWith("image/")).flatMap((item, index) => item.referenceRole === "reference" && item.referenceCategory ? [`图${index + 1}为${({ character: "角色", scene: "场景", prop: "道具" })[item.referenceCategory]}参考，保持对应主体特征。`] : []);
       const generationPrompt = isStoryboard ? `${prompt}\n${scriptGenerationInstruction}` : !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
-      const success = await generateInBrowser([generationPrompt, ...textReferences].join("\n\n"), files.filter(file => file.type.startsWith("image/")), directory, outputKind, browserConfig.style);
+      const success = await generateInBrowser([generationPrompt, ...referenceDescriptions, ...textReferences].join("\n\n"), files.filter(file => file.type.startsWith("image/")), directory, outputKind, browserConfig.style, attachments.filter(item => item.mimeType.startsWith("image/")).map(item => item.referenceRole));
       const results = generationResults.value.filter(item => !previousIds.has(item.id) && item.directory === directory);
       reply.browserResultIds = results.filter(item => item.kind !== "text").map(item => item.id);
+      if (props.materialEditor && success && (outputKind === "image" || outputKind === "video")) { browserConfig.outputKind = outputKind; browserConfig.outputChosen = true; }
       const text = results.filter(item => item.kind === "text").map(item => item.text).join("\n\n");
       if (text) { reply.content = text; reply.parts = [{ id: crypto.randomUUID(), type: "text", content: text }]; }
       if (!success) throw new Error(browserCancelled ? "已停止发送，输入已保留。" : generationError.value);
@@ -619,7 +631,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
 }
 
 function referenceGeneratedFile(file: File) {
-  addAttachments([file]);
+  addAttachments([file], true);
   sender?.focus("last");
 }
 
@@ -1002,8 +1014,8 @@ function dropAttachments(event: DragEvent) {
   addAttachments(files);
 }
 
-function addAttachments(files: File[]) {
-  if (locked.value) return;
+function addAttachments(files: File[], fromMaterialResult = false) {
+  if (locked.value && !(fromMaterialResult && props.materialEditor && materialResultBusy.value && !sending.value && !props.disabled)) return;
   for (const file of files) {
     const readableMimeType = getReadableFileMimeType(file.name, file.type);
     const mimeType = readableMimeType ?? file.type.split(";")[0]!.trim().toLowerCase();
