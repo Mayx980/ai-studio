@@ -1,6 +1,6 @@
 <template>
   <teleport to="body">
-    <aside v-show="visible" id="agentPanel" class="agentSidebar" :class="{ expanded, materialSplit: !!materialEditorState }" :style="panelStyle" :inert="!!materialEditorState" aria-label="智能助手对话侧栏">
+    <aside v-show="visible" id="agentPanel" class="agentSidebar" :class="{ expanded, navigationCollapsed, materialSplit: !!materialEditorState }" :style="panelStyle" :inert="!!materialEditorState" aria-label="智能助手对话侧栏">
       <studioSidebar v-if="expanded && !materialEditorState" activeSection="agent" :disabled="sidebarOpening" @navigate="navigate" @newAgent="newAgent" @openProject="openRecent" @openSettings="emit('openSettings')" />
       <div v-if="!expanded" class="resizeHandle" role="separator" aria-label="调整对话侧栏宽度" aria-orientation="vertical" :aria-valuemin="minimumWidth" :aria-valuemax="maximumWidth" :aria-valuenow="width" tabindex="0" @pointerdown="startResize" @pointermove="resize" @pointerup="stopResize" @pointercancel="stopResize" @lostpointercapture="stopResize" @keydown.left.prevent="preferredWidth = width + 16" @keydown.right.prevent="preferredWidth = width - 16" />
       <div ref="assistantContent" class="assistantContent">
@@ -13,6 +13,7 @@
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, ref, watch } from "vue";
 import { IconVector } from "@tabler/icons-vue";
+import { navigationCollapsed } from "@/stores/navigation";
 import { materialEditorState } from "@/stores/materialEditor";
 import studioSidebar from "@/components/studioSidebar.vue";
 import creativeCases from "@/components/creativeCases.vue";
@@ -63,6 +64,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
 .agentSidebar.expanded:not(.materialSplit) { background: #090a0b; padding: 24px 24px 24px 244px; isolation: isolate;
   &::before { content: ""; position: absolute; top: 0; left: calc(220px + (100% - 220px) / 2); transform: translateX(-50%); width: min(1000px, calc(100% - 220px)); height: 440px; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 45% 0%, #2c8f7840, transparent 48%), radial-gradient(ellipse at 56% 0%, #397ac14d, transparent 52%), radial-gradient(ellipse at 50% -10%, #a34c8c30, transparent 50%); }
   .assistantContent { overflow-y: auto; padding: 0 0 24px; :deep(.agent) { max-width: 1080px; height: min(720px, calc(100dvh - 60px)); min-height: 560px; margin: auto; } .assistantTemplates { max-width: 1080px; margin: 30px auto; } }
+  &.navigationCollapsed { padding-left: 92px; &::before { left: calc(68px + (100% - 68px) / 2); width: min(1000px, calc(100% - 68px)); } }
   @media(max-width:700px) { padding: 16px 8px 12px 80px; &::before { left: calc(68px + (100% - 68px) / 2); width: calc(100% - 68px); height: 340px; } .assistantContent :deep(.agent) { min-height: 700px; } }
 }
 @media(max-width:700px) { .agentSidebar:not(.expanded):not(.materialSplit) { padding-top: 64px; } }

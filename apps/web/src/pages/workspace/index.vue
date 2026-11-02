@@ -193,6 +193,11 @@ watch(() => workspaceStore.pendingCanvasEntry, async entry => {
     if (!panel) throw new Error("画布正在初始化，请稍后重试");
     await panel.waitUntilReady();
     if (entry.directory !== workspaceStore.project?.directory) return;
+    if (entry.files?.length) {
+      await panel.importBrowserResult(entry.files, entry.directory);
+      agentVisible.value = false;
+      return;
+    }
     const teaching = await openTutorial(panel);
     if (!teaching && entry.nodeType) await panel.createInitialNode(entry.nodeType);
     agentVisible.value = false;

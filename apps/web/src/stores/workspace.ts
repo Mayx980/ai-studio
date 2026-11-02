@@ -19,7 +19,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const projectList = ref<Project[]>([]);
   const pendingAgentSession = ref<{ directory: string; file: string } | null>(null);
   const pendingAgentMessage = ref<{ directory: string; prompt: string; attachments?: AgentAttachment[]; model: string; reasoningEffort: string; send?: boolean } | null>(null);
-  const pendingCanvasEntry = ref<{ directory: string; nodeType?: string } | null>(null);
+  const pendingCanvasEntry = ref<{ directory: string; nodeType?: string; files?: File[] } | null>(null);
 
   async function openProject(path: string, previousDirectory = path, signal?: AbortSignal) {
     pendingAgentSession.value = null;

@@ -332,7 +332,7 @@ async function fitCreationNodes(ids: string[]) {
   if (!nodes.length) return;
   await flow.setViewport(vueFlowRuntime.getTransformForBounds(vueFlowRuntime.getRectOfNodes(nodes), Math.max(240, bounds.width - agentWidth), bounds.height, flow.minZoom.value, 1, 0.25));
 }
-async function importBrowserResult(file: File, directory: string, script = false, application?: { resultId: string; label: string; model?: string; prompt?: string; sources: { canvasPath: string; nodeId: string }[] }) {
+async function importBrowserResult(file: File | File[], directory: string, script = false, application?: { resultId: string; label: string; model?: string; prompt?: string; sources: { canvasPath: string; nodeId: string }[] }) {
   if (directory !== project.value?.directory || !canvasReady.value) throw new Error("工作区已切换或画布尚未就绪，请重新操作");
   const resultPath = generationResults.value.find(result => result.file === file && result.directory === directory)?.path;
   const existing = flow.getNodes.value.find(node => (application && node.data.browserResultId === application.resultId) || (resultPath && Object.values(node.data.outputs ?? {}).some(output => isNodeOutput(output) && output.value && typeof output.value === "object" && "url" in output.value && output.value.url === resultPath)));
@@ -341,7 +341,7 @@ async function importBrowserResult(file: File, directory: string, script = false
   const position = pastePosition();
   if (!position) throw new Error("画布尚未就绪");
   const signal = canvasController.signal;
-  const ids = await canvasHistory.batch(() => importCanvasFiles([file], position, { directory, availableNodes: availableNodes.value, signal, flow, throwOnError: true, script }));
+  const ids = await canvasHistory.batch(() => importCanvasFiles(Array.isArray(file) ? file : [file], position, { directory, availableNodes: availableNodes.value, signal, flow, throwOnError: true, script }));
   signal.throwIfAborted();
   if (!ids.length) throw new Error("素材节点未能创建，请重试");
   if (application) {

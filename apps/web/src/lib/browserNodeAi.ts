@@ -1,3 +1,4 @@
+import { recordGenerationResults } from "@/lib/generationHistory";
 import { saveProjectCover } from "@/lib/projectCover";
 import type { NodeAiAdapter, NodeAiRequest, NodeMediaModel } from "@toonflow/nodes-scaffold/nodeAi";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
@@ -75,6 +76,7 @@ async function saveAssets(assets: { type: string; data?: string | Uint8Array; ur
     await files.write(path, blob, true);
     return { path, mimeType, mediaType: kind };
   }));
+  await recordGenerationResults(input.directory, saved.map(item => ({ id: crypto.randomUUID(), kind, path: item.path, mimeType: item.mimeType, name: item.path.split("/").at(-1), createdAt: Date.now() })));
   if (saved[0]) await saveProjectCover(input.directory, saved[0].path, saved[0].mimeType);
   return saved;
 }
