@@ -9,7 +9,7 @@ export default {
   version: "2.0.1",
   readme: `接入阿里云百炼 qwen-image-3.0-pro，支持文生图和参考图片编辑。使用 DashScope 原生异步任务协议，需要填写百炼 API Key，以及业务空间专属域名，默认业务空间地址为 https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com。域名需与模型和 API Key 所属地域一致。图片结果 URL 有效期有限，请及时保存。
 
-图片编辑支持最多 3 张参考图，参考图需为公网 HTTP(S) URL 或 Base64；本适配器会将 ai-studio 提供的内存图片转换为 Base64 传入，不会上传到第三方存储。接口不支持 mask、multipart 编辑或非 PNG 输出。`,
+图片编辑支持最多 3 张参考图，参考图需为公网 HTTP(S) URL 或 Base64；本适配器会将 AFXEN 提供的内存图片转换为 Base64 传入，不会上传到第三方存储。接口不支持 mask、multipart 编辑或非 PNG 输出。`,
   rules: [
     { type: "input", field: "apiKey", title: "百炼 API Key", value: "", props: { type: "password", showPassword: true, autocomplete: "off" } },
     { type: "input", field: "endpoint", title: "业务空间接口地址", value: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", props: { type: "text", autocomplete: "off", placeholder: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com" } },

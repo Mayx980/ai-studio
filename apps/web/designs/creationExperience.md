@@ -188,3 +188,15 @@ Qwen 3.0／2.1 图像模型按[厂商异步协议](https://help.aliyun.com/zh/mo
 本轮用户明确选择整体黑色／深色界面，复用现有深色样式和外观持久化，不把强调色单独改为黑色。默认外观改为深色；已有浏览器原型在首次加载本次黑色预设时切到深色，并保留语言、字号及其它设置。`ui.themePreset` 标识已应用的黑色预设，之后用户手动选择浅色或跟随系统仍会保存，不在每次打开时强制覆盖。
 
 参考图附件的 `referenceName` 保存分类编号，文件名与实际文件保留原值。新增按当前分类已有编号递增，删除某张图片不修改其余图片的已有编号；生成输入同时带分类与编号。模板卡片间距收紧为6px，预览区域独立12px圆角并裁切，搜索栏桌面宽度不超过340px、位于分类右侧；窄屏允许搜索换行。首尾帧卡片取消旋转，参考图通过平移层叠保留三张卡片的层次，各入口主体均摆正。
+
+
+## AFXEN 品牌
+
+本轮平台可见名称统一改为 AFXEN，采用用户参考图经背景提取后的透明 PNG `public/afxenLogo.png`：AF 蓝紫渐变金属图形、AFXEN 字标及 AI Video Platform 副标题。`components/brandLogo.vue` 复用同一透明素材，首页展示完整图稿，侧栏、助手头像、关于及引导页的小标识通过显示窗口突出 AF 图形，不保留白底或黑色矩形底，不反色、不把彩色 Logo 当单色蒙版处理；背景提取同时移除外围留白及图稿之外的角标，让图形、字标和副标题自然融入当前页面。浏览器标题为 AFXEN，站点图标使用同一图稿。
+
+品牌改名覆盖前端提示、设置说明、助手文案与模型接入引导。IndexedDB、浏览器项目与偏好 key、包名、服务协议、上传边界字符串和既有插件作者身份保持原标识，避免改名导致项目不可读或内置插件保护失效；第三方供应商标识和必要版权材料不按平台品牌替换。此项属于同轮浏览器原型品牌调整，不代表桌面安装包标识、分发资源或生产部署已经发布。
+
+
+最终透明素材使用内置 imagegen 处理，提示词如下（原文保留供素材复用）：
+
+> Edit only the provided transparent AFXEN logo asset. Keep the exact AF monogram geometry, existing blue/cyan/purple metallic colors, triangular play detail, exact three-row composition and proportions unchanged. Targeted correction for use on a near-black website: the AFXEN wordmark and subtitle are currently too dark. Change the AFXEN letters to luminous silver-white chrome, ALL FIVE LETTERS equally clearly legible on dark navy/black, retaining subtle metallic shading but no nearly-black letters. Change exact subtitle 'Ai Video Platform' to clear light silver-gray flat lettering, no dark outline that swallows the text. Keep the actual background fully transparent with alpha including counters/holes; no opaque rectangle, no white background, no black background, no fake checkerboard, no dark fog. Remove excessive soft gray background glow, retaining only a very subtle tight blue/purple edge glow if needed. Keep the same framing, typography and asset dimensions/composition. This is a background-free website logo cutout, not a scene or mockup.

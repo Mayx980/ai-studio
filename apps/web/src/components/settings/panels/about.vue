@@ -1,9 +1,9 @@
 <template>
   <div class="about">
     <div class="brand">
-      <div class="brandMark"><img class="brandLogo" :src="logoUrl" alt="ai-studio Logo" /></div>
+      <div class="brandMark"><brandLogo compact /></div>
       <div class="brandInfo">
-        <h3>ai-studio</h3>
+        <h3>AFXEN</h3>
         <div class="brandMeta">
           <span v-if="currentVersion">v{{ currentVersion }}</span>
           <el-tag v-if="clientBuild?.channel || snapshot?.channel" type="info" size="small" round>{{ clientBuild?.channel || snapshot?.channel }}</el-tag>
@@ -69,7 +69,7 @@
             bgColor="#ffffff"
             borderless
             role="img"
-            aria-label="ai-studio 交流群二维码" />
+            aria-label="AFXEN 交流群二维码" />
           <div class="tips">
             欢迎文明交流、友善反馈。请勿在公开讨论中分享工作素材、个人信息或服务密钥。
           </div>
@@ -94,7 +94,7 @@
             bgColor="#ffffff"
             borderless
             role="img"
-            aria-label="ai-studio 商务合作二维码" />
+            aria-label="AFXEN 商务合作二维码" />
         </el-popover>
       </h3>
       <div v-if="sponsors.length" class="sponsorGrid" @keydown.esc="closeSponsor">
@@ -203,7 +203,7 @@ import {
   IconBrandWechat,
   IconQrcode,
 } from "@tabler/icons-vue";
-import logoUrl from "@toonflow/assets/logo.svg";
+import brandLogo from "@/components/brandLogo.vue";
 import tf, { type TfSponsor } from "@/lib/tf";
 import {
   desktopUpdateSnapshot as snapshot,
@@ -335,16 +335,6 @@ async function runUpdate(nextAction: "read" | "check" | "download" | "apply") {
       height: 60px;
       border-radius: calc(var(--ui-radius) * 1.5);
       background: var(--el-fill-color-light);
-
-      .brandLogo {
-        width: 42px;
-        height: 42px;
-        object-fit: contain;
-
-        .dark & {
-          filter: invert(1);
-        }
-      }
     }
 
     .brandInfo {

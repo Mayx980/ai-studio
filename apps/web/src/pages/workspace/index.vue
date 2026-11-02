@@ -50,12 +50,12 @@
             <el-tooltip content="快捷键说明" placement="top" :showArrow="false"><el-button class="toolButton" text aria-label="快捷键说明" @click="shortcutsVisible = true"><icon-help :size="18" /></el-button></el-tooltip>
           </div>
         </el-card>
-        <el-tooltip v-if="!agentVisible" content="ai-studio Agent" placement="top" :showArrow="false" :hideAfter="0">
+        <el-tooltip v-if="!agentVisible" content="AFXEN Agent" placement="top" :showArrow="false" :hideAfter="0">
           <el-button
             class="agentButton"
             :class="{ standalone: activePanel !== 'canvas' }"
             :aria-expanded="agentVisible"
-            aria-label="ai-studio Agent"
+            aria-label="AFXEN Agent"
             aria-controls="agentPanel"
             @click="agentVisible = !agentVisible"></el-button>
         </el-tooltip>

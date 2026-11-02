@@ -2,7 +2,7 @@
   <el-container class="home" :class="{ materialSplitActive: !!materialEditorState }" :inert="!!materialEditorState">
     <bg class="pageBackground" />
     <aside class="studioSidebar" aria-label="主导航">
-      <button class="studioBrand" @click="homeSection = 'create'">ai-studio</button>
+      <button class="studioBrand" aria-label="AFXEN 首页" @click="homeSection = 'create'"><brandLogo compact /><span>AFXEN</span></button>
       <el-button type="primary" :icon="IconPlus" @click="newCreation">新建创作</el-button>
       <nav>
         <button :aria-current="homeSection === 'create' ? 'page' : undefined" @click="homeSection = 'create'"><icon-sparkles :size="18" />创作</button>
@@ -17,8 +17,8 @@
     <el-main class="pageContent">
       <section v-show="homeSection === 'create'" class="creationPanel" aria-label="创建项目">
         <div class="brand">
-          <el-image class="brandLogo" :src="logoUrl" fit="contain" alt="ai-studio" />
-          <h1>ai-studio</h1>
+          <brandLogo />
+          <h1 class="brandName">AFXEN</h1>
         </div>
         <div class="promptArea" :class="{ materialSplit: !!materialEditorState }" :inert="!!materialEditorState">
           <creationModeSwitch v-model="workspaceStore.creationMode" @update:modelValue="changeCreationMode" />
@@ -130,7 +130,7 @@ import modelPopover from "@/components/modelPopover.vue";
 import attachmentList from "@/components/agent/attachmentList.vue";
 import { createPastedTextFile, readTextAttachment } from "@/components/agent/textAttachments";
 import type { AgentAttachment } from "@/components/agent/types";
-import logoUrl from "@toonflow/assets/logo.svg";
+import brandLogo from "@/components/brandLogo.vue";
 import { useWorkspaceStore, type Project } from "@/stores/workspace";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
@@ -533,7 +533,7 @@ async function createProject(fromPrompt = true) {
   .homeAssets { padding-top: 24px; :deep(.assetLibrary) { width: 100%; max-height: none; } }
   .studioSidebar {
     position: fixed; inset: 0 auto 0 0; z-index: 6; width: 220px; display: flex; flex-direction: column; gap: 16px; padding: 30px 20px; border-right: 1px solid var(--el-border-color-light); background: var(--el-bg-color);
-    .studioBrand { font-size: 24px; font-weight: 700; letter-spacing: -.8px; color: var(--el-text-color-primary); border: 0; background: transparent; text-align: left; padding: 0 0 14px; cursor: pointer; }
+    .studioBrand { display: flex; align-items: center; gap: 8px; font-size: 24px; font-weight: 700; letter-spacing: -.8px; color: var(--el-text-color-primary); border: 0; background: transparent; text-align: left; padding: 0 0 14px; cursor: pointer; }
     nav { display: grid; gap: 5px; button { display: flex; align-items: center; gap: 10px; padding: 12px; border: 0; border-radius: var(--el-border-radius-base); background: transparent; color: var(--el-text-color-regular); font: inherit; font-size: 14px; cursor: pointer; &[aria-current="page"] { background: var(--el-color-primary-light-9); color: var(--el-color-primary); } } }
     p { margin: 8px 10px 0; color: var(--el-text-color-secondary); font-size: 12px; }
     .recentProject { :deep(.projectThumbnail) { width: 48px; height: 48px; border-radius: 8px; } span { min-width: 0; display: grid; gap: 5px; } strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; } small { font-size: 10px; white-space: normal; color: var(--el-text-color-secondary); } display: flex; align-items: center; gap: 8px; padding: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; background: transparent; color: var(--el-text-color-regular); text-align: left; cursor: pointer; svg { flex: none; } }
@@ -576,28 +576,8 @@ async function createProject(fromPrompt = true) {
       max-width: 800px;
       margin: clamp(32px, 6vh, 64px) auto 56px;
 
-      .brand {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 16px;
-        margin-bottom: 36px;
-
-        .brandLogo {
-          width: 48px;
-          height: 48px;
-
-          .dark & {
-            filter: invert(1);
-          }
-        }
-
-        h1 {
-          margin: 0;
-          font-size: clamp(30px, 4vw, 38px);
-          font-weight: 600;
-          letter-spacing: -1px;
-        }
+      .brand { display: flex; align-items: center; justify-content: center; margin-bottom: 24px;
+        .brandName { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
       }
 
       .promptArea {

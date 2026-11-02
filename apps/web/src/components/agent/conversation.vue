@@ -6,9 +6,9 @@
           <template #content>
             <section class="welcomeMessage" aria-label="开始新对话">
               <div class="welcomeHeader">
-                <span class="welcomeIcon" aria-hidden="true"><span class="welcomeLogo" :style="{ maskImage: `url(${logoUrl})` }" /></span>
+                <span class="welcomeIcon" aria-hidden="true"><brandLogo compact /></span>
                 <div>
-                  <p class="welcomeLabel">你好，我是 ai-studio 助手</p>
+                  <p class="welcomeLabel">你好，我是 AFXEN 助手</p>
                   <h3>从一个想法开始</h3>
                 </div>
               </div>
@@ -190,7 +190,7 @@ import {
 } from "@tabler/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { getReadableFileExtension, getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
-import logoUrl from "@toonflow/assets/logo.svg";
+import brandLogo from "@/components/brandLogo.vue";
 import { browserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, inferGenerationKind, browserResultFile, type ModelKind } from "@/stores/browserGeneration";
 import professionalCreation from "./professionalCreation.vue";
 import simpleReferenceSlots from "@/components/simpleReferenceSlots.vue";
@@ -1172,15 +1172,6 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
           border-radius: var(--ui-radius-large);
           background: var(--el-color-primary-light-9);
           color: var(--el-color-primary);
-
-          .welcomeLogo {
-            width: 28px;
-            height: 28px;
-            background: currentColor;
-            mask-size: contain;
-            mask-position: center;
-            mask-repeat: no-repeat;
-          }
         }
 
         .welcomeLabel { margin: 0 0 4px; font-size: 12px; color: var(--el-text-color-secondary); }

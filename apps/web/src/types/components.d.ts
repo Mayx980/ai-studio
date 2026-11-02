@@ -15,6 +15,7 @@ declare module 'vue' {
     Agent: typeof import('./../components/agent/index.vue')['default']
     AttachmentList: typeof import('./../components/agent/attachmentList.vue')['default']
     AttachmentPreview: typeof import('./../components/agent/attachmentPreview.vue')['default']
+    BrandLogo: typeof import('./../components/brandLogo.vue')['default']
     BrowserApiSettings: typeof import('./../components/browserApiSettings.vue')['default']
     BrowserModelOptions: typeof import('./../components/browserModelOptions.vue')['default']
     BrowserModelResults: typeof import('./../components/browserModelResults.vue')['default']

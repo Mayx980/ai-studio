@@ -4,7 +4,7 @@ export default {
   id: "aliyunWan3Video",
   label: "阿里云百炼 - 万相 3.0 视频",
   version: "2.0.0",
-  readme: "支持万相 3.0 文生视频、单图生视频，以及参考图片/参考视频生成。素材可直接使用 ai-studio 传入的本地文件；适配器会自动上传至百炼临时存储。临时素材地址有效期 48 小时。",
+  readme: "支持万相 3.0 文生视频、单图生视频，以及参考图片/参考视频生成。素材可直接使用 AFXEN 传入的本地文件；适配器会自动上传至百炼临时存储。临时素材地址有效期 48 小时。",
   rules: [
     {
       type: "input",
@@ -27,7 +27,7 @@ export default {
 
   async generateVideo(this: any, request: any): Promise<any[]> {
     const apiKey = String(this.config?.apiKey ?? "").trim();
-    if (!apiKey) throw new Error("请先在 ai-studio 供应商配置中填写阿里云百炼 API Key。");
+    if (!apiKey) throw new Error("请先在 AFXEN 供应商配置中填写阿里云百炼 API Key。");
     if (!request.model?.trim()) throw new Error("请选择已配置的模型");
     if (typeof request.prompt !== "string" || !request.prompt.trim()) throw new Error("请填写视频提示词。");
 
