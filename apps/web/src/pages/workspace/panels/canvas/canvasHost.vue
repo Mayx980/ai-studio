@@ -424,6 +424,12 @@ defineExpose({
     if (!panel) throw new Error("画布尚未就绪");
     return panel.createInitialNode(type);
   },
+  prepareTutorial: async () => {
+    const panel = activeInstance.value;
+    if (!panel) throw new Error("画布尚未就绪");
+    return panel.prepareTutorial();
+  },
+  focusTutorialNode: (id: string) => activeInstance.value?.focusTutorialNode(id),
   addNodeAtPointer: () => activeInstance.value?.addNodeAtPointer(),
   mentionSource,
   get saveBusy() { return fileActionBusy || [...instances.values()].some(panel => panel.saveBusy); },
