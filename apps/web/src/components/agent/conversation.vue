@@ -604,7 +604,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
         if (browserCancelled) throw new Error("已停止发送；已创建的画布节点保留供修改");
       const previousIds = new Set(generationResults.value.map(item => item.id));
       const textReferences = await Promise.all(files.filter(file => file.type.startsWith("text/") || file.type === "application/json").map(async file => { const text = await file.text(); if (text.length > 100000) throw new Error("文字引用最多支持 100000 字符，请缩小内容"); return `${file.name}：\n${text}`; }));
-      const referenceDescriptions = attachments.filter(item => item.mimeType.startsWith("image/")).flatMap((item, index) => item.referenceRole === "reference" && item.referenceCategory ? [`图${index + 1}为${({ character: "角色", scene: "场景", prop: "道具" })[item.referenceCategory]}参考，保持对应主体特征。`] : []);
+      const referenceDescriptions = attachments.filter(item => item.mimeType.startsWith("image/")).flatMap((item, index) => item.referenceRole === "reference" && item.referenceCategory ? [`图${index + 1}为${({ character: "角色", scene: "场景", prop: "道具" })[item.referenceCategory]}参考（${item.referenceName || "分类参考图"}），保持对应主体特征。`] : []);
       const generationPrompt = isStoryboard ? `${prompt}\n${scriptGenerationInstruction}` : !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
       const success = await generateInBrowser([generationPrompt, ...referenceDescriptions, ...textReferences].join("\n\n"), files.filter(file => file.type.startsWith("image/")), directory, outputKind, browserConfig.style, attachments.filter(item => item.mimeType.startsWith("image/")).map(item => item.referenceRole));
       const results = generationResults.value.filter(item => !previousIds.has(item.id) && item.directory === directory);

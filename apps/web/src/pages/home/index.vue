@@ -601,9 +601,13 @@ async function createProject(fromPrompt = true) {
       }
 
       .promptArea {
-          &.materialSplit { position: fixed; z-index: 1901; left: 12px; top: 72px; width: calc(50vw - 24px); max-width: none; max-height: calc(100dvh - 92px); overflow: auto;
-            @media(max-width:700px) { left: 8px; top: 8px; width: calc(100vw - 16px); max-height: calc(50dvh - 16px); }
+        &.materialSplit { position: fixed; z-index: 1901; left: 0; top: 0; width: 50vw; height: 100dvh; max-width: none; max-height: none; display: flex; flex-direction: column; overflow: auto; background: var(--el-bg-color);
+          > .creationModeSwitch { flex: none; margin: 16px; }
+          > .promptCard { flex: 1; min-height: 0; display: flex; flex-direction: column; border-radius: 0; border: 0; box-shadow: none;
+            :deep(.el-card__body) { flex: 1; overflow: auto; }
           }
+          @media(max-width:700px) { width: 100vw; height: 50dvh; }
+        }
         position: relative;
 
 

@@ -1,8 +1,8 @@
 <template>
   <section class="creativeCases" :class="{ compact }">
     <div class="caseHeader"><h2>模板中心</h2><el-button v-if="!professional" text type="primary" @click="openUpload()">上传模板</el-button></div>
-    <div class="caseCategories"><button v-for="item in categories" :key="item" :aria-pressed="category === item" @click="category = item">{{ item }}</button></div>
-    <form class="templateSearch" role="search" @submit.prevent="searchTemplates"><el-input v-model="query" clearable aria-label="搜索视频模板" placeholder="搜索关键词，或描述你想要的视频，例如：适合护肤品的清新短片" @input="invalidateSearch"><template #append><el-button nativeType="submit" :loading="searching">搜索</el-button></template></el-input></form>
+    <div class="caseFilters"><div class="caseCategories"><button v-for="item in categories" :key="item" :aria-pressed="category === item" @click="category = item">{{ item }}</button></div>
+    <form class="templateSearch" role="search" @submit.prevent="searchTemplates"><el-input v-model="query" clearable aria-label="搜索视频模板" placeholder="搜索关键词或描述想要的视频" @input="invalidateSearch"><template #append><el-button nativeType="submit" :loading="searching">搜索</el-button></template></el-input></form></div>
     <p v-if="searching" role="status" aria-live="polite">正在理解需求并查找相关模板…</p>
     <el-alert v-else-if="searchError || loadError" :title="searchError || loadError" type="error" :closable="false"><el-button text @click="loadError ? loadTemplates() : searchTemplates()">重试</el-button></el-alert>
     <p v-else-if="query.trim() && !rankedIds" role="status">按回车或点击搜索，查找语义相关的模板。</p>
@@ -128,19 +128,21 @@ async function saveTemplate() {
 <style scoped lang="scss">
 .creativeCases { margin: 24px 0;
   .caseHeader { display: flex; justify-content: space-between; align-items: center; h2 { font-size: 19px; margin: 0 0 12px; } }
-  .caseCategories { display: flex; gap: 20px; overflow: auto; margin-bottom: 10px; button { flex: none; border: 0; background: none; padding: 8px 0; color: var(--el-text-color-secondary); cursor: pointer; &[aria-pressed="true"] { color: var(--el-color-primary); border-bottom: 2px solid; } } }
-  .templateSearch { margin-bottom: 16px; }
-  .caseGrid { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 12px; article { min-width: 0; }
+  .caseFilters { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+  .caseCategories { flex: 1; min-width: 0; display: flex; gap: 20px; overflow: auto; margin-bottom: 0; button { flex: none; border: 0; background: none; padding: 8px 0; color: var(--el-text-color-secondary); cursor: pointer; &[aria-pressed="true"] { color: var(--el-color-primary); border-bottom: 2px solid; } } }
+  .templateSearch { flex: 0 1 340px; min-width: 200px; width: 30%; margin: 0; }
+  .caseGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 6px; article { min-width: 0; }
     .caseCard { position: relative; width: 100%; padding: 0; border: 0; border-radius: 10px; overflow: hidden; text-align: left; color: var(--el-text-color-primary); background: var(--el-bg-color); cursor: pointer;
       &::after { content: ""; position: absolute; inset: 0; background: rgba(100,100,100,.25); opacity: 0; pointer-events: none; transition: opacity .15s; }
       &:hover::after { opacity: 1; }
       &:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
-      .casePreview { display: block; width: 100%; aspect-ratio: 9/13; background: var(--el-fill-color-light); }
+      .casePreview { display: block; width: 100%; aspect-ratio: 9/13; border-radius: 12px; overflow: hidden; background: var(--el-fill-color-light); }
       .caseName { display: block; padding: 9px 8px; font-size: 13px; font-weight: 600; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     }
   }
   &.compact { margin: 8px 14px; max-height: 200px; overflow: auto; .caseHeader h2 { font-size: 13px; margin: 0; } .caseCategories { margin: 0; } .caseGrid { display: flex; article { flex: 0 0 140px; .caseCard .casePreview { height: 80px; aspect-ratio: auto; } } } }
-  @media(max-width:420px) { .caseGrid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; } }
+  @media(max-width:700px) { .caseFilters { flex-wrap: wrap; gap: 8px; .caseCategories { flex-basis: 100%; } .templateSearch { flex-basis: 100%; width: 100%; min-width: 0; } } }
+  @media(max-width:420px) { .caseGrid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; } }
 }
 
 .detailLayout { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(260px,1fr); gap: 28px; height: min(680px,76dvh); .detailMedia { min-height: 0; background: #161616; border-radius: 12px; overflow: hidden; } .detailContent { min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: stretch; h3 { margin-top: 0; } .templatePrompt { white-space: pre-wrap; line-height: 1.8; margin: 0; overflow: auto; } .templateParameters { color: var(--el-text-color-secondary); font-size: 12px; margin-top: auto; padding-top: 20px; } .el-button { flex-shrink: 0; margin-top: 10px; } } @media(max-width:700px) { grid-template-columns: 1fr; grid-template-rows: minmax(180px,1fr) minmax(180px,1fr); height: 76dvh; gap: 16px; } }

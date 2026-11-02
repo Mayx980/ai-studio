@@ -45,9 +45,9 @@ function applyMaterial(file: File) {
 </script>
 <style scoped lang="scss">
 .materialBackdrop { position: fixed; inset: 0; z-index: 1900; background: var(--el-overlay-color-lighter); }
-.customMaterialEditor { position: fixed; z-index: 1901; right: 12px; top: 32px; bottom: 20px; width: calc(50vw - 20px); display: flex; flex-direction: column; background: var(--el-bg-color); border: 1px solid var(--el-border-color); border-radius: 14px; box-shadow: var(--el-box-shadow-light); overflow: hidden;
+.customMaterialEditor { position: fixed; z-index: 1901; right: 0; top: 0; bottom: 0; width: 50vw; display: flex; flex-direction: column; background: var(--el-bg-color); border: 0; border-left: 1px solid var(--el-border-color); border-radius: 0; overflow: hidden;
   header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--el-border-color-light); strong { font-size: 14px; } }
   .materialConversation { flex: 1; min-height: 0; }
-  @media(max-width:700px) { top: 50dvh; left: 8px; right: 8px; bottom: 8px; width: auto; }
+  @media(max-width:700px) { top: 50dvh; left: 0; right: 0; bottom: 0; width: 100vw; border-left: 0; border-top: 1px solid var(--el-border-color); }
 }
 </style>

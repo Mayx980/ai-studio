@@ -30,13 +30,13 @@ export const settingsStorage = {
   },
 };
 
-export const defaultUiSettings = { theme: "light", language: "system", primaryColor: "#409eff", fontScale: 100, mobileScale: 75, radius: 8, startupAnimation: true };
+export const defaultUiSettings = { theme: "dark", language: "system", primaryColor: "#409eff", fontScale: 100, mobileScale: 75, radius: 8, startupAnimation: true };
 export const uiSettings = computed(() => {
   const raw = settings.value.ui;
   const ui = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
   return {
     language: normalizeLocale(ui.language) ?? "system" as const,
-    theme: ui.theme === "dark" || ui.theme === "system" ? ui.theme : "light",
+    theme: ui.theme === "dark" || ui.theme === "system" || ui.theme === "light" ? ui.theme : defaultUiSettings.theme,
     primaryColor: typeof ui.primaryColor === "string" && /^#[\da-f]{6}$/i.test(ui.primaryColor) ? ui.primaryColor : defaultUiSettings.primaryColor,
     fontScale: typeof ui.fontScale === "number" && Number.isFinite(ui.fontScale) ? Math.min(125, Math.max(85, ui.fontScale)) : defaultUiSettings.fontScale,
     mobileScale: typeof ui.mobileScale === "number" && Number.isFinite(ui.mobileScale) ? Math.min(100, Math.max(50, ui.mobileScale)) : defaultUiSettings.mobileScale,
@@ -118,6 +118,12 @@ export async function loadSettings() {
     } catch { throw new Error("浏览器外观设置损坏，请清除此项设置后重试；项目数据未改动"); }
   }
   settings.value = { ...data.data, ...preferences };
+  const ui = settings.value.ui && typeof settings.value.ui === "object" && !Array.isArray(settings.value.ui) ? settings.value.ui as Record<string, unknown> : {};
+  if (browserWorkspaceMode && ui.themePreset !== "black") {
+    // ACT: 本轮将已有原型切为黑色一次，后续手动选择浅色／跟随系统仍然保留。
+    settings.value = { ...settings.value, ui: { ...ui, theme: "dark", themePreset: "black" } };
+    await saveSettings();
+  }
   // 等初始化引发的监听执行完，再允许自动保存。
   await nextTick();
   settingsReady = true;
