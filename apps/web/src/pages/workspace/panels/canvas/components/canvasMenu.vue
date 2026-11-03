@@ -1,10 +1,11 @@
 <template>
-  <panel class="canvasMenuPanel" position="top-left">
+  <panel class="canvasMenuPanel" :class="{ sidebarCollapsed }" position="top-left">
+    <el-button class="sidebarCollapse" text :aria-expanded="!sidebarCollapsed" :aria-label="sidebarCollapsed ? '展开画布侧栏' : '折叠画布侧栏'" :title="sidebarCollapsed ? '展开侧栏' : '折叠侧栏'" @click="sidebarCollapsed = !sidebarCollapsed"><icon-layout-sidebar :size="17" /></el-button>
     <el-card class="canvasMenu" shadow="never" :bodyStyle="{ padding: '3px 6px' }">
       <div class="menuContent">
         <div class="projectHeader"><el-input v-model="projectNameDraft" class="workspaceNameInput" :style="{ '--workspaceName': JSON.stringify(projectNameDraft || ' ') }" size="small" :title="browserWorkspaceMode ? '当前浏览器' : directory" :disabled="!workspaceStore.project" aria-label="项目名称"
           @keydown.stop @keydown.enter="saveProjectName" @keydown.esc.prevent="projectNameDraft = workspaceName" @blur="saveProjectName" /><workspaceMenu @openSettings="openWorkspaceSettings?.()" /></div>
-        <el-divider direction="vertical" /><span class="currentCanvas">{{ canvasId?.replace(/\.json$/, "") }}</span>
+
         <slot name="actions" />
       </div>
     </el-card>
@@ -39,7 +40,7 @@ import { translate } from "@toonflow/i18n/vue";
 import { computed, inject, nextTick, onBeforeUnmount, ref, shallowRef, watch, type ShallowRef } from "vue";
 import { Panel, useVueFlow, type FlowExportObject } from "@vue-flow/core";
 import { ElMessage, ElMessageBox, type DropdownInstance, type FilterNodeMethodFunction, type InputInstance, type LoadFunction, type TreeInstance } from "element-plus";
-import { IconVector, IconCheck, IconChevronDown, IconChevronUp, IconChevronRight, IconDots, IconFolder, IconFolderOpen, IconFolderPlus, IconPlus, IconSearch } from "@tabler/icons-vue";
+import { IconLayoutSidebar, IconVector, IconCheck, IconChevronDown, IconChevronUp, IconChevronRight, IconDots, IconFolder, IconFolderOpen, IconFolderPlus, IconPlus, IconSearch } from "@tabler/icons-vue";
 import { useWorkspaceStore } from "@/stores/workspace";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { getCanvasAssetDirectories, isCanvasFile } from "@/pages/workspace/canvasFile";
@@ -52,6 +53,7 @@ const props = defineProps<{
 }>();
 const openWorkspaceSettings = inject<(() => void) | undefined>("openWorkspaceSettings", undefined);
 const workspaceStore = useWorkspaceStore();
+const sidebarCollapsed = ref(false);
 const workspaceName = computed(() => workspaceStore.project?.name || "未命名工作区");
 const projectNameDraft = ref("");
 watch([() => workspaceStore.project?.directory, workspaceName], () => {
@@ -910,4 +912,12 @@ defineExpose({ getCanvases, peekCanvases, initialized, addCanvas, switchCanvas, 
 
 <style scoped lang="scss">
 .canvasMenuPanel.vue-flow__panel { inset: 0 auto 0 0; margin: 0; width: min(300px, 85vw); max-width: none; display: flex; flex-direction: column; align-items: stretch; gap: 0; background: var(--el-bg-color); border-right: 1px solid var(--el-border-color-light); .canvasMenu { border: 0; border-radius: 0; } .projectHeader { display: flex; align-items: center; gap: 4px; width: 100%; .workspaceNameInput { flex: 1; min-width: 0; max-width: none; } } .menuExtension { position: static; flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; &::-webkit-scrollbar { display: none; } } }
+</style>
+
+<style scoped lang="scss">
+.canvasMenuPanel.vue-flow__panel {
+  .sidebarCollapse { position: absolute; top: 12px; right: 8px; z-index: 2; width: 28px; height: 28px; padding: 0; margin: 0; color: var(--el-text-color-secondary); border: 0; background: transparent; &:hover { background: var(--el-fill-color); } }
+  .projectHeader { padding-right: 32px; box-sizing: border-box; }
+  &.sidebarCollapsed { width: 44px; .canvasMenu, .menuExtension { display: none; } .sidebarCollapse { right: 8px; } }
+}
 </style>

@@ -1445,8 +1445,12 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
       gap: 12px;
       padding: 2px 8px 6px;
 
+      .el-button:not(.sendButton):hover { background: var(--el-fill-color); border-color: transparent; }
+
       > .el-button {
         margin-left: 0;
+        border-color: transparent;
+        &:hover { background: var(--el-fill-color); }
       }
 
       .modelPopover {

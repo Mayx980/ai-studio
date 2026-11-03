@@ -11,6 +11,7 @@ export type Project = {
   directory: string;
   name: string;
   lastOpenedAt: number;
+  folder?: string;
 };
 
 export const useWorkspaceStore = defineStore("workspace", () => {
@@ -28,7 +29,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       if (!path.trim()) throw new Error("项目标识不能为空");
       signal?.throwIfAborted();
       const existing = projectList.value.find(item => item.directory === previousDirectory || item.directory === path);
-      project.value = { directory: path, name: existing?.name || (path.startsWith("browser:") ? "未命名项目" : path.split(/[\\/]/).filter(Boolean).at(-1)!) || "未命名项目", lastOpenedAt: Date.now() };
+      project.value = { ...existing, directory: path, name: existing?.name || (path.startsWith("browser:") ? "未命名项目" : path.split(/[\\/]/).filter(Boolean).at(-1)!) || "未命名项目", lastOpenedAt: Date.now() };
       projectList.value = [project.value, ...projectList.value.filter(item => item.directory !== previousDirectory && item.directory !== path)];
       pendingAgentMessage.value = null;
       return;
@@ -42,7 +43,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     pendingAgentMessage.value = null;
     const existing = projectList.value.find(project => project.directory === previousDirectory)
       ?? projectList.value.find(project => project.directory === checkedDirectory);
-    project.value = { directory: checkedDirectory, name: existing?.name || checkedDirectory.split(/[\\/]/).filter(Boolean).at(-1) || checkedDirectory, lastOpenedAt: Date.now() };
+    project.value = { ...existing, directory: checkedDirectory, name: existing?.name || checkedDirectory.split(/[\\/]/).filter(Boolean).at(-1) || checkedDirectory, lastOpenedAt: Date.now() };
     projectList.value = [
       project.value,
       ...projectList.value.filter(item => item.directory !== previousDirectory && item.directory !== checkedDirectory),
@@ -66,12 +67,37 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (project.value?.directory === path) project.value = target;
   }
 
+  function moveProject(path: string, folder: string) {
+    const target = projectList.value.find(item => item.directory === path);
+    if (!target) throw new Error("项目已不存在");
+    target.folder = folder;
+    if (project.value?.directory === path) project.value = target;
+  }
+
+  async function duplicateProject(source: Project) {
+    if (!browserWorkspaceMode) throw new Error("创建副本目前支持浏览器项目");
+    const directory = `browser://${crypto.randomUUID()}`;
+    const original = useWorkspaceFiles(source.directory), target = useWorkspaceFiles(directory);
+    async function copy(path = "") {
+      for (const entry of (await original.list(path)).entries) {
+        if (entry.type === "directory") { await target.mkdir(entry.path); await copy(entry.path); }
+        else await target.write(entry.path, await original.read(entry.path), true);
+      }
+    }
+    try { await copy(); }
+    catch (error) {
+      for (const entry of (await target.list()).entries) await target.remove(entry.path, entry.type === "directory");
+      throw error;
+    }
+    projectList.value.unshift({ ...source, directory, name: `${source.name} 副本`, lastOpenedAt: Date.now() });
+  }
+
   function removeProject(path: string) {
     projectList.value = projectList.value.filter(item => item.directory !== path);
     if (project.value?.directory === path) project.value = null;
   }
 
-  return { creationMode, project, projectList, pendingAgentMessage, pendingAgentSession, pendingCanvasEntry, createProject, openProject, renameProject, removeProject };
+  return { creationMode, project, projectList, pendingAgentMessage, pendingAgentSession, pendingCanvasEntry, createProject, openProject, renameProject, moveProject, duplicateProject, removeProject };
 }, {
   persist: {
     key: browserWorkspaceMode ? currentAccount.value?.id === "admin" ? "aiStudio.browserProjects.admin" : "aiStudio.browserProjects" : "toonflow.projectList",

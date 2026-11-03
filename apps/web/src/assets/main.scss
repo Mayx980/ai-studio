@@ -80,5 +80,5 @@ html.dark {
   --el-border-color-lighter: #383c43;
 }
 
-html.dark { --agent-input-bg: #292121; }
+html.dark { --agent-input-bg: #101010; }
 html:not(.dark) { --agent-input-bg: var(--el-bg-color); }

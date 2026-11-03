@@ -65,44 +65,11 @@
     </div>
   </el-dialog>
 
-  <el-dialog v-model="saveVisible" title="保存到个人资产" width="520px" alignCenter appendToBody :closeOnClickModal="false" @opened="assetNameInput?.select()">
-    <el-alert title="素材与标签保存在当前浏览器，刷新后仍可使用。" type="info" :closable="false" />
-    <div class="saveCover">
-      <el-alert v-if="saveCoverError" :title="saveCoverError" type="error" :closable="false" />
-      <img v-else-if="saveCoverUrl && saveMediaType === 'IMAGE'" :src="saveCoverUrl" alt="待保存图片封面" />
-      <video v-else-if="saveCoverUrl && saveMediaType === 'VIDEO'" :src="saveCoverUrl" controls playsinline preload="metadata" aria-label="待保存视频预览" />
-      <audio v-else-if="saveCoverUrl && saveMediaType === 'AUDIO'" :src="saveCoverUrl" controls aria-label="待保存音频预览" />
-      <span v-else>正在读取媒体预览…</span>
-    </div>
-    <el-form class="saveForm" labelPosition="top" @submit.prevent="saveSummaryVisible = true">
-      <el-form-item label="素材名称">
-        <el-input ref="assetNameInput" v-model="assetName" aria-label="素材名称" placeholder="输入完整文件名" :disabled="saving" @keydown.enter.prevent="saveSummaryVisible = true" />
-      </el-form-item>
-      <el-form-item v-if="outputs.length > 1" label="节点输出">
-        <el-select v-model="selectedOutput" aria-label="节点输出" :disabled="saving">
-          <el-option v-for="(item, index) in outputs" :key="index" :label="item.label" :value="index" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="保存位置">
-        <el-radio-group v-model="saveCategory" aria-label="保存位置"><el-radio-button v-for="item in assetCategories" :key="item" :value="item">{{ item }}</el-radio-button></el-radio-group>
-      </el-form-item>
-      <el-form-item label="标签（可多选）">
-        <el-checkbox-group v-model="saveTags" aria-label="资产标签"><el-checkbox-button v-for="item in assetCategories" :key="item" :value="item">{{ item }}</el-checkbox-button></el-checkbox-group>
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <el-button :disabled="saving" @click="saveVisible = false">取消</el-button>
-      <el-button type="primary" :loading="saving" :disabled="!assetName.trim() || /[\\/]/.test(assetName)" @click="saveSummaryVisible = true">预览保存</el-button>
-    </template>
-  </el-dialog>
-  <el-dialog v-model="saveSummaryVisible" title="核对资产信息" width="420px" appendToBody>
-    <el-descriptions :column="1" border><el-descriptions-item label="名称">{{ assetName }}</el-descriptions-item><el-descriptions-item label="位置">{{ saveCategory }}</el-descriptions-item><el-descriptions-item label="标签">{{ saveTags.join('、') || '未选择' }}</el-descriptions-item></el-descriptions>
-    <p>素材与标签保存在当前浏览器，刷新后保留。</p>
-    <template #footer><el-button @click="saveSummaryVisible = false">返回编辑</el-button><el-button type="primary" :loading="saving" @click="saveBrowserAsset">保存到个人资产</el-button></template>
-  </el-dialog>
+  <saveAssetDialog ref="saveDialog" @saved="loadEntries().catch(showError)" />
 </template>
 
 <script setup lang="ts">
+import saveAssetDialog, { type AssetSaveSource } from "@/components/saveAssetDialog.vue";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { browserAssetFiles, browserAssetMimeType, listBrowserAssets } from "@/lib/browserAssets";
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
@@ -134,19 +101,9 @@ async function selectAsset(entry: AssetEntry) {
   try { const data = browserWorkspaceMode ? new Blob([await browserAssetFiles().read(entry.path)], { type: browserAssetMimeType(entry.path) }) : (await axios.get<Blob>(assetUrl(entry.path), { responseType: "blob" })).data; emit("select", new File([data], entry.name, { type: data.type && data.type !== "application/octet-stream" ? data.type : mediaKind(entry) === "image" ? `image/${/\.jpe?g$/i.test(entry.name) ? "jpeg" : entry.name.split(".").pop()}` : mediaKind(entry) === "audio" ? "audio/mpeg" : "video/mp4" })); } catch (error) { showError(error); } finally { selecting.value = false; }
 }
 const visible = defineModel<boolean>({ default: false });
-const saveVisible = ref(false);
-const saving = ref(false);
 const assetCategories = ["角色", "场景", "物品", "风格", "音效"];
-const saveCategory = ref("物品");
-const saveTags = ref<string[]>([]);
-const saveSummaryVisible = ref(false);
-const saveCoverUrl = ref("");
-const saveCoverError = ref("");
-const saveMediaType = computed(() => outputs.value[selectedOutput.value]?.output.dataType);
 const entries = ref<AssetEntry[]>([]);
 const folder = ref(".");
-const assetName = ref("");
-const assetNameInput = ref<InputInstance>();
 const searchQuery = ref("");
 const assetTree = ref<InstanceType<typeof ElTree>>();
 const folderInput = ref<InputInstance>();
@@ -274,31 +231,7 @@ async function saveFolder() {
   }
 }
 
-const outputs = ref<AssetOutput[]>([]);
-const selectedOutput = ref(0);
-let sourceDirectory: string | undefined;
-watch([saveVisible, selectedOutput], async (_value, _old, onCleanup) => {
-  let active = true;
-  let url = "";
-  onCleanup(() => { active = false; if (url) URL.revokeObjectURL(url); });
-  saveCoverUrl.value = "";
-  saveCoverError.value = "";
-  const output = outputs.value[selectedOutput.value]?.output;
-  if (!saveVisible.value || !output || typeof output.value !== "object" || !sourceDirectory) return;
-  try {
-    const bytes = await useWorkspaceFiles(sourceDirectory).read(output.value.url);
-    if (!active) return;
-    url = URL.createObjectURL(new Blob([bytes], { type: output.value.mimeType }));
-    saveCoverUrl.value = url;
-  } catch { if (active) saveCoverError.value = "媒体预览读取失败，原文件未改动，请关闭后重试。"; }
-});
-
-const extension = computed(() => {
-  const output = outputs.value[selectedOutput.value]?.output;
-  if (!output) return "";
-  if (typeof output.value !== "object") return output.dataType === "STRING" ? ".txt" : ".json";
-  return output.value.url.match(/\.[^./\\]+$/)?.[0] ?? "";
-});
+const saveDialog = ref<InstanceType<typeof saveAssetDialog>>();
 
 async function loadEntries() {
   const request = ++loadRequest;
@@ -359,46 +292,26 @@ async function createAssetFolder(parent: string, name: string) {
   return path;
 }
 
-async function saveBrowserAsset() {
-  const output = outputs.value[selectedOutput.value]?.output;
-  if (!browserWorkspaceMode || !sourceDirectory || !output || !output.value || typeof output.value !== "object" || typeof output.value.url !== "string" || !assetName.value.trim() || /[\\/]/.test(assetName.value)) return;
-  saving.value = true;
-  try {
-    const files = browserAssetFiles();
-    await files.mkdir(saveCategory.value).catch(error => { if (error.code !== "EEXIST") throw error; });
-    const path = `${saveCategory.value}/${assetName.value.trim()}`;
-    await files.write(path, new Blob([await useWorkspaceFiles(sourceDirectory).read(output.value.url)], { type: output.value.mimeType }), true);
-    assetTags.value[path] = [...saveTags.value];
-    useAssetStore().metadata[path] = { createdAt: Date.now(), source: "画布素材" };
-    saveSummaryVisible.value = false; saveVisible.value = false;
-    await loadEntries();
-    ElMessage.success("已保存到浏览器个人资产");
-  } catch (error) { showError(error); }
-  finally { saving.value = false; }
-}
-
 async function openSave(label: string, items: AssetOutput[]) {
-  const media = items.filter(item => ["IMAGE", "VIDEO", "AUDIO"].includes(item.output.dataType));
-  if (!media.length) { ElMessage.info("个人资产仅支持图片、视频和音频。"); return; }
-  outputs.value = media;
-  saveTags.value = [];
-  saveCategory.value = "物品";
-  selectedOutput.value = 0;
-  assetName.value = label.endsWith(extension.value) ? label : `${label}${extension.value}`;
-  sourceDirectory = props.directory;
-  saveVisible.value = true;
+  const directory = props.directory;
+  if (!directory) return;
   try {
-    await loadEntries();
-  } catch (error) {
-    showError(error);
-  }
+    const sources: AssetSaveSource[] = [];
+    for (const { output } of items) {
+      if (!["IMAGE", "VIDEO", "AUDIO"].includes(output.dataType) || !output.value || typeof output.value !== "object" || typeof output.value.url !== "string") continue;
+      const extension = output.value.url.match(/\.[^./\\]+$/)?.[0] ?? "";
+      const name = label.endsWith(extension) ? label : label + extension;
+      sources.push({ file: new File([await useWorkspaceFiles(directory).read(output.value.url)], name, { type: output.value.mimeType }), metadata: { source: "画布素材" } });
+    }
+    if (!sources.length) { ElMessage.info("个人资产仅支持图片、视频和音频。"); return; }
+    await saveDialog.value?.open(sources);
+  } catch (error) { showError(error); }
 }
 
 defineExpose({ openSave });
 </script>
 
 <style lang="scss" scoped>
-.saveCover { display: grid; place-items: center; min-height: 150px; margin: 16px 0; padding: 14px; border: 1px solid var(--el-border-color-light); border-radius: var(--el-border-radius-base); background: var(--el-fill-color-extra-light); img, video { max-width: 100%; max-height: 200px; object-fit: contain; border-radius: var(--el-border-radius-base); } audio { width: 100%; } }
 
 .assetLibrary {
   &.selectable { width: 100%; }
