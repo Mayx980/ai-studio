@@ -5,7 +5,7 @@
       <el-form labelPosition="top" @submit.prevent="save">
         <el-form-item v-if="items.length > 1" label="选择素材"><el-select v-model="activeIndex" aria-label="选择待保存素材" :disabled="saving"><el-option v-for="(item, index) in items" :key="index" :label="item.file.name" :value="index" /></el-select></el-form-item>
         <el-form-item label="资产名称" required><el-input v-model="current.name" aria-label="资产名称" :maxlength="50" showWordLimit :disabled="saving || current.saved" @keydown.enter.prevent="save" /></el-form-item>
-        <el-form-item label="保存位置"><el-select v-model="current.folder" :emptyValues="[undefined, null]" aria-label="保存位置" :disabled="saving || loading || current.saved" :loading="loading"><el-option label="根文件夹" value="" /><el-option v-for="folder in folders" :key="folder" :label="folder" :value="folder" /></el-select></el-form-item>
+        <el-form-item label="保存位置"><el-select v-model="current.folder" :emptyValues="[undefined, null]" aria-label="保存位置" :disabled="saving || loading || current.saved" :loading="loading" placeholder="请选择文件夹"><el-option v-if="!requiresAssetFolder(current.file.name, current.file.type)" label="根文件夹" value="" /><el-option v-for="folder in folders" :key="folder" :label="folder" :value="folder" /></el-select></el-form-item>
         <el-form-item label="设置标签"><el-select v-model="current.tags" aria-label="设置标签" multiple placeholder="请选择标签" :disabled="saving || current.saved"><el-option v-for="tag in tags" :key="tag" :label="tag" :value="tag" /></el-select></el-form-item>
         <el-alert v-if="error" :title="error" type="error" :closable="false" />
       </el-form>
@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from "vue";
 import { ElMessage } from "element-plus";
-import { browserAssetFiles, listBrowserAssets, type BrowserAssetEntry } from "@/lib/browserAssets";
+import { browserAssetFiles, listBrowserAssets, requiresAssetFolder, type BrowserAssetEntry } from "@/lib/browserAssets";
 import { useAssetStore, type AssetMetadata } from "@/stores/assets";
 export type AssetSaveSource = { file: File; name?: string; metadata?: AssetMetadata };
 type SaveItem = AssetSaveSource & { name: string; url: string; folder: string; tags: string[]; saved: boolean };
@@ -26,7 +26,7 @@ const visible = ref(false), saving = ref(false), loading = ref(false), error = r
 const items = ref<SaveItem[]>([]), activeIndex = ref(0), folders = ref<string[]>([]);
 const current = computed(() => items.value[activeIndex.value]);
 const tags = computed(() => [...new Set(["角色", "场景", "物品", "风格", "音效", ...Object.values(assets.tags).flat()])]);
-const valid = computed(() => items.value.length > 0 && items.value.every(item => item.saved || !!item.name.trim() && !/[\\/\0]/.test(item.name) && ![".", ".."].includes(item.name.trim())));
+const valid = computed(() => items.value.length > 0 && items.value.every(item => item.saved || !!item.name.trim() && (!requiresAssetFolder(item.file.name, item.file.type) || !!item.folder) && !/[\\/\0]/.test(item.name) && ![".", ".."].includes(item.name.trim())));
 function clear() { items.value.forEach(item => URL.revokeObjectURL(item.url)); items.value = []; }
 onBeforeUnmount(clear);
 async function open(sources: AssetSaveSource[]) {
@@ -38,6 +38,7 @@ async function open(sources: AssetSaveSource[]) {
   try {
     const collect = (entries: BrowserAssetEntry[]): string[] => entries.flatMap(entry => entry.type === "directory" ? [entry.path, ...collect(entry.children ?? [])] : []);
     folders.value = collect(await listBrowserAssets());
+    for (const item of items.value) if (requiresAssetFolder(item.file.name, item.file.type)) item.folder = folders.value.includes("未分类") ? "未分类" : "";
   } catch (cause) { error.value = cause instanceof Error ? cause.message : "读取保存位置失败"; }
   finally { loading.value = false; }
 }

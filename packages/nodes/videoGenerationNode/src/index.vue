@@ -44,7 +44,7 @@
         <div v-if="frameMode" class="referenceHint">
           {{ selectedMode === "startFrameOptional" ? "仅一张图片时作为尾帧；两张图片按顺序作为首帧、尾帧" : "图片引用按顺序作为首帧、尾帧" }}
         </div>
-        <promptInput optimizeKind="video" :actionsTarget="promptActions" v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable><template #references><referenceItem
+        <promptInput :disabled="generating || deleting || uploading" optimizeKind="video" :actionsTarget="promptActions" v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable><template #references><referenceItem
           v-if="refList.length"
           v-model="refList"
           @preview="setReferencePreview"
@@ -79,9 +79,10 @@
             :ratios="ratioOptions"
             :model="selectedModel"
             :disabled="generating || deleting || !selectedModel" />
+            <mediaPrice v-if="generationInput" :input="{ ...generationInput, mediaType: 'video' }" :supported="selectedModel?.supportsPrice === true" />
           <div ref="promptActions" class="promptActions" />
           <div class="generationActions">
-            <mediaPrice v-if="generationInput" :input="{ ...generationInput, mediaType: 'video' }" :supported="selectedModel?.supportsPrice === true" />
+            <el-tooltip :content="generating ? '停止生成' : '生成'" placement="top">
             <el-button
               class="sendButton"
               :icon="generating ? IconPlayerStop : IconArrowUp"
@@ -89,6 +90,7 @@
               :title="generating ? '停止生成' : '生成视频'"
               :aria-label="generating ? '停止生成' : '生成视频'"
               @click="generating ? generationController?.abort() : startGeneration().catch((error) => showNodeError(error, '视频生成失败'))" />
+            </el-tooltip>
           </div>
         </div>
       </el-card>
@@ -99,7 +101,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onScopeDispose, ref, watch } from "vue";
-import { ElButton, ElCard, ElSelect, ElOption, ElOptionGroup, ElLoading, ElDropdown, ElDropdownMenu, ElDropdownItem } from "element-plus";
+import { ElTooltip, ElButton, ElCard, ElSelect, ElOption, ElOptionGroup, ElLoading, ElDropdown, ElDropdownMenu, ElDropdownItem } from "element-plus";
 import { IconCameraAi, IconSparkles, IconArrowUp, IconPlayerStop, IconTransfer, IconMusic, IconLayersSubtract, IconScissors, IconPhotoScan, IconPlayerSkipBack, IconPlayerSkipForward } from "@tabler/icons-vue";
 import { nodeSkeleton, nodeTools, useNode, z, type NodeMediaModel, type NodeVideoRequest, type NodeHandle } from "@toonflow/nodes-scaffold/runtime";
 import { groupNodeModels } from "@toonflow/node-shared/groupNodeModels";
@@ -521,4 +523,8 @@ nodeTools.register({
     }
   }
 }
+</style>
+
+<style scoped lang="scss">
+.promptCard { .promptFooter { justify-content: flex-start; gap: 4px; flex-wrap: wrap; .modelSelect { flex: none; width: 180px; } .promptActions { margin-left: auto; } } }
 </style>

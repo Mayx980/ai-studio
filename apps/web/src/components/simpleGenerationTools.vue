@@ -2,7 +2,7 @@
   <div class="simpleGenerationTools">
     <el-dropdown trigger="click" placement="top-start" @command="selectOutput">
       <el-button class="outputSelect" text :class="{ selected: browserConfig.outputChosen }" aria-label="切换创作类型"><icon-photo v-if="browserConfig.outputKind === 'image'" :size="16" /><icon-movie v-else :size="16" />{{ browserConfig.outputKind === 'image' ? '图片生成' : '视频生成' }}<icon-chevron-down :size="13" /></el-button>
-      <template #dropdown><el-dropdown-menu class="outputMenu"><li class="menuLabel" role="presentation">创作类型</li><el-dropdown-item command="image" :class="{ selected: browserConfig.outputKind === 'image' }"><icon-photo :size="16" />图片生成<icon-check v-if="browserConfig.outputKind === 'image'" :size="16" /></el-dropdown-item><el-dropdown-item command="video" :class="{ selected: browserConfig.outputKind === 'video' }"><icon-movie :size="16" />视频生成<icon-check v-if="browserConfig.outputKind === 'video'" :size="16" /></el-dropdown-item></el-dropdown-menu></template>
+      <template #dropdown><el-dropdown-menu class="outputMenu"><li class="menuLabel" role="presentation">创作类型</li><el-dropdown-item command="image" :class="{ selected: browserConfig.outputKind === 'image' }"><icon-photo :size="16" />图片生成<icon-check v-if="browserConfig.outputKind === 'image'" :size="16" /></el-dropdown-item><el-dropdown-item v-if="!imageOnly" command="video" :class="{ selected: browserConfig.outputKind === 'video' }"><icon-movie :size="16" />视频生成<icon-check v-if="browserConfig.outputKind === 'video'" :size="16" /></el-dropdown-item></el-dropdown-menu></template>
     </el-dropdown>
     <el-popover v-if="browserConfig.outputChosen && browserConfig.outputKind === 'image'" trigger="click" placement="top" :width="180" :hideAfter="0">
       <template #reference><el-button class="styleSelect" :class="{ selected: !!browserConfig.style }" text aria-label="选择风格"><icon-palette :size="16" />{{ browserConfig.style || '风格' }}</el-button></template>
@@ -15,6 +15,7 @@ import { IconPalette, IconPhoto, IconMovie, IconChevronDown, IconCheck } from "@
 import { onMounted } from "vue";
 import { generationStyles } from "@/lib/generationStyles";
 import { browserConfig } from "@/stores/browserGeneration";
+defineProps<{ imageOnly?: boolean }>();
 const styles = Object.keys(generationStyles);
 onMounted(() => { browserConfig.outputChosen = true; });
 function selectOutput(kind: string | number | boolean) { if (kind === "image" || kind === "video") { browserConfig.outputKind = kind; browserConfig.outputChosen = true; } }

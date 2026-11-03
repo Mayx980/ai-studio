@@ -1,10 +1,11 @@
 <template>
-  <el-dialog v-model="visible" title="引用素材" width="min(900px, 94vw)" appendToBody destroyOnClose @close="finish()">
+  <input ref="uploadInput" type="file" multiple hidden aria-label="上传引用文件" @change="upload" @cancel="finish()" />
+  <el-dialog v-model="visible" title="引用素材" width="min(900px, 94vw)" appendToBody destroyOnClose @close="closeDialog">
     <el-tabs v-model="scope" @tabChange="load().catch(showError)">
-      <el-tab-pane label="本地上传" name="local"><input ref="uploadInput" type="file" multiple hidden aria-label="上传引用文件" @change="upload" /><el-button @click="uploadInput?.click()">选择文件</el-button></el-tab-pane>
-      <el-tab-pane label="个人资产" name="personal"><assetLibrary v-if="scope === 'personal'" :modelValue="true" selectable @select="file => finish({ files: [file], sources: [] })" /></el-tab-pane>
+      <el-tab-pane label="个人资产库" name="personal"><assetLibrary v-if="scope === 'personal'" :modelValue="true" selectable @select="file => finish({ files: [file], sources: [] })" /></el-tab-pane>
       <el-tab-pane label="当前画布资产" name="canvas" />
       <el-tab-pane label="其他项目资产" name="projects" />
+      <el-tab-pane label="自定义素材" name="custom"><el-button @click="openCustom">打开图片生成对话</el-button></el-tab-pane>
     </el-tabs>
     <el-select v-if="scope === 'projects'" v-model="selectedProject" aria-label="引用项目" @change="load().catch(showError)"><el-option v-for="project in otherProjects" :key="project.directory" :label="project.name" :value="project.directory" /></el-select>
     <div v-if="scope === 'canvas' || scope === 'projects'" class="referenceOutputs" v-loading="loading">
@@ -14,7 +15,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { materialEditorState } from "@/stores/materialEditor";
 import { ElMessage } from "element-plus";
 import { useWorkspaceStore } from "@/stores/workspace";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
@@ -26,7 +28,9 @@ type Choice = { files: File[]; sources: Source[] };
 type Asset = { key: string; label: string; directory: string; source: string; sourceHandle: string; output: NodeOutput };
 const props = defineProps<{ directory: string; nodes: () => { id: string; data: { label?: string; outputs?: Record<string, unknown> } }[] }>();
 const store = useWorkspaceStore();
-const visible = ref(false), scope = ref("local"), loading = ref(false), selectedProject = ref("");
+const visible = ref(false), scope = ref("personal"), loading = ref(false), selectedProject = ref("");
+const customOpen = ref(false);
+const materialOwner = Symbol("nodeMaterial");
 const uploadInput = ref<HTMLInputElement>();
 const items = ref<Asset[]>([]);
 const otherProjects = computed(() => store.projectList.filter(project => project.directory !== props.directory));
@@ -34,11 +38,21 @@ let resolveChoice: ((value?: Choice) => void) | undefined;
 let target: string | undefined;
 let requestId = 0;
 function open(nodeId?: string, initialScope = "local") {
-  finish(); target = nodeId; scope.value = initialScope; visible.value = true;
-  void load().catch(showError);
-  return new Promise<Choice | undefined>(resolve => { resolveChoice = resolve; });
+  if (materialEditorState.value) { ElMessage.warning("请先完成或关闭自定义素材对话"); return Promise.resolve<Choice | undefined>(undefined); }
+  finish(); customOpen.value = false; if (uploadInput.value) uploadInput.value.value = ""; target = nodeId; scope.value = initialScope; visible.value = true;
+  const result = new Promise<Choice | undefined>(resolve => { resolveChoice = resolve; });
+  if (initialScope === "local") { visible.value = false; customOpen.value = true; void Promise.resolve().then(() => uploadInput.value?.click()); }
+  else void load().catch(showError);
+  return result;
 }
+function closeDialog() { if (!customOpen.value) finish(); }
 function finish(value?: Choice) { resolveChoice?.(value); resolveChoice = undefined; visible.value = false; }
+function openCustom() {
+  customOpen.value = true; visible.value = false;
+  materialEditorState.value = { owner: materialOwner, source: "canvas", directory: props.directory, target: { role: "reference" }, label: "节点参考图", apply: file => finish({ files: [file], sources: [] }) };
+}
+watch(materialEditorState, (value, previous) => { if (previous?.owner === materialOwner && value?.owner !== materialOwner) { customOpen.value = false; finish(); } }, { flush: "sync" });
+onBeforeUnmount(() => { if (materialEditorState.value?.owner === materialOwner) materialEditorState.value = undefined; finish(); });
 function upload(event: Event) { const files = Array.from((event.target as HTMLInputElement).files ?? []); if (files.length) finish({ files, sources: [] }); }
 function collect(nodes: ReturnType<typeof props.nodes>, directory: string, prefix = "") {
   return nodes.flatMap(node => node.id === target && directory === props.directory ? [] : Object.entries(node.data?.outputs ?? {}).flatMap(([handle, output]) => isNodeOutput(output) && ["STRING", "IMAGE", "VIDEO", "AUDIO", "FILE"].includes(output.dataType) ? [{ key: `${prefix}/${node.id}/${handle}`, directory, source: node.id, sourceHandle: handle, label: `${prefix ? `${prefix} · ` : ""}${node.data.label || node.id} · ${handle.startsWith("row:") && output.dataType === "STRING" ? output.value.split("\n")[0] : handle}`, output }] : []));
@@ -47,6 +61,7 @@ async function load() {
   const request = ++requestId;
   items.value = [];
   loading.value = false;
+  if (scope.value === "custom") { openCustom(); return; }
   if (scope.value === "canvas") { items.value = collect(props.nodes(), props.directory); return; }
   if (scope.value !== "projects" || !selectedProject.value) return;
   loading.value = true;

@@ -45,12 +45,12 @@
       <el-card v-else class="promptCard" shadow="never" :bodyStyle="{ padding: '14px 16px 12px' }">
         <el-button v-if="inpaintGuideUrl && editor?.mode !== 'inpaint'" class="inpaintInfo" text :icon="IconBrush" @click="inpaintPreviewVisible = true">查看重绘标注</el-button>
 
-        <promptInput optimizeKind="image" :actionsTarget="promptActions" v-if="editor?.mode === 'inpaint'" v-model="data.inpaintPromptModel" v-model:text="data.inpaintPrompt" :references="referenceMentions" expandable><template #references><referenceItem
+        <promptInput :disabled="generating || deleting || uploading" optimizeKind="image" :actionsTarget="promptActions" v-if="editor?.mode === 'inpaint'" v-model="data.inpaintPromptModel" v-model:text="data.inpaintPrompt" :references="referenceMentions" expandable><template #references><referenceItem
           v-if="refList.length"
           v-model="refList"
           @preview="setReferencePreview"
           @remove="removeReference" /></template></promptInput>
-        <promptInput optimizeKind="image" :actionsTarget="promptActions" v-else v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable><template #references><referenceItem
+        <promptInput :disabled="generating || deleting || uploading" optimizeKind="image" :actionsTarget="promptActions" v-else v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable><template #references><referenceItem
           v-if="refList.length"
           v-model="refList"
           @preview="setReferencePreview"
@@ -88,6 +88,7 @@
           <el-button v-if="editor?.mode === 'inpaint'" class="confirmButton" type="primary" :icon="IconCheck" :loading="editor.busy" :disabled="deleting || uploading || !generationPrompt" @click="confirmInpaint().catch(error => showNodeError(error, '重绘节点创建失败'))">确认</el-button>
           <div v-else class="generationActions">
             <mediaPrice v-if="priceInput" :input="{ ...priceInput, mediaType: 'image' }" :supported="selectedModel?.supportsPrice === true" />
+            <el-tooltip :content="generating ? '停止生成' : '生成'" placement="top">
             <el-button
               class="sendButton"
               :icon="generating ? IconPlayerStop : IconArrowUp"
@@ -95,6 +96,7 @@
               :title="generating ? '停止生成' : '生成图片'"
               :aria-label="generating ? '停止生成' : '生成图片'"
               @click="generating ? generationController?.abort() : startGeneration().catch((error) => showNodeError(error, '图片生成失败'))" />
+            </el-tooltip>
           </div>
         </div>
       </el-card>
@@ -114,7 +116,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onScopeDispose, ref, watch } from "vue";
-import { ElButton, ElCard, ElSelect, ElOption, ElOptionGroup, ElLoading, ElImageViewer } from "element-plus";
+import { ElTooltip, ElButton, ElCard, ElSelect, ElOption, ElOptionGroup, ElLoading, ElImageViewer } from "element-plus";
 import { IconCheck, IconPhotoAi, IconSparkles, IconArrowUp, IconPlayerStop, IconTransfer, IconLayoutGrid, IconBrush, IconPencil, IconSun, IconCameraRotate, IconPanoramaHorizontal, IconChevronDown } from "@tabler/icons-vue";
 import { nodeSkeleton, nodeTools, useNode, z, type NodeMediaModel, type NodeImageRequest, type NodeHandle } from "@toonflow/nodes-scaffold/runtime";
 import { groupNodeModels } from "@toonflow/node-shared/groupNodeModels";
@@ -563,4 +565,8 @@ nodeTools.register({
     }
   }
 }
+</style>
+
+<style scoped lang="scss">
+.promptCard { .promptFooter { justify-content: flex-start; gap: 4px; flex-wrap: wrap; .modelSelect { flex: none; width: 180px; } .promptActions { margin-left: auto; } } }
 </style>

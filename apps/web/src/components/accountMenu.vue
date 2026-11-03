@@ -26,5 +26,5 @@ async function logout() {
 </script>
 
 <style scoped lang="scss">
-.accountMenu { .userCenterButton { display: flex; justify-content: flex-start; gap: 10px; height: 54px; width: 100%; border-radius: 12px; color: #d6d9df; background: #202227; :deep(> span) { display: flex; align-items: center; gap: 10px; } .userCenterText { display: grid; gap: 4px; text-align: left; strong { font-size: 13px; font-weight: 500; } small { font-size: 11px; color: #969aa5; } } } }
+.accountMenu { .userCenterButton { display: flex; justify-content: flex-start; gap: 10px; height: 54px; width: 100%; border-radius: 12px; color: #d6d9df; background: transparent; &:hover, &[aria-expanded="true"] { background: transparent; } :deep(> span) { display: flex; align-items: center; gap: 10px; } .userCenterText { display: grid; gap: 4px; text-align: left; strong { font-size: 13px; font-weight: 500; } small { font-size: 11px; color: #969aa5; } } } }
 </style>

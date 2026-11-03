@@ -2,10 +2,11 @@
   <div class="promptInputWrap nodrag nopan nowheel" :class="{ inlineActions: !!actionsTarget }">
     <div v-if="$slots.references" class="referenceCovers"><slot name="references" /></div>
     <teleport :to="actionsTarget || 'body'" :disabled="!actionsTarget"><div class="promptTools" :class="{ inlineTools: !!actionsTarget }">
-    <el-tooltip v-if="pickReferences" content="引用" placement="top"><el-button class="referenceButton" text circle aria-label="引用" @click.stop="pickReferences(nodeId)"><icon-paperclip :size="17" /></el-button></el-tooltip>
-    <el-button v-if="optimizeKind" class="optimizeButton" text circle :disabled="!optimizePrompt || !text.trim() || optimizing" :loading="optimizing" title="优化提示词" aria-label="优化提示词" @click.stop="startOptimization"><icon-wand :size="17" /></el-button>
+    <el-tooltip v-if="pickReferences || uploadLocal" content="上传本地文件" placement="top"><el-button class="uploadButton" text circle :disabled="disabled" aria-label="上传本地文件" @click.stop="uploadLocal ? uploadLocal() : pickReferences?.(nodeId, 'local')"><icon-upload :size="17" /></el-button></el-tooltip>
+    <el-tooltip v-if="pickReferences" content="引用" placement="top"><el-button class="referenceButton" text circle :disabled="disabled" aria-label="引用" @click.stop="pickReferences(nodeId, 'personal')"><icon-paperclip :size="17" /></el-button></el-tooltip>
+    <el-tooltip v-if="optimizeKind" content="优化提示词" placement="top"><el-button class="optimizeButton" text circle :disabled="disabled || !optimizePrompt || !text.trim() || optimizing" :loading="optimizing" title="优化提示词" aria-label="优化提示词" @click.stop="startOptimization"><icon-wand :size="17" /></el-button></el-tooltip>
     </div></teleport>
-    <el-button v-if="expandable" class="expandButton" :icon="IconMaximize" text circle title="展开编辑提示词" aria-label="展开编辑提示词" @mousedown.prevent @click.stop="expanded = true" />
+    <el-tooltip v-if="expandable" content="放大输入框" placement="top"><el-button class="expandButton" :icon="IconArrowsDiagonal" text circle title="放大输入框" aria-label="放大输入框" @mousedown.prevent @click.stop="expanded = true" /></el-tooltip>
     <teleport :to="expandedTarget || 'body'" :disabled="!expanded || !expandedTarget">
       <div ref="senderElement" class="promptInput nodrag nopan nowheel" :class="{ expandedInput: expanded }" @keydown.capture="handleMentionKey" @click.capture="previewReference" />
     </teleport>
@@ -16,7 +17,7 @@
     <el-input v-else-if="optimizedText" v-model="optimizedText" type="textarea" :autosize="{ minRows: 6, maxRows: 16 }" aria-label="优化后的提示词" />
     <template #footer><el-button @click="optimizationVisible = false">取消</el-button><el-button type="primary" :disabled="optimizing || !optimizedText.trim()" @click="applyOptimization">应用</el-button></template>
   </el-dialog>
-  <el-dialog v-if="expandable" v-model="expanded" class="promptEditorDialog" title="生成提示词" width="80%" alignCenter appendToBody :closeOnClickModal="false" @opened="sender?.focus('mark')" @close="expanded = false" @closed="sender?.focus('mark')">
+  <el-dialog v-if="expandable" v-model="expanded" class="promptEditorDialog" title="编辑输入内容" fullscreen alignCenter appendToBody :closeOnClickModal="false" @opened="sender?.focus('mark')" @close="expanded = false" @closed="sender?.focus('mark')">
     <div ref="expandedTarget" class="promptExpandedTarget nodrag nopan nowheel" @pointerdown.stop @mousedown.stop @dblclick.stop />
   </el-dialog>
   <el-image-viewer v-if="previewUrl" :urlList="[previewUrl]" teleported @close="previewReferenceId = undefined" />
@@ -25,14 +26,14 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { ElAlert, ElInput, ElButton, ElDialog, ElImageViewer, ElTooltip, useZIndex } from "element-plus";
-import { IconWand, IconMaximize, IconPaperclip } from "@tabler/icons-vue";
+import { IconWand, IconArrowsDiagonal, IconPaperclip, IconUpload } from "@tabler/icons-vue";
 import { useNode } from "@vue-flow/core";
 import xSender, { type AnyTagProps, type MentionItem } from "x-sender";
 import "x-sender/lib/XSender.css";
 
 const { id: nodeId } = useNode();
-const pickReferences = inject<((nodeId: string) => Promise<void>) | undefined>("pickNodeReferences", undefined);
-const props = defineProps<{ references: (MentionItem & { value: string })[]; expandable?: boolean; placeholder?: string; optimizeKind?: "image" | "video" | "audio"; actionsTarget?: HTMLElement }>();
+const pickReferences = inject<((nodeId: string, scope?: string) => Promise<void>) | undefined>("pickNodeReferences", undefined);
+const props = defineProps<{ references: (MentionItem & { value: string })[]; expandable?: boolean; placeholder?: string; optimizeKind?: "image" | "video" | "audio"; actionsTarget?: HTMLElement; uploadLocal?: () => void; disabled?: boolean }>();
 const model = defineModel<AnyTagProps[][]>({ required: true });
 const text = defineModel<string>("text", { default: "" });
 const optimizePrompt = inject<((prompt: string, kind: "image" | "video" | "audio", signal: AbortSignal) => Promise<string>) | undefined>("optimizeNodePrompt", undefined);
@@ -404,7 +405,7 @@ function handleMentionKey(event: KeyboardEvent) {
 :global(.promptEditorDialog) {
   display: flex;
   flex-direction: column;
-  height: 80vh;
+  height: 100dvh;
 }
 
 :global(.promptEditorDialog .el-dialog__body) { flex: 1; min-height: 0; }

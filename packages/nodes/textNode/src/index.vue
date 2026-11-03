@@ -3,7 +3,7 @@
     v-bind="nodeProps"
     :icon="isScript ? IconMovie : IconFileText"
     :hiddenHandles="isScript ? scriptRows.flatMap(row => [`row:${row.id}`, `rowIn:${row.id}`]) : []"
-    :style="isScript ? { width: '3400px' } : undefined"
+    :style="isScript ? { width: '3500px' } : undefined"
     v-model:bottomVisible="node.selected"
     :topVisible="node.selected"
     topWidth="max-content"
@@ -16,6 +16,7 @@
         <el-button text size="small" :disabled="generating || textReloading" @click="editing = true">查看并复制当前正文</el-button>
         <el-button text size="small" :disabled="generating" :loading="textReloading" @click="reloadText">重新读取磁盘</el-button>
       </el-alert>
+      <el-tooltip v-if="isScript && textReady && !contentOnly" content="放大脚本表格" placement="top"><el-button class="expandScript" text circle :icon="IconArrowsDiagonal" aria-label="放大脚本表格" @click.stop="fullscreen = true; editing = true" /></el-tooltip>
       <span v-if="isScript && textReady && !contentOnly" class="scriptSaveStatus" role="status">{{ documentState.error ? '保存失败，内容已保留' : documentState.dirty ? '正在保存…' : '已保存' }}</span>
       <scriptTable ref="scriptTableRef" v-if="isScript && textReady" v-model="outputs.text.value" v-model:rows="scriptRows" :nodeId="node.id" :embedded="contentOnly" :contentOnly="contentOnly" :disabled="generating || !!documentState.error" />
       <div v-else-if="outputs.text.value.trim() && previewReady" class="textPreview nopan nowheel" :aria-label="isScript ? '脚本与分镜内容' : '文本内容'">
@@ -26,7 +27,7 @@
     <template #bottom>
       <el-card class="promptCard" shadow="never" :bodyStyle="{ padding: '14px 16px 12px' }">
 
-        <promptInput v-model="promptModel" v-model:text="prompt" :references="referenceMentions" :placeholder="isScript ? '描述视频脚本或分镜文案的创作要求' : undefined"><template #references><referenceItem v-if="refList.length"
+        <promptInput :disabled="generating || data.scriptImportPending" :actionsTarget="promptActionsTarget" :uploadLocal="isScript ? () => scriptTableRef?.chooseImport() : undefined" expandable v-model="promptModel" v-model:text="prompt" :references="referenceMentions" :placeholder="isScript ? '描述视频脚本或分镜文案的创作要求' : undefined"><template #references><referenceItem v-if="refList.length"
             v-model="refList"
             @preview="setReferencePreview"
             @remove="removeReference" /></template></promptInput>
@@ -37,8 +38,10 @@
               <el-option v-for="item in provider.models" :key="item.modelId" :label="item.label" :value="JSON.stringify([item.providerId, item.modelId])" />
             </el-option-group>
           </el-select>
-          <div class="promptActions"><el-button v-if="isScript" text :disabled="generating || data.scriptImportPending" @click="scriptTableRef?.chooseImport()">上传文档／表格</el-button>
-            <el-button class="sendButton" :icon="IconArrowUp" :loading="generating" :disabled="(!prompt.trim() && !hasScriptReferences) || !selectedModel || generating || data.scriptImportPending || !textReady" title="生成" aria-label="生成" @click="generateText" />
+          <el-popover trigger="click" placement="top" :width="230"><template #reference><el-button text :disabled="generating" aria-label="文字生成参数" title="参数配置"><icon-adjustments-horizontal :size="16" />参数</el-button></template><el-form labelPosition="top"><el-form-item label="内容详略"><el-select v-model="generationLength" aria-label="内容详略"><el-option label="AI 推荐" value="auto" /><el-option label="简洁" value="简洁" /><el-option label="详细" value="详细" /></el-select></el-form-item><el-form-item label="表达风格"><el-select v-model="generationTone" aria-label="表达风格"><el-option label="AI 推荐" value="auto" /><el-option label="专业" value="专业" /><el-option label="通俗" value="通俗" /><el-option label="生动" value="生动" /></el-select></el-form-item></el-form></el-popover>
+          <div ref="promptActionsTarget" class="promptToolsTarget" />
+          <div class="promptActions">
+            <el-tooltip content="生成" placement="top">            <el-button class="sendButton" :icon="IconArrowUp" :loading="generating" :disabled="(!prompt.trim() && !hasScriptReferences) || !selectedModel || generating || data.scriptImportPending || !textReady" title="生成" aria-label="生成" @click="generateText" /></el-tooltip>
           </div>
         </div>
       </el-card>
@@ -55,8 +58,8 @@
 <script setup lang="ts">
 import { scriptHeaders, scriptGenerationInstruction, scriptCellValue } from "./scriptColumns";
 import { computed, inject, onMounted, onScopeDispose, ref, watch } from "vue";
-import { ElAlert, ElButton, ElCard, ElSelect, ElDialog, ElOption, ElOptionGroup, ElMessage, ElMessageBox } from "element-plus";
-import { IconEdit, IconFileText, IconMovie, IconSparkles, IconArrowUp } from "@tabler/icons-vue";
+import { ElAlert, ElTooltip, ElPopover, ElForm, ElFormItem, ElButton, ElCard, ElSelect, ElDialog, ElOption, ElOptionGroup, ElMessage, ElMessageBox } from "element-plus";
+import { IconArrowsDiagonal, IconAdjustmentsHorizontal, IconEdit, IconFileText, IconMovie, IconSparkles, IconArrowUp } from "@tabler/icons-vue";
 import { nodeSkeleton, nodeTools, useNode, z, type NodeAiModel, type NodeHandle } from "@toonflow/nodes-scaffold/runtime";
 import { groupNodeModels } from "@toonflow/node-shared/groupNodeModels";
 import { useNodeReferences } from "@toonflow/node-shared/useNodeReferences";
@@ -86,11 +89,12 @@ const { node, nodeProps, outputs, handles, ai, files, nodeEvent, previewReady } 
 });
 const { refList, referenceMentions, setReferencePreview, removeReference } = useNodeReferences();
 const scriptTableRef = ref<InstanceType<typeof scriptTable>>();
+const promptActionsTarget = ref<HTMLElement>();
 const editing = ref(false);
 const fullscreen = ref(false);
 function openScript(event: MouseEvent) {
   if (!isScript.value || contentOnly.value || (event.target as Element).closest("button, input, textarea, .el-input, .el-image, .vue-flow__handle")) return;
-  fullscreen.value = true; editing.value = true;
+  node.selected = true;
 }
 const downloadUrl = ref("");
 const documentContext = inject<NodeDocumentContext | undefined>("nodeDocument", undefined);
@@ -102,7 +106,7 @@ watch([() => outputs.value.text.value, () => node.selected || !!documentContext?
   downloadUrl.value = url;
   onCleanup(() => URL.revokeObjectURL(url));
 }, { immediate: true });
-const data = computed(() => node.data as typeof node.data & { prompt?: string; promptModel?: PromptModel; model?: string; textPath?: string; textSnapshot?: string; contentKind?: string; scriptReferenceVersions?: Record<string, string | undefined>; scriptImport?: { applied: boolean; text?: string; error?: string }; scriptImportActive?: { applied: boolean; text?: string; error?: string }; scriptImportPending?: boolean; scriptRows?: { id: string; cells: string[] }[] });
+const data = computed(() => node.data as typeof node.data & { prompt?: string; promptModel?: PromptModel; generationLength?: string; generationTone?: string; model?: string; textPath?: string; textSnapshot?: string; contentKind?: string; scriptReferenceVersions?: Record<string, string | undefined>; scriptImport?: { applied: boolean; text?: string; error?: string }; scriptImportActive?: { applied: boolean; text?: string; error?: string }; scriptImportPending?: boolean; scriptRows?: { id: string; cells: string[] }[] });
 const importedReference = computed(() => data.value.scriptImportActive ?? data.value.scriptImport);
 const isScript = computed(() => data.value.contentKind === "script");
 if (isScript.value && !Array.isArray(data.value.scriptRows)) data.value.scriptRows = [];
@@ -121,6 +125,8 @@ watch([scriptRows, rowReferences], ([rows, references]) => {
 }, { deep: true, immediate: true });
 const prompt = computed({ get: () => data.value.prompt ?? "", set: (value: string) => { data.value.prompt = value; } });
 const model = computed({ get: () => data.value.model ?? "", set: (value: string) => { data.value.model = value; } });
+const generationLength = computed({ get: () => data.value.generationLength ?? "auto", set: (value: string) => { data.value.generationLength = value; } });
+const generationTone = computed({ get: () => data.value.generationTone ?? "auto", set: (value: string) => { data.value.generationTone = value; } });
 const models = ref<NodeAiModel[]>([]);
 const modelsLoading = ref(false);
 const generating = ref(false);
@@ -272,7 +278,8 @@ async function generateText() {
       .map(item => item.dataType === "STRING" ? { dataType: item.dataType, value: item.value } : { dataType: item.dataType, value: { ...item.value } });
     if (isScript.value && importedReference.value?.applied && !importedReference.value.error && importedReference.value.text) references.push({ dataType: "STRING", value: importedReference.value.text });
     const rowVersions = refList.value.filter(item => item.sourceHandle.startsWith("row:")).map(item => ({ key: JSON.stringify([item.source, item.sourceHandle]), value: item.value }));
-    const input = { providerId: choice.providerId, modelId: choice.modelId, prompt: isScript.value ? `${scriptGenerationInstruction}\n${prompt.value.trim()}` : prompt.value.trim(), references };
+    const preferences = [generationLength.value !== "auto" ? `内容详略：${generationLength.value}` : "", generationTone.value !== "auto" ? `表达风格：${generationTone.value}` : ""].filter(Boolean).join("；");
+    const input = { providerId: choice.providerId, modelId: choice.modelId, prompt: [isScript.value ? scriptGenerationInstruction : "", prompt.value.trim(), preferences, isScript.value && preferences ? "详略和风格只调整文案，不省略分镜字段或镜头。" : ""].filter(Boolean).join("\n"), references };
     const directory = references.some(item => item.dataType !== "STRING") ? (await textFiles.list()).directory : undefined;
     const result = await ai.generate({
       ...input,
@@ -406,4 +413,9 @@ nodeTools.register({
     }
   }
 }
+</style>
+
+<style scoped lang="scss">
+.textContent { position: relative; .expandScript { position: absolute; top: 4px; right: 4px; z-index: 8; width: 28px; height: 28px; padding: 4px; } }
+.promptCard { .promptFooter { justify-content: flex-start; gap: 4px; flex-wrap: wrap; .modelSelect { flex: none; width: 180px; } .promptToolsTarget { margin-left: auto; } .promptActions { gap: 4px; } } }
 </style>

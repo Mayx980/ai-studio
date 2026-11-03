@@ -4,13 +4,15 @@
     <input ref="uploadInput" class="uploadInput" type="file" accept="image/*,video/*,audio/*" multiple @change="upload" />
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <div class="assetGrid"><article v-for="item in displayed" :key="item.path" class="assetCard" :class="{ selected: selected.includes(item.path) }"><button class="assetCover" type="button" :aria-label="(item.type === 'directory' ? '打开文件夹 ' : '预览 ') + item.name" @click="open(item)"><icon-folder-filled v-if="item.type === 'directory'" class="folderIcon" :size="58" /><img v-else-if="kind(item) === 'image'" :src="urls[item.path]" :alt="item.name" /><video v-else-if="kind(item) === 'video'" :src="urls[item.path]" muted playsinline preload="metadata" /><icon-music v-else :size="40" /></button><input v-if="item.type === 'file'" v-model="selected" class="assetCheckbox" type="checkbox" :value="item.path" :aria-label="'选择 ' + item.name" :disabled="busy" /><h3 :title="item.name">{{ item.name }}</h3><small>{{ dateFor(item.path) }}</small></article></div>
-    <div v-if="selected.length" class="selectionToolbar" role="toolbar" aria-label="资产批量操作"><el-button text :disabled="busy" aria-label="取消选择" @click="selected = []"><icon-x :size="16" /></el-button><span>已选择 {{ selected.length }} 项</span><el-button :disabled="busy" @click="addToCanvas(selectedEntries)">新建画布添加</el-button><el-button :disabled="busy" @click="moveVisible = true">移动到</el-button><el-button :disabled="busy" @click="editTags">修改标签</el-button><el-button :disabled="busy" aria-label="下载所选资产" @click="download(selectedEntries)"><icon-download :size="16" /></el-button><el-button :disabled="busy" type="danger" aria-label="删除所选资产" @click="remove(selectedEntries)"><icon-trash :size="16" /></el-button></div>
+    <div v-if="selected.length" class="selectionToolbar" role="toolbar" aria-label="资产批量操作"><el-tooltip content="取消选择" placement="top"><el-button text :disabled="busy" aria-label="取消选择" @click="selected = []"><icon-x :size="16" /></el-button></el-tooltip><span>已选择 {{ selected.length }} 项</span><el-button :disabled="busy" @click="addToCanvas(selectedEntries)">新建画布添加</el-button><el-button :disabled="busy" @click="destination = folder || folders[0]?.path || ''; moveVisible = true">移动到</el-button><el-button :disabled="busy" @click="editTags">修改标签</el-button><el-tooltip content="下载所选资产" placement="top"><el-button :disabled="busy" aria-label="下载所选资产" @click="download(selectedEntries)"><icon-download :size="16" /></el-button></el-tooltip><el-tooltip content="删除所选资产" placement="top"><el-button :disabled="busy" type="danger" aria-label="删除所选资产" @click="remove(selectedEntries)"><icon-trash :size="16" /></el-button></el-tooltip></div>
     <el-dialog :modelValue="!!preview" class="assetDetailDialog" width="min(1200px, 96vw)" alignCenter appendToBody destroyOnClose :showClose="false" @update:modelValue="preview = undefined"><div v-if="preview" class="assetDetail"><div class="detailMedia"><img v-if="kind(preview) === 'image'" :src="urls[preview.path]" :alt="preview.name" /><video v-else-if="kind(preview) === 'video'" :src="urls[preview.path]" controls playsinline /><audio v-else :src="urls[preview.path]" controls /></div><aside><header><h3>{{ preview.name }}</h3><el-button text aria-label="关闭资产详情" @click="preview = undefined"><icon-x :size="16" /></el-button></header><dl><dt>创建时间</dt><dd>{{ dateFor(preview.path, true) }}</dd><dt>资产来源</dt><dd>{{ assets.metadata[preview.path]?.source || '未记录' }}<template v-if="assets.metadata[preview.path]?.model"> · {{ assets.metadata[preview.path]?.model }}</template></dd></dl><h4>生成信息</h4><p class="generationInfo">{{ assets.metadata[preview.path]?.prompt || '未记录' }}</p><footer><el-button :disabled="busy" @click="addToCanvas([preview])">新建画布添加</el-button><div><el-button :disabled="busy" type="danger" @click="remove([preview])"><icon-trash :size="16" />删除</el-button><el-button :disabled="busy" @click="download([preview])"><icon-download :size="16" />下载</el-button></div></footer></aside></div></el-dialog>
-    <el-dialog v-model="moveVisible" title="移动到" width="360px" appendToBody><el-select v-model="destination" aria-label="目标文件夹"><el-option label="个人资产库" value="" /><el-option v-for="item in folders" :key="item.path" :label="item.path" :value="item.path" /></el-select><template #footer><el-button :disabled="busy" @click="moveVisible = false">取消</el-button><el-button :loading="busy" @click="move">移动</el-button></template></el-dialog>
+    <el-dialog v-model="moveVisible" title="移动到" width="360px" appendToBody><el-select v-model="destination" aria-label="目标文件夹"><el-option label="个人资产库" value="" :disabled="selectedEntries.some(item => ['image', 'video'].includes(kind(item)))" /><el-option v-for="item in folders" :key="item.path" :label="item.path" :value="item.path" /></el-select><template #footer><el-button :disabled="busy" @click="moveVisible = false">取消</el-button><el-button :loading="busy" @click="move">移动</el-button></template></el-dialog>
     <el-dialog v-model="tagsVisible" title="修改标签" width="400px" appendToBody><el-checkbox-group v-model="chosenTags"><el-checkbox-button v-for="tag in categories" :key="tag" :value="tag">{{ tag }}</el-checkbox-button></el-checkbox-group><template #footer><el-button @click="tagsVisible = false">取消</el-button><el-button @click="saveTags">保存</el-button></template></el-dialog>
+    <saveAssetDialog ref="saveDialog" @saved="reload().catch(failure)" />
   </section>
 </template>
 <script setup lang="ts">
+import saveAssetDialog from "@/components/saveAssetDialog.vue";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
@@ -20,6 +22,7 @@ import { useWorkspaceStore } from "@/stores/workspace";
 import saveFile from "@/lib/saveFile";
 type Entry = BrowserAssetEntry;
 const assets = useAssetStore(), workspace = useWorkspaceStore(), router = useRouter();
+const saveDialog = ref<InstanceType<typeof saveAssetDialog>>();
 const entries = ref<Entry[]>([]), urls = ref<Record<string, string>>({}), folder = ref(""), search = ref(""), searchVisible = ref(false), busy = ref(true), error = ref("");
 const selected = ref<string[]>([]), preview = ref<Entry>(), uploadInput = ref<HTMLInputElement>();
 const moveVisible = ref(false), destination = ref(""), tagsVisible = ref(false), chosenTags = ref<string[]>([]);
@@ -74,6 +77,12 @@ async function create(command: string | number | object) {
 async function upload(event: Event) {
   const input = event.target as HTMLInputElement, files = Array.from(input.files ?? []); input.value = "";
   if (busy.value) return;
+  const invalid = files.find(file => !/^(image|video|audio)\//.test(file.type) || !/^(image|video|audio)\//.test(browserAssetMimeType(file.name)));
+  if (invalid) { failure(new Error(`${invalid.name}：仅支持图片、视频和音频`)); return; }
+  if (!folder.value && files.some(file => /^(image|video)\//.test(file.type))) {
+    await saveDialog.value?.open(files.map(file => ({ file, metadata: { source: "本地上传" } }))).catch(failure);
+    return;
+  }
   busy.value = true; let completed = 0; const directory = folder.value;
   try {
     for (const file of files) {

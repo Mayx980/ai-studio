@@ -27,7 +27,7 @@ watch(request, async (value, _previous, cleanup) => {
   let active = true;
   const { kind, ratio, imageSize, imageResolution, count, style, outputKind, outputChosen, duration, resolution } = browserConfig;
   cleanup(() => { active = false; Object.assign(browserConfig, { kind, ratio, imageSize, imageResolution, count, style, outputKind, outputChosen, duration, resolution }); });
-  browserConfig.outputChosen = false; browserConfig.kind = "image"; browserConfig.outputKind = "image";
+  browserConfig.outputChosen = true; browserConfig.kind = "image"; browserConfig.outputKind = "image";
   loading.value = true;
   try {
     const result = await createBrowserConversation(value.directory);
@@ -35,16 +35,16 @@ watch(request, async (value, _previous, cleanup) => {
   } catch (failure) { if (active) error.value = failure instanceof Error ? failure.message : "独立素材对话打开失败"; }
   finally { if (active) loading.value = false; }
 });
-function applyMaterial(file: File) {
+async function applyMaterial(file: File) {
   if (!request.value || applying.value) return;
   applying.value = true; error.value = "";
-  try { request.value.apply(file); materialEditorState.value = undefined; }
+  try { await request.value.apply(file); materialEditorState.value = undefined; }
   catch (failure) { error.value = failure instanceof Error ? failure.message : "素材应用失败，当前对话已保留"; }
   finally { applying.value = false; }
 }
 </script>
 <style scoped lang="scss">
-.materialBackdrop { position: fixed; inset: 0; z-index: 1900; background: var(--el-overlay-color-lighter); }
+.materialBackdrop { position: fixed; inset: 0; z-index: 1900; background: transparent; pointer-events: none; }
 .customMaterialEditor { position: fixed; z-index: 1901; right: 0; top: 0; bottom: 0; width: 50vw; display: flex; flex-direction: column; background: var(--el-bg-color); border: 0; border-left: 1px solid var(--el-border-color); border-radius: 0; overflow: hidden;
   header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--el-border-color-light); strong { font-size: 14px; } }
   .materialConversation { flex: 1; min-height: 0; }

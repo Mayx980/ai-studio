@@ -23,7 +23,7 @@
       <div v-if="actions?.mode === 'speed'" ref="speedTarget" />
       <el-card v-else class="promptCard" shadow="never" :bodyStyle="{ padding: '14px 16px 12px' }">
 
-        <promptInput optimizeKind="audio" :actionsTarget="promptActions" v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" placeholder="描述您想要的音频效果或输入待朗读文本" expandable><template #references><referenceItem v-if="refList.length" v-model="refList" @preview="setReferencePreview" @remove="removeReference" /></template></promptInput>
+        <promptInput :disabled="busy" optimizeKind="audio" :actionsTarget="promptActions" v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" placeholder="描述您想要的音频效果或输入待朗读文本" expandable><template #references><referenceItem v-if="refList.length" v-model="refList" @preview="setReferencePreview" @remove="removeReference" /></template></promptInput>
         <div class="promptFooter">
           <el-select
             v-model="data.model"
@@ -42,9 +42,10 @@
             </el-option-group>
           </el-select>
           <generationSettings v-model:language="data.language" v-model:sampleRate="data.sampleRate" v-model:format="data.format" :disabled="busy || !selectedModel" />
+            <mediaPrice v-if="generationInput" :input="{ ...generationInput, mediaType: 'audio' }" :supported="selectedModel?.supportsPrice === true" />
           <div ref="promptActions" class="promptActions" />
           <div class="generationActions">
-            <mediaPrice v-if="generationInput" :input="{ ...generationInput, mediaType: 'audio' }" :supported="selectedModel?.supportsPrice === true" />
+            <el-tooltip :content="generating ? '停止生成' : '生成'" placement="top">
             <el-button
               class="sendButton"
               :icon="generating ? IconPlayerStop : IconArrowUp"
@@ -52,6 +53,7 @@
               :title="generating ? '停止生成' : '生成音频'"
               :aria-label="generating ? '停止生成' : '生成音频'"
               @click="generating ? generationController?.abort() : startGeneration().catch(error => showNodeError(error, '音频生成失败'))" />
+            </el-tooltip>
           </div>
         </div>
       </el-card>
@@ -62,7 +64,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onScopeDispose, ref, watch } from "vue";
-import { ElButton, ElCard, ElLoading, ElOption, ElOptionGroup, ElSelect } from "element-plus";
+import { ElTooltip, ElButton, ElCard, ElLoading, ElOption, ElOptionGroup, ElSelect } from "element-plus";
 import { IconArrowUp, IconGauge, IconMusicBolt, IconPlayerStop, IconScissors, IconTransfer } from "@tabler/icons-vue";
 import { getTargetValues, isTypeCompatible, nodeSkeleton, nodeTools, useNode, z, type NodeAudioRequest, type NodeHandle, type NodeInputValue, type NodeMediaModel } from "@toonflow/nodes-scaffold/runtime";
 import { groupNodeModels } from "@toonflow/node-shared/groupNodeModels";
@@ -374,4 +376,8 @@ nodeTools.register({
     }
   }
 }
+</style>
+
+<style scoped lang="scss">
+.promptCard { .promptFooter { justify-content: flex-start; gap: 4px; flex-wrap: wrap; .modelSelect { flex: none; width: 180px; } .promptActions { margin-left: auto; } } }
 </style>

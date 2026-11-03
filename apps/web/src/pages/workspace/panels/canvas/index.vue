@@ -660,7 +660,7 @@ async function pickNodeReferences(target?: string, position = pastePosition(), s
     await flushCanvasSave();
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "引用失败"); }
 }
-provide("pickNodeReferences", (target: string) => pickNodeReferences(target));
+provide("pickNodeReferences", (target: string, scope = "personal") => pickNodeReferences(target, pastePosition(), scope));
 function selectFiles(position: { x: number; y: number }) { void pickNodeReferences(undefined, position); }
 
 function openNodeMenu(event: MouseEvent) {

@@ -115,7 +115,7 @@
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
       <div class="senderActions">
-        <simpleGenerationTools v-if="props.creationModes && workspaceStore.creationMode === 'simple'" />
+        <simpleGenerationTools v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" :imageOnly="props.materialEditor && !!props.materialRole" />
         <browserModelOptions v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :prompt="draftPrompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
         <referencePicker :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
@@ -554,7 +554,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
     if (pending?.creationChoice) pending.creationChoice.resolved = true;
     sessionMode.value ??= workspaceStore.creationMode;
     const professional = !props.materialEditor && sessionMode.value === "professional";
-    const kind = choice?.kind ?? (professional ? explicitGenerationKind(prompt) : props.materialEditor ? explicitGenerationKind(prompt) ?? inferGenerationKind(prompt) : inferGenerationKind(prompt));
+    const kind = props.materialEditor && props.materialRole ? "image" : choice?.kind ?? (professional ? explicitGenerationKind(prompt) : props.materialEditor ? explicitGenerationKind(prompt) ?? inferGenerationKind(prompt) : inferGenerationKind(prompt));
     if (props.materialEditor && kind !== "image" && kind !== "video") { ElMessage.warning("自定义素材对话用于生成或编辑图片、视频，请选择图片或视频产物"); return; }
     browserCancelled = false;
     browserSubmitting.value = true;
