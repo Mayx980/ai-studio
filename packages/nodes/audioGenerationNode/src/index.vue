@@ -23,7 +23,7 @@
       <div v-if="actions?.mode === 'speed'" ref="speedTarget" />
       <el-card v-else class="promptCard" shadow="never" :bodyStyle="{ padding: '14px 16px 12px' }">
 
-        <promptInput optimizeKind="audio" v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" placeholder="描述您想要的音频效果或输入待朗读文本" expandable><template #references><referenceItem v-if="refList.length" v-model="refList" @preview="setReferencePreview" @remove="removeReference" /></template></promptInput>
+        <promptInput optimizeKind="audio" :actionsTarget="promptActions" v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" placeholder="描述您想要的音频效果或输入待朗读文本" expandable><template #references><referenceItem v-if="refList.length" v-model="refList" @preview="setReferencePreview" @remove="removeReference" /></template></promptInput>
         <div class="promptFooter">
           <el-select
             v-model="data.model"
@@ -42,6 +42,7 @@
             </el-option-group>
           </el-select>
           <generationSettings v-model:language="data.language" v-model:sampleRate="data.sampleRate" v-model:format="data.format" :disabled="busy || !selectedModel" />
+          <div ref="promptActions" class="promptActions" />
           <div class="generationActions">
             <mediaPrice v-if="generationInput" :input="{ ...generationInput, mediaType: 'audio' }" :supported="selectedModel?.supportsPrice === true" />
             <el-button
@@ -95,6 +96,7 @@ data.value.language ??= "zh-CN";
 data.value.sampleRate ??= 24000;
 data.value.format ??= "wav";
 const { refList, referenceMentions, setReferencePreview, removeReference } = useNodeReferences();
+const promptActions = ref<HTMLElement>();
 const models = ref<NodeMediaModel[]>([]);
 const modelsLoading = ref(false);
 const uploading = ref(false);
@@ -340,9 +342,8 @@ nodeTools.register({
   :deep(.el-loading-mask) { pointer-events: none; }
 }
 .promptCard {
-  border-radius: 18px;
-  background: var(--el-bg-color);
   .promptFooter {
+    .promptActions { display: flex; align-items: center; flex: none; margin-left: auto; }
     display: flex;
     align-items: center;
     gap: 12px;
@@ -356,7 +357,7 @@ nodeTools.register({
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-left: auto;
+      margin-left: 0;
 
       .sendButton {
         width: 32px;

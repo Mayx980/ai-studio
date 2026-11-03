@@ -45,12 +45,12 @@
       <el-card v-else class="promptCard" shadow="never" :bodyStyle="{ padding: '14px 16px 12px' }">
         <el-button v-if="inpaintGuideUrl && editor?.mode !== 'inpaint'" class="inpaintInfo" text :icon="IconBrush" @click="inpaintPreviewVisible = true">查看重绘标注</el-button>
 
-        <promptInput optimizeKind="image" v-if="editor?.mode === 'inpaint'" v-model="data.inpaintPromptModel" v-model:text="data.inpaintPrompt" :references="referenceMentions" expandable><template #references><referenceItem
+        <promptInput optimizeKind="image" :actionsTarget="promptActions" v-if="editor?.mode === 'inpaint'" v-model="data.inpaintPromptModel" v-model:text="data.inpaintPrompt" :references="referenceMentions" expandable><template #references><referenceItem
           v-if="refList.length"
           v-model="refList"
           @preview="setReferencePreview"
           @remove="removeReference" /></template></promptInput>
-        <promptInput optimizeKind="image" v-else v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable><template #references><referenceItem
+        <promptInput optimizeKind="image" :actionsTarget="promptActions" v-else v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable><template #references><referenceItem
           v-if="refList.length"
           v-model="refList"
           @preview="setReferencePreview"
@@ -84,6 +84,7 @@
             :sizes="sizeOptions"
             :ratios="ratioOptions"
             :disabled="generating || deleting || !selectedModel" />
+          <div ref="promptActions" class="promptActions" />
           <el-button v-if="editor?.mode === 'inpaint'" class="confirmButton" type="primary" :icon="IconCheck" :loading="editor.busy" :disabled="deleting || uploading || !generationPrompt" @click="confirmInpaint().catch(error => showNodeError(error, '重绘节点创建失败'))">确认</el-button>
           <div v-else class="generationActions">
             <mediaPrice v-if="priceInput" :input="{ ...priceInput, mediaType: 'image' }" :supported="selectedModel?.supportsPrice === true" />
@@ -155,6 +156,7 @@ data.value.size ??= "720*1280";
 data.value.ratio ??= "9:16";
 data.value.n ??= 1;
 const { refList, referenceMentions, setReferencePreview, removeReference } = useNodeReferences();
+const promptActions = ref<HTMLElement>();
 const models = ref<NodeMediaModel[]>([]);
 const modelsLoading = ref(false);
 const uploading = ref(false);
@@ -518,10 +520,9 @@ nodeTools.register({
 }
 
 .promptCard {
-  border-radius: 18px;
-  background: var(--el-bg-color);
   .inpaintInfo { margin-bottom: 8px; }
   .promptFooter {
+    .promptActions { display: flex; align-items: center; flex: none; margin-left: auto; }
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -545,7 +546,7 @@ nodeTools.register({
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-left: auto;
+      margin-left: 0;
 
       .sendButton {
         width: 32px;

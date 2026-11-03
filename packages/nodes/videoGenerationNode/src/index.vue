@@ -44,7 +44,7 @@
         <div v-if="frameMode" class="referenceHint">
           {{ selectedMode === "startFrameOptional" ? "仅一张图片时作为尾帧；两张图片按顺序作为首帧、尾帧" : "图片引用按顺序作为首帧、尾帧" }}
         </div>
-        <promptInput optimizeKind="video" v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable><template #references><referenceItem
+        <promptInput optimizeKind="video" :actionsTarget="promptActions" v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable><template #references><referenceItem
           v-if="refList.length"
           v-model="refList"
           @preview="setReferencePreview"
@@ -79,6 +79,7 @@
             :ratios="ratioOptions"
             :model="selectedModel"
             :disabled="generating || deleting || !selectedModel" />
+          <div ref="promptActions" class="promptActions" />
           <div class="generationActions">
             <mediaPrice v-if="generationInput" :input="{ ...generationInput, mediaType: 'video' }" :supported="selectedModel?.supportsPrice === true" />
             <el-button
@@ -136,6 +137,7 @@ data.value.mode ??= "";
 data.value.generateAudio ??= true;
 data.value.ratio ??= "9:16";
 const { refList, referenceMentions, setReferencePreview, removeReference } = useNodeReferences();
+const promptActions = ref<HTMLElement>();
 const models = ref<NodeMediaModel[]>([]);
 const modelsLoading = ref(false);
 const uploading = ref(false);
@@ -473,8 +475,6 @@ nodeTools.register({
 }
 
 .promptCard {
-  border-radius: 18px;
-  background: var(--el-bg-color);
   .referenceHint {
     margin: 8px 0;
     color: var(--el-text-color-secondary);
@@ -482,6 +482,7 @@ nodeTools.register({
   }
 
   .promptFooter {
+    .promptActions { display: flex; align-items: center; flex: none; margin-left: auto; }
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -503,7 +504,7 @@ nodeTools.register({
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-left: auto;
+      margin-left: 0;
 
       .sendButton {
         width: 32px;

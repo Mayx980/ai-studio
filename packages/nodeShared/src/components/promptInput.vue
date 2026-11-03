@@ -1,8 +1,10 @@
 <template>
-  <div class="promptInputWrap nodrag nopan nowheel">
+  <div class="promptInputWrap nodrag nopan nowheel" :class="{ inlineActions: !!actionsTarget }">
     <div v-if="$slots.references" class="referenceCovers"><slot name="references" /></div>
+    <teleport :to="actionsTarget || 'body'" :disabled="!actionsTarget"><div class="promptTools" :class="{ inlineTools: !!actionsTarget }">
     <el-tooltip v-if="pickReferences" content="引用" placement="top"><el-button class="referenceButton" text circle aria-label="引用" @click.stop="pickReferences(nodeId)"><icon-paperclip :size="17" /></el-button></el-tooltip>
     <el-button v-if="optimizeKind" class="optimizeButton" text circle :disabled="!optimizePrompt || !text.trim() || optimizing" :loading="optimizing" title="优化提示词" aria-label="优化提示词" @click.stop="startOptimization"><icon-wand :size="17" /></el-button>
+    </div></teleport>
     <el-button v-if="expandable" class="expandButton" :icon="IconMaximize" text circle title="展开编辑提示词" aria-label="展开编辑提示词" @mousedown.prevent @click.stop="expanded = true" />
     <teleport :to="expandedTarget || 'body'" :disabled="!expanded || !expandedTarget">
       <div ref="senderElement" class="promptInput nodrag nopan nowheel" :class="{ expandedInput: expanded }" @keydown.capture="handleMentionKey" @click.capture="previewReference" />
@@ -30,7 +32,7 @@ import "x-sender/lib/XSender.css";
 
 const { id: nodeId } = useNode();
 const pickReferences = inject<((nodeId: string) => Promise<void>) | undefined>("pickNodeReferences", undefined);
-const props = defineProps<{ references: (MentionItem & { value: string })[]; expandable?: boolean; placeholder?: string; optimizeKind?: "image" | "video" | "audio" }>();
+const props = defineProps<{ references: (MentionItem & { value: string })[]; expandable?: boolean; placeholder?: string; optimizeKind?: "image" | "video" | "audio"; actionsTarget?: HTMLElement }>();
 const model = defineModel<AnyTagProps[][]>({ required: true });
 const text = defineModel<string>("text", { default: "" });
 const optimizePrompt = inject<((prompt: string, kind: "image" | "video" | "audio", signal: AbortSignal) => Promise<string>) | undefined>("optimizeNodePrompt", undefined);
@@ -378,8 +380,7 @@ function handleMentionKey(event: KeyboardEvent) {
   border-radius: 0;
   background: transparent;
   .referenceCovers { display: flex; margin-bottom: 8px; overflow-x: auto; }
-  .optimizeButton { position: absolute; right: 8px; bottom: 4px; z-index: 1; }
-  .referenceButton { position: absolute; left: 8px; bottom: 4px; z-index: 1; }
+  &.inlineActions { padding-bottom: 8px; margin-bottom: 12px; }
 
   .expandButton {
     position: absolute;
@@ -397,6 +398,8 @@ function handleMentionKey(event: KeyboardEvent) {
     :deep(.chat-placeholder-wrap) { padding-right: 34px; }
   }
 }
+
+.promptTools { position: absolute; left: 8px; right: 8px; bottom: 4px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 4px; .el-button { margin: 0; } &.inlineTools { position: static; justify-content: flex-start; } }
 
 :global(.promptEditorDialog) {
   display: flex;
