@@ -9,6 +9,7 @@
         <el-form-item v-if="kind === 'image'" label="图片清晰度"><el-select :teleported="false" v-model="imageResolution" aria-label="图片清晰度"><el-option v-for="item in ['480P','720P','1080P']" :key="item" :label="item.toLowerCase()" :value="item" /></el-select><small>{{ browserConfig.imageSize.replace('*', ' × ') }}</small></el-form-item>
         <el-form-item v-if="kind === 'image'" label="生成数量"><el-radio-group v-model="browserConfig.count" size="small" aria-label="生成数量"><el-radio-button v-for="item in 6" :key="item" :value="item">{{ item }}</el-radio-button></el-radio-group></el-form-item>
         <el-form-item v-if="kind === 'video'" label="清晰度"><el-radio-group v-model="browserConfig.resolution" size="small" aria-label="视频清晰度"><el-radio-button v-for="item in ['480P', '720P', '1080P']" :key="item" :value="item">{{ item }}</el-radio-button></el-radio-group></el-form-item>
+        <el-form-item v-if="kind === 'video'" label="生成音频"><el-radio-group v-model="browserConfig.generateAudio" class="audioChoice" aria-label="生成音频"><el-radio-button :value="true">开启</el-radio-button><el-radio-button :value="false">关闭</el-radio-button></el-radio-group></el-form-item>
         <el-form-item v-if="kind === 'video'" :label="`生成时长 · ${videoDuration} 秒`"><el-slider v-model="videoDuration" :min="3" :max="30" :step="1" :marks="{3:'3',5:'5',10:'10',15:'15',20:'20',25:'25',30:'30'}" aria-label="视频生成时长" /></el-form-item>
       </template>
       <p>模型按当前生成类型显示，文字模型供助手和脚本使用，不能用于图片或视频生成。</p>
@@ -45,3 +46,7 @@ const imageResolution = computed({ get: () => browserConfig.imageResolution, set
 watch([kind, () => browserConfig.ratio], () => { if (kind.value === "video" && !ratios.value.includes(browserConfig.ratio)) browserConfig.ratio = "9:16"; }, { immediate: true });
 watch(() => browserConfig.ratio, () => { browserConfig.imageSize = imageClaritySizes[browserConfig.imageResolution]?.[browserConfig.ratio] ?? browserConfig.imageSize; });
 </script>
+
+<style scoped lang="scss">
+.audioChoice { display: flex; width: 100%; gap: 8px; :deep(.el-radio-button) { flex: 1; } :deep(.el-radio-button__inner) { width: 100%; border: 1px solid var(--el-border-color); border-radius: 7px; box-shadow: none; } :deep(.el-radio-button.is-active .el-radio-button__inner) { background: var(--el-fill-color); color: var(--el-text-color-primary); border-color: var(--el-text-color-primary); } }
+</style>

@@ -1,6 +1,6 @@
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 
-export type GenerationRecord = { id: string; kind: "image" | "video" | "audio"; path: string; mimeType?: string; name?: string; createdAt?: number };
+export type GenerationRecord = { id: string; kind: "image" | "video" | "audio"; path: string; mimeType?: string; name?: string; createdAt?: number; prompt?: string; model?: string };
 const pendingSaves = new Map<string, Promise<void>>();
 export async function recordGenerationResults(directory: string, records: GenerationRecord[]) {
   const previous = pendingSaves.get(directory) ?? Promise.resolve();

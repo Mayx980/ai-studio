@@ -1,5 +1,5 @@
 <template>
-  <el-container class="home" :class="{ navigationCollapsed }">
+  <el-container class="home" :class="{ navigationCollapsed, assetWorkspace: homeSection === 'assets' }">
     <bg class="pageBackground" />
     <studioSidebar :activeSection="homeSection" :disabled="creating || opening" @navigate="homeSection = $event" @newAgent="startAgent" @openProject="openProject" @openSettings="settingsVisible = true" />
     <el-main class="pageContent">
@@ -193,6 +193,7 @@ async function openHistory(item: ConversationHistory) {
     .projectItems { display: grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap: 12px; &.listView { grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); .projectEntry { flex-direction: row; :deep(.projectThumbnail) { width: 80px; height: 96px; } } } .projectCard { position: relative; border: 0; background: transparent; border-radius: 12px; box-shadow: none; } .projectEntry { display: flex; flex-direction: column; width: 100%; border: 0; padding: 0; background: none; color: inherit; text-align: left; cursor: pointer; :deep(.projectThumbnail) { width: 100%; height: auto; aspect-ratio: 16 / 9; } .projectInfo { min-width: 0; padding: 10px; display: grid; gap: 6px; strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } small { font-size: 10px; color: var(--el-text-color-secondary); } } } .projectActions { display: flex; justify-content: flex-end; padding: 2px 6px; .el-button { width: 26px; height: 26px; margin: 0; padding: 0; } } }
     .homeHistory { .historyEntry { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--el-border-color-light); border-radius: 10px; margin: 8px 0; .historyOpen { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; border: 0; background: none; color: inherit; cursor: pointer; span { display: grid; gap: 4px; min-width: 0; } strong { font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } small { font-size: 11px; color: var(--el-text-color-secondary); } } } }
   }
+  &.assetWorkspace { background: #111213; .pageBackground { display: none; } }
   &.navigationCollapsed { padding-left: 68px; }
   @media(max-width:700px) { padding-left: 68px; .pageContent { padding: 16px; .nodeShortcuts { gap: 8px; button span { height: 52px; } } } }
 }

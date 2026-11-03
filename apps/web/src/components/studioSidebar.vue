@@ -1,7 +1,7 @@
 <template>
   <aside class="studioSidebar" :class="{ collapsed: navigationCollapsed }" aria-label="主导航">
     <button class="collapseButton" type="button" :aria-expanded="!navigationCollapsed" :aria-label="navigationCollapsed ? '展开导航栏' : '折叠导航栏'" @click="navigationCollapsed = !navigationCollapsed"><icon-layout-sidebar :size="18" /></button><div class="sidebarScroll">
-      <button class="studioBrand" type="button" aria-label="AFXEN 首页" @click="emit('navigate', 'create')"><brandLogo compact /><span>AFXEN</span></button>
+      <button class="studioBrand" type="button" aria-label="AFXEN 首页" @click="emit('navigate', 'create')"><brandLogo class="fullBrand" /><brandLogo class="compactBrand" compact /></button>
       <nav>
         <button type="button" :aria-current="activeSection === 'create' ? 'page' : undefined" title="首页" @click="emit('navigate', 'create')"><icon-home :size="20" /><span>首页</span></button>
         <button type="button" :disabled="disabled" :aria-current="activeSection === 'agent' ? 'page' : undefined" title="Agent 助手" @click="emit('newAgent')"><icon-sparkles :size="20" /><span>Agent 助手</span></button>
@@ -33,11 +33,11 @@ const sections = computed(() => [
 <style scoped lang="scss">
 .studioSidebar { position: fixed; inset: 0 auto 0 0; width: 220px; z-index: 6; display: flex; flex-direction: column; border-right: 1px solid #292b30; background: #101112; color: #e5e7eb;
   .sidebarScroll { flex: 1; min-height: 0; padding: 28px 20px 12px; overflow-y: auto; }
-  .studioBrand { display: flex; align-items: center; gap: 8px; padding: 0; margin-bottom: 28px; border: 0; background: transparent; color: inherit; font-size: 26px; font-weight: 700; cursor: pointer; }
+  .studioBrand { display: flex; align-items: center; gap: 8px; padding: 0; margin-bottom: 28px; border: 0; background: transparent; color: inherit; font-size: 26px; font-weight: 700; cursor: pointer; :deep(.fullBrand) { width: 180px; } :deep(.compactBrand) { display: none; } }
   nav { display: grid; gap: 6px; button { display: flex; align-items: center; gap: 12px; min-height: 44px; width: 100%; padding: 10px 12px; border: 0; border-radius: 10px; background: transparent; color: #cdd0d7; font: inherit; font-size: 14px; text-align: left; cursor: pointer; &[aria-current="page"], &:hover { background: #19232b; color: var(--el-color-primary); } svg { flex: none; } } }
   .sidebarFooter { flex: none; padding: 14px 20px; border-top: 1px solid #292b30; background: #101112; :deep(.accountMenu) { width: 100%; } }
-  &.collapsed { width: 68px; .sidebarScroll { padding: 40px 8px 8px; } .studioBrand { justify-content: center; > span:last-child { display: none; } } nav button { justify-content: center; padding: 10px; span { display: none; } } .sidebarFooter { padding: 12px 8px; :deep(.userCenterLabel), :deep(.accountName) { display: none; } } }
+  &.collapsed { width: 68px; .sidebarScroll { padding: 40px 8px 8px; } .studioBrand { justify-content: center; :deep(.fullBrand) { display: none; } :deep(.compactBrand) { display: inline-block; } } nav button { justify-content: center; padding: 10px; span { display: none; } } .sidebarFooter { padding: 12px 8px; :deep(.userCenterLabel), :deep(.accountName) { display: none; } } }
   .collapseButton { position: absolute; top: 8px; right: 10px; display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: #969aa5; cursor: pointer; &:hover { background: #292b30; } }
-  @media(max-width:700px) { width: 68px; .sidebarScroll { padding: 40px 8px 8px; } .studioBrand { margin-bottom: 24px; justify-content: center; span { display: none; } :deep(.brandLogo) { display: inline-block; } } nav button { justify-content: center; padding: 10px; span { display: none; } } .sidebarFooter { padding: 12px 8px; :deep(.userCenterLabel), :deep(.accountName) { display: none; } } }
+  @media(max-width:700px) { width: 68px; .sidebarScroll { padding: 40px 8px 8px; } .studioBrand { margin-bottom: 24px; justify-content: center; :deep(.fullBrand) { display: none; } :deep(.compactBrand) { display: inline-block; } } nav button { justify-content: center; padding: 10px; span { display: none; } } .sidebarFooter { padding: 12px 8px; :deep(.userCenterLabel), :deep(.accountName) { display: none; } } }
 }
 </style>

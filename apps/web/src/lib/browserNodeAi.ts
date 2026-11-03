@@ -49,7 +49,7 @@ async function imageInputs(directory: string, inputs: { path: string; mimeType: 
   return Promise.all(inputs.map(async item => ({ type: "binary" as const, data: new Uint8Array(await useWorkspaceFiles(directory).read(item.path)), mimeType: item.mimeType })));
 }
 
-async function saveAssets(assets: { type: string; data?: string | Uint8Array; url?: string; mimeType?: string }[], input: { directory: string; outputDirectory: string }, kind: "image" | "video" | "audio", signal?: AbortSignal) {
+async function saveAssets(assets: { type: string; data?: string | Uint8Array; url?: string; mimeType?: string }[], input: { directory: string; outputDirectory: string; prompt?: string; modelId?: string }, kind: "image" | "video" | "audio", signal?: AbortSignal) {
   if (!assets.length) throw new Error("模型未返回生成素材");
   const files = useWorkspaceFiles(input.directory);
   // ACT: 沿用节点给出的工作区相对输出目录；文件授权和冲突保护仍由统一入口处理。
@@ -76,7 +76,7 @@ async function saveAssets(assets: { type: string; data?: string | Uint8Array; ur
     await files.write(path, blob, true);
     return { path, mimeType, mediaType: kind };
   }));
-  await recordGenerationResults(input.directory, saved.map(item => ({ id: crypto.randomUUID(), kind, path: item.path, mimeType: item.mimeType, name: item.path.split("/").at(-1), createdAt: Date.now() })));
+  await recordGenerationResults(input.directory, saved.map(item => ({ id: crypto.randomUUID(), kind, path: item.path, mimeType: item.mimeType, name: item.path.split("/").at(-1), createdAt: Date.now(), prompt: input.prompt, model: input.modelId })));
   if (saved[0]) await saveProjectCover(input.directory, saved[0].path, saved[0].mimeType);
   return saved;
 }

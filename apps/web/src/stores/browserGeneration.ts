@@ -16,7 +16,7 @@ import textModel from "@/lib/browserModels/textModel";
 export type ModelKind = "image" | "video" | "audio" | "text";
 export const browserModels = { image: imageModel, video: videoModel, audio: audioModel, text: textModel };
 // ACT: 原型直接使用供应商协议；Key 不进入持久化 Store 或服务端配置。
-export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: defaultRatio, imageSize: defaultImageSize, imageResolution: "720P", count: 1, style: "", outputKind: "image" as "image" | "video", outputChosen: false, duration: "", resolution: defaultVideoResolution });
+export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: defaultRatio, imageSize: defaultImageSize, imageResolution: "720P", count: 1, style: "", outputKind: "image" as "image" | "video", outputChosen: false, generateAudio: true, duration: "", resolution: defaultVideoResolution });
 export const additionalBrowserModels = reactive<{ id: string; kind: ModelKind; label: string; modelId: string; endpoint: string; apiKey: string }[]>([]);
 export const browserModelSelection = reactive<Record<ModelKind, string>>({ image: "", video: "", audio: "", text: "" });
 export function configuredBrowserModels(kind: ModelKind) {
@@ -35,7 +35,7 @@ export function resolveBrowserModel(kind: ModelKind, providerId?: string, modelI
 }
 export const generationBusy = ref(false);
 export const generationError = ref("");
-export type BrowserGenerationResult = { id: string; kind: ModelKind; createdAt?: number; url?: string; text?: string; file?: File; directory?: string; path?: string };
+export type BrowserGenerationResult = { id: string; kind: ModelKind; createdAt?: number; prompt?: string; model?: string; url?: string; text?: string; file?: File; directory?: string; path?: string };
 export type BrowserWorkflowNode = { canvasPath: string; nodeId: string };
 export type ProfessionalCanvas = {
   focus(directory: string, node: BrowserWorkflowNode): Promise<void>;
@@ -54,7 +54,7 @@ export function clearBrowserKeys() { stopBrowserGeneration(); for (const key of 
 export async function restoreBrowserResults(directory: string) {
   if (!browserWorkspaceMode) return;
   const files = useWorkspaceFiles(directory);
-  let saved: { id: string; kind: ModelKind; path: string; mimeType?: string; name?: string; createdAt?: number }[];
+  let saved: { id: string; kind: ModelKind; path: string; mimeType?: string; name?: string; createdAt?: number; prompt?: string; model?: string }[];
   try { saved = await files.readJson(".agent/browserResults.json"); }
   catch (error) { if ((error as { code?: string }).code === "ENOENT") return; throw error; }
   if (!Array.isArray(saved)) throw new Error("浏览器素材记录无效");
@@ -82,7 +82,7 @@ async function saveBrowserResults(directory: string, signal?: AbortSignal) {
     if (item.url?.startsWith("blob:")) URL.revokeObjectURL(item.url);
     item.url = URL.createObjectURL(item.file);
   }
-  await recordGenerationResults(directory, generationResults.value.filter(item => item.directory === directory && item.path && item.kind !== "text").map(({ id, kind, path, file, createdAt }) => ({ id, kind: kind as GenerationRecord["kind"], path: path!, createdAt, mimeType: file?.type, name: file?.name })));
+  await recordGenerationResults(directory, generationResults.value.filter(item => item.directory === directory && item.path && item.kind !== "text").map(({ id, kind, path, file, createdAt, prompt, model }) => ({ id, prompt, model, kind: kind as GenerationRecord["kind"], path: path!, createdAt, mimeType: file?.type, name: file?.name })));
 }
 
 // ACT: 输出意图按动作后的目标优先；参考素材或“视频脚本”中的视频不单独决定输出。
@@ -105,7 +105,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   const kind: ModelKind = requestedKind ?? inferGenerationKind(prompt);
   browserConfig.kind = kind;
   const chosen = configuredBrowserModels(kind).find(model => model.id === browserModelSelection[kind]) ?? configuredBrowserModels(kind)[0];
-  const { ratio, duration, resolution, imageSize, count } = browserConfig;
+  const { ratio, duration, resolution, imageSize, count, generateAudio } = browserConfig;
   if (!Number.isInteger(count) || count < 1 || count > 6) { generationError.value = "图片生成数量须为 1–6 张"; return false; }
   if (kind === "image" && generationStyles[style]) prompt += `\n图片风格要求：${style}。${generationStyles[style]}保留用户指定的主体、产品特征与构图要求，不额外添加文字或水印。`;
   const endpoint = chosen?.endpoint || browserConfig.endpoint;
@@ -151,13 +151,13 @@ export async function generateInBrowser(prompt: string, references: File[], dire
     const tool = { fetch: studioFetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" };
     const context = { config: { apiKey, endpoint }, signal, tool };
     const assets = kind === "audio" ? await audioModel.generateAudio.call(context, { model: chosen!.modelId, prompt }) : kind === "image" ? await imageModel.generateImage.call(context, { model: chosen!.modelId, prompt, images, ...(ratio ? { ratio } : {}), size: imageSize, n: count })
-      : await videoModel.generateVideo.call(context, { model: chosen!.modelId, prompt, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: images[firstFrameIndex!] } : { mode: images.length ? ["imageReference:10"] : "text", images }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
+      : await videoModel.generateVideo.call(context, { generateAudio, model: chosen!.modelId, prompt, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: images[firstFrameIndex!] } : { mode: images.length ? ["imageReference:10"] : "text", images }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
     signal.throwIfAborted();
     if (!assets.length) throw new Error("模型未返回生成素材");
     for (const asset of assets) {
       const mimeType = asset.mimeType || `${kind}/${kind === "image" ? "png" : kind === "audio" ? "mpeg" : "mp4"}`;
       const file = asset.type === "base64" && asset.data ? new File([Uint8Array.from(atob(asset.data), char => char.charCodeAt(0))], `生成结果.${mimeType.split("/")[1]}`, { type: mimeType }) : undefined;
-      generationResults.value.push({ id: crypto.randomUUID(), kind, createdAt: Date.now(), url: file ? URL.createObjectURL(file) : asset.url, file, directory });
+      generationResults.value.push({ id: crypto.randomUUID(), kind, createdAt: Date.now(), prompt, model: chosen!.label, url: file ? URL.createObjectURL(file) : asset.url, file, directory });
     }
     if (browserWorkspaceMode && directory) await saveBrowserResults(directory, signal);
     return true;

@@ -393,7 +393,7 @@ const beginBrowserWorkflow: BeginBrowserWorkflow = async (prompt, kind, referenc
       label: script ? "脚本" : ({ text: "方案／文字", image: "图片", video: "视频", audio: "音频" })[kind],
       contentKind: script ? "script" : undefined, prompt, promptModel: prompt.split("\n").map(text => [{ type: "Write", text }]), model: JSON.stringify([provider.id, provider.modelId]),
       ...(browserConfig.ratio ? { ratio: browserConfig.ratio } : {}), ...(browserConfig.resolution ? (kind === "image" ? { size: browserConfig.resolution } : { resolution: browserConfig.resolution }) : {}),
-      ...(browserConfig.duration ? { duration: Number(browserConfig.duration) } : {}),
+      ...(browserConfig.duration ? { duration: Number(browserConfig.duration) } : {}), ...(kind === "video" ? { generateAudio: browserConfig.generateAudio } : {}),
     } });
     sourceIds.forEach((id, index) => flow.updateNode(id, { position: { x: position.x, y: position.y + index * 360 } }));
     addEdges(sourceIds.map((id, index) => ({ id: crypto.randomUUID(), source: id, sourceHandle: index === 0 ? "text" : references[index - 1]?.type.startsWith("image/") ? "image" : references[index - 1]?.type.startsWith("video/") ? "video" : references[index - 1]?.type.startsWith("audio/") ? "audio" : "text", target: targetId, targetHandle: "in" })));

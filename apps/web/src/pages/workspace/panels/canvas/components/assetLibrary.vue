@@ -195,6 +195,14 @@ async function refreshAssets(path?: string, target?: string) {
       delete assetTags.value[key];
     }
   }
+  if (path) {
+    const metadata = useAssetStore().metadata;
+    for (const key of Object.keys(metadata)) {
+      if (key !== path && !key.startsWith(path + "/")) continue;
+      if (target) metadata[target + key.slice(path.length)] = metadata[key]!;
+      delete metadata[key];
+    }
+  }
   if (path && (folder.value === path || folder.value.startsWith(path + "/"))) {
     folder.value = target ? target + folder.value.slice(path.length) : ".";
   }
@@ -361,6 +369,7 @@ async function saveBrowserAsset() {
     const path = `${saveCategory.value}/${assetName.value.trim()}`;
     await files.write(path, new Blob([await useWorkspaceFiles(sourceDirectory).read(output.value.url)], { type: output.value.mimeType }), true);
     assetTags.value[path] = [...saveTags.value];
+    useAssetStore().metadata[path] = { createdAt: Date.now(), source: "画布素材" };
     saveSummaryVisible.value = false; saveVisible.value = false;
     await loadEntries();
     ElMessage.success("已保存到浏览器个人资产");

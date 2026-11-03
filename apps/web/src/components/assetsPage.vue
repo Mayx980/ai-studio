@@ -12,7 +12,7 @@
         </article></div></div>
         <div v-if="selected.length" class="selectionToolbar" role="toolbar" aria-label="批量素材操作"><el-button text :disabled="busy" aria-label="取消选择" @click="selected = []"><icon-x :size="16" /></el-button><span>已选择 {{ selected.length }} 项</span><el-button :disabled="busy" @click="run('canvas')">去画布编辑</el-button><el-button :disabled="busy" @click="run('newCanvas')">新建画布添加</el-button><el-button :disabled="busy" @click="run('save')">保存到资产</el-button><el-button :disabled="busy" aria-label="下载图片" title="下载素材" @click="run('download')"><icon-download :size="17" /></el-button><el-button :disabled="busy" type="danger" aria-label="删除所选历史" @click="run('delete')"><icon-trash :size="17" /></el-button></div>
       </template>
-      <template v-else><h2>个人资产库</h2><assetLibrary page :modelValue="true" :directory="workspace.project?.directory" /></template>
+      <personalAssetBrowser v-else />
     </div>
     <nav class="assetModules" aria-label="资产模块"><button type="button" :aria-current="module === 'history' ? 'page' : undefined" @click="module = 'history'"><icon-history :size="18" />生成历史<span>{{ items.length }}</span></button><button type="button" :aria-current="module === 'library' ? 'page' : undefined" @click="module = 'library'"><icon-folder :size="18" />个人资产库</button></nav>
     <el-image-viewer v-if="preview?.kind === 'image'" :urlList="[preview.url]" @close="preview = undefined" />
@@ -28,8 +28,9 @@ import { useWorkspaceStore } from "@/stores/workspace";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { browserAssetFiles, browserAssetMimeType } from "@/lib/browserAssets";
 import saveFile from "@/lib/saveFile";
-import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
-type HistoryItem = { id: string; kind: "image" | "video" | "audio"; path: string; name: string; mimeType: string; createdAt?: number; directory: string; key: string; url: string };
+import personalAssetBrowser from "@/components/personalAssetBrowser.vue";
+import { useAssetStore } from "@/stores/assets";
+type HistoryItem = { id: string; kind: "image" | "video" | "audio"; path: string; name: string; mimeType: string; prompt?: string; model?: string; createdAt?: number; directory: string; key: string; url: string };
 const workspace = useWorkspaceStore(), router = useRouter();
 const module = ref("history"), descending = ref(true), loading = ref(true), busy = ref(false), error = ref("");
 const items = ref<HistoryItem[]>([]), selected = ref<string[]>([]), preview = ref<HistoryItem>();
@@ -96,7 +97,9 @@ async function run(action: "canvas" | "newCanvas" | "save" | "download" | "delet
         if (action === "download") { if (!await saveFile(file, file.name)) break; }
         else {
           // ACT: 每项独立副本与唯一名称，避免覆盖资产库中已有同名文件。
-          await browserAssetFiles().write(`${crypto.randomUUID()}-${file.name.replace(/[\\/]/g, "_")}`, file, true);
+          const path = `${crypto.randomUUID()}-${file.name.replace(/[\\/]/g, "_")}`;
+          await browserAssetFiles().write(path, file, true);
+          useAssetStore().metadata[path] = { createdAt: Date.now(), source: "生成历史", prompt: item.prompt, model: item.model };
         }
         completed++;
       }
