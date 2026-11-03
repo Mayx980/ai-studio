@@ -1,7 +1,7 @@
 <template>
-  <el-popover ref="parameterPopover" v-if="browserConfig.enabled || browserWorkspaceMode" trigger="click" :visible="parametersVisible" :triggerKeys="[]" :hideAfter="0" @update:visible="openParameters" placement="top" :width="300" :popperOptions="{ modifiers: [{ name: 'preventOverflow', options: { padding: 12, altAxis: true, tether: false } }, { name: 'flip', options: { padding: 12, fallbackPlacements: ['top', 'bottom', 'right', 'left'] } }] }" :popperStyle="{ maxHeight: 'calc(100dvh - 24px)', maxWidth: 'calc(100vw - 24px)', overflowY: 'auto', boxSizing: 'border-box' }">
+  <el-popover ref="parameterPopover" v-if="browserConfig.enabled || browserWorkspaceMode" trigger="click" :visible="parametersVisible" :triggerKeys="[]" :hideAfter="0" @update:visible="openParameters" placement="top" :width="300" :popperOptions="{ modifiers: [{ name: 'preventOverflow', options: { padding: 12, altAxis: true, tether: false } }, { name: 'flip', options: { padding: 12, fallbackPlacements: ['top', 'bottom', 'right', 'left'] } }] }" popperClass="generationParameters" :popperStyle="{ maxHeight: 'calc(100dvh - 24px)', maxWidth: 'calc(100vw - 24px)', overflowY: 'auto', boxSizing: 'border-box' }">
     <template #reference><span ref="parameterTrigger"><el-button text aria-label="模型与生成参数" :aria-expanded="parametersVisible" @click="parametersVisible = true">{{ models.find(model => model.id === browserModelSelection[kind])?.label || models[0]?.label || '未接入模型' }} · 参数</el-button></span></template>
-    <el-form v-click-outside:[parameterExcludes]="closeParameters" labelPosition="top">
+    <el-form class="parameterForm" v-click-outside:[parameterExcludes]="closeParameters" labelPosition="top">
       <el-form-item v-if="workspace.creationMode === 'professional'" label="参数类型"><el-select :teleported="false" v-model="parameterKind" aria-label="参数类型"><el-option v-for="(label, value) in kindLabels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
       <el-form-item :label="`${kindLabels[kind]}模型`"><el-select :teleported="false" v-model="selectedModelId" placeholder="选择已接入模型" :noDataText="`未接入${kindLabels[kind]}模型，请在 API 配置中添加对应类型`"><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.id" /></el-select></el-form-item>
       <template v-if="kind === 'image' || kind === 'video'">
@@ -12,7 +12,6 @@
         <el-form-item v-if="kind === 'video'" label="生成音频"><el-radio-group v-model="browserConfig.generateAudio" class="audioChoice" aria-label="生成音频"><el-radio-button :value="true">开启</el-radio-button><el-radio-button :value="false">关闭</el-radio-button></el-radio-group></el-form-item>
         <el-form-item v-if="kind === 'video'" :label="`生成时长 · ${videoDuration} 秒`"><el-slider v-model="videoDuration" :min="3" :max="30" :step="1" :marks="{3:'3',5:'5',10:'10',15:'15',20:'20',25:'25',30:'30'}" aria-label="视频生成时长" /></el-form-item>
       </template>
-      <p>模型按当前生成类型显示，文字模型供助手和脚本使用，不能用于图片或视频生成。</p>
       <p v-if="kind === 'audio' || kind === 'text'">当前适配器仅支持文字输入。</p>
     </el-form>
   </el-popover>
@@ -49,4 +48,12 @@ watch(() => browserConfig.ratio, () => { browserConfig.imageSize = imageClarityS
 
 <style scoped lang="scss">
 .audioChoice { display: flex; width: 100%; gap: 8px; :deep(.el-radio-button) { flex: 1; } :deep(.el-radio-button__inner) { width: 100%; border: 1px solid var(--el-border-color); border-radius: 7px; box-shadow: none; } :deep(.el-radio-button.is-active .el-radio-button__inner) { background: var(--el-fill-color); color: var(--el-text-color-primary); border-color: var(--el-text-color-primary); } }
+</style>
+
+<style scoped lang="scss">
+.parameterForm { .el-form-item { margin-bottom: 14px; } &::-webkit-scrollbar { display: none; } scrollbar-width: none; }
+</style>
+
+<style lang="scss">
+.generationParameters { scrollbar-width: none; &::-webkit-scrollbar { display: none; } }
 </style>

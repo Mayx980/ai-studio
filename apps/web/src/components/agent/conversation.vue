@@ -1337,7 +1337,7 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
     overflow: hidden;
     border: 1px solid var(--el-border-color-light);
     border-radius: calc(var(--ui-radius) * 2.75);
-    background: var(--el-bg-color);
+    background: var(--agent-input-bg);
     box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
 
     &:focus-within {
@@ -1515,7 +1515,11 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
 .agentConversation {
   .conversationMode { flex-shrink: 0; width: min(340px, calc(100% - 24px)); margin: 12px 12px 10px; }
   .welcomeMessage { align-items: center; text-align: center; padding: 12px 16px 20px; .welcomeHeader { flex-direction: column; gap: 12px; .welcomeIcon { width: auto; height: auto; border-radius: 0; background: transparent; :deep(.brandLogo) { width: 132px; } } h3 { font-size: clamp(24px, 3vw, 32px); font-weight: 600; } } }
-  &.emptyConversation { justify-content: center; .messageViewport { flex: none; min-height: 0; max-height: 34dvh; overflow: auto; } .messageInput { resize: none; background: var(--el-bg-color-overlay); .senderEditor { min-height: 110px; } } .conversationMode { align-self: center; } }
+  &.emptyConversation { justify-content: center; .messageViewport { flex: none; min-height: 0; max-height: 34dvh; overflow: auto; } .messageInput { resize: none; background: var(--agent-input-bg); .senderEditor { min-height: 110px; } } .conversationMode { align-self: center; } }
   .senderActions { justify-content: flex-start; > .sendButton { margin-left: auto; } }
 }
+</style>
+
+<style scoped lang="scss">
+.messageInput { :deep(.chat-sender), :deep(.chat-rich-text), :deep(.chat-rich-text > [contenteditable]) { background: transparent; } }
 </style>

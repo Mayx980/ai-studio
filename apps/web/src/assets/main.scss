@@ -67,9 +67,9 @@ body,
 }
 
 html.dark {
-  --el-bg-color-page: #202226;
-  --el-bg-color: #282a2f;
-  --el-bg-color-overlay: #303238;
+  --el-bg-color-page: #141414;
+  --el-bg-color: #202020;
+  --el-bg-color-overlay: #262626;
   --el-fill-color: #383b42;
   --el-fill-color-light: #34373d;
   --el-fill-color-lighter: #303238;
@@ -79,3 +79,6 @@ html.dark {
   --el-border-color-light: #40444c;
   --el-border-color-lighter: #383c43;
 }
+
+html.dark { --agent-input-bg: #292121; }
+html:not(.dark) { --agent-input-bg: var(--el-bg-color); }

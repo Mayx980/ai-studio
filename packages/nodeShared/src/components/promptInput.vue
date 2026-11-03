@@ -2,11 +2,18 @@
   <div class="promptInputWrap nodrag nopan nowheel">
     <div v-if="$slots.references" class="referenceCovers"><slot name="references" /></div>
     <el-tooltip v-if="pickReferences" content="引用" placement="top"><el-button class="referenceButton" text circle aria-label="引用" @click.stop="pickReferences(nodeId)"><icon-paperclip :size="17" /></el-button></el-tooltip>
+    <el-button v-if="optimizeKind" class="optimizeButton" text circle :disabled="!optimizePrompt || !text.trim() || optimizing" :loading="optimizing" title="优化提示词" aria-label="优化提示词" @click.stop="startOptimization"><icon-wand :size="17" /></el-button>
     <el-button v-if="expandable" class="expandButton" :icon="IconMaximize" text circle title="展开编辑提示词" aria-label="展开编辑提示词" @mousedown.prevent @click.stop="expanded = true" />
     <teleport :to="expandedTarget || 'body'" :disabled="!expanded || !expandedTarget">
       <div ref="senderElement" class="promptInput nodrag nopan nowheel" :class="{ expandedInput: expanded }" @keydown.capture="handleMentionKey" @click.capture="previewReference" />
     </teleport>
   </div>
+  <el-dialog v-if="optimizeKind" v-model="optimizationVisible" title="优化提示词" width="min(640px, 94vw)" appendToBody :closeOnClickModal="false" @close="optimizationController?.abort()">
+    <el-alert v-if="optimizationError" :title="optimizationError" type="error" :closable="false" />
+    <p v-if="optimizing" role="status">正在优化提示词…</p>
+    <el-input v-else-if="optimizedText" v-model="optimizedText" type="textarea" :autosize="{ minRows: 6, maxRows: 16 }" aria-label="优化后的提示词" />
+    <template #footer><el-button @click="optimizationVisible = false">取消</el-button><el-button type="primary" :disabled="optimizing || !optimizedText.trim()" @click="applyOptimization">应用</el-button></template>
+  </el-dialog>
   <el-dialog v-if="expandable" v-model="expanded" class="promptEditorDialog" title="生成提示词" width="80%" alignCenter appendToBody :closeOnClickModal="false" @opened="sender?.focus('mark')" @close="expanded = false" @closed="sender?.focus('mark')">
     <div ref="expandedTarget" class="promptExpandedTarget nodrag nopan nowheel" @pointerdown.stop @mousedown.stop @dblclick.stop />
   </el-dialog>
@@ -14,18 +21,42 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, nextTick, ref, watch } from "vue";
-import { ElButton, ElDialog, ElImageViewer, ElTooltip, useZIndex } from "element-plus";
-import { IconMaximize, IconPaperclip } from "@tabler/icons-vue";
+import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { ElAlert, ElInput, ElButton, ElDialog, ElImageViewer, ElTooltip, useZIndex } from "element-plus";
+import { IconWand, IconMaximize, IconPaperclip } from "@tabler/icons-vue";
 import { useNode } from "@vue-flow/core";
 import xSender, { type AnyTagProps, type MentionItem } from "x-sender";
 import "x-sender/lib/XSender.css";
 
 const { id: nodeId } = useNode();
 const pickReferences = inject<((nodeId: string) => Promise<void>) | undefined>("pickNodeReferences", undefined);
-const props = defineProps<{ references: (MentionItem & { value: string })[]; expandable?: boolean; placeholder?: string }>();
+const props = defineProps<{ references: (MentionItem & { value: string })[]; expandable?: boolean; placeholder?: string; optimizeKind?: "image" | "video" | "audio" }>();
 const model = defineModel<AnyTagProps[][]>({ required: true });
 const text = defineModel<string>("text", { default: "" });
+const optimizePrompt = inject<((prompt: string, kind: "image" | "video" | "audio", signal: AbortSignal) => Promise<string>) | undefined>("optimizeNodePrompt", undefined);
+const optimizationVisible = ref(false), optimizing = ref(false), optimizedText = ref(""), optimizationError = ref("");
+let optimizationController: AbortController | undefined;
+let originalPrompt = "";
+let originalReferences = "";
+onBeforeUnmount(() => optimizationController?.abort());
+async function startOptimization() {
+  if (!optimizePrompt || !props.optimizeKind || optimizing.value || !text.value.trim()) return;
+  originalPrompt = text.value;
+  originalReferences = JSON.stringify(props.references.map(item => [item.id, item.value]));
+  optimizedText.value = ""; optimizationError.value = ""; optimizationVisible.value = true; optimizing.value = true;
+  const controller = new AbortController(); optimizationController = controller;
+  try { const result = await optimizePrompt(originalPrompt, props.optimizeKind, controller.signal); if (!controller.signal.aborted) optimizedText.value = result; }
+  catch (error) { if (!controller.signal.aborted) optimizationError.value = error instanceof Error ? error.message : "提示词优化失败"; }
+  finally { optimizing.value = false; }
+}
+function applyOptimization() {
+  if (text.value !== originalPrompt || originalReferences !== JSON.stringify(props.references.map(item => [item.id, item.value]))) { optimizationError.value = "原提示词或引用已变化，请关闭后重新优化。"; return; }
+  const tokens = (value: string) => (value.match(/\{\{ref \d+\}\}/g) ?? []).sort().join("|");
+  if (tokens(optimizedText.value) !== tokens(originalPrompt)) { optimizationError.value = "优化结果的引用标记发生变化，请保留原标记后再应用。"; return; }
+  model.value = optimizedText.value.split("\n").map(value => [{ type: "Write", text: value }]);
+  text.value = optimizedText.value;
+  optimizationVisible.value = false;
+}
 const senderElement = ref<HTMLElement>();
 const expanded = ref(false);
 const expandedTarget = ref<HTMLElement>();
@@ -343,10 +374,11 @@ function handleMentionKey(event: KeyboardEvent) {
   position: relative;
   margin: 12px 0 16px;
   padding: 8px 8px 36px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   .referenceCovers { display: flex; margin-bottom: 8px; overflow-x: auto; }
+  .optimizeButton { position: absolute; right: 8px; bottom: 4px; z-index: 1; }
   .referenceButton { position: absolute; left: 8px; bottom: 4px; z-index: 1; }
 
   .expandButton {
@@ -400,6 +432,7 @@ function handleMentionKey(event: KeyboardEvent) {
 }
 
 .promptInput {
+  --chat-box: transparent;
   display: block;
   cursor: text;
   -webkit-user-select: text;

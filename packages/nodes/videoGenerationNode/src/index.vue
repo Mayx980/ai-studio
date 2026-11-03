@@ -44,7 +44,7 @@
         <div v-if="frameMode" class="referenceHint">
           {{ selectedMode === "startFrameOptional" ? "仅一张图片时作为尾帧；两张图片按顺序作为首帧、尾帧" : "图片引用按顺序作为首帧、尾帧" }}
         </div>
-        <promptInput v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable><template #references><referenceItem
+        <promptInput optimizeKind="video" v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable><template #references><referenceItem
           v-if="refList.length"
           v-model="refList"
           @preview="setReferencePreview"
@@ -473,6 +473,8 @@ nodeTools.register({
 }
 
 .promptCard {
+  border-radius: 18px;
+  background: var(--el-bg-color);
   .referenceHint {
     margin: 8px 0;
     color: var(--el-text-color-secondary);

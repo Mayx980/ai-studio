@@ -79,3 +79,7 @@ onUnmounted(() => { active = false; if (materialEditorState.value?.owner === own
   .addReference { width: 108px; height: 96px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: 1px dashed var(--el-border-color); border-radius: 8px; background: var(--el-fill-color-extra-light); color: var(--el-text-color-secondary); font-size: 11px; cursor: pointer; span { font-size: 24px; } }
 } } }
 </style>
+
+<style scoped lang="scss">
+.simpleReferenceSlots { padding-left: 12px; }
+</style>

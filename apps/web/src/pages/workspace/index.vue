@@ -25,7 +25,6 @@
         :fileAction="performFileAction"
         :saveNode="saveDocumentNode" />
     </keep-alive>
-    <workspaceMenu v-show="workspaceStore.creationMode === 'professional'" class="workspaceMenu" @openSettings="settingsVisible = true" />
     <div v-show="workspaceStore.creationMode === 'professional'" class="canvasToolDock">
       <div class="bottomTools">
         <el-card v-if="activePanel === 'canvas'" class="toolMenu" shadow="never" :bodyStyle="{ padding: '3px 6px' }">
@@ -71,8 +70,8 @@
 
 <script setup lang="ts">
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
-import { browserNodeAi } from "@/lib/browserNodeAi";
-import { browserConfig, browserResultFile, additionalBrowserModels, type ProfessionalCanvas, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
+import { generateBrowserText, browserNodeAi } from "@/lib/browserNodeAi";
+import { browserConfig, browserResultFile, resolveBrowserModel, additionalBrowserModels, type ProfessionalCanvas, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
 import { computed, defineAsyncComponent, nextTick, onMounted, onScopeDispose, provide, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
 import axios from "axios";
@@ -85,13 +84,19 @@ import { registerWorkspaceControl, waitForControlValue } from "@/lib/mcpControl"
 import anonymousData from "@/lib/anonymousData";
 import canvasPanel from "./panels/canvas/canvasHost.vue";
 import type { DocumentNodeOptions } from "./panels/canvas/canvasFiles";
-import workspaceMenu from "./components/workspaceMenu.vue";
 import floatingAgent from "./components/floatingAgent.vue";
 import canvasTutorial from "@/components/canvasTutorial.vue";
 import { applyTemplateParameters, type TemplateApplication } from "@/lib/creationTemplates";
 import { currentAccount } from "@/stores/prototypeAccount";
 
 provide("nodeAi", browserNodeAi);
+provide("optimizeNodePrompt", async (prompt: string, kind: "image" | "video" | "audio", signal: AbortSignal) => {
+  const model = resolveBrowserModel("text");
+  const result = await generateBrowserText({ providerId: model.id, modelId: model.modelId, prompt,
+    systemPrompt: `优化用于${({ image: "图片", video: "视频", audio: "音频" })[kind]}生成的提示词。保持用户意图、人物、场景、时长和全部引用标记（例如 {{ref 1}}）原样，改善表达和必要细节。只输出优化后的提示词，不要解释，不要编造引用或生成结果。`, signal });
+  return result.text;
+});
+
 watch(() => [browserConfig.enabled, browserConfig.endpoint, ...Object.values(browserConfig.keys), JSON.stringify(additionalBrowserModels)], () => { window.dispatchEvent(new Event("toonflow:provider-config-changed")); });
 
 const documentPanel = defineAsyncComponent(() => import("./panels/document/index.vue"));
@@ -100,10 +105,11 @@ const activePanel = ref<"canvas" | "document">("canvas");
 const selectedTool = ref<"move" | "hand">("move");
 onMounted(() => anonymousData.track("workspace.canvas"));
 const workspaceStore = useWorkspaceStore();
-const agentVisible = ref(!workspaceStore.pendingCanvasEntry);
-watch(() => workspaceStore.creationMode, () => { agentVisible.value = true; });
+const agentVisible = ref(workspaceStore.creationMode === "simple");
+watch(() => workspaceStore.creationMode, mode => { agentVisible.value = mode === "simple"; });
 const agentWidth = ref(0);
 const settingsVisible = ref(false);
+provide("openWorkspaceSettings", () => { settingsVisible.value = true; });
 const canvasPanelRef = ref<InstanceType<typeof canvasPanel>>();
 const tutorialNodeId = ref("");
 const tutorialImageIds = ref<string[]>([]);
@@ -210,7 +216,7 @@ async function enterCanvas() {
     await nextTick();
     if (!canvasPanelRef.value) throw new Error("画布正在初始化，请稍后重试");
     await canvasPanelRef.value.waitUntilReady();
-    agentVisible.value = true;
+    agentVisible.value = false;
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "无法进入画布"); }
 }
 provide("importBrowserResult", async (file: File, directory: string, script = false) => {
@@ -221,7 +227,7 @@ provide("importBrowserResult", async (file: File, directory: string, script = fa
   await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
   await canvasPanelRef.value.waitUntilReady();
   await canvasPanelRef.value.importBrowserResult(file, directory, script);
-  agentVisible.value = true;
+  agentVisible.value = false;
 });
 provide("beginBrowserWorkflow", (async (...args) => {
   if (args[4] !== false) workspaceStore.creationMode = "professional";
@@ -422,16 +428,6 @@ function saveDocumentNode(directory: string, canvasPath: string, nodeId: string,
       pointer-events: none;
     }
   }
-
-  .workspaceMenu {
-    position: absolute;
-    top: 15px;
-    left: 16px;
-    z-index: 1100;
-  }
-
-  &.simpleWorkspace .workspaceMenu { left: 104px; }
-  @media(max-width:700px) { &.simpleWorkspace .workspaceMenu { left: 64px; } }
 
   .canvasToolDock {
     position: absolute;

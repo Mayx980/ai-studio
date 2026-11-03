@@ -23,7 +23,7 @@
       <div v-if="actions?.mode === 'speed'" ref="speedTarget" />
       <el-card v-else class="promptCard" shadow="never" :bodyStyle="{ padding: '14px 16px 12px' }">
 
-        <promptInput v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" placeholder="描述您想要的音频效果或输入待朗读文本" expandable><template #references><referenceItem v-if="refList.length" v-model="refList" @preview="setReferencePreview" @remove="removeReference" /></template></promptInput>
+        <promptInput optimizeKind="audio" v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" placeholder="描述您想要的音频效果或输入待朗读文本" expandable><template #references><referenceItem v-if="refList.length" v-model="refList" @preview="setReferencePreview" @remove="removeReference" /></template></promptInput>
         <div class="promptFooter">
           <el-select
             v-model="data.model"
@@ -340,6 +340,8 @@ nodeTools.register({
   :deep(.el-loading-mask) { pointer-events: none; }
 }
 .promptCard {
+  border-radius: 18px;
+  background: var(--el-bg-color);
   .promptFooter {
     display: flex;
     align-items: center;

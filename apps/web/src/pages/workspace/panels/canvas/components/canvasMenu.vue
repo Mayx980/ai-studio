@@ -2,8 +2,8 @@
   <panel class="canvasMenuPanel" position="top-left">
     <el-card class="canvasMenu" shadow="never" :bodyStyle="{ padding: '3px 6px' }">
       <div class="menuContent">
-        <el-input v-model="projectNameDraft" class="workspaceNameInput" :style="{ '--workspaceName': JSON.stringify(projectNameDraft || ' ') }" size="small" :title="browserWorkspaceMode ? '当前浏览器' : directory" :disabled="!workspaceStore.project" aria-label="项目名称"
-          @keydown.stop @keydown.enter="saveProjectName" @keydown.esc.prevent="projectNameDraft = workspaceName" @blur="saveProjectName" />
+        <div class="projectHeader"><el-input v-model="projectNameDraft" class="workspaceNameInput" :style="{ '--workspaceName': JSON.stringify(projectNameDraft || ' ') }" size="small" :title="browserWorkspaceMode ? '当前浏览器' : directory" :disabled="!workspaceStore.project" aria-label="项目名称"
+          @keydown.stop @keydown.enter="saveProjectName" @keydown.esc.prevent="projectNameDraft = workspaceName" @blur="saveProjectName" /><workspaceMenu @openSettings="openWorkspaceSettings?.()" /></div>
         <el-divider direction="vertical" /><span class="currentCanvas">{{ canvasId?.replace(/\.json$/, "") }}</span>
         <slot name="actions" />
       </div>
@@ -32,6 +32,7 @@
 </template>
 
 <script setup lang="ts">
+import workspaceMenu from "@/pages/workspace/components/workspaceMenu.vue";
 import axios from "axios";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { translate } from "@toonflow/i18n/vue";
@@ -49,6 +50,7 @@ const props = defineProps<{
   activateCanvas?: (id: string, signal?: AbortSignal) => Promise<void>;
   flushSave: (action?: () => Promise<void>) => Promise<void>;
 }>();
+const openWorkspaceSettings = inject<(() => void) | undefined>("openWorkspaceSettings", undefined);
 const workspaceStore = useWorkspaceStore();
 const workspaceName = computed(() => workspaceStore.project?.name || "未命名工作区");
 const projectNameDraft = ref("");
@@ -904,4 +906,8 @@ defineExpose({ getCanvases, peekCanvases, initialized, addCanvas, switchCanvas, 
 
 <style scoped lang="scss">
 .canvasMenuPanel.vue-flow__panel { width: min(300px, calc(100vw - 30px)); .canvasMenu { width: 100%; border-radius: 16px 16px 0 0; .menuContent { flex-wrap: wrap; padding: 7px 5px 0; .workspaceNameInput { max-width: 180px; flex: 1; } } } .menuExtension { top: 100%; width: 100%; } }
+</style>
+
+<style scoped lang="scss">
+.canvasMenuPanel.vue-flow__panel { inset: 0 auto 0 0; margin: 0; width: min(300px, 85vw); max-width: none; display: flex; flex-direction: column; align-items: stretch; gap: 0; background: var(--el-bg-color); border-right: 1px solid var(--el-border-color-light); .canvasMenu { border: 0; border-radius: 0; } .projectHeader { display: flex; align-items: center; gap: 4px; width: 100%; .workspaceNameInput { flex: 1; min-width: 0; max-width: none; } } .menuExtension { position: static; flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; &::-webkit-scrollbar { display: none; } } }
 </style>
