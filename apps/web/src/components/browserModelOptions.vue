@@ -2,7 +2,7 @@
   <el-popover ref="parameterPopover" v-if="browserConfig.enabled || browserWorkspaceMode" trigger="click" :visible="parametersVisible" :triggerKeys="[]" :hideAfter="0" @update:visible="openParameters" placement="top" :width="300" :popperOptions="{ modifiers: [{ name: 'preventOverflow', options: { padding: 12, altAxis: true, tether: false } }, { name: 'flip', options: { padding: 12, fallbackPlacements: ['top', 'bottom', 'right', 'left'] } }] }" popperClass="generationParameters" :popperStyle="{ maxHeight: 'calc(100dvh - 24px)', maxWidth: 'calc(100vw - 24px)', overflowY: 'auto', boxSizing: 'border-box' }">
     <template #reference><span ref="parameterTrigger"><el-button text aria-label="模型与生成参数" :aria-expanded="parametersVisible" @click="parametersVisible = true">{{ models.find(model => model.id === browserModelSelection[kind])?.label || models[0]?.label || '未接入模型' }} · 参数</el-button></span></template>
     <el-form class="parameterForm" v-click-outside:[parameterExcludes]="closeParameters" labelPosition="top">
-      <el-form-item v-if="workspace.creationMode === 'professional'" label="参数类型"><el-select :teleported="false" v-model="parameterKind" aria-label="参数类型"><el-option v-for="(label, value) in kindLabels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
+      <el-form-item v-if="workspace.creationMode === 'professional' && !fixedKind" label="参数类型"><el-select :teleported="false" v-model="parameterKind" aria-label="参数类型"><el-option v-for="(label, value) in kindLabels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
       <el-form-item :label="`${kindLabels[kind]}模型`"><el-select :teleported="false" v-model="selectedModelId" placeholder="选择已接入模型" :noDataText="`未接入${kindLabels[kind]}模型，请在 API 配置中添加对应类型`"><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.id" /></el-select></el-form-item>
       <template v-if="kind === 'image' || kind === 'video'">
         <el-form-item label="比例"><el-radio-group v-model="browserConfig.ratio" size="small" aria-label="生成比例"><el-radio-button v-for="item in ratios" :key="item" :value="item">{{ item }}</el-radio-button></el-radio-group></el-form-item>
@@ -31,11 +31,11 @@ const parameterExcludes = computed(() => [parameterTrigger.value, parameterPopov
 // ACT: 忽略组件的失焦和键盘隐藏请求，只在面板外点击时关闭。
 function openParameters(visible: boolean) { if (visible) parametersVisible.value = true; }
 function closeParameters() { parametersVisible.value = false; }
-const props = withDefaults(defineProps<{ prompt?: string }>(), { prompt: "" });
+const props = withDefaults(defineProps<{ prompt?: string; fixedKind?: ModelKind }>(), { prompt: "" });
 const workspace = useWorkspaceStore();
 const parameterKind = ref<ModelKind>("text");
 const kindLabels = { text: "文字", image: "图片", video: "视频", audio: "音频" };
-const kind = computed(() => generationBusy.value ? browserConfig.kind : workspace.creationMode === "professional" ? parameterKind.value : inferGenerationKind(props.prompt));
+const kind = computed(() => props.fixedKind ?? (generationBusy.value ? browserConfig.kind : workspace.creationMode === "professional" ? parameterKind.value : inferGenerationKind(props.prompt)));
 const models = computed(() => configuredBrowserModels(kind.value));
 const selectedModelId = computed({ get: () => models.value.find(model => model.id === browserModelSelection[kind.value])?.id ?? models.value[0]?.id ?? "", set: value => { browserModelSelection[kind.value] = value; } });
 const videoDuration = computed({ get: () => Number(browserConfig.duration) || 5, set: value => { browserConfig.duration = String(value); } });

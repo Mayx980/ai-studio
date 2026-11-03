@@ -3,6 +3,7 @@
     <agentMenu
       :key="conversationKey"
       :name="name"
+      :hideName="props.creationModes"
       :closable="props.closable"
       :history="history"
       :sessionFile="sessionFile"

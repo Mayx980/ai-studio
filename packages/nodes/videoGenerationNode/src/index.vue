@@ -74,7 +74,6 @@
             v-model:duration="data.duration"
             v-model:resolution="data.resolution"
             v-model:ratio="data.ratio"
-            v-model:mode="data.mode"
             v-model:generateAudio="data.generateAudio"
             :ratios="ratioOptions"
             :model="selectedModel"

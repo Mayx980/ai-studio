@@ -430,6 +430,7 @@ defineExpose({
     return panel.prepareTutorial();
   },
   focusTutorialNode: (id: string) => activeInstance.value?.focusTutorialNode(id),
+  get tutorialConnections() { return activeInstance.value?.tutorialConnections ?? 0; },
   addNodeAtPointer: () => activeInstance.value?.addNodeAtPointer(),
   mentionSource,
   get saveBusy() { return fileActionBusy || [...instances.values()].some(panel => panel.saveBusy); },

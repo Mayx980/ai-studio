@@ -8,10 +8,6 @@
       </el-button>
     </template>
     <div class="generationSettings nodrag nopan nowheel" @pointerdown.stop @mousedown.stop @dblclick.stop @keydown.stop @wheel.stop>
-      <div v-if="modes.length" class="sectionLabel">生成模式</div>
-      <el-select v-if="modes.length" v-model="mode" :disabled="disabled" :teleported="false" aria-label="视频生成模式">
-        <el-option v-for="item in modes" :key="item.value" :value="item.value" :label="item.label" />
-      </el-select>
       <div v-if="durations.length || resolutions.length" class="outputOptions">
         <div v-if="durations.length" class="outputField">
           <div class="sectionLabel">时长</div>
@@ -54,15 +50,7 @@ const settingsVisible = ref(false);
 const duration = defineModel<number | undefined>("duration", { required: true });
 const resolution = defineModel<string>("resolution", { required: true });
 const ratio = defineModel<string>("ratio", { required: true });
-const mode = defineModel<string>("mode", { required: true });
 const generateAudio = defineModel<boolean>("generateAudio", { required: true });
-const modeLabels: Record<string, string> = {
-  text: "文生视频", singleImage: "单图参考", startEndRequired: "首尾帧必填", endFrameOptional: "尾帧可选", startFrameOptional: "首帧可选",
-};
-const modes = computed(() => (props.model?.mode ?? []).map(item => ({
-  value: JSON.stringify(item),
-  label: Array.isArray(item) ? "混合参考" : modeLabels[item] ?? item,
-})));
 const mappings = computed(() => props.model?.durationResolutionMap ?? []);
 const durations = computed(() => [...new Set(mappings.value.flatMap(item => item.duration))].sort((a, b) => a - b));
 const resolutions = computed(() => resolutionsFor(duration.value));

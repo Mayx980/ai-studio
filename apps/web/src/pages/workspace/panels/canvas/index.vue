@@ -425,7 +425,13 @@ const beginBrowserWorkflow: BeginBrowserWorkflow = async (prompt, kind, referenc
   } };
 };
 
-defineExpose({ beginBrowserWorkflow, waitUntilReady, importBrowserResult, canvasId, canvasReady, getCanvasContext, prepareTutorial, focusTutorialNode, createInitialNode, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
+const tutorialConnections = computed(() => {
+  const video = flow.getNodes.value.find(node => ["portraitVideo", "imageToVideo"].includes(node.data.canvasTutorial));
+  const sources: string[] = video?.data.canvasTutorialImageIds ?? [];
+  return video ? new Set(flow.getEdges.value.filter(edge => edge.target === video.id && edge.sourceHandle === "image" && (!sources.length || sources.includes(edge.source))).map(edge => edge.source)).size : 0;
+});
+
+defineExpose({ beginBrowserWorkflow, waitUntilReady, importBrowserResult, canvasId, canvasReady, getCanvasContext, prepareTutorial, focusTutorialNode, tutorialConnections, createInitialNode, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
   getCanvases: (signal?: AbortSignal) => {
     if (!canvasMenuRef.value) throw new Error("画布菜单尚未就绪");
     return canvasMenuRef.value.getCanvases(signal);
@@ -675,12 +681,12 @@ function createEmptyNode(type: string) {
 async function prepareTutorial() {
   await waitUntilReady();
   if (!props.active || props.settingsVisible) return;
-  const existing = flow.getNodes.value.find(node => node.data.canvasTutorial === "portraitVideo");
+  const existing = flow.getNodes.value.find(node => ["portraitVideo", "imageToVideo"].includes(node.data.canvasTutorial));
   if (existing) {
     flow.removeSelectedElements(); flow.addSelectedNodes([existing]);
     await nextTick();
     await fitTutorial(existing.position);
-    return { videoId: existing.id, imageIds: flow.getEdges.value.filter(edge => edge.target === existing.id && edge.sourceHandle === "image").map(edge => edge.source) };
+    return { videoId: existing.id, imageIds: existing.data.canvasTutorialImageIds ?? flow.getEdges.value.filter(edge => edge.target === existing.id && edge.sourceHandle === "image").map(edge => edge.source) };
   }
   // ACT: 只在空画布放置教学素材，已有项目内容不重排、不覆盖。
   if (flow.getNodes.value.length) return;
@@ -709,12 +715,11 @@ async function prepareTutorial() {
         flow.updateNodeData(id, { label: index === 0 ? "图1 女大学生" : "图2 男主播", prompt, promptModel: [[{ type: "Write", text: prompt }]], ratio: "16:9" });
       });
       flow.addNodes({ id: targetId, type: "remote-videoGenerationNode", position: { x: 0, y: 60 }, data: {
-        label: "新手教学 · 10秒人像剧情", canvasTutorial: "portraitVideo", prompt: canvasTutorialPrompt,
+        label: "新手教学 · 10秒人像剧情", canvasTutorial: "imageToVideo", canvasTutorialImageIds: ids, prompt: canvasTutorialPrompt,
         promptModel: canvasTutorialPrompt.split("\n").map(text => [{ type: "Write", text }]), duration: 10, ratio: "16:9", resolution: "480P",
         referenceOrder: { in: ids.map(id => encodeURIComponent(JSON.stringify([id, "image"]))) },
       } });
       createdIds.push(targetId);
-      flow.addEdges(ids.map(id => ({ id: crypto.randomUUID(), type: "default", source: id, sourceHandle: "image", target: targetId, targetHandle: "in" })));
       flow.removeSelectedElements(); flow.addSelectedNodes([flow.findNode(targetId)!]);
     });
     await nextTick(); await waitUntilReady();
@@ -736,6 +741,7 @@ async function fitTutorial(position: { x: number; y: number }) {
   await flow.setViewport(vueFlowRuntime.getTransformForBounds({ x: position.x - 540, y: position.y - 140, width: 1140, height: 840 }, bounds.width, bounds.height, flow.minZoom.value, 0.9, 0.12));
 }
 async function focusTutorialNode(id: string) {
+  if (!id) { await fitTutorial({ x: 0, y: 60 }); return; }
   const node = flow.findNode(id);
   if (!node || !props.active) return;
   flow.removeSelectedElements(); flow.addSelectedNodes([node]);

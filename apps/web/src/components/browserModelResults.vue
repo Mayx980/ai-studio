@@ -13,7 +13,7 @@
       </div>
       <div v-if="applicationLabel && ['image', 'video'].includes(item.kind) && !dismissed.has(item.id)" class="applicationChoice"><p>是否将此素材应用为{{ applicationLabel }}？</p><el-button type="primary" :loading="applyingId === item.id" :disabled="disabled || !!applyingId" @click="applyResult(item)">{{ item.kind === 'video' ? `提取${framePosition === 'last' ? '尾帧' : '首帧'}并应用` : '应用' }}</el-button><el-button :disabled="disabled || !!applyingId" @click="continueResult(item)">{{ item.kind === 'video' ? '基于首帧继续修改' : '继续修改' }}</el-button></div>
     </article>
-    <el-image-viewer v-if="preview?.kind === 'image' && preview.url" :urlList="[preview.url]" teleported @close="preview = undefined" />
+    <imageViewer v-if="preview?.kind === 'image' && preview.url" :urlList="[preview.url]" @close="preview = undefined" />
     <el-dialog :modelValue="preview?.kind === 'video'" title="视频预览" width="min(960px, 94vw)" alignCenter appendToBody destroyOnClose @update:modelValue="preview = undefined"><video v-if="preview?.url" :src="preview.url" controls autoplay playsinline style="display: block; width: 100%; max-height: 78dvh" /></el-dialog>
   </section>
 </template>
@@ -21,7 +21,8 @@
 <script setup lang="ts">
 import { IconPaperclip, IconSquarePlus } from "@tabler/icons-vue";
 import { computed, inject, onBeforeUnmount, reactive, ref } from "vue";
-import { ElMessage, ElDialog, ElImageViewer } from "element-plus";
+import { ElMessage, ElDialog } from "element-plus";
+import imageViewer from "@toonflow/node-shared/imageViewer";
 import { captureVideoFrame } from "@/lib/videoFrame";
 import { browserConfig, generationBusy, generationError, generationResults, selectedBrowserModel, browserResultFile } from "@/stores/browserGeneration";
 const props = withDefaults(defineProps<{ directory?: string; resultIds?: string[]; showStatus?: boolean; disabled?: boolean; showCanvas?: boolean; showReference?: boolean; applicationLabel?: string; framePosition?: "first" | "last" }>(), { showCanvas: true, showStatus: true, showReference: true });

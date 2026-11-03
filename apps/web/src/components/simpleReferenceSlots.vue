@@ -2,7 +2,7 @@
   <div class="simpleReferenceSlots" aria-label="首尾帧与参考图">
     <input ref="fileInput" type="file" accept="image/*" :multiple="target.role === 'reference'" hidden :disabled="disabled || opening" @change="selectFiles" />
     <template v-for="frame in frames" :key="frame.role">
-      <el-popover v-if="frame.role === 'reference'" v-model:visible="referenceOpen" trigger="click" placement="top-start" :width="'min(520px, 92vw)'" :teleported="true">
+      <el-popover v-if="frame.role === 'reference'" v-model:visible="referenceOpen" trigger="click" placement="top-start" :width="'min(520px, 92vw)'" :teleported="true" popperClass="referenceCategoryPopover" :popperOptions="{ modifiers: [{ name: 'preventOverflow', options: { padding: 12, altAxis: true, tether: false } }, { name: 'flip', options: { padding: 12, fallbackPlacements: ['top-start', 'bottom-start', 'right', 'left'] } }] }">
         <template #reference><button class="slotCard stacked" type="button" :disabled="disabled || opening" aria-label="参考图" :aria-expanded="referenceOpen"><span class="cardPlus">+</span><span>参考图</span><small v-if="referenceCount">{{ referenceCount }}</small></button></template>
         <div class="referenceCategories"><section v-for="group in groups" :key="group.value"><h4>{{ group.label }}</h4><div class="categoryImages"><div v-for="(attachment, index) in groupAttachments(group.value)" :key="index" class="referenceImage"><attachmentPreview :attachment="{ ...attachment, name: attachment.referenceName || `${group.label}${index + 1}` }" :directory="directory" removable :disabled="disabled" @remove="remove(attachment)" /><span>{{ attachment.referenceName || `${group.label}${index + 1}` }}</span></div><el-dropdown trigger="click" :disabled="disabled || opening" @command="choice => chooseSource(choice, { role: 'reference', category: group.value })"><button class="addReference" type="button" :disabled="disabled || opening" :aria-label="`新增${group.label}`"><span>+</span>新增</button><template #dropdown><el-dropdown-menu><el-dropdown-item v-for="source in sources" :key="source.value" :command="source.value">{{ source.label }}</el-dropdown-item></el-dropdown-menu></template></el-dropdown></div></section></div>
       </el-popover>
@@ -74,7 +74,7 @@ onUnmounted(() => { active = false; if (materialEditorState.value?.owner === own
     &.stacked { transform: rotate(0); &::before, &::after { content: ""; position: absolute; inset: 0; border: 1px solid var(--el-border-color); border-radius: inherit; background: inherit; z-index: -1; pointer-events: none; } &::before { transform: translate(-4px, -3px); } &::after { transform: translate(4px, 3px); } small { position: absolute; right: -5px; top: -6px; border-radius: 9px; padding: 1px 5px; background: var(--el-color-primary); color: white; } }
   }
 }
-.referenceCategories { max-height: min(560px, 65dvh); overflow: auto; section { padding: 8px 2px 18px; h4 { margin: 0 0 10px; font-size: 13px; font-weight: 500; } .categoryImages { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start;
+.referenceCategories { max-height: min(440px, calc(100dvh - 56px)); overflow: auto; section { padding: 8px 2px 18px; h4 { margin: 0 0 10px; font-size: 13px; font-weight: 500; } .categoryImages { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start;
   .referenceImage { width: 126px; > span { display: block; font-size: 11px; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } :deep(.thumbnailItem) { width: 126px; height: 96px; } :deep(.thumbnailImage) { width: 126px; height: 96px; } }
   .addReference { width: 108px; height: 96px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: 1px dashed var(--el-border-color); border-radius: 8px; background: var(--el-fill-color-extra-light); color: var(--el-text-color-secondary); font-size: 11px; cursor: pointer; span { font-size: 24px; } }
 } } }
@@ -82,4 +82,8 @@ onUnmounted(() => { active = false; if (materialEditorState.value?.owner === own
 
 <style scoped lang="scss">
 .simpleReferenceSlots { padding-left: 12px; }
+</style>
+
+<style lang="scss">
+.referenceCategoryPopover { box-sizing: border-box; max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); overflow: auto; }
 </style>

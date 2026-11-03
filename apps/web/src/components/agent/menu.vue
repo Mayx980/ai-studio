@@ -2,7 +2,7 @@
   <header class="agentMenu">
     <el-button v-if="parentFile" class="backButton" text circle :icon="IconArrowLeft" aria-label="返回父 Agent" title="返回父 Agent" @click="emit('back')" />
     <el-input
-      v-if="editingName && !parentFile"
+      v-if="editingName && !parentFile && !hideName"
       ref="nameInput"
       v-model="nameDraft"
       class="conversationName"
@@ -12,7 +12,7 @@
       @keydown.enter="saveName"
       @keydown.esc.prevent="editingName = false"
       @blur="saveName" />
-    <span v-else class="conversationName">
+    <span v-else-if="!hideName" class="conversationName">
       <span class="conversationTitle" :class="{ readOnly: parentFile }" :title="name" :tabindex="sessionFile && !parentFile ? 0 : -1" @click="editName" @keydown.enter.prevent="editName">{{ name }}</span>
     </span>
     <div class="menuActions">
@@ -100,6 +100,7 @@ import {
 
 const props = defineProps<{
   closable?: boolean;
+  hideName?: boolean;
   name: string;
   history: AgentHistory[];
   sessionFile?: string;

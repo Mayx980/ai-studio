@@ -116,9 +116,9 @@
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
       <div class="senderActions">
         <simpleGenerationTools v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" :imageOnly="props.materialEditor && !!props.materialRole" />
-        <browserModelOptions v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :prompt="draftPrompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
+        <browserModelOptions v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor && props.materialRole ? 'image' : undefined" :prompt="draftPrompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
-        <referencePicker :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
+        <referencePicker v-if="!props.creationModes" :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
         <mentionMenu ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
         <skillMenu v-if="!browserWorkspaceMode && !browserConfig.enabled" ref="skillMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="skillQuery" :editor="senderElement" @select="selectSkill" @dismiss="skillQuery = undefined" />
         <el-popover
@@ -234,7 +234,7 @@ let attachmentDragDepth = 0;
 const attachmentAccept = `image/*,video/*,${readableFileAccept}`;
 const createCanvasContext = inject<(() => CanvasContext | undefined) | undefined>("canvas", undefined);
 const sessionMode = ref(props.initialSession?.creationMode);
-watch(() => props.active, active => { if (active && sessionMode.value) workspaceStore.creationMode = sessionMode.value; }, { immediate: true });
+watch(() => props.active, active => { if (active && !props.materialEditor && sessionMode.value) workspaceStore.creationMode = sessionMode.value; }, { immediate: true });
 const creationChoices = [
   { label: "方案／文字", kind: "text" as const, script: false }, { label: "剧情脚本", kind: "text" as const, script: false }, { label: "分镜脚本", kind: "text" as const, script: true },
   { label: "图片", kind: "image" as const, script: false }, { label: "音频", kind: "audio" as const, script: false }, { label: "视频", kind: "video" as const, script: false },

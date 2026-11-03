@@ -17,17 +17,18 @@
     <el-input v-else-if="optimizedText" v-model="optimizedText" type="textarea" :autosize="{ minRows: 6, maxRows: 16 }" aria-label="优化后的提示词" />
     <template #footer><el-button @click="optimizationVisible = false">取消</el-button><el-button type="primary" :disabled="optimizing || !optimizedText.trim()" @click="applyOptimization">应用</el-button></template>
   </el-dialog>
-  <el-dialog v-if="expandable" v-model="expanded" class="promptEditorDialog" title="编辑输入内容" fullscreen alignCenter appendToBody :closeOnClickModal="false" @opened="sender?.focus('mark')" @close="expanded = false" @closed="sender?.focus('mark')">
+  <el-dialog v-if="expandable" v-model="expanded" class="promptEditorDialog" title="编辑输入内容" width="min(640px, calc(100vw - 32px))" :modal="false" alignCenter appendToBody :closeOnClickModal="false" @opened="sender?.focus('mark')" @close="expanded = false" @closed="sender?.focus('mark')">
     <div ref="expandedTarget" class="promptExpandedTarget nodrag nopan nowheel" @pointerdown.stop @mousedown.stop @dblclick.stop />
   </el-dialog>
-  <el-image-viewer v-if="previewUrl" :urlList="[previewUrl]" teleported @close="previewReferenceId = undefined" />
+  <imageViewer v-if="previewUrl" :urlList="[previewUrl]" @close="previewReferenceId = undefined" />
 </template>
 
 <script setup lang="ts">
 import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from "vue";
-import { ElAlert, ElInput, ElButton, ElDialog, ElImageViewer, ElTooltip, useZIndex } from "element-plus";
+import { ElAlert, ElInput, ElButton, ElDialog, ElTooltip, useZIndex } from "element-plus";
 import { IconWand, IconArrowsDiagonal, IconPaperclip, IconUpload } from "@tabler/icons-vue";
 import { useNode } from "@vue-flow/core";
+import imageViewer from "./imageViewer.vue";
 import xSender, { type AnyTagProps, type MentionItem } from "x-sender";
 import "x-sender/lib/XSender.css";
 
@@ -402,10 +403,15 @@ function handleMentionKey(event: KeyboardEvent) {
 
 .promptTools { position: absolute; left: 8px; right: 8px; bottom: 4px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 4px; .el-button { margin: 0; } &.inlineTools { position: static; justify-content: flex-start; } }
 
-:global(.promptEditorDialog) {
+:global(.el-dialog.promptEditorDialog) {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: min(42dvh, 360px);
+  min-height: min(240px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: 16px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 14px;
 }
 
 :global(.promptEditorDialog .el-dialog__body) { flex: 1; min-height: 0; }

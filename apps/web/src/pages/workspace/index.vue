@@ -63,7 +63,7 @@
     <floatingAgent @openSettings="settingsVisible = true" @applyTemplate="applyAssistantTemplate" @enterCanvas="enterCanvas" v-model="agentVisible" :expanded="workspaceStore.creationMode === 'simple'" @resize="agentWidth = $event" />
     <settings v-model="settingsVisible" />
     <shortcutHelp v-model="shortcutsVisible" />
-    <canvasTutorial v-if="tutorialNodeId && workspaceStore.creationMode === 'professional'" :nodeId="tutorialNodeId" :imageIds="tutorialImageIds" :focusNode="id => canvasPanelRef?.focusTutorialNode(id)" @complete="finishTutorial" />
+    <canvasTutorial v-if="tutorialNodeId && workspaceStore.creationMode === 'professional'" :nodeId="tutorialNodeId" :imageIds="tutorialImageIds" :connections="canvasPanelRef?.tutorialConnections ?? 0" :focusNode="id => canvasPanelRef?.focusTutorialNode(id)" @complete="finishTutorial" />
 
   </main>
 </template>
@@ -116,7 +116,7 @@ const canvasPanelRef = ref<InstanceType<typeof canvasPanel>>();
 const tutorialNodeId = ref("");
 const tutorialImageIds = ref<string[]>([]);
 const tutorialPreparing = ref(false);
-const tutorialKey = () => `afxen.canvasTutorial.${currentAccount.value?.id ?? 'user'}`;
+const tutorialKey = () => `afxen.canvasTutorial.imageToVideo.${currentAccount.value?.id ?? 'user'}`;
 let tutorialPreparation: Promise<boolean> | undefined;
 function openTutorial(panel: InstanceType<typeof canvasPanel>) {
   if (localStorage.getItem(tutorialKey()) === "completed") return Promise.resolve(false);
@@ -630,6 +630,6 @@ function saveDocumentNode(directory: string, canvasPath: string, nodeId: string,
 </style>
 
 <style scoped lang="scss">
-.workspacePage.materialSplit { .canvasPanel { width: 50%; } .canvasToolDock { left: 25%; } :deep(.agentSidebar) { visibility: hidden; pointer-events: none; } }
+.workspacePage.materialSplit { .canvasPanel { width: 50%; } .canvasToolDock { left: 25%; } }
 @media(max-width:700px) { .workspacePage.materialSplit { .canvasPanel { width: 100%; height: 50dvh; } .canvasToolDock { left: 50%; bottom: calc(50dvh + 12px); } } }
 </style>
