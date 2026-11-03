@@ -403,13 +403,13 @@ function handleMentionKey(event: KeyboardEvent) {
 
 .promptTools { position: absolute; left: 8px; right: 8px; bottom: 4px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 4px; .el-button { margin: 0; } &.inlineTools { position: static; justify-content: flex-start; } }
 
-:global(.el-dialog.promptEditorDialog) {
+:global(.el-dialog.promptEditorDialog.is-align-center) {
   display: flex;
   flex-direction: column;
   height: min(42dvh, 360px);
   min-height: min(240px, calc(100dvh - 32px));
   max-height: calc(100dvh - 32px);
-  margin: 16px;
+  margin: auto;
   border: 1px solid var(--el-border-color);
   border-radius: 14px;
 }
