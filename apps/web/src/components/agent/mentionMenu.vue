@@ -6,7 +6,7 @@
         <el-card class="mentionPopup" shadow="always" :bodyStyle="{ padding: '0' }" :style="{ maxHeight: `${popupHeight}px` }">
           <div class="mentionHeader"><strong>提及输出与素材</strong><el-button text circle size="small" aria-label="关闭提及" @click="closeMenu"><icon-x :size="14" /></el-button></div>
           <div class="mentionScopes" aria-label="提及来源">
-            <button v-for="item in scopes" :key="item.id" type="button" :class="{ selected: scope === item.id }" :aria-pressed="scope === item.id" @click="changeScope(item.id)">{{ item.name }}</button>
+            <button v-for="item in visibleScopes" :key="item.id" type="button" :class="{ selected: scope === item.id }" :aria-pressed="scope === item.id" @click="changeScope(item.id)">{{ item.name }}</button>
           </div>
           <div v-if="selectedNode || selectedCanvas || assetPath" class="mentionBreadcrumb">
             <el-button text circle size="small" aria-label="返回上一级" @click="goBack"><icon-chevron-left :size="15" /></el-button>
@@ -52,15 +52,17 @@ import { useMentionSources, type MentionAsset, type MentionNode, type MentionOut
 import attachmentPreview from "./attachmentPreview.vue";
 import mentionThumbnail from "./mentionThumbnail.vue";
 
-const props = defineProps<{ attachments?: AgentAttachment[]; hideTrigger?: boolean; directory?: string; active: boolean; disabled: boolean; query?: string; editor?: HTMLElement; currentCanvasId?: string }>();
+const props = defineProps<{ currentOnly?: boolean; attachments?: AgentAttachment[]; hideTrigger?: boolean; directory?: string; active: boolean; disabled: boolean; query?: string; editor?: HTMLElement; currentCanvasId?: string }>();
 const emit = defineEmits<{ select: [mentions: AgentMention[]]; dismiss: []; open: []; selectAttachment: [attachment: AgentAttachment] }>();
 const sources = useMentionSources(() => props.directory);
 const listId = useId();
 const scopes = [{ id: "current", get name() { return translate("当前画布"); } }, { id: "other", get name() { return translate("其他画布"); } }, { id: "assets", get name() { return translate("全局素材"); } }] as const;
+const visibleScopes = computed(() => props.currentOnly ? scopes.filter(item => item.id === "current") : scopes);
 type MentionScope = typeof scopes[number]["id"];
 type MentionRow = { id: string; name: string; kind: "canvas" | "node" | "output" | "file" | "directory" | "attachment"; available: boolean; description: string; dataType?: string; thumbnail?: { url: string; mimeType: string }; outputCount: number };
 const typeLabels: Record<string, string> = { STRING: "文本", INT: "整数", FLOAT: "数字", BOOLEAN: "布尔值", IMAGE: "图片", MASK: "遮罩", VIDEO: "视频", AUDIO: "音频", FILE: "文件" };
 const scope = ref<MentionScope>("current");
+watch(() => props.currentOnly, value => { if (value) changeScope("current"); }, { flush: "post" });
 const buttonVisible = ref(false);
 const visible = computed(() => props.active && !props.disabled && (buttonVisible.value || props.query !== undefined));
 const search = ref(props.query ?? "");

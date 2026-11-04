@@ -16,10 +16,11 @@
     </div>
     <div v-else class="frameDeck" aria-label="首尾帧图片">
       <template v-for="(frame, index) in frames" :key="frame.role">
-        <template v-if="index"><div v-for="(attachment, middleIndex) in middleFrames" :key="attachment.name + attachment.path" class="frameSlot"><attachmentPreview :attachment="attachment" :directory="directory" removable :disabled="disabled" @remove="remove(attachment)" /><span class="frameLabel">{{ middleFrameLabel(attachment, middleIndex) }}</span></div><el-tooltip content="添加中间帧"><button class="frameDivider" type="button" aria-label="添加中间帧" :disabled="disabled || opening" @click="openMenu($event, { role: 'middleFrame', category: 'other' })"><span>···</span><icon-plus :size="16" /></button></el-tooltip></template>
+        <template v-if="index"><div v-for="(attachment, middleIndex) in middleFrames" :key="attachment.name + attachment.path" class="frameSlot"><attachmentPreview :attachment="attachment" :directory="directory" removable :disabled="disabled" @remove="remove(attachment)" /><span class="frameLabel">{{ middleFrameLabel(attachment, middleIndex) }}</span><el-tooltip content="替换图片"><button class="replaceFrame" type="button" :disabled="disabled || opening" :aria-label="`替换${middleFrameLabel(attachment, middleIndex)}`" @click="openMenu($event, { role: 'middleFrame', category: 'other' }, attachment)"><icon-refresh :size="22" /></button></el-tooltip></div><el-tooltip content="添加中间帧"><button class="frameDivider" type="button" aria-label="添加中间帧" :disabled="disabled || opening" @click="openMenu($event, { role: 'middleFrame', category: 'other' })"><span>···</span><icon-plus :size="16" /></button></el-tooltip></template>
         <div class="frameSlot">
           <template v-if="frameAttachment(frame.role)">
             <attachmentPreview :attachment="frameAttachment(frame.role)!" :directory="directory" removable :disabled="disabled" @remove="remove(frameAttachment(frame.role)!)" />
+            <el-tooltip content="替换图片"><button class="replaceFrame" type="button" :disabled="disabled || opening" :aria-label="`替换${frame.label}图片`" @click="openMenu($event, { role: frame.role }, frameAttachment(frame.role))"><icon-refresh :size="22" /></button></el-tooltip>
             <button class="frameLabel" type="button" :disabled="disabled || opening" :aria-label="`替换${frame.label}`" @click="openMenu($event, { role: frame.role })">{{ frame.label }}</button>
           </template>
           <button v-else class="slotCard" type="button" :disabled="disabled || opening" :aria-label="frame.label" @click="openMenu($event, { role: frame.role })"><icon-plus :size="24" /><span>{{ frame.label }}</span></button>
@@ -43,7 +44,7 @@ import type { AgentAttachment, ReferenceRole, ReferenceCategory } from "@/compon
 import attachmentPreview from "@/components/agent/attachmentPreview.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import { materialEditorState, type MaterialTarget } from "@/stores/materialEditor";
-const props = defineProps<{ tabsTarget?: HTMLElement; directory?: string; disabled?: boolean; ensureDirectory?: () => Promise<string | undefined> }>();
+const props = withDefaults(defineProps<{ showFrames?: boolean; tabsTarget?: HTMLElement; directory?: string; disabled?: boolean; ensureDirectory?: () => Promise<string | undefined> }>(), { showFrames: true });
 const attachments = defineModel<AgentAttachment[]>({ required: true });
 const mode = defineModel<"reference" | "frames">("mode", { default: "reference" });
 let active = true;
@@ -51,7 +52,8 @@ const owner = Symbol(), fileInput = ref<HTMLInputElement>(), assetsOpen = ref(fa
 const target = ref<MaterialTarget>({ role: "reference" }), replacing = ref<AgentAttachment>();
 const menuVisible = ref(false), menuStage = ref<"category" | "source">("category"), menuAnchor = ref<HTMLElement>(), sourcePopover = ref<PopoverInstance>();
 const menuExcludes = computed(() => [menuAnchor.value, sourcePopover.value?.popperRef?.contentRef]);
-const tabs = [{ value: "reference", label: "参考图" }, { value: "frames", label: "首尾帧" }] as const;
+const tabs = computed(() => ([{ value: "reference", label: "参考图" }, { value: "frames", label: "首尾帧" }] as const).filter(tab => props.showFrames || tab.value === "reference"));
+watch(() => props.showFrames, show => { if (!show) mode.value = "reference"; }, { immediate: true, flush: "sync" });
 const frames = [{ role: "firstFrame", label: "首帧" }, { role: "lastFrame", label: "尾帧" }] as const;
 const groups = [{ value: "character", label: "角色" }, { value: "prop", label: "道具" }, { value: "scene", label: "背景" }, { value: "other", label: "其他" }] as const;
 const sources = [{ value: "local", label: "从本地上传" }, { value: "assets", label: "从个人资产库上传" }, { value: "custom", label: "自定义素材" }];
@@ -61,7 +63,7 @@ function expandReference() { clearTimeout(hoverTimer); expandedReference.value =
 function collapseReference() { clearTimeout(hoverTimer); hoverTimer = setTimeout(() => { if (!menuVisible.value) expandedReference.value = false; }, 500); }
 const middleFrames = computed(() => attachments.value.filter(item => item.referenceRole === "middleFrame"));
 const referenceImages = computed(() => attachments.value.filter(item => item.referenceRole === "reference"));
-watch(attachments, value => { if (value.some(item => item.referenceRole === "firstFrame" || item.referenceRole === "lastFrame") && !value.some(item => item.referenceRole === "reference")) mode.value = "frames"; }, { immediate: true });
+watch(attachments, value => { if (props.showFrames && value.some(item => item.referenceRole === "firstFrame" || item.referenceRole === "lastFrame") && !value.some(item => item.referenceRole === "reference")) mode.value = "frames"; }, { immediate: true });
 function frameAttachment(role: ReferenceRole) { return attachments.value.find(item => item.referenceRole === role); }
 function middleFrameLabel(attachment: AgentAttachment, index: number) { return /^中间帧\d+$/.test(attachment.referenceName || "") ? attachment.referenceName : `中间帧${index + 1}`; }
 function referenceLabel(attachment: AgentAttachment, index: number) { return attachment.referenceName?.replace(/^场景/, "背景") || `${groups.find(group => group.value === attachment.referenceCategory)?.label || "其他"}${index + 1}`; }
@@ -77,7 +79,7 @@ function applyFiles(files: File[], destination = target.value, replacement = rep
   if (!files.length) return;
   const valid = files.filter(file => (file.type.startsWith("image/") || file.type.startsWith("video/") && !["firstFrame", "lastFrame"].includes(destination.role)) && file.size > 0 && file.size <= 100 * 1024 * 1024);
   if (valid.length !== files.length) throw new Error("请选择非空且不超过100 MB的图片或视频，首尾帧仅支持图片");
-  const retained = ["reference", "middleFrame"].includes(destination.role) ? attachments.value : attachments.value.filter(item => item.referenceRole !== destination.role);
+  const retained = replacement || ["reference", "middleFrame"].includes(destination.role) ? attachments.value : attachments.value.filter(item => item.referenceRole !== destination.role);
   const group = groups.find(item => item.value === destination.category);
   const existing = retained.filter(item => destination.role === "middleFrame" ? item.referenceRole === "middleFrame" : item.referenceCategory === destination.category && item.referenceRole === destination.role);
   const lastNumber = Math.max(existing.length, 0, ...existing.map(item => Number(item.referenceName?.match(destination.role === "middleFrame" ? /^中间帧(\d+)$/ : /(\d+)$/)?.[1] ?? 0)));
@@ -124,7 +126,7 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; if (materialEditor
     &:hover, &:focus-within { .replaceReference, .removeReference { display: flex; align-items: center; justify-content: center; } }
     &.expandedReference { margin-right: 82px; .addNextReference { left: calc(100% + 10px); bottom: 0; right: auto; width: 72px; height: 72px; border-radius: 12px; svg { width: 30px; height: 30px; } } }
   }
-  .frameSlot { position: relative; width: 72px; :deep(.thumbnailItem), :deep(.thumbnailImage), :deep(.thumbnailButton) { width: 72px; height: 72px; } .frameLabel { position: absolute; inset: auto 0 0; width: 100%; height: 24px; border: 0; border-radius: 0 0 10px 10px; background: rgba(82,86,90,.85); color: white; cursor: pointer; } }
+  .frameSlot { position: relative; width: 72px; .replaceFrame { display: none; position: absolute; inset: 0; margin: auto; z-index: 2; width: 28px; height: 28px; border: 0; border-radius: 7px; padding: 0; color: white; background: rgba(54,58,62,.9); cursor: pointer; } &:hover, &:focus-within { .replaceFrame { display: flex; align-items: center; justify-content: center; } } :deep(.thumbnailItem), :deep(.thumbnailImage), :deep(.thumbnailButton) { width: 72px; height: 72px; } .frameLabel { position: absolute; inset: auto 0 0; width: 100%; height: 24px; border: 0; border-radius: 0 0 10px 10px; background: rgba(82,86,90,.85); color: white; cursor: pointer; } }
   .frameDivider { align-self: center; border: 0; background: transparent; color: var(--el-text-color-secondary); cursor: pointer; display: grid; place-items: center; width: 26px; height: 30px; svg { display: none; } &:hover, &:focus-visible { span { display: none; } svg { display: block; } } }
   @media(max-width:600px) { flex-wrap: wrap; .referenceDeck, .frameDeck { width: 100%; } }
 }
