@@ -232,6 +232,7 @@ flow.onConnectEnd((event) => {
 async function openMenu(event: MouseEvent | TouchEvent, nodesOnly = false, selection: GraphNode[] = [], handle?: DraggedHandle, group: GraphNode[] = []) {
   event.preventDefault();
   event.stopPropagation();
+  window.getSelection()?.removeAllRanges();
   emit("history");
   menu.value?.handleClose();
   clearConnection();
@@ -438,4 +439,8 @@ async function deleteSelection(selection = selectedNodes.value) {
     margin-left: auto;
   }
 }
+</style>
+
+<style scoped lang="scss">
+.nodeMenu { user-select: none; :deep(button), :deep(.el-dropdown-menu__item) { user-select: none; } }
 </style>

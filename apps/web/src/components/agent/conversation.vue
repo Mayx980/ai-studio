@@ -109,7 +109,7 @@
         @lostpointercapture="stopSenderResize"
         @keydown.up.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) + 16)"
         @keydown.down.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) - 16)" />
-      <simpleReferenceSlots v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" :directory="directory" :disabled="locked" />
+      <simpleReferenceSlots v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" v-model:mode="referenceMode" :directory="directory" :disabled="locked" />
       <attachmentList v-if="unassignedAttachments.length" class="draftAttachments" numbered :attachments="unassignedAttachments" :directory="directory" removable restorable :disabled="locked" @remove="removeVisibleAttachment($event)" @restore="restoreVisibleAttachment" />
       <div ref="senderElement" class="senderEditor" @pointerdown.capture="inputStarted = true" @input.capture="inputStarted = true" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
@@ -119,9 +119,10 @@
         <browserModelOptions v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor && props.materialRole ? 'image' : undefined" :prompt="draftPrompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
         <referencePicker v-if="!props.creationModes" :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
-        <mentionMenu ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
+        <mentionMenu :hideTrigger="props.creationModes" ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
         <skillMenu v-if="!browserWorkspaceMode && !browserConfig.enabled" ref="skillMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="skillQuery" :editor="senderElement" @select="selectSkill" @dismiss="skillQuery = undefined" />
         <el-popover
+          v-if="!props.creationModes"
           v-model:visible="contextMenuVisible"
           trigger="click"
           placement="top"
@@ -222,6 +223,8 @@ const emit = defineEmits<{ session: [file: string]; sent: [prompt: string]; even
 const workspaceStore = useWorkspaceStore();
 const directory = props.materialDirectory ?? workspaceStore.project?.directory;
 const draftAttachments = ref<AgentAttachment[]>([]);
+const referenceMode = ref<"reference" | "frames">("reference");
+const activeDraftAttachments = computed(() => !props.creationModes || props.materialEditor || workspaceStore.creationMode !== "simple" ? draftAttachments.value : draftAttachments.value.filter(item => !item.referenceRole || (referenceMode.value === "reference" ? item.referenceRole === "reference" : item.referenceRole !== "reference")));
 const unassignedAttachments = computed(() => props.creationModes && !props.materialEditor && workspaceStore.creationMode === "simple" ? draftAttachments.value.filter(item => !item.referenceRole) : draftAttachments.value);
 function removeVisibleAttachment(index: number) { const item = unassignedAttachments.value[index]; draftAttachments.value = draftAttachments.value.filter(value => value !== item); }
 function restoreVisibleAttachment(index: number) { void restoreTextAttachment(draftAttachments.value.indexOf(unassignedAttachments.value[index]!)); }
@@ -550,7 +553,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
     const pending = !choice ? messages.value.findLast(item => item.creationChoice && !item.creationChoice.resolved) : undefined;
     const prompt = pending?.creationChoice ? `${pending.creationChoice.prompt}\n补充要求：${input}` : input;
     const sourceAttachments = pending ? messages.value.find(item => item.id === pending.replyTo)?.attachments ?? [] : [];
-    const attachments = [...sourceAttachments, ...(choice?.attachments ?? draftAttachments.value)];
+    const attachments = [...sourceAttachments, ...(choice?.attachments ?? activeDraftAttachments.value)];
     if (pending?.creationChoice) pending.creationChoice.resolved = true;
     sessionMode.value ??= workspaceStore.creationMode;
     const professional = !props.materialEditor && sessionMode.value === "professional";

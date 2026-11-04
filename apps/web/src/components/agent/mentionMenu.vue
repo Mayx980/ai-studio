@@ -1,6 +1,6 @@
 <template>
   <div v-click-outside:[clickOutsideExclude]="closeMenu" class="mentionMenu" @keydown.capture="handleKeydown">
-    <el-button class="mentionButton" text circle :disabled="disabled" :aria-expanded="visible" :aria-controls="listId" aria-label="提及节点输出或素材" title="提及节点输出或素材" @mousedown.prevent @click="visible ? closeMenu() : openMenu()"><icon-at :size="16" /></el-button>
+    <el-button v-if="!hideTrigger" class="mentionButton" text circle :disabled="disabled" :aria-expanded="visible" :aria-controls="listId" aria-label="提及节点输出或素材" title="提及节点输出或素材" @mousedown.prevent @click="visible ? closeMenu() : openMenu()"><icon-at :size="16" /></el-button>
     <teleport to="body">
       <div v-if="visible" ref="popupElement" class="mentionMenu mentionOverlay" :style="popupStyle" @keydown.capture="handleKeydown">
         <el-card class="mentionPopup" shadow="always" :bodyStyle="{ padding: '0' }" :style="{ maxHeight: `${popupHeight}px` }">
@@ -50,7 +50,7 @@ import { mentionAssetType } from "@toonflow/server/agent/mentionSources";
 import { useMentionSources, type MentionAsset, type MentionNode, type MentionOutput } from "./mentionSources";
 import mentionThumbnail from "./mentionThumbnail.vue";
 
-const props = defineProps<{ directory?: string; active: boolean; disabled: boolean; query?: string; editor?: HTMLElement; currentCanvasId?: string }>();
+const props = defineProps<{ hideTrigger?: boolean; directory?: string; active: boolean; disabled: boolean; query?: string; editor?: HTMLElement; currentCanvasId?: string }>();
 const emit = defineEmits<{ select: [mentions: AgentMention[]]; dismiss: []; open: [] }>();
 const sources = useMentionSources(() => props.directory);
 const listId = useId();

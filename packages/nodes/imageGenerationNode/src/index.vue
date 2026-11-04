@@ -555,12 +555,16 @@ nodeTools.register({
         height: 32px;
         margin-left: 0;
         padding: 0;
-        --el-button-bg-color: var(--el-text-color-primary);
+        --el-button-bg-color: var(--el-color-primary);
         --el-button-border-color: transparent;
-        --el-button-text-color: var(--el-bg-color);
-        --el-button-hover-bg-color: var(--el-text-color-regular);
+        --el-button-text-color: #fff;
+        --el-button-hover-bg-color: var(--el-color-primary-light-3);
         --el-button-hover-border-color: transparent;
-        --el-button-hover-text-color: var(--el-bg-color);
+        --el-button-hover-text-color: #fff;
+        --el-button-disabled-bg-color: var(--el-color-primary);
+        --el-button-disabled-border-color: transparent;
+        --el-button-disabled-text-color: #fff;
+        &.is-disabled { opacity: .45; }
       }
     }
   }

@@ -116,7 +116,7 @@
         <el-button :icon="IconTrash" text title="移除节点" aria-label="移除节点" @click.stop="deleteNode" :loading="deleting" />
       </div>
     </div>
-    <div class="cardContainer">
+    <div class="cardContainer" :style="{ '--connectionReach': `${(64 / 3) / viewport.zoom}px` }">
       <el-card
         class="contentCard"
         :class="{ selected: node.selected }"
@@ -152,7 +152,7 @@
           @pointermove="moveHandle"
           @pointerleave="resetHandle"
           @pointercancel="resetHandle">
-          <component :is="isHandleConnected(item) ? IconCircleDot : IconCircleDashed" class="handleIcon" :size="18" aria-hidden="true" />
+          <component :is="isHandleConnected(item) ? IconCircleDot : IconCirclePlus" class="handleIcon" :size="18" aria-hidden="true" />
         </handle>
       </template>
     </div>
@@ -172,7 +172,7 @@ import {
   IconDownload,
   IconMaximize,
   IconBox,
-  IconCircleDashed,
+  IconCirclePlus,
   IconCircleDot,
   IconLoader2,
 } from "@tabler/icons-vue";
@@ -579,6 +579,7 @@ watch(
   text-align: left;
 
   &.documentNode {
+    .cardContainer::before { display: none; }
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -690,6 +691,8 @@ watch(
 
   .cardContainer {
     position: relative;
+    isolation: isolate;
+    &::before { content: ""; position: absolute; inset: calc(-1 * var(--connectionReach)); z-index: -1; border-radius: 16px; }
 
     .contentCard.selected {
       border-color: color-mix(in srgb, var(--el-color-primary) 50%, var(--el-border-color-light));

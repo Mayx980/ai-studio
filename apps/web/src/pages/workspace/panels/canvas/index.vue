@@ -1449,6 +1449,9 @@ const defaultEdgeOptions = markRaw({
     visibility: hidden !important;
   }
 
+  :deep(.vue-flow__edge:hover .vue-flow__edge-path) { stroke: var(--el-color-primary); stroke-width: 2; stroke-dasharray: 12 6; animation: edgeHoverFlow 700ms linear infinite; }
+  @media (prefers-reduced-motion: reduce) { :deep(.vue-flow__edge:hover .vue-flow__edge-path) { animation: none; } }
+
   :deep(.vue-flow__edge.edgeActive .vue-flow__edge-path) {
     stroke: var(--canvasEdgeColor);
   }
@@ -1489,4 +1492,8 @@ const defaultEdgeOptions = markRaw({
 
 <style scoped lang="scss">
 .canvas { background: var(--el-bg-color-page); :deep(.vue-flow) { background: var(--el-bg-color-page); } }
+</style>
+
+<style scoped lang="scss">
+@keyframes edgeHoverFlow { to { stroke-dashoffset: -18; } }
 </style>

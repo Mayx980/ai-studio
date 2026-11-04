@@ -61,7 +61,7 @@ const actions = [
 
   .emptyActions {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     justify-content: center;
     gap: 8px;
     max-width: 100%;
