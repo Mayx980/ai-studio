@@ -72,7 +72,7 @@
 import { materialEditorState } from "@/stores/materialEditor";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { generateBrowserText, browserNodeAi } from "@/lib/browserNodeAi";
-import { browserConfig, browserResultFile, resolveBrowserModel, additionalBrowserModels, type ProfessionalCanvas, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
+import { browserConfig, browserResultFile, resolveBrowserModel, additionalBrowserModels, type ProfessionalCanvas, type BeginBrowserWorkflow, type BrowserConversationImport } from "@/stores/browserGeneration";
 import { computed, defineAsyncComponent, nextTick, onMounted, onScopeDispose, provide, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
 import axios from "axios";
@@ -221,6 +221,17 @@ async function enterCanvas() {
     agentVisible.value = false;
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "无法进入画布"); }
 }
+provide("importConversationTurn", async (turn: BrowserConversationImport) => {
+  if (workspaceStore.project?.directory !== turn.directory) throw new Error("项目已切换，请返回原对话重试");
+  tutorialAttempt = turn.directory; tutorialNodeId.value = "";
+  workspaceStore.creationMode = "professional"; activePanel.value = "canvas";
+  await nextTick();
+  const panel = canvasPanelRef.value;
+  if (!panel) throw new Error("画布尚未就绪");
+  await panel.waitUntilReady();
+  await panel.importConversationTurn(turn);
+  agentVisible.value = false;
+});
 provide("importBrowserResult", async (file: File, directory: string, script = false) => {
   if (!canvasPanelRef.value) throw new Error("画布尚未就绪");
   workspaceStore.creationMode = "professional";

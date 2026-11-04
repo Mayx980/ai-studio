@@ -1,4 +1,4 @@
-import { recordGenerationResults, type GenerationRecord } from "@/lib/generationHistory";
+import { recordGenerationResults, readGenerationSettings, type GenerationSettings, type GenerationRecord } from "@/lib/generationHistory";
 import { saveProjectCover } from "@/lib/projectCover";
 import { generationStyles } from "@/lib/generationStyles";
 import { defaultImageSize, defaultRatio, defaultVideoResolution } from "@toonflow/node-shared/generationDefaults";
@@ -35,7 +35,8 @@ export function resolveBrowserModel(kind: ModelKind, providerId?: string, modelI
 }
 export const generationBusy = ref(false);
 export const generationError = ref("");
-export type BrowserGenerationResult = { id: string; kind: ModelKind; createdAt?: number; prompt?: string; model?: string; url?: string; text?: string; file?: File; directory?: string; path?: string };
+export type BrowserGenerationResult = { id: string; kind: ModelKind; createdAt?: number; prompt?: string; model?: string; url?: string; text?: string; file?: File; directory?: string; path?: string; settings?: GenerationSettings };
+export type BrowserConversationImport = { id: string; directory: string; request: string; references: { file: File; label: string; role?: "firstFrame" | "reference" | "lastFrame" }[]; results: BrowserGenerationResult[] };
 export type BrowserWorkflowNode = { canvasPath: string; nodeId: string };
 export type ProfessionalCanvas = {
   focus(directory: string, node: BrowserWorkflowNode): Promise<void>;
@@ -54,7 +55,7 @@ export function clearBrowserKeys() { stopBrowserGeneration(); for (const key of 
 export async function restoreBrowserResults(directory: string) {
   if (!browserWorkspaceMode) return;
   const files = useWorkspaceFiles(directory);
-  let saved: { id: string; kind: ModelKind; path: string; mimeType?: string; name?: string; createdAt?: number; prompt?: string; model?: string }[];
+  let saved: GenerationRecord[];
   try { saved = await files.readJson(".agent/browserResults.json"); }
   catch (error) { if ((error as { code?: string }).code === "ENOENT") return; throw error; }
   if (!Array.isArray(saved)) throw new Error("浏览器素材记录无效");
@@ -63,7 +64,7 @@ export async function restoreBrowserResults(directory: string) {
     if (generationResults.value.some(result => result.id === item.id && result.directory === directory)) continue;
     const type = item.mimeType?.startsWith(`${item.kind}/`) ? item.mimeType : `${item.kind}/${item.kind === "video" ? "mp4" : item.kind === "audio" ? "mpeg" : "png"}`;
     const file = new File([await files.read(item.path)], item.name || item.path.split("/").at(-1)!, { type });
-    generationResults.value.push({ ...item, directory, file, url: URL.createObjectURL(file) });
+    generationResults.value.push({ ...item, settings: readGenerationSettings(item.settings), directory, file, url: URL.createObjectURL(file) });
   }
 }
 async function saveBrowserResults(directory: string, signal?: AbortSignal) {
@@ -82,7 +83,7 @@ async function saveBrowserResults(directory: string, signal?: AbortSignal) {
     if (item.url?.startsWith("blob:")) URL.revokeObjectURL(item.url);
     item.url = URL.createObjectURL(item.file);
   }
-  await recordGenerationResults(directory, generationResults.value.filter(item => item.directory === directory && item.path && item.kind !== "text").map(({ id, kind, path, file, createdAt, prompt, model }) => ({ id, prompt, model, kind: kind as GenerationRecord["kind"], path: path!, createdAt, mimeType: file?.type, name: file?.name })));
+  await recordGenerationResults(directory, generationResults.value.filter(item => item.directory === directory && item.path && item.kind !== "text").map(({ id, kind, path, file, createdAt, prompt, model, settings }) => ({ id, prompt, model, settings: readGenerationSettings(settings), kind: kind as GenerationRecord["kind"], path: path!, createdAt, mimeType: file?.type, name: file?.name })));
 }
 
 // ACT: 输出意图按动作后的目标优先；参考素材或“视频脚本”中的视频不单独决定输出。
@@ -150,6 +151,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
     const images = await Promise.all(references.map(async file => ({ type: "binary" as const, data: new Uint8Array(await file.arrayBuffer()), mimeType: file.type, name: file.name })));
     const tool = { fetch: studioFetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" };
     const context = { config: { apiKey, endpoint }, signal, tool };
+    const settings: GenerationSettings = { providerId: chosen!.id, modelId: chosen!.modelId, label: chosen!.label, ratio, imageSize, n: count, style, duration: Number(duration) || 5, resolution, generateAudio, mode: firstFrameIndex !== undefined ? "singleImage" : references.length ? "reference" : "text" };
     const assets = kind === "audio" ? await audioModel.generateAudio.call(context, { model: chosen!.modelId, prompt }) : kind === "image" ? await imageModel.generateImage.call(context, { model: chosen!.modelId, prompt, images, ...(ratio ? { ratio } : {}), size: imageSize, n: count })
       : await videoModel.generateVideo.call(context, { generateAudio, model: chosen!.modelId, prompt, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: images[firstFrameIndex!] } : { mode: images.length ? ["imageReference:10"] : "text", images }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
     signal.throwIfAborted();
@@ -157,7 +159,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
     for (const asset of assets) {
       const mimeType = asset.mimeType || `${kind}/${kind === "image" ? "png" : kind === "audio" ? "mpeg" : "mp4"}`;
       const file = asset.type === "base64" && asset.data ? new File([Uint8Array.from(atob(asset.data), char => char.charCodeAt(0))], `生成结果.${mimeType.split("/")[1]}`, { type: mimeType }) : undefined;
-      generationResults.value.push({ id: crypto.randomUUID(), kind, createdAt: Date.now(), prompt, model: chosen!.label, url: file ? URL.createObjectURL(file) : asset.url, file, directory });
+      generationResults.value.push({ id: crypto.randomUUID(), kind, createdAt: Date.now(), prompt, model: chosen!.label, settings, url: file ? URL.createObjectURL(file) : asset.url, file, directory });
     }
     if (browserWorkspaceMode && directory) await saveBrowserResults(directory, signal);
     return true;

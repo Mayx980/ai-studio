@@ -4,8 +4,8 @@
     <studioSidebar :activeSection="homeSection" :disabled="creating || opening" @navigate="homeSection = $event" @newAgent="startAgent" @openProject="openProject" @openSettings="settingsVisible = true" />
     <el-main class="pageContent">
       <section v-if="homeSection === 'create'" class="homeLanding" aria-label="首页">
-        <button class="newCanvasEntry" type="button" :disabled="creating || opening" @click="createCanvas(true)"><span class="canvasPlus"><icon-plus :size="28" /></span><strong>新建画布创作</strong></button>
-        <div class="nodeShortcuts" aria-label="节点快捷创作"><button v-for="item in nodeShortcuts" :key="item.type" type="button" :disabled="creating || opening" :aria-label="`新建${item.label}节点项目`" @click="createCanvas(false, item.type)"><span><component :is="item.icon" :size="26" /></span>{{ item.label }}</button></div>
+        <button class="newCanvasEntry" type="button" :disabled="creating || opening" @click="createCanvas()"><span class="canvasPlus"><icon-plus :size="28" /></span><strong>新建画布创作</strong></button>
+        <div class="nodeShortcuts" aria-label="节点快捷创作"><button v-for="item in nodeShortcuts" :key="item.type" type="button" :disabled="creating || opening" :aria-label="`新建${item.label}节点项目`" @click="createCanvas(item.type)"><span><component :is="item.icon" :size="26" /></span>{{ item.label }}</button></div>
         <section class="recentSection" aria-label="最近项目"><div class="sectionHeader"><h2>最近项目</h2><el-button text @click="homeSection = 'projects'">查看全部</el-button></div><div class="recentCards"><button v-for="item in recentProjects" :key="item.directory" type="button" class="recentCard" :disabled="creating || opening" :aria-label="`打开项目 ${item.name}`" @click="openProject(item)"><projectThumbnail :directory="item.directory" /><span><strong>{{ item.name }}</strong><small>最近打开 {{ formatTime(item.lastOpenedAt) }}</small></span></button></div></section>
         <creativeCases curated />
       </section>
@@ -18,7 +18,7 @@
       </section>
       <assetsPage v-if="homeSection === 'assets'" />
       <section v-show="homeSection === 'projects'" class="projectList" aria-labelledby="projectListTitle">
-        <div class="sectionHeader"><h2 id="projectListTitle">我的项目</h2><el-input class="projectSearch" v-model="projectSearch" placeholder="按项目名搜索" aria-label="按项目名搜索" clearable style="max-width:240px" /><el-space wrap><el-button v-if="!browserWorkspaceMode" :icon="IconFolderOpen" @click="openProject()">导入项目</el-button><el-button :icon="IconPlus" :disabled="creating || opening" @click="createCanvas(true)">添加项目</el-button><el-button circle :icon="sortDescending ? IconSortDescending : IconSortAscending" aria-label="切换时间排序" @click="sortDescending = !sortDescending" /><el-radio-group v-model="viewMode" aria-label="项目视图"><el-radio-button value="grid" aria-label="网格视图"><icon-layout-grid :size="16" /></el-radio-button><el-radio-button value="list" aria-label="列表视图"><icon-list :size="16" /></el-radio-button></el-radio-group></el-space></div>
+        <div class="sectionHeader"><h2 id="projectListTitle">我的项目</h2><el-input class="projectSearch" v-model="projectSearch" placeholder="按项目名搜索" aria-label="按项目名搜索" clearable style="max-width:240px" /><el-space wrap><el-button v-if="!browserWorkspaceMode" :icon="IconFolderOpen" @click="openProject()">导入项目</el-button><el-button :icon="IconPlus" :disabled="creating || opening" @click="createCanvas()">添加项目</el-button><el-button circle :icon="sortDescending ? IconSortDescending : IconSortAscending" aria-label="切换时间排序" @click="sortDescending = !sortDescending" /><el-radio-group v-model="viewMode" aria-label="项目视图"><el-radio-button value="grid" aria-label="网格视图"><icon-layout-grid :size="16" /></el-radio-button><el-radio-button value="list" aria-label="列表视图"><icon-list :size="16" /></el-radio-button></el-radio-group></el-space></div>
         <div class="projectItems" :class="{ listView: viewMode === 'list' }"><el-card v-for="project in filteredProjects" :key="project.directory" class="projectCard" shadow="hover" :bodyStyle="{ padding: '0' }"><button class="projectEntry" type="button" :disabled="creating || opening" :aria-label="`打开项目 ${project.name}`" @click="openProject(project)"><projectThumbnail :key="`${project.directory}:${coverVersions[project.directory] ?? 0}`" :directory="project.directory" /><span class="projectInfo"><strong :title="project.name">{{ project.name }}</strong><small>最近打开 {{ formatTime(project.lastOpenedAt) }}</small></span></button><div class="projectActions"><el-dropdown trigger="click" placement="bottom-end" @command="command => projectAction(project, command)">
           <el-button text :disabled="creating || opening || projectBusy" :aria-label="`更多项目操作 ${project.name}`" title="更多操作"><icon-dots :size="20" /></el-button>
           <template #dropdown><el-dropdown-menu>
@@ -64,17 +64,11 @@ const filteredProjects = computed(() => sortedProjects.value.filter(item => item
 const recentProjects = computed(() => [...workspaceStore.projectList].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt).slice(0, 4));
 const nodeShortcuts = [{ type: "remote-textNode", label: "文本", icon: IconFileText }, { type: "scriptNode", label: "脚本", icon: IconMovie }, { type: "remote-imageGenerationNode", label: "图片", icon: IconPhoto }, { type: "remote-videoGenerationNode", label: "视频", icon: IconVideo }, { type: "remote-audioGenerationNode", label: "音频", icon: IconVolume }];
 function formatTime(value: number) { return new Date(value).toLocaleString(locale.value, { hour12: false }); }
-async function createCanvas(named: boolean, nodeType?: string) {
+async function createCanvas(nodeType?: string) {
   if (creating.value || opening.value) return;
   creating.value = true;
   try {
-    let name = "未命名项目";
-    if (named) {
-      const result = await ElMessageBox.prompt("输入项目名称", "新建项目", { inputValue: name, confirmButtonText: "创建", cancelButtonText: "取消", inputValidator: value => !!value?.trim() && value.trim().length <= 80 || "请输入1–80个字符" }).catch(() => null);
-      if (!result) return;
-      name = result.value.trim();
-    }
-    const project = await workspaceStore.createProject(name);
+    const project = await workspaceStore.createProject();
     workspaceStore.creationMode = "professional";
     workspaceStore.pendingCanvasEntry = { directory: project.directory, nodeType };
     await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });

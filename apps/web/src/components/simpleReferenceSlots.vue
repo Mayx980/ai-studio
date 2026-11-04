@@ -1,8 +1,8 @@
 <template>
   <div class="simpleReferenceSlots" aria-label="参考素材">
-    <div class="referenceTabs" role="tablist" aria-label="参考素材类型">
+    <teleport :to="tabsTarget || 'body'" :disabled="!tabsTarget"><div class="referenceTabs" role="tablist" aria-label="参考素材类型">
       <button v-for="tab in tabs" :key="tab.value" type="button" role="tab" :aria-selected="mode === tab.value" :disabled="disabled || opening" @click="mode = tab.value">{{ tab.label }}</button>
-    </div>
+    </div></teleport>
     <input ref="fileInput" type="file" accept="image/*" :multiple="target.role === 'reference' && !replacing" hidden :disabled="disabled || opening" @change="selectFiles" />
     <div v-if="mode === 'reference'" class="referenceDeck" aria-label="参考图片">
       <button v-if="!referenceImages.length" class="slotCard" type="button" :disabled="disabled || opening" aria-label="添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="28" /></button>
@@ -43,7 +43,7 @@ import type { AgentAttachment, ReferenceRole, ReferenceCategory } from "@/compon
 import attachmentPreview from "@/components/agent/attachmentPreview.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import { materialEditorState, type MaterialTarget } from "@/stores/materialEditor";
-const props = defineProps<{ directory?: string; disabled?: boolean; ensureDirectory?: () => Promise<string | undefined> }>();
+const props = defineProps<{ tabsTarget?: HTMLElement; directory?: string; disabled?: boolean; ensureDirectory?: () => Promise<string | undefined> }>();
 const attachments = defineModel<AgentAttachment[]>({ required: true });
 const mode = defineModel<"reference" | "frames">("mode", { default: "reference" });
 let active = true;
@@ -105,9 +105,9 @@ function selectAsset(file: File) { try { applyFiles([file]); assetsOpen.value = 
 onUnmounted(() => { active = false; if (materialEditorState.value?.owner === owner) materialEditorState.value = undefined; });
 </script>
 <style scoped lang="scss">
-.simpleReferenceSlots { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 8px 12px 14px; min-width: 0;
-  .referenceTabs { display: flex; gap: 4px; flex: none; button { padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--el-text-color-secondary); cursor: pointer; font: inherit; font-size: 12px; &[aria-selected="true"] { background: var(--el-fill-color); color: var(--el-text-color-primary); } } }
-  .referenceDeck, .frameDeck { display: flex; justify-content: flex-end; align-items: flex-start; gap: 10px; min-width: 0; flex-wrap: wrap; padding: 4px 10px 8px 0; }
+.simpleReferenceSlots { display: flex; justify-content: flex-start; align-items: flex-start; gap: 12px; padding: 8px 12px 14px; min-width: 0;
+
+  .referenceDeck, .frameDeck { display: flex; justify-content: flex-start; align-items: flex-start; gap: 10px; min-width: 0; flex-wrap: wrap; padding: 4px 10px 8px 0; }
   .slotCard { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 72px; height: 72px; border: 0; border-radius: 12px; background: #2d343a; color: var(--el-text-color-primary); cursor: pointer; font-size: 12px; &:disabled { opacity: .5; cursor: default; } &:hover { background: var(--el-fill-color); } }
   .referenceCard { position: relative; width: 72px; height: 72px; :deep(.thumbnailItem), :deep(.thumbnailImage) { width: 72px; height: 72px; } :deep(.thumbnailImage) { border: 0; border-radius: 12px; }
     .referenceLabel { position: absolute; inset: auto 0 0; height: 33.333%; display: flex; align-items: center; justify-content: center; background: rgba(82,86,90,.85); color: white; font-size: 11px; border-radius: 0 0 12px 12px; pointer-events: none; }
@@ -121,5 +121,6 @@ onUnmounted(() => { active = false; if (materialEditorState.value?.owner === own
   .frameDivider { align-self: center; color: var(--el-text-color-secondary); }
   @media(max-width:600px) { flex-wrap: wrap; .referenceDeck, .frameDeck { width: 100%; } }
 }
+.referenceTabs { display: flex; gap: 4px; flex: none; button { padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--el-text-color-secondary); cursor: pointer; font: inherit; font-size: 12px; &[aria-selected="true"] { background: var(--el-fill-color); color: var(--el-text-color-primary); } } }
 .referenceSourceMenu { display: grid; gap: 3px; button { border: 0; border-radius: 6px; padding: 9px 10px; color: var(--el-text-color-primary); background: transparent; font: inherit; font-size: 13px; text-align: left; cursor: pointer; &:hover, &:focus-visible { background: var(--el-fill-color); } } }
 </style>

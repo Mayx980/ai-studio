@@ -91,6 +91,8 @@ import { useVueFlow, type ConnectingHandle, type GraphNode, type HandleType } fr
 import { isTypeCompatible, useNodeEvent, validateConnection, type NodeHandle } from "@toonflow/nodes-scaffold/runtime";
 import { ElMessage } from "element-plus";
 import type { DropdownInstance } from "element-plus";
+import { browserNodeDefaults } from "@/lib/browserNodeAi";
+import type { ModelKind } from "@/stores/browserGeneration";
 import selectionHandle from "./selectionHandle.vue";
 import nodeMenuItems from "./nodeMenuItems.vue";
 import { generalSettings } from "@/stores/settings";
@@ -340,7 +342,8 @@ async function runCommand(command: unknown) {
   if (handle && flow.findNode(handle.node.id) !== handle.node) return;
   if (group.some(source => flow.findNode(source.id) !== source)) return;
   const id = crypto.randomUUID();
-  addNodes({ id, type: node.type === "scriptNode" ? "remote-textNode" : node.type, position: { ...nodePosition }, data: { label: node.label, ...(node.type === "scriptNode" ? { contentKind: "script" } : {}) } });
+  const kind = ({ "remote-textNode": "text", scriptNode: "text", "remote-imageGenerationNode": "image", "remote-videoGenerationNode": "video", "remote-audioGenerationNode": "audio" } as Record<string, ModelKind>)[node.type];
+  addNodes({ id, type: node.type === "scriptNode" ? "remote-textNode" : node.type, position: { ...nodePosition }, data: { ...(kind ? browserNodeDefaults(kind) : {}), label: node.label, ...(node.type === "scriptNode" ? { contentKind: "script" } : {}) } });
   if (!handle && !group.length) {
     flow.removeSelectedElements();
     flow.nodesSelectionActive.value = false;

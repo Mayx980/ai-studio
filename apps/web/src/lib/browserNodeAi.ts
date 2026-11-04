@@ -1,14 +1,29 @@
-import { recordGenerationResults } from "@/lib/generationHistory";
+import { recordGenerationResults, readGenerationSettings, type GenerationSettings } from "@/lib/generationHistory";
 import { saveProjectCover } from "@/lib/projectCover";
 import type { NodeAiAdapter, NodeAiRequest, NodeMediaModel } from "@toonflow/nodes-scaffold/nodeAi";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
-import { browserConfig, browserModels, configuredBrowserModels, resolveBrowserModel } from "@/stores/browserGeneration";
+import { browserConfig, browserModels, browserModelSelection, configuredBrowserModels, resolveBrowserModel, type ModelKind } from "@/stores/browserGeneration";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { studioFetch } from "@/lib/studioFetch";
 
+export function browserNodeDefaults(kind: ModelKind, saved?: GenerationSettings) {
+  const settings = readGenerationSettings(saved);
+  const models = configuredBrowserModels(kind);
+  const selected = models.find(model => model.id === browserModelSelection[kind]) ?? models[0];
+  const providerId = settings?.providerId ?? selected?.id, modelId = settings?.modelId ?? selected?.modelId;
+  return {
+    ...(providerId && modelId ? { model: JSON.stringify([providerId, modelId]), modelLabel: settings?.label ?? selected?.label } : {}),
+    ratio: settings?.ratio ?? browserConfig.ratio,
+    ...(kind === "image" ? { size: settings?.imageSize ?? browserConfig.imageSize, n: settings?.n ?? browserConfig.count } : {}),
+    ...(kind === "video" ? { duration: settings?.duration ?? (Number(browserConfig.duration) || 5), resolution: settings?.resolution ?? browserConfig.resolution, generateAudio: settings?.generateAudio ?? browserConfig.generateAudio,
+      ...(settings ? { mode: JSON.stringify(settings.mode === "reference" ? ["imageReference:10", "videoReference:5"] : settings.mode) } : {}) } : {}),
+  };
+}
+
 function availableBrowserModels(): NodeMediaModel[] {
   return (["image", "video", "audio"] as const).flatMap(kind => configuredBrowserModels(kind).map(model => ({
-    ...browserModels[kind].models[0]!, type: kind, audio: kind === "video" ? "optional" as const : undefined,
+    ...browserModels[kind].models[0]!, type: kind,
+    ...(kind === "video" ? { durationResolutionMap: [{ duration: Array.from({ length: 28 }, (_, index) => index + 3), resolution: ["480P", "720P", "1080P"] }] } : {}), audio: kind === "video" ? "optional" as const : undefined,
     providerId: model.id, providerLabel: model.label, modelId: model.modelId, label: model.label,
   })));
 }

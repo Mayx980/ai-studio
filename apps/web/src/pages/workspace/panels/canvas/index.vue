@@ -125,8 +125,8 @@
 
 <script setup lang="ts">
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
-import { browserConfig, resolveBrowserModel, generationResults, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
-import { browserNodeAi } from "@/lib/browserNodeAi";
+import { browserConfig, resolveBrowserModel, generationResults, browserResultFile, configuredBrowserModels, type BrowserConversationImport, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
+import { browserNodeAi, browserNodeDefaults } from "@/lib/browserNodeAi";
 import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, onScopeDispose, provide, ref, shallowReactive, shallowRef, watch } from "vue";
 import axios from "axios";
 import { debounce } from "lodash-es";
@@ -375,6 +375,81 @@ async function importBrowserResult(file: File | File[], directory: string, scrip
   await flushCanvasSave();
   return { canvasPath: canvasId.value, nodeId: ids[0]! };
 }
+async function importConversationTurn(turn: BrowserConversationImport) {
+  await waitUntilReady();
+  const directory = project.value?.directory;
+  if (!directory || directory !== turn.directory || !turn.results.length || turn.results.some(result => result.directory !== directory || !["image", "video"].includes(result.kind))) throw new Error("对话结果与当前项目不匹配，请返回原对话重试");
+  const existing = flow.getNodes.value.filter(node => node.data.conversationTurnId === turn.id);
+  if (existing.length) { await fitCreationNodes(existing.map(node => node.id)); return; }
+  const signal = canvasController.signal, position = pastePosition();
+  if (!position) throw new Error("画布尚未就绪");
+  const outputFiles = await Promise.all(turn.results.map(browserResultFile));
+  if (outputFiles.some((file, index) => !file.size || !file.type.startsWith(`${turn.results[index]!.kind}/`)) || turn.references.some(reference => !reference.file.size || !reference.file.type.startsWith("image/"))) throw new Error("对话素材的媒体类型不匹配，原文件已保留");
+  const defaults = turn.results.map(result => {
+    const data = browserNodeDefaults(result.kind, result.settings);
+    if (!result.settings && result.model) {
+      const match = configuredBrowserModels(result.kind).find(model => model.label === result.model || model.modelId === result.model);
+      if (match) { data.model = JSON.stringify([match.id, match.modelId]); data.modelLabel = match.label; }
+    }
+    return data;
+  });
+  const prompts = [...new Set(turn.results.map(result => result.prompt?.trim()).filter((prompt): prompt is string => !!prompt && prompt !== turn.request.trim()))];
+  const inputText = [turn.request.trim() && `用户要求：\n${turn.request.trim()}`, ...prompts.map(prompt => `生成提示词：\n${prompt}`)].filter(Boolean).join("\n\n");
+  const inputFiles = [new File([inputText], "用户要求与提示词.md", { type: "text/markdown" }), ...turn.references.map(reference => reference.file)];
+  const created: string[] = [];
+  try {
+    await canvasHistory.batch(async () => {
+      await importCanvasFiles([...inputFiles, ...outputFiles], position, { directory, availableNodes: availableNodes.value, signal, throwOnError: true, flow: {
+        screenToFlowCoordinate: flow.screenToFlowCoordinate,
+        addNodes(nodes) { const incoming = typeof nodes === "function" ? nodes(flow.getNodes.value) : nodes; const list = Array.isArray(incoming) ? incoming : [incoming]; created.push(...list.map(node => node.id)); return flow.addNodes(list); },
+      } });
+      signal.throwIfAborted();
+      const sources = created.slice(0, inputFiles.length), targets = created.slice(inputFiles.length);
+      if (targets.length !== turn.results.length) throw new Error("部分对话素材未能创建节点，请重试");
+      sources.forEach((id, index) => flow.updateNodeData(id, { ...(index ? browserNodeDefaults("image") : {}), conversationTurnId: turn.id, label: index ? turn.references[index - 1]!.label : "用户要求与提示词", referenceRole: index ? turn.references[index - 1]!.role : undefined }));
+      targets.forEach((id, index) => flow.updateNodeData(id, { ...defaults[index], conversationTurnId: turn.id, browserResultId: turn.results[index]!.id, label: turn.results[index]!.kind === "image" ? "生成图片" : "生成视频", prompt: "", promptModel: [] }));
+      await nextTick();
+      await waitForControlValue(() => created.every(id => {
+        const node = flow.findNode(id);
+        if (!node || !node.dimensions.width || !node.dimensions.height) return false;
+        const element = canvasElement.value?.querySelector(`[data-id="${CSS.escape(id)}"]`);
+        if (node.type === "remote-imageGenerationNode") { const image = element?.querySelector<HTMLImageElement>(".imageContent img"); return !!image?.complete && image.naturalWidth > 0; }
+        if (node.type === "remote-videoGenerationNode") { const video = element?.querySelector<HTMLVideoElement>("video"); return !!video && video.readyState >= 1; }
+        return true;
+      }) ? true : undefined, AbortSignal.any([signal, AbortSignal.timeout(30000)]));
+      await nextTick();
+      let inputY = position.y;
+      let width = 0;
+      for (const id of sources) { const node = flow.findNode(id)!; flow.updateNode(id, { position: { x: position.x, y: inputY } }); inputY += node.dimensions.height + 96; width = Math.max(width, node.dimensions.width); }
+      let outputY = position.y + Math.max(0, (inputY - position.y - targets.reduce((height, id) => height + flow.findNode(id)!.dimensions.height + 96, 0)) / 2);
+      for (const id of targets) {
+        const target = flow.findNode(id)!;
+        flow.updateNode(id, { position: { x: position.x + width + 240, y: outputY } }); outputY += target.dimensions.height + 96;
+        for (const [index, source] of sources.entries()) {
+          const connection = { source, sourceHandle: index ? "image" : "text", target: id, targetHandle: "in" };
+          if (!validateConnection(connection, { sourceNode: flow.findNode(source)!, targetNode: target, nodes: flow.getNodes.value, edges: flow.getEdges.value })) throw new Error("节点引用类型不匹配，已保留原对话素材");
+          addEdges({ id: crypto.randomUUID(), ...connection });
+        }
+      }
+      await nextTick();
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      targets.forEach((id, index) => flow.updateNodeData(id, defaults[index]!));
+      flow.removeSelectedElements();
+      await fitCreationNodes(created);
+      signal.throwIfAborted();
+      await flushCanvasSave();
+    });
+    if (turn.results.some(result => !result.settings)) ElMessage.warning("历史结果未记录完整参数，已使用当前简单模式参数");
+  } catch (error) {
+    flow.removeNodes(created);
+    await nextTick();
+    const cleanup = await Promise.allSettled(created.map(id => useWorkspaceFiles(directory).remove(`assets/${id}`, true).catch(error => { if (error.code !== "ENOENT") throw error; })));
+    if (!signal.aborted) await flushCanvasSave();
+    if (cleanup.some(item => item.status === "rejected")) throw new Error("节点创建失败，部分导入副本未能清理；原对话素材已保留，请勿重复导入");
+    throw error;
+  }
+}
+
 const beginBrowserWorkflow: BeginBrowserWorkflow = async (prompt, kind, references, script, _visible, sources = []) => {
   await waitUntilReady();
   const directory = project.value?.directory;
@@ -431,7 +506,7 @@ const tutorialConnections = computed(() => {
   return video ? new Set(flow.getEdges.value.filter(edge => edge.target === video.id && edge.sourceHandle === "image" && (!sources.length || sources.includes(edge.source))).map(edge => edge.source)).size : 0;
 });
 
-defineExpose({ beginBrowserWorkflow, waitUntilReady, importBrowserResult, canvasId, canvasReady, getCanvasContext, prepareTutorial, focusTutorialNode, tutorialConnections, createInitialNode, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
+defineExpose({ beginBrowserWorkflow, waitUntilReady, importBrowserResult, canvasId, canvasReady, getCanvasContext, importConversationTurn, prepareTutorial, focusTutorialNode, tutorialConnections, createInitialNode, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
   getCanvases: (signal?: AbortSignal) => {
     if (!canvasMenuRef.value) throw new Error("画布菜单尚未就绪");
     return canvasMenuRef.value.getCanvases(signal);

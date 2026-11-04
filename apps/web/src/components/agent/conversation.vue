@@ -46,7 +46,7 @@
                   </template>
                   <attachmentList v-if="item.attachments?.length" :attachments="item.attachments" :directory="directory" />
                   <div v-if="item.role === 'user'" class="messageText"><mentionContent :content="item.content" :mentions="item.mentions" :directory="directory" /></div>
-                  <browserModelResults v-if="item.browserResultIds?.length && !item.professional" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showCanvas="false" :showReference="false" :applicationLabel="props.materialEditor ? props.materialLabel : undefined" :framePosition="props.materialRole === 'lastFrame' ? 'last' : 'first'" :disabled="locked" @busy="setMaterialBusy" @apply="emit('applyMaterial', $event)" @reference="referenceGeneratedFile" />
+                  <browserModelResults v-if="item.browserResultIds?.length && !item.professional" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showCanvas="!props.materialEditor && (sessionMode ?? workspaceStore.creationMode) === 'simple'" conversationCanvas @enterCanvas="addMessageToCanvas(item)" :showReference="false" :applicationLabel="props.materialEditor ? props.materialLabel : undefined" :framePosition="props.materialRole === 'lastFrame' ? 'last' : 'first'" :disabled="locked" @busy="setMaterialBusy" @apply="emit('applyMaterial', $event)" @reference="referenceGeneratedFile" />
                   <professionalCreation v-if="item.professional && directory" :state="item.professional" :directory="directory" :stopToken="professionalStopToken" :attachments="messages.find(message => message.id === item.replyTo)?.attachments ?? []" :disabled="props.disabled || busy || browserSubmitting || deletingId !== undefined" @busy="professionalBusy = $event" @change="saveProfessionalProgress" @results="item.browserResultIds = $event" />
                   <div v-if="item.creationChoice && !item.creationChoice.resolved" class="creationChoices" role="group" aria-label="选择创作内容">
                     <p>{{ item.creationChoice.needsDetails ? "请先补充创作主体或用途，再确认要生成的内容。" : "你希望生成哪种内容？确认后我会在画布搭建节点和连线。" }}</p>
@@ -69,7 +69,7 @@
                 <el-tooltip v-if="item.role === 'assistant'" content="引用到输入框" placement="top">
                   <el-button class="messageAction" text circle :disabled="locked" aria-label="引用到输入框" @click="referenceMessageResults(item)"><icon-paperclip :size="14" /></el-button>
                 </el-tooltip>
-                <el-tooltip v-if="item.role === 'assistant' && !item.professional && !props.materialEditor && (sessionMode ?? workspaceStore.creationMode) === 'simple'" content="加入画布" placement="top"><el-button class="messageAction" text circle :disabled="locked" aria-label="加入画布" @click="addMessageToCanvas(item)"><icon-square-plus :size="14" /></el-button></el-tooltip>
+                <el-tooltip v-if="item.role === 'assistant' && !item.browserResultIds?.length && !item.professional && !props.materialEditor && (sessionMode ?? workspaceStore.creationMode) === 'simple'" content="进入画布" placement="top"><el-button class="messageAction" text circle :disabled="locked" aria-label="进入画布" @click="addMessageToCanvas(item)"><icon-square-plus :size="14" /></el-button></el-tooltip>
                 <el-button v-if="!item.report" class="messageAction" text circle :loading="deletingId === item.id" :disabled="locked || remoteRunning" aria-label="删除消息" title="删除消息" @click="deleteMessage(item)"><icon-trash v-if="deletingId !== item.id" :size="14" /></el-button>
               </template>
             </div>
@@ -109,12 +109,13 @@
         @lostpointercapture="stopSenderResize"
         @keydown.up.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) + 16)"
         @keydown.down.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) - 16)" />
-      <simpleReferenceSlots v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" v-model:mode="referenceMode" :directory="directory" :disabled="locked" />
+      <simpleReferenceSlots v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" v-model:mode="referenceMode" :tabsTarget="referenceTabsTarget" :directory="directory" :disabled="locked" />
       <attachmentList v-if="unassignedAttachments.length" class="draftAttachments" numbered :attachments="unassignedAttachments" :directory="directory" removable restorable :disabled="locked" @remove="removeVisibleAttachment($event)" @restore="restoreVisibleAttachment" />
       <div ref="senderElement" class="senderEditor" @pointerdown.capture="inputStarted = true" @input.capture="inputStarted = true" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
       <div class="senderActions">
+        <div v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" ref="referenceTabsTarget" class="referenceTabsTarget" />
         <simpleGenerationTools v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" :imageOnly="props.materialEditor && !!props.materialRole" />
         <browserModelOptions v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor && props.materialRole ? 'image' : undefined" :prompt="draftPrompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
@@ -182,7 +183,7 @@ import {
 import { ElMessage, ElMessageBox } from "element-plus";
 import { getReadableFileExtension, getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import brandLogo from "@/components/brandLogo.vue";
-import { browserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, inferGenerationKind, browserResultFile, type ModelKind } from "@/stores/browserGeneration";
+import { browserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, inferGenerationKind, browserResultFile, type ModelKind, type BrowserConversationImport } from "@/stores/browserGeneration";
 import professionalCreation from "./professionalCreation.vue";
 import simpleReferenceSlots from "@/components/simpleReferenceSlots.vue";
 import { materialEditorState } from "@/stores/materialEditor";
@@ -224,6 +225,7 @@ const workspaceStore = useWorkspaceStore();
 const directory = props.materialDirectory ?? workspaceStore.project?.directory;
 const draftAttachments = ref<AgentAttachment[]>([]);
 const referenceMode = ref<"reference" | "frames">("reference");
+const referenceTabsTarget = ref<HTMLElement>();
 const activeDraftAttachments = computed(() => !props.creationModes || props.materialEditor || workspaceStore.creationMode !== "simple" ? draftAttachments.value : draftAttachments.value.filter(item => !item.referenceRole || (referenceMode.value === "reference" ? item.referenceRole === "reference" : item.referenceRole !== "reference")));
 const unassignedAttachments = computed(() => props.creationModes && !props.materialEditor && workspaceStore.creationMode === "simple" ? draftAttachments.value.filter(item => !item.referenceRole) : draftAttachments.value);
 function removeVisibleAttachment(index: number) { const item = unassignedAttachments.value[index]; draftAttachments.value = draftAttachments.value.filter(value => value !== item); }
@@ -500,6 +502,7 @@ async function persistBrowserMessages() {
   return save;
 }
 function saveProfessionalProgress() { void persistBrowserMessages().catch(error => ElMessage.error(error instanceof Error ? error.message : "创作流程保存失败")); }
+const importConversationTurn = inject<((turn: BrowserConversationImport) => Promise<void>)>("importConversationTurn");
 const importMessageResult = inject<((file: File, directory: string, script?: boolean) => Promise<void>)>("importBrowserResult");
 function messageText(item: AgentMessage) {
   const text = item.content.trim() || item.parts?.filter(part => part.type === "text").map(part => part.content).join("\n") || "";
@@ -514,6 +517,12 @@ async function addMessageToCanvas(item: AgentMessage) {
     const results = generationResults.value.filter(result => item.browserResultIds?.includes(result.id) && result.directory === directory);
     const text = messageText(item);
     if (!results.length && !text) throw new Error("这条消息还没有可加入画布的内容");
+    if (results.length && results.every(result => result.kind === "image" || result.kind === "video") && importConversationTurn) {
+      const source = messages.value.find(message => message.id === item.replyTo);
+      const references = await Promise.all((source?.attachments ?? []).filter(attachment => attachment.mimeType.startsWith("image/")).map(async attachment => ({ file: attachment.file ?? new File([await useWorkspaceFiles(directory).read(attachment.path)], attachment.name, { type: attachment.mimeType }), label: attachment.referenceName || (attachment.referenceRole === "firstFrame" ? "首帧" : attachment.referenceRole === "lastFrame" ? "尾帧" : attachment.name), role: attachment.referenceRole })));
+      await importConversationTurn({ id: `${browserSessionFile || "conversation"}/${item.id}`, directory, request: source?.content || results[0]!.prompt || "", references, results });
+      return;
+    }
     for (const result of results) await importMessageResult(await browserResultFile(result), directory);
     if (text) {
       const script = /\|[^\n]*镜头[^\n]*\|/.test(text) && /\|\s*:?-{3,}/.test(text);

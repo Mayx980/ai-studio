@@ -413,6 +413,11 @@ defineExpose({
     const panel = await waitForControlValue(() => activeInstance.value, AbortSignal.any([lifetime.signal, AbortSignal.timeout(30000)]));
     await panel.waitUntilReady();
   },
+  importConversationTurn: async (turn: Parameters<CanvasInstance["importConversationTurn"]>[0]) => {
+    const panel = activeInstance.value;
+    if (!panel) throw new Error("画布尚未就绪");
+    return panel.importConversationTurn(turn);
+  },
   importBrowserResult: async (...args: Parameters<CanvasInstance["importBrowserResult"]>) => {
     const panel = activeInstance.value;
     if (!panel) throw new Error("画布尚未就绪");
