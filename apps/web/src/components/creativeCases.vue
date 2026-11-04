@@ -1,5 +1,5 @@
 <template>
-  <section class="creativeCases" :class="{ compact }">
+  <section class="creativeCases" :class="{ compact, curated }">
     <div class="caseHeader"><h2>{{ curated ? '创作优选' : '模板中心' }}</h2><el-button text type="primary" @click="professional ? projectPickerOpen = true : openUpload()">{{ professional ? '上传创作优选' : '上传模板' }}</el-button></div>
     <div v-if="!curated" class="caseFilters"><div class="caseCategories"><button v-for="item in categories" :key="item" :aria-pressed="category === item" @click="category = item">{{ item }}</button></div>
     <form class="templateSearch" role="search" @submit.prevent="searchTemplates"><el-input v-model="query" clearable aria-label="搜索视频模板" placeholder="搜索关键词或描述想要的视频" @input="invalidateSearch"><template #append><el-button nativeType="submit" :loading="searching">搜索</el-button></template></el-input></form></div>
@@ -7,10 +7,11 @@
     <el-alert v-else-if="searchError || loadError" :title="searchError || loadError" type="error" :closable="false"><el-button text @click="loadError ? loadTemplates() : searchTemplates()">重试</el-button></el-alert>
     <p v-else-if="query.trim() && !rankedIds" role="status">按回车或点击搜索，查找语义相关的模板。</p>
     <p v-else-if="!visibleCases.length" role="status">{{ query.trim() ? '没有找到相关模板，试试调整描述或分类。' : professional ? '当前分类暂无项目模板，可从“我的项目”制作模板。' : '当前分类暂无视频模板。' }}</p>
-    <div v-else class="caseGrid" :aria-busy="searching"><article v-for="item in visibleCases" :key="item.id"><button class="caseCard" :aria-label="`${curated ? '查看创作过程' : '查看模板'} ${item.name}`" @pointerenter="playPreview" @pointerleave="pausePreview" @focus="playPreview" @blur="pausePreview" @click="preview = item"><span class="casePreview"><templateMedia :ref="value => setCardMedia(item.id, value)" :media="item.media" /></span><span class="caseName" :title="item.name">{{ item.name }}</span></button><el-tooltip :content="curated ? '查看创作过程' : '一键同款'"><el-button class="cardAction" circle :icon="curated ? IconVector : IconCopy" :aria-label="`${curated ? '查看创作过程' : '一键同款'} ${item.name}`" :loading="!curated && applying" @click.stop="curated ? preview = item : applyTemplate(item, cardMedia.get(item.id))" /></el-tooltip></article></div>
-    <el-dialog :modelValue="!!preview" :title="preview?.name" class="templateDetail" :width="professional ? 'min(1600px, 98vw)' : 'min(1120px, 96vw)'" alignCenter appendToBody destroyOnClose :closeOnClickModal="!copying" :closeOnPressEscape="!copying" :showClose="!copying" @opened="projectPreview?.fitView()" @update:modelValue="preview = undefined">
-      <template v-if="professional" #header="{ titleId, titleClass }"><div class="detailHeader"><h3 :id="titleId" :class="titleClass">{{ preview?.name }}</h3><el-button type="primary" :loading="copying" @click="copyProject">复制项目</el-button></div></template>
-      <templateProjectPreview ref="projectPreview" v-if="preview && professional" :template="preview" />
+    <div v-else class="caseGrid" :aria-busy="searching"><article v-for="item in visibleCases" :key="item.id" @pointerenter="playPreview" @pointerleave="pausePreview" @focusin="playPreview" @focusout="pausePreview"><button class="caseCard" :aria-label="`${curated ? '播放作品' : '查看模板'} ${item.name}`" @click="openPreview(item)"><span class="casePreview"><templateMedia :ref="value => setCardMedia(item.id, value)" :media="item.media" /></span><span class="caseName" :title="item.name">{{ item.name }}</span></button><el-tooltip :content="curated ? '查看创作过程' : '一键同款'"><el-button class="cardAction" circle :icon="curated ? IconVector : IconCopy" :aria-label="`${curated ? '查看创作过程' : '一键同款'} ${item.name}`" :loading="!curated && applying" @click.stop="curated ? openPreview(item, true) : applyTemplate(item, cardMedia.get(item.id))" /></el-tooltip></article></div>
+    <el-dialog :modelValue="!!preview" :title="preview?.name" class="templateDetail" :class="{ processDetail: professional && previewMode === 'process' }" :fullscreen="professional && previewMode === 'process'" :width="professional && previewMode === 'process' ? 'min(1600px, 98vw)' : 'min(1120px, 96vw)'" alignCenter appendToBody destroyOnClose :closeOnClickModal="!copying" :closeOnPressEscape="!copying" :showClose="!copying" @opened="projectPreview?.fitView()" @update:modelValue="preview = undefined">
+      <template v-if="professional" #header="{ titleId, titleClass }"><div v-if="previewMode === 'process'" class="detailHeader"><h3 :id="titleId" :class="titleClass">{{ preview?.name }}</h3><el-button type="primary" :loading="copying" @click="copyProject">复制项目</el-button></div></template>
+      <div v-if="preview && professional && previewMode === 'media'" class="workPreview"><div class="workMedia"><templateMedia ref="previewMedia" :media="preview.media" controls autoplay /></div><footer><h3>{{ preview.name }}</h3><el-button plain @click="previewMode = 'process'"><icon-vector :size="17" />查看创作过程</el-button></footer></div>
+      <templateProjectPreview ref="projectPreview" v-else-if="preview && professional" :template="preview" />
       <div v-else-if="preview" class="detailLayout"><div class="detailMedia"><templateMedia ref="previewMedia" :media="preview.media" controls /></div><div class="detailContent"><h3>创作详情</h3><p class="templatePrompt">{{ preview.prompt }}</p><p class="templateParameters">{{ preview.modelId || '当前模型' }} ｜ {{ preview.ratio || '当前比例' }} ｜ {{ preview.resolution || preview.imageSize || '当前清晰度' }}<span v-if="preview.duration"> ｜ {{ preview.duration }}秒</span></p><el-button type="primary" :loading="applying" @click="applyPreview">一键同款</el-button></div></div>
     </el-dialog>
     <el-dialog v-model="projectPickerOpen" title="选择项目" width="min(640px, 94vw)" appendToBody><div class="projectChoices"><el-button v-for="project in workspace.projectList" :key="project.directory" @click="projectPickerOpen = false; openUpload(project)">{{ project.name }}</el-button></div></el-dialog>
@@ -27,11 +28,13 @@ import { ElMessage } from "element-plus";
 import { useRouter } from "vue-router";
 import { useWorkspaceStore, type Project } from "@/stores/workspace";
 import { generateBrowserText } from "@/lib/browserNodeAi";
+import { curatedCreatorTemplate } from "@/lib/curatedProject";
 import { captureTemplateProject, copyTemplateProject } from "@/lib/projectTemplates";
 import templateProjectPreview from "@/components/templateProjectPreview.vue";
 import templateMedia from "@/components/templateMedia.vue";
 import { creationTemplates, loadCreationTemplates, readTemplateFile, saveCreationTemplate, type CreationTemplate, type TemplateApplication } from "@/lib/creationTemplates";
 import { browserModelSelection, configuredBrowserModels } from "@/stores/browserGeneration";
+import { browserAssetMimeType } from "@/lib/browserAssets";
 import { imageDimensions } from "@toonflow/node-shared/generationDefaults";
 const props = defineProps<{ compact?: boolean; curated?: boolean }>();
 const emit = defineEmits<{ apply: [value: TemplateApplication] }>();
@@ -44,10 +47,12 @@ const projectPickerOpen = ref(false), previewInput = ref<HTMLInputElement>();
 const sourceProject = ref<Project>(), copying = ref(false);
 const query = ref(""), searching = ref(false), searchError = ref(""), loadError = ref(""), rankedIds = ref<string[]>();
 let searchRequest: AbortController | undefined;
+const previewMode = ref<"media" | "process">("media");
+function openPreview(item: CreationTemplate, process = false) { previewMode.value = process ? "process" : "media"; preview.value = item; }
 const category = ref("全部"), preview = ref<CreationTemplate>(), previewMedia = ref<InstanceType<typeof templateMedia>>();
 const applying = ref(false), uploadOpen = ref(false), saving = ref(false), uploadFile = ref<File>();
 const draft = reactive({ name: "", category: "产品展示", prompt: "", modelId: "", ratio: "", resolution: "" });
-const modeCases = computed(() => creationTemplates.value.filter(item => professional.value ? !!item.project : item.kind === "video"));
+const modeCases = computed(() => [...creationTemplates.value, ...(professional.value ? [curatedCreatorTemplate] : [])].filter(item => professional.value ? !!item.project : item.kind === "video"));
 const categories = computed(() => ["全部", ...new Set(modeCases.value.map(item => item.category))]);
 const categoryCases = computed(() => modeCases.value.filter(item => category.value === "全部" || item.category === category.value));
 const visibleCases = computed(() => !query.value.trim() ? categoryCases.value : rankedIds.value ? rankedIds.value.flatMap(id => categoryCases.value.find(item => item.id === id) ?? []) : []);
@@ -119,6 +124,8 @@ async function applyTemplate(item: CreationTemplate, source?: InstanceType<typeo
   finally { applying.value = false; }
 }
 async function createProjectCover(snapshot: Awaited<ReturnType<typeof captureTemplateProject>>) {
+  const mediaPath = [...snapshot.files.keys()].find(path => /\.(mp4|webm)$/i.test(path)) ?? [...snapshot.files.keys()].find(path => /\.(png|jpe?g|webp)$/i.test(path));
+  if (mediaPath) return new File([snapshot.files.get(mediaPath)!], mediaPath.split("/").at(-1)!, { type: browserAssetMimeType(mediaPath) });
   const source = JSON.parse(new TextDecoder().decode(snapshot.files.get(snapshot.project.canvases.find(path => JSON.parse(new TextDecoder().decode(snapshot.files.get(path)!)).nodes.length)!)!));
   const nodes = source.nodes as { id: string; position: { x: number; y: number }; data?: { label?: string }; parentNode?: string }[];
   const canvas = document.createElement("canvas"); canvas.width = 960; canvas.height = 540;
@@ -155,7 +162,7 @@ async function saveTemplate() {
     if (!draft.name.trim() || !draft.prompt.trim()) throw new Error("请填写模板名称和描述");
     const snapshot = sourceProject.value ? await captureTemplateProject(sourceProject.value.directory) : undefined;
     const media = snapshot ? await createProjectCover(snapshot) : uploadFile.value!;
-    await saveCreationTemplate({ ...draft, category: draft.category, kind: snapshot ? "image" : "video", resolution: draft.resolution }, media, [], snapshot);
+    await saveCreationTemplate({ ...draft, category: draft.category, kind: media.type.startsWith("video/") ? "video" : "image", resolution: draft.resolution }, media, [], snapshot);
     invalidateSearch();
     uploadOpen.value = false; ElMessage.success("模板已提交，审核通过后公开展示");
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "模板保存失败"); }
@@ -179,14 +186,17 @@ async function saveTemplate() {
       .caseName { display: block; padding: 9px 8px; font-size: 13px; font-weight: 600; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     }
   }
+  &.curated { .caseGrid { grid-template-columns: repeat(auto-fill,minmax(280px,1fr)); gap: 24px; .caseCard .casePreview { aspect-ratio: 16/9; :deep(.templateMedia) { object-fit: cover; } } .caseName { padding: 12px 10px; padding-right: 46px; } } .cardAction { bottom: 8px; right: 10px; } }
   &.compact { margin: 8px 14px; max-height: 200px; overflow: auto; .caseHeader h2 { font-size: 13px; margin: 0; } .caseCategories { margin: 0; } .caseGrid { display: flex; article { flex: 0 0 140px; .caseCard .casePreview { height: 80px; aspect-ratio: auto; } } } }
   @media(max-width:700px) { .caseFilters { flex-wrap: wrap; gap: 8px; .caseCategories { flex-basis: 100%; } .templateSearch { flex-basis: 100%; width: 100%; min-width: 0; } } }
   @media(max-width:420px) { .caseGrid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; } }
 }
 
+.workPreview { display: flex; flex-direction: column; min-height: 0; .workMedia { position: relative; height: min(72dvh, 720px); min-height: 200px; overflow: hidden; background: #101010; border-radius: 12px; :deep(.templateMedia) { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; } } footer { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding-top: 16px; h3 { margin: 0; font-size: 16px; } } }
 .detailHeader { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-right: 32px; h3 { margin: 0; } }
 .detailLayout { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(260px,1fr); gap: 28px; height: min(680px,76dvh); .detailMedia { min-height: 0; background: #161616; border-radius: 12px; overflow: hidden; } .detailContent { min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: stretch; h3 { margin-top: 0; } .templatePrompt { white-space: pre-wrap; line-height: 1.8; margin: 0; overflow: auto; } .templateParameters { color: var(--el-text-color-secondary); font-size: 12px; margin-top: auto; padding-top: 20px; } .el-button { flex-shrink: 0; margin-top: 10px; } } @media(max-width:700px) { grid-template-columns: 1fr; grid-template-rows: minmax(180px,1fr) minmax(180px,1fr); height: 76dvh; gap: 16px; } }
 </style>
 <style lang="scss">
+.processDetail.el-dialog.is-fullscreen { height: 100dvh; max-height: 100dvh; border-radius: 0; .el-dialog__body { flex: 1; overflow: hidden; } .templateProjectPreview { height: 100%; } }
 .templateDetail.el-dialog, .templateUpload.el-dialog { max-height: 94dvh; margin: auto; display: flex; flex-direction: column; .el-dialog__body { min-height: 0; overflow: auto; } }
 </style>

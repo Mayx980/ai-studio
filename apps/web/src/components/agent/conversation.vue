@@ -1059,7 +1059,7 @@ function addAttachments(files: File[], fromMaterialResult = false) {
       ElMessage.warning("每条消息最多添加 20 个附件");
       break;
     }
-    draftAttachments.value.push({ name: file.name, path: "", mimeType, file, ...((props.creationModes && !props.materialEditor && /^(image|video)\//.test(mimeType)) ? { referenceRole: referenceMode.value === "frames" ? "middleFrame" as const : "reference" as const, referenceCategory: "other" as const, referenceName: `其他${draftAttachments.value.filter(item => item.referenceCategory === "other").length + 1}` } : {}) });
+    draftAttachments.value.push({ name: file.name, path: "", mimeType, file, ...((props.creationModes && !props.materialEditor && /^(image|video)\//.test(mimeType)) ? { referenceRole: referenceMode.value === "frames" ? "middleFrame" as const : "reference" as const, referenceCategory: "other" as const, referenceName: referenceMode.value === "frames" ? `中间帧${Math.max(draftAttachments.value.filter(item => item.referenceRole === "middleFrame").length, ...draftAttachments.value.filter(item => item.referenceRole === "middleFrame").map(item => Number(item.referenceName?.match(/^中间帧(\d+)$/)?.[1] ?? 0))) + 1}` : `其他${draftAttachments.value.filter(item => item.referenceCategory === "other" && item.referenceRole === "reference").length + 1}` } : {}) });
   }
 }
 
@@ -1560,7 +1560,7 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
 .agentConversation {
   .conversationMode { flex-shrink: 0; width: min(340px, calc(100% - 24px)); margin: 12px 12px 10px; }
   .welcomeMessage { align-items: center; text-align: center; padding: 12px 16px 20px; .welcomeHeader { flex-direction: column; gap: 12px; .welcomeIcon { width: auto; height: auto; border-radius: 0; background: transparent; :deep(.brandLogo) { width: 132px; } } h3 { font-size: clamp(24px, 3vw, 32px); font-weight: 600; } } }
-  &.emptyConversation { justify-content: center; .messageViewport { flex: none; min-height: 0; max-height: 34dvh; overflow: auto; } .messageInput { resize: none; background: var(--agent-input-bg); .senderEditor { min-height: 110px; } } .conversationMode { align-self: center; } }
+  &.emptyConversation { justify-content: center; .messageViewport { flex: none; min-height: 0; max-height: 34dvh; overflow: auto; } .messageInput { flex-shrink: 0; resize: none; background: var(--agent-input-bg); .senderEditor { min-height: 110px; } } .conversationMode { align-self: center; } }
   .senderActions { justify-content: flex-start; > .sendButton { margin-left: auto; } }
 }
 </style>

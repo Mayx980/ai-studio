@@ -1,7 +1,7 @@
 <template>
   <div class="simpleReferenceSlots" aria-label="参考素材">
     <teleport :to="tabsTarget || 'body'" :disabled="!tabsTarget"><div class="referenceTabs" role="tablist" aria-label="参考素材类型">
-      <button v-for="tab in tabs" :key="tab.value" type="button" role="tab" :aria-selected="mode === tab.value" :disabled="disabled || opening" @click="mode = tab.value">{{ tab.label }}</button>
+      <template v-for="(tab, index) in tabs" :key="tab.value"><span v-if="index" class="tabDivider" aria-hidden="true">｜</span><button type="button" role="tab" :aria-selected="mode === tab.value" :disabled="disabled || opening" @click="mode = tab.value">{{ tab.label }}</button></template>
     </div></teleport>
     <input ref="fileInput" type="file" :accept="target.role === 'firstFrame' || target.role === 'lastFrame' ? 'image/*' : 'image/*,video/*'" :multiple="['reference', 'middleFrame'].includes(target.role) && !replacing" hidden :disabled="disabled || opening" @change="selectFiles" />
     <div v-if="mode === 'reference'" class="referenceDeck" aria-label="参考图片">
@@ -16,7 +16,7 @@
     </div>
     <div v-else class="frameDeck" aria-label="首尾帧图片">
       <template v-for="(frame, index) in frames" :key="frame.role">
-        <template v-if="index"><div v-for="attachment in middleFrames" :key="attachment.name + attachment.path" class="frameSlot"><attachmentPreview :attachment="attachment" :directory="directory" removable :disabled="disabled" @remove="remove(attachment)" /><span class="frameLabel">中间帧</span></div><el-tooltip content="添加中间帧"><button class="frameDivider" type="button" aria-label="添加中间帧" :disabled="disabled || opening" @click="openMenu($event, { role: 'middleFrame', category: 'other' })"><span>···</span><icon-plus :size="16" /></button></el-tooltip></template>
+        <template v-if="index"><div v-for="(attachment, middleIndex) in middleFrames" :key="attachment.name + attachment.path" class="frameSlot"><attachmentPreview :attachment="attachment" :directory="directory" removable :disabled="disabled" @remove="remove(attachment)" /><span class="frameLabel">{{ middleFrameLabel(attachment, middleIndex) }}</span></div><el-tooltip content="添加中间帧"><button class="frameDivider" type="button" aria-label="添加中间帧" :disabled="disabled || opening" @click="openMenu($event, { role: 'middleFrame', category: 'other' })"><span>···</span><icon-plus :size="16" /></button></el-tooltip></template>
         <div class="frameSlot">
           <template v-if="frameAttachment(frame.role)">
             <attachmentPreview :attachment="frameAttachment(frame.role)!" :directory="directory" removable :disabled="disabled" @remove="remove(frameAttachment(frame.role)!)" />
@@ -63,6 +63,7 @@ const middleFrames = computed(() => attachments.value.filter(item => item.refere
 const referenceImages = computed(() => attachments.value.filter(item => item.referenceRole === "reference"));
 watch(attachments, value => { if (value.some(item => item.referenceRole === "firstFrame" || item.referenceRole === "lastFrame") && !value.some(item => item.referenceRole === "reference")) mode.value = "frames"; }, { immediate: true });
 function frameAttachment(role: ReferenceRole) { return attachments.value.find(item => item.referenceRole === role); }
+function middleFrameLabel(attachment: AgentAttachment, index: number) { return /^中间帧\d+$/.test(attachment.referenceName || "") ? attachment.referenceName : `中间帧${index + 1}`; }
 function referenceLabel(attachment: AgentAttachment, index: number) { return attachment.referenceName?.replace(/^场景/, "背景") || `${groups.find(group => group.value === attachment.referenceCategory)?.label || "其他"}${index + 1}`; }
 function remove(attachment: AgentAttachment) { attachments.value = attachments.value.filter(item => item !== attachment); }
 function closeMenu() { menuVisible.value = false; collapseReference(); }
@@ -78,13 +79,13 @@ function applyFiles(files: File[], destination = target.value, replacement = rep
   if (valid.length !== files.length) throw new Error("请选择非空且不超过100 MB的图片或视频，首尾帧仅支持图片");
   const retained = ["reference", "middleFrame"].includes(destination.role) ? attachments.value : attachments.value.filter(item => item.referenceRole !== destination.role);
   const group = groups.find(item => item.value === destination.category);
-  const existing = retained.filter(item => item.referenceCategory === destination.category);
-  const lastNumber = Math.max(existing.length, 0, ...existing.map(item => Number(item.referenceName?.match(/(\d+)$/)?.[1] ?? 0)));
+  const existing = retained.filter(item => destination.role === "middleFrame" ? item.referenceRole === "middleFrame" : item.referenceCategory === destination.category && item.referenceRole === destination.role);
+  const lastNumber = Math.max(existing.length, 0, ...existing.map(item => Number(item.referenceName?.match(destination.role === "middleFrame" ? /^中间帧(\d+)$/ : /(\d+)$/)?.[1] ?? 0)));
   const selected = ["reference", "middleFrame"].includes(destination.role) && !replacement ? valid : valid.slice(0, 1);
   const replacementIndex = replacement ? retained.indexOf(replacement) : -1;
   if (replacement && replacementIndex < 0) throw new Error("原参考图已移除，请重新选择");
   if (retained.length + selected.length - (replacement ? 1 : 0) > 20) throw new Error("每条消息最多添加20个附件");
-  const added = selected.map((file, index) => ({ name: file.name, path: "", mimeType: file.type, file, referenceRole: destination.role, referenceCategory: destination.category, referenceName: replacement?.referenceName || (group ? `${group.label}${lastNumber + index + 1}` : undefined) }));
+  const added = selected.map((file, index) => ({ name: file.name, path: "", mimeType: file.type, file, referenceRole: destination.role, referenceCategory: destination.category, referenceName: replacement?.referenceName || (destination.role === "middleFrame" ? `中间帧${lastNumber + index + 1}` : group ? `${group.label}${lastNumber + index + 1}` : undefined) }));
   if (replacement) { const result = [...retained]; result.splice(replacementIndex, 1, ...added); attachments.value = result; }
   else attachments.value = [...retained, ...added];
   replacing.value = undefined;
@@ -127,6 +128,6 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; if (materialEditor
   .frameDivider { align-self: center; border: 0; background: transparent; color: var(--el-text-color-secondary); cursor: pointer; display: grid; place-items: center; width: 26px; height: 30px; svg { display: none; } &:hover, &:focus-visible { span { display: none; } svg { display: block; } } }
   @media(max-width:600px) { flex-wrap: wrap; .referenceDeck, .frameDeck { width: 100%; } }
 }
-.referenceTabs { display: flex; gap: 4px; flex: none; button { padding: 6px 10px; border: 1px solid var(--el-border-color); border-radius: 7px; background: transparent; color: var(--el-text-color-secondary); cursor: pointer; font: inherit; font-size: 12px; &[aria-selected="true"] { background: transparent; border-color: var(--el-color-primary); color: var(--el-color-primary); } } }
+.referenceTabs { display: flex; align-items: center; gap: 0; flex: none; border: 1px solid var(--el-border-color); border-radius: 8px; overflow: hidden; .tabDivider { color: var(--el-border-color); } button { padding: 6px 10px; border: 0; background: transparent; color: var(--el-text-color-secondary); cursor: pointer; font: inherit; font-size: 12px; &[aria-selected="true"] { color: var(--el-color-primary); } &:hover { background: var(--el-fill-color); } &:focus-visible { outline: 1px solid var(--el-color-primary); outline-offset: -2px; } } }
 .referenceSourceMenu { display: grid; gap: 3px; button { border: 0; border-radius: 6px; padding: 9px 10px; color: var(--el-text-color-primary); background: transparent; font: inherit; font-size: 13px; text-align: left; cursor: pointer; &:hover, &:focus-visible { background: var(--el-fill-color); } } }
 </style>

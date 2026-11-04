@@ -1,5 +1,5 @@
 <template>
-  <video v-if="media.mimeType.startsWith('video/')" ref="video" class="templateMedia" :src="url" :controls="controls" :muted="!controls" playsinline :loop="!controls" preload="metadata" @error="failed = true" />
+  <video v-if="media.mimeType.startsWith('video/')" ref="video" class="templateMedia" :src="url" :controls="controls" :autoplay="autoplay" :muted="!controls" playsinline :loop="!controls" preload="metadata" @error="failed = true" />
   <img v-else class="templateMedia" :src="url" :alt="media.name" loading="lazy" @error="failed = true" />
   <span v-if="failed" class="mediaError" role="alert">素材无法预览，请检查文件格式或重新上传</span>
 </template>
@@ -8,7 +8,7 @@ import { ref, watch } from "vue";
 import { captureVideoFrame } from "@/lib/videoFrame";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { isPublicTemplateMedia, templateDirectory, type TemplateMedia } from "@/lib/creationTemplates";
-const props = defineProps<{ media: TemplateMedia; controls?: boolean }>();
+const props = defineProps<{ media: TemplateMedia; controls?: boolean; autoplay?: boolean }>();
 const url = ref(""), failed = ref(false), video = ref<HTMLVideoElement>();
 watch(() => props.media, async (media, _previous, cleanup) => {
   url.value = ""; failed.value = false;

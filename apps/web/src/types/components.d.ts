@@ -146,6 +146,7 @@ declare module 'vue' {
     SkillMenu: typeof import('./../components/agent/skillMenu.vue')['default']
     StudioSidebar: typeof import('./../components/studioSidebar.vue')['default']
     TemplateMedia: typeof import('./../components/templateMedia.vue')['default']
+    TemplatePreviewNode: typeof import('./../components/templatePreviewNode.vue')['default']
     TemplateProjectPreview: typeof import('./../components/templateProjectPreview.vue')['default']
     TemplateReview: typeof import('./../components/templateReview.vue')['default']
     TfAccount: typeof import('./../components/settings/tfAccount.vue')['default']
