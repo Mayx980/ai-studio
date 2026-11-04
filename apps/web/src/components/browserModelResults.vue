@@ -81,5 +81,5 @@ async function referenceResult(item: Result) {
 </script>
 
 <style scoped lang="scss">
-.browserModelResults { padding: 12px; max-height: 45vh; overflow: auto; .applicationChoice { padding: 10px 0; p { font-size: 13px; } } .resultActions { display: flex; align-items: center; gap: 8px; } .generatedResult { img, video { cursor: zoom-in; } margin-top: 12px; img, video { display: block; max-width: 100%; max-height: 260px; border-radius: 12px; } audio { width: 100%; } .generatedText { white-space: pre-wrap; line-height: 1.7; } } }
+.browserModelResults { padding: 12px; max-height: 45vh; overflow: auto; scrollbar-width: none; &::-webkit-scrollbar { display: none; } .applicationChoice { padding: 10px 0; p { font-size: 13px; } } .resultActions { display: flex; align-items: center; gap: 8px; } .generatedResult { img, video { cursor: zoom-in; } margin-top: 12px; img, video { display: block; max-width: 100%; max-height: 260px; border-radius: 12px; } audio { width: 100%; } .generatedText { white-space: pre-wrap; line-height: 1.7; } } }
 </style>

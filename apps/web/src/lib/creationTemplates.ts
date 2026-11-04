@@ -22,7 +22,7 @@ const builtin: CreationTemplate[] = [
   { id: "personReview", name: "达人口播种草", category: "达人种草", kind: "video", media: media("personReview.mp4", "人物口播.mp4"), references: [], ratio: "9:16", resolution: "720P", duration: 15, prompt: "创意：达人口播种草\n请基于上传的产品图与产品信息，制作一支「口播种草」风格短视频。\n产品名称：冷萃咖啡浓缩液（无糖低酸）\n核心卖点：冷萃低酸更顺滑；一瓶兑水/兑奶秒变冰美式/拿铁；0糖低卡；随身便携" },
   { id: "authenticReview", name: "对镜真心口播", category: "真实测评", kind: "video", media: media("authenticReview.mp4", "真实测评.mp4"), references: [], ratio: "9:16", resolution: "720P", duration: 15, prompt: "创意：对镜真心口播\n请基于上传的产品图与产品信息，制作一支「对镜口播」风格短视频。\n产品名称：维C亮肤精华\n核心卖点：维C提亮抗氧；淡化暗沉；清爽好吸收" },
 ];
-export const creationTemplates = computed(() => [...personal.value.filter(item => item.kind === "video" && item.review?.status === "approved"), ...builtin.filter(item => item.kind === "video")]);
+export const creationTemplates = computed(() => [...personal.value.filter(item => (item.kind === "video" || item.project) && item.review?.status === "approved"), ...builtin.filter(item => item.kind === "video")]);
 let loading: Promise<void> | undefined;
 function parseTemplates(text: string): CreationTemplate[] {
   const values: unknown = JSON.parse(text);
@@ -69,7 +69,7 @@ export async function saveCreationTemplate(template: Omit<CreationTemplate, "id"
   const account = currentAccount.value;
   if (!account) throw new Error("请先登录再提交模板");
   await loadCreationTemplates();
-  if (template.kind !== "video") throw new Error("模板中心仅支持视频模板");
+  if (template.kind !== "video" && !projectSnapshot) throw new Error("模板中心仅支持视频模板");
   if (!template.name.trim() || !template.prompt.trim()) throw new Error("请填写模板名称和提示词");
   if (references.length > 10) throw new Error("每个模板最多保存 10 张参考图片");
   const id = `template${crypto.randomUUID().replaceAll("-", "")}`, files = useWorkspaceFiles(templateDirectory);
@@ -85,7 +85,7 @@ export async function saveCreationTemplate(template: Omit<CreationTemplate, "id"
     await files.mkdir("assets").catch(error => { if (error.code !== "EEXIST") throw error; });
     await files.mkdir(`assets/${id}`); createdRoot = true;
     const media = await put(preview, 0), images: TemplateMedia[] = [];
-    if (media.mimeType !== "video/mp4") throw new Error("请上传 MP4 视频模板");
+    if (media.mimeType !== "video/mp4" && !projectSnapshot) throw new Error("请上传 MP4 视频模板");
     for (const [index, file] of references.entries()) images.push(await put(file, index + 1));
     if (projectSnapshot) {
       const directories = new Set<string>();

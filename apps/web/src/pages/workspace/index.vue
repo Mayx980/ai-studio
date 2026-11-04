@@ -163,7 +163,7 @@ async function startNewProject(mode: "simple" | "professional") {
   startingProject = true;
   try {
     await flushSave();
-    const project = await workspaceStore.createProject();
+    const project = await workspaceStore.createProject("未命名项目", mode);
     workspaceStore.creationMode = mode;
     if (mode === "professional") workspaceStore.pendingCanvasEntry = { directory: project.directory };
     agentVisible.value = mode === "simple";
@@ -173,8 +173,7 @@ provide("startNewProject", startNewProject);
 provide("openSidebarProject", async (directory: string) => {
   await flushSave();
   await workspaceStore.openProject(directory);
-  workspaceStore.creationMode = "professional";
-  workspaceStore.pendingCanvasEntry = { directory };
+  await workspaceStore.restoreProjectEntry();
 });
 let applyingAssistantTemplate = false;
 async function applyAssistantTemplate(value: TemplateApplication) {

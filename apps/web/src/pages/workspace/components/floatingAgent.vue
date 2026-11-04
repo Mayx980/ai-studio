@@ -63,9 +63,9 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
 .assistantContent { height: 100%; min-width: 0; }
 .agentSidebar.expanded:not(.materialSplit) { background: #090909; padding: 24px 24px 24px 244px; isolation: isolate;
   &::before { content: ""; position: absolute; top: 0; left: calc(220px + (100% - 220px) / 2); transform: translateX(-50%); width: min(1000px, calc(100% - 220px)); height: 440px; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 45% 0%, #2c8f7840, transparent 48%), radial-gradient(ellipse at 56% 0%, #397ac14d, transparent 52%), radial-gradient(ellipse at 50% -10%, #a34c8c30, transparent 50%); }
-  .assistantContent { overflow-y: auto; padding: 0 0 24px; :deep(.agent) { max-width: 1080px; height: min(720px, calc(100dvh - 60px)); min-height: 560px; margin: auto; } .assistantTemplates { max-width: 1080px; margin: 30px auto; } }
+  .assistantContent { overflow-y: auto; scrollbar-width: none; &::-webkit-scrollbar { display: none; } padding: 0 0 24px; :deep(.agent) { max-width: 1080px; height: calc((100dvh - 48px) * .6); min-height: 440px; margin: auto; } .assistantTemplates { max-width: 1080px; margin: 30px auto; } }
   &.navigationCollapsed { padding-left: 92px; &::before { left: calc(68px + (100% - 68px) / 2); width: min(1000px, calc(100% - 68px)); } }
-  @media(max-width:700px) { padding: 16px 8px 12px 80px; &::before { left: calc(68px + (100% - 68px) / 2); width: calc(100% - 68px); height: 340px; } .assistantContent :deep(.agent) { min-height: 700px; } }
+  @media(max-width:700px) { padding: 16px 8px 12px 80px; &::before { left: calc(68px + (100% - 68px) / 2); width: calc(100% - 68px); height: 340px; } .assistantContent :deep(.agent) { min-height: 440px; } }
 }
 @media(max-width:700px) { .agentSidebar:not(.expanded):not(.materialSplit) { padding-top: 64px; } }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <section class="creativeCases" :class="{ compact }">
-    <div class="caseHeader"><h2>{{ curated ? '创作优选' : '模板中心' }}</h2><el-button v-if="!professional" text type="primary" @click="openUpload()">上传模板</el-button></div>
+    <div class="caseHeader"><h2>{{ curated ? '创作优选' : '模板中心' }}</h2><el-button text type="primary" @click="professional ? projectPickerOpen = true : openUpload()">{{ professional ? '上传创作优选' : '上传模板' }}</el-button></div>
     <div v-if="!curated" class="caseFilters"><div class="caseCategories"><button v-for="item in categories" :key="item" :aria-pressed="category === item" @click="category = item">{{ item }}</button></div>
     <form class="templateSearch" role="search" @submit.prevent="searchTemplates"><el-input v-model="query" clearable aria-label="搜索视频模板" placeholder="搜索关键词或描述想要的视频" @input="invalidateSearch"><template #append><el-button nativeType="submit" :loading="searching">搜索</el-button></template></el-input></form></div>
     <p v-if="searching" role="status" aria-live="polite">正在理解需求并查找相关模板…</p>
@@ -13,8 +13,9 @@
       <templateProjectPreview ref="projectPreview" v-if="preview && professional" :template="preview" />
       <div v-else-if="preview" class="detailLayout"><div class="detailMedia"><templateMedia ref="previewMedia" :media="preview.media" controls /></div><div class="detailContent"><h3>创作详情</h3><p class="templatePrompt">{{ preview.prompt }}</p><p class="templateParameters">{{ preview.modelId || '当前模型' }} ｜ {{ preview.ratio || '当前比例' }} ｜ {{ preview.resolution || preview.imageSize || '当前清晰度' }}<span v-if="preview.duration"> ｜ {{ preview.duration }}秒</span></p><el-button type="primary" :loading="applying" @click="applyPreview">一键同款</el-button></div></div>
     </el-dialog>
+    <el-dialog v-model="projectPickerOpen" title="选择项目" width="min(640px, 94vw)" appendToBody><div class="projectChoices"><el-button v-for="project in workspace.projectList" :key="project.directory" @click="projectPickerOpen = false; openUpload(project)">{{ project.name }}</el-button></div></el-dialog>
     <el-dialog v-model="uploadOpen" :title="sourceProject ? '制作项目模板' : '上传个人模板'" :closeOnClickModal="!saving" :closeOnPressEscape="!saving" :showClose="!saving" width="min(640px, 94vw)" alignCenter appendToBody destroyOnClose class="templateUpload">
-      <el-form :disabled="saving" labelPosition="top"><el-form-item label="模板名称"><el-input v-model="draft.name" maxlength="60" /></el-form-item><el-form-item label="分类"><el-select v-model="draft.category" placeholder="选择分类"><el-option v-for="category in ['产品展示','达人种草','短剧带货','真实测评']" :key="category" :value="category" /></el-select></el-form-item><el-form-item label="模板视频"><input type="file" accept="video/mp4" :disabled="saving" @change="selectPreview" /></el-form-item><el-form-item :label="sourceProject ? '模板描述' : '创作提示词'"><el-input v-model="draft.prompt" type="textarea" :rows="5" /></el-form-item><el-form-item v-if="!sourceProject" label="生成模型（可选）"><el-select v-model="draft.modelId" clearable><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.modelId" /></el-select></el-form-item><el-form-item v-if="!sourceProject" label="比例（可选）"><el-select v-model="draft.ratio" clearable><el-option v-for="ratio in Object.keys(imageDimensions)" :key="ratio" :value="ratio" /></el-select></el-form-item><el-form-item v-if="!sourceProject" label="视频清晰度（可选）"><el-select v-model="draft.resolution" clearable><el-option v-for="value in ['480P','720P','1080P']" :key="value" :value="value" /></el-select></el-form-item></el-form>
+      <el-form :disabled="saving" labelPosition="top"><el-form-item label="模板名称"><el-input v-model="draft.name" maxlength="60" /></el-form-item><el-form-item label="分类"><el-select v-model="draft.category" placeholder="选择分类"><el-option v-for="category in ['产品展示','达人种草','短剧带货','真实测评']" :key="category" :value="category" /></el-select></el-form-item><el-form-item v-if="!sourceProject" label="模板视频"><input ref="previewInput" type="file" accept="video/mp4" hidden :disabled="saving" @change="selectPreview" /><el-button @click="previewInput?.click()">选择视频</el-button><span v-if="uploadFile">{{ uploadFile.name }}</span></el-form-item><el-form-item :label="sourceProject ? '模板描述' : '创作提示词'"><el-input v-model="draft.prompt" type="textarea" :rows="5" /></el-form-item><el-form-item v-if="!sourceProject" label="生成模型（可选）"><el-select v-model="draft.modelId" clearable><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.modelId" /></el-select></el-form-item><el-form-item v-if="!sourceProject" label="比例（可选）"><el-select v-model="draft.ratio" clearable><el-option v-for="ratio in Object.keys(imageDimensions)" :key="ratio" :value="ratio" /></el-select></el-form-item><el-form-item v-if="!sourceProject" label="视频清晰度（可选）"><el-select v-model="draft.resolution" clearable><el-option v-for="value in ['480P','720P','1080P']" :key="value" :value="value" /></el-select></el-form-item></el-form>
       <template #footer><el-button type="primary" :loading="saving" @click="saveTemplate">提交审核</el-button></template>
     </el-dialog>
   </section>
@@ -39,13 +40,14 @@ const professional = computed(() => !!props.curated);
 const projectPreview = ref<InstanceType<typeof templateProjectPreview>>();
 const cardMedia = new Map<string, InstanceType<typeof templateMedia>>();
 function setCardMedia(id: string, value: unknown) { if (value) cardMedia.set(id, value as InstanceType<typeof templateMedia>); else cardMedia.delete(id); }
+const projectPickerOpen = ref(false), previewInput = ref<HTMLInputElement>();
 const sourceProject = ref<Project>(), copying = ref(false);
 const query = ref(""), searching = ref(false), searchError = ref(""), loadError = ref(""), rankedIds = ref<string[]>();
 let searchRequest: AbortController | undefined;
 const category = ref("全部"), preview = ref<CreationTemplate>(), previewMedia = ref<InstanceType<typeof templateMedia>>();
 const applying = ref(false), uploadOpen = ref(false), saving = ref(false), uploadFile = ref<File>();
 const draft = reactive({ name: "", category: "产品展示", prompt: "", modelId: "", ratio: "", resolution: "" });
-const modeCases = computed(() => creationTemplates.value.filter(item => !professional.value || item.project));
+const modeCases = computed(() => creationTemplates.value.filter(item => professional.value ? !!item.project : item.kind === "video"));
 const categories = computed(() => ["全部", ...new Set(modeCases.value.map(item => item.category))]);
 const categoryCases = computed(() => modeCases.value.filter(item => category.value === "全部" || item.category === category.value));
 const visibleCases = computed(() => !query.value.trim() ? categoryCases.value : rankedIds.value ? rankedIds.value.flatMap(id => categoryCases.value.find(item => item.id === id) ?? []) : []);
@@ -116,14 +118,44 @@ async function applyTemplate(item: CreationTemplate, source?: InstanceType<typeo
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "模板素材读取失败"); }
   finally { applying.value = false; }
 }
+async function createProjectCover(snapshot: Awaited<ReturnType<typeof captureTemplateProject>>) {
+  const source = JSON.parse(new TextDecoder().decode(snapshot.files.get(snapshot.project.canvases.find(path => JSON.parse(new TextDecoder().decode(snapshot.files.get(path)!)).nodes.length)!)!));
+  const nodes = source.nodes as { id: string; position: { x: number; y: number }; data?: { label?: string }; parentNode?: string }[];
+  const canvas = document.createElement("canvas"); canvas.width = 960; canvas.height = 540;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("当前浏览器无法创建项目预览");
+  context.fillStyle = "#17191e"; context.fillRect(0, 0, 960, 540);
+  // ACT: 封面绘制实际拓扑缩略图，完整节点内容由只读画布预览展示。
+  const byId = new Map(nodes.map(node => [node.id, node]));
+  const positions = new Map<string, { x: number; y: number }>();
+  function position(node: typeof nodes[number], ancestors = new Set<string>()): { x: number; y: number } {
+    const cached = positions.get(node.id); if (cached) return cached;
+    if (ancestors.has(node.id)) throw new Error("项目节点分组存在循环引用");
+    ancestors.add(node.id);
+    const parent = node.parentNode ? byId.get(node.parentNode) : undefined;
+    const origin = parent ? position(parent, ancestors) : { x: 0, y: 0 };
+    const value = { x: origin.x + node.position.x, y: origin.y + node.position.y }; positions.set(node.id, value); return value;
+  }
+  for (const node of nodes) position(node);
+  const values = [...positions.values()], minX = Math.min(...values.map(item => item.x)), minY = Math.min(...values.map(item => item.y));
+  const scale = Math.min(880 / (Math.max(...values.map(item => item.x)) - minX + 180), 460 / (Math.max(...values.map(item => item.y)) - minY + 80));
+  context.translate(40, 40); context.scale(scale, scale); context.translate(-minX, -minY);
+  context.strokeStyle = "#409eff"; context.lineWidth = 2 / scale;
+  for (const edge of source.edges) { const a = positions.get(edge.source), b = positions.get(edge.target); if (!a || !b) continue; context.beginPath(); context.moveTo(a.x + 180, a.y + 40); context.lineTo(b.x, b.y + 40); context.stroke(); }
+  for (const node of nodes) { const point = positions.get(node.id)!; context.fillStyle = "#303640"; context.fillRect(point.x, point.y, 180, 80); context.fillStyle = "#e5eaf3"; context.font = "16px sans-serif"; context.fillText(node.data?.label || node.id, point.x + 12, point.y + 46, 156); }
+  const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error("项目预览保存失败")), "image/png"));
+  return new File([blob], "项目编排.png", { type: "image/png" });
+}
 async function saveTemplate() {
-  if (!uploadFile.value || saving.value) { if (!uploadFile.value) ElMessage.warning("请选择模板视频"); return; }
-  if (!uploadVideo.value) { ElMessage.warning("模板中心仅支持视频模板"); return; }
+  if (saving.value) return;
+  if (!sourceProject.value && !uploadFile.value) { ElMessage.warning("请选择模板视频"); return; }
+  if (!sourceProject.value && !uploadVideo.value) { ElMessage.warning("模板中心仅支持视频模板"); return; }
   saving.value = true;
   try {
     if (!draft.name.trim() || !draft.prompt.trim()) throw new Error("请填写模板名称和描述");
     const snapshot = sourceProject.value ? await captureTemplateProject(sourceProject.value.directory) : undefined;
-    await saveCreationTemplate({ ...draft, category: draft.category, kind: "video", resolution: draft.resolution }, uploadFile.value, [], snapshot);
+    const media = snapshot ? await createProjectCover(snapshot) : uploadFile.value!;
+    await saveCreationTemplate({ ...draft, category: draft.category, kind: snapshot ? "image" : "video", resolution: draft.resolution }, media, [], snapshot);
     invalidateSearch();
     uploadOpen.value = false; ElMessage.success("模板已提交，审核通过后公开展示");
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "模板保存失败"); }

@@ -79,7 +79,7 @@ async function startAgent() {
   if (creating.value || opening.value) return;
   creating.value = true;
   try {
-    await workspaceStore.createProject(); workspaceStore.creationMode = "simple";
+    await workspaceStore.createProject("未命名项目", "simple"); workspaceStore.creationMode = "simple";
     await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "新建对话失败"); }
   finally { creating.value = false; }
@@ -88,7 +88,7 @@ async function applyCase(value: TemplateApplication) {
   if (creating.value || opening.value) return;
   creating.value = true;
   try {
-    const project = await workspaceStore.createProject();
+    const project = await workspaceStore.createProject("未命名项目", "simple");
     workspaceStore.creationMode = "simple"; applyTemplateParameters(value.template);
     workspaceStore.pendingAgentMessage = { directory: project.directory, prompt: value.prompt, attachments: value.references.map(file => ({ file, name: file.name, path: "", mimeType: file.type })), model: "", reasoningEffort: "", send: false };
     await router.push({ path: "/workspace", query: { returnSection: "templates" } });
@@ -112,8 +112,7 @@ async function openProject(project?: Project) {
       if (!directory) return;
       await workspaceStore.openProject(directory, project.directory);
     }
-    workspaceStore.creationMode = "professional";
-    workspaceStore.pendingCanvasEntry = { directory: workspaceStore.project!.directory };
+    await workspaceStore.restoreProjectEntry();
     await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
   } catch (err) {
     ElMessage.error(axios.isAxiosError<{ message?: string }>(err)

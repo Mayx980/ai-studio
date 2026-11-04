@@ -384,7 +384,7 @@ async function importConversationTurn(turn: BrowserConversationImport) {
   const signal = canvasController.signal, position = pastePosition();
   if (!position) throw new Error("画布尚未就绪");
   const outputFiles = await Promise.all(turn.results.map(browserResultFile));
-  if (outputFiles.some((file, index) => !file.size || !file.type.startsWith(`${turn.results[index]!.kind}/`)) || turn.references.some(reference => !reference.file.size || !reference.file.type.startsWith("image/"))) throw new Error("对话素材的媒体类型不匹配，原文件已保留");
+  if (outputFiles.some((file, index) => !file.size || !file.type.startsWith(`${turn.results[index]!.kind}/`)) || turn.references.some(reference => !reference.file.size || !/^(image|video)\//.test(reference.file.type))) throw new Error("对话素材的媒体类型不匹配，原文件已保留");
   const defaults = turn.results.map(result => {
     const data = browserNodeDefaults(result.kind, result.settings);
     if (!result.settings && result.model) {
@@ -406,7 +406,7 @@ async function importConversationTurn(turn: BrowserConversationImport) {
       signal.throwIfAborted();
       const sources = created.slice(0, inputFiles.length), targets = created.slice(inputFiles.length);
       if (targets.length !== turn.results.length) throw new Error("部分对话素材未能创建节点，请重试");
-      sources.forEach((id, index) => flow.updateNodeData(id, { ...(index ? browserNodeDefaults("image") : {}), conversationTurnId: turn.id, label: index ? turn.references[index - 1]!.label : "用户要求与提示词", referenceRole: index ? turn.references[index - 1]!.role : undefined }));
+      sources.forEach((id, index) => flow.updateNodeData(id, { ...(index ? browserNodeDefaults(turn.references[index - 1]!.file.type.startsWith("video/") ? "video" : "image") : {}), conversationTurnId: turn.id, label: index ? turn.references[index - 1]!.label : "用户要求与提示词", referenceRole: index ? turn.references[index - 1]!.role : undefined }));
       targets.forEach((id, index) => flow.updateNodeData(id, { ...defaults[index], conversationTurnId: turn.id, browserResultId: turn.results[index]!.id, label: turn.results[index]!.kind === "image" ? "生成图片" : "生成视频", prompt: "", promptModel: [] }));
       await nextTick();
       await waitForControlValue(() => created.every(id => {
@@ -426,7 +426,7 @@ async function importConversationTurn(turn: BrowserConversationImport) {
         const target = flow.findNode(id)!;
         flow.updateNode(id, { position: { x: position.x + width + 240, y: outputY } }); outputY += target.dimensions.height + 96;
         for (const [index, source] of sources.entries()) {
-          const connection = { source, sourceHandle: index ? "image" : "text", target: id, targetHandle: "in" };
+          const connection = { source, sourceHandle: index ? turn.references[index - 1]!.file.type.startsWith("video/") ? "video" : "image" : "text", target: id, targetHandle: "in" };
           if (!validateConnection(connection, { sourceNode: flow.findNode(source)!, targetNode: target, nodes: flow.getNodes.value, edges: flow.getEdges.value })) throw new Error("节点引用类型不匹配，已保留原对话素材");
           addEdges({ id: crypto.randomUUID(), ...connection });
         }

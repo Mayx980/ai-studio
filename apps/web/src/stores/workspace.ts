@@ -12,6 +12,7 @@ export type Project = {
   name: string;
   lastOpenedAt: number;
   folder?: string;
+  creationMode?: "simple" | "professional";
 };
 
 export const useWorkspaceStore = defineStore("workspace", () => {
@@ -50,13 +51,31 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     ];
   }
 
-  async function createProject(name = "未命名项目"): Promise<Project> {
+  async function restoreProjectEntry() {
+    const current = project.value;
+    if (!current) return;
+    if (!browserWorkspaceMode) { creationMode.value = "professional"; pendingCanvasEntry.value = { directory: current.directory }; return; }
+    const { readCanvasFiles } = await import("@/pages/workspace/panels/canvas/canvasFiles");
+    const canvases = await readCanvasFiles(useWorkspaceFiles(current.directory));
+    const hasNodes = canvases.some(canvas => canvas.data.nodes.length > 0);
+    const { listBrowserConversations, readBrowserConversation } = await import("@/components/agent/browserConversations");
+    const sessions = hasNodes ? [] : await listBrowserConversations(current.directory);
+    const latest = sessions[0];
+    const session = latest ? await readBrowserConversation(current.directory, latest.file) : undefined;
+    creationMode.value = hasNodes ? "professional" : session?.creationMode ?? current.creationMode ?? (latest ? "simple" : "professional");
+    if (creationMode.value === "simple" && latest) pendingAgentSession.value = { directory: current.directory, file: latest.file };
+    if (creationMode.value === "professional") pendingCanvasEntry.value = { directory: current.directory };
+  }
+
+  async function createProject(name = "未命名项目", mode: "simple" | "professional" = "professional"): Promise<Project> {
     if (!browserWorkspaceMode) throw new Error("当前自动创作项目使用浏览器保存，请在浏览器原型模式打开");
     if (!name.trim() || name.trim().length > 80) throw new Error("请输入1–80个字符的项目名称");
     const directory = `browser://${crypto.randomUUID()}`;
     await useWorkspaceFiles(directory).writeJson("画布1.json", { toonflowCanvas: true, nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }, true);
     await openProject(directory);
     renameProject(directory, name);
+    project.value!.creationMode = mode;
+    creationMode.value = mode;
     return project.value!;
   }
 
@@ -97,7 +116,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (project.value?.directory === path) project.value = null;
   }
 
-  return { creationMode, project, projectList, pendingAgentMessage, pendingAgentSession, pendingCanvasEntry, createProject, openProject, renameProject, moveProject, duplicateProject, removeProject };
+  return { creationMode, project, projectList, pendingAgentMessage, pendingAgentSession, pendingCanvasEntry, createProject, openProject, restoreProjectEntry, renameProject, moveProject, duplicateProject, removeProject };
 }, {
   persist: {
     key: browserWorkspaceMode ? currentAccount.value?.id === "admin" ? "aiStudio.browserProjects.admin" : "aiStudio.browserProjects" : "toonflow.projectList",

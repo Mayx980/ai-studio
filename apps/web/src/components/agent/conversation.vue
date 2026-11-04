@@ -46,7 +46,7 @@
                   </template>
                   <attachmentList v-if="item.attachments?.length" :attachments="item.attachments" :directory="directory" />
                   <div v-if="item.role === 'user'" class="messageText"><mentionContent :content="item.content" :mentions="item.mentions" :directory="directory" /></div>
-                  <browserModelResults v-if="item.browserResultIds?.length && !item.professional" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showCanvas="!props.materialEditor && (sessionMode ?? workspaceStore.creationMode) === 'simple'" conversationCanvas @enterCanvas="addMessageToCanvas(item)" :showReference="false" :applicationLabel="props.materialEditor ? props.materialLabel : undefined" :framePosition="props.materialRole === 'lastFrame' ? 'last' : 'first'" :disabled="locked" @busy="setMaterialBusy" @apply="emit('applyMaterial', $event)" @reference="referenceGeneratedFile" />
+                  <browserModelResults v-if="item.browserResultIds?.length && !item.professional" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showCanvas="false" @enterCanvas="addMessageToCanvas(item)" :showReference="false" :applicationLabel="props.materialEditor ? props.materialLabel : undefined" :framePosition="props.materialRole === 'lastFrame' ? 'last' : 'first'" :disabled="locked" @busy="setMaterialBusy" @apply="emit('applyMaterial', $event)" @reference="referenceGeneratedFile" />
                   <professionalCreation v-if="item.professional && directory" :state="item.professional" :directory="directory" :stopToken="professionalStopToken" :attachments="messages.find(message => message.id === item.replyTo)?.attachments ?? []" :disabled="props.disabled || busy || browserSubmitting || deletingId !== undefined" @busy="professionalBusy = $event" @change="saveProfessionalProgress" @results="item.browserResultIds = $event" />
                   <div v-if="item.creationChoice && !item.creationChoice.resolved" class="creationChoices" role="group" aria-label="选择创作内容">
                     <p>{{ item.creationChoice.needsDetails ? "请先补充创作主体或用途，再确认要生成的内容。" : "你希望生成哪种内容？确认后我会在画布搭建节点和连线。" }}</p>
@@ -69,7 +69,7 @@
                 <el-tooltip v-if="item.role === 'assistant'" content="引用到输入框" placement="top">
                   <el-button class="messageAction" text circle :disabled="locked" aria-label="引用到输入框" @click="referenceMessageResults(item)"><icon-paperclip :size="14" /></el-button>
                 </el-tooltip>
-                <el-tooltip v-if="item.role === 'assistant' && !item.browserResultIds?.length && !item.professional && !props.materialEditor && (sessionMode ?? workspaceStore.creationMode) === 'simple'" content="进入画布" placement="top"><el-button class="messageAction" text circle :disabled="locked" aria-label="进入画布" @click="addMessageToCanvas(item)"><icon-square-plus :size="14" /></el-button></el-tooltip>
+                <el-tooltip v-if="item.role === 'assistant' && !item.professional && !props.materialEditor && (sessionMode ?? workspaceStore.creationMode) === 'simple'" content="进入画布" placement="top"><el-button class="messageAction" text circle :disabled="locked" aria-label="进入画布" @click="addMessageToCanvas(item)"><icon-square-plus :size="14" /></el-button></el-tooltip>
                 <el-button v-if="!item.report" class="messageAction" text circle :loading="deletingId === item.id" :disabled="locked || remoteRunning" aria-label="删除消息" title="删除消息" @click="deleteMessage(item)"><icon-trash v-if="deletingId !== item.id" :size="14" /></el-button>
               </template>
             </div>
@@ -83,7 +83,7 @@
       <el-icon class="is-loading" aria-hidden="true"><icon-loader-2 :size="14" /></el-icon>
       <span>正在压缩上下文…</span>
     </div>
-    <creationModeSwitch v-if="props.creationModes && !props.materialEditor" v-model="workspaceStore.creationMode" class="conversationMode" />
+    <creationModeSwitch v-if="props.creationModes && !props.materialEditor && !messages.length" v-model="workspaceStore.creationMode" class="conversationMode" />
     <div class="messageInput" :class="{ draggingAttachments }" @dragenter.capture="dragEnterAttachments" @dragover.capture="dragOverAttachments" @dragleave.capture="dragLeaveAttachments" @drop.capture="dropAttachments">
       <div v-if="draggingAttachments" class="attachmentDropHint" role="status">
         <icon-paperclip :size="20" aria-hidden="true" />
@@ -120,7 +120,7 @@
         <browserModelOptions v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor && props.materialRole ? 'image' : undefined" :prompt="draftPrompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
         <referencePicker v-if="!props.creationModes" :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
-        <mentionMenu :hideTrigger="props.creationModes" ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
+        <mentionMenu :attachments="props.creationModes ? activeDraftAttachments : undefined" @selectAttachment="insertAttachmentMention" :hideTrigger="props.creationModes" ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
         <skillMenu v-if="!browserWorkspaceMode && !browserConfig.enabled" ref="skillMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="skillQuery" :editor="senderElement" @select="selectSkill" @dismiss="skillQuery = undefined" />
         <el-popover
           v-if="!props.creationModes"
@@ -219,7 +219,7 @@ import "tdesign-vue-next/es/style/index.css";
 import "@tdesign-vue-next/chat/es/style/index.css";
 import "x-sender/lib/XSender.css";
 
-const props = defineProps<{ active: boolean; initialSession: AgentConversation | null; sessionFile?: string; disabled: boolean; creationModes?: boolean; materialEditor?: boolean; materialDirectory?: string; materialLabel?: string; materialRole?: "firstFrame" | "reference" | "lastFrame" }>();
+const props = defineProps<{ active: boolean; initialSession: AgentConversation | null; sessionFile?: string; disabled: boolean; creationModes?: boolean; materialEditor?: boolean; materialDirectory?: string; materialLabel?: string; materialRole?: "firstFrame" | "reference" | "middleFrame" | "lastFrame" }>();
 const emit = defineEmits<{ session: [file: string]; sent: [prompt: string]; event: [event: AgentEvent]; applyMaterial: [file: File]; materialBusy: [value: boolean] }>();
 const workspaceStore = useWorkspaceStore();
 const directory = props.materialDirectory ?? workspaceStore.project?.directory;
@@ -457,7 +457,34 @@ function handleSenderKeydown(event: KeyboardEvent) {
   skillMenuRef.value?.handleKeydown(event);
 }
 
+async function insertAttachmentMention(attachment: AgentAttachment) {
+  const instance = sender;
+  if (!instance || locked.value) return;
+  try {
+    if (mentionPosition?.node.instance.$el.isConnected) mentionPosition.node.instance.focus(mentionPosition.node.offset);
+    else instance.focus("last");
+    if (mentionPosition?.remove) await instance.backspace(-mentionPosition.remove);
+    await instance.setMention({ id: `attachment${draftAttachments.value.indexOf(attachment)}`, name: attachment.referenceName || attachment.name });
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "引用素材失败"); }
+  finally { mentionQuery.value = undefined; mentionPosition = undefined; }
+}
 async function insertMentions(mentions: AgentMention[]) {
+  if (props.creationModes && !props.materialEditor && workspaceStore.creationMode === "simple") {
+    const media = mentions.filter(mention => ["IMAGE", "VIDEO"].includes(mention.dataType));
+    try {
+      const files = await Promise.all(media.map(async mention => {
+        const value = mention.value as { url?: string; mimeType?: string } | undefined;
+        if (!value || typeof value.url !== "string" || typeof value.mimeType !== "string" || !/^(image|video)\//.test(value.mimeType)) throw new Error("引用素材的媒体信息无效");
+        const content = mention.source.kind === "asset" && mentionThumbnailProps(mention).globalAsset
+          ? (await axios.get<Blob>("/api/assets/read", { params: { path: mention.source.path }, responseType: "blob" })).data
+          : await useWorkspaceFiles(directory).read(value.url);
+        return new File([content], mention.label, { type: value.mimeType });
+      }));
+      for (const file of files) { const count = draftAttachments.value.length; addAttachments([file]); if (draftAttachments.value.length > count) await insertAttachmentMention(draftAttachments.value.at(-1)!); }
+    } catch (error) { ElMessage.error(error instanceof Error ? error.message : "引用素材失败"); return; }
+    mentions = mentions.filter(mention => !media.includes(mention));
+    if (!mentions.length) return;
+  }
   const instance = sender;
   if (!instance || locked.value || !props.active) return;
   const currentIds = new Set(instance.getTagData().mention.map(item => item.id));
@@ -519,7 +546,7 @@ async function addMessageToCanvas(item: AgentMessage) {
     if (!results.length && !text) throw new Error("这条消息还没有可加入画布的内容");
     if (results.length && results.every(result => result.kind === "image" || result.kind === "video") && importConversationTurn) {
       const source = messages.value.find(message => message.id === item.replyTo);
-      const references = await Promise.all((source?.attachments ?? []).filter(attachment => attachment.mimeType.startsWith("image/")).map(async attachment => ({ file: attachment.file ?? new File([await useWorkspaceFiles(directory).read(attachment.path)], attachment.name, { type: attachment.mimeType }), label: attachment.referenceName || (attachment.referenceRole === "firstFrame" ? "首帧" : attachment.referenceRole === "lastFrame" ? "尾帧" : attachment.name), role: attachment.referenceRole })));
+      const references = await Promise.all((source?.attachments ?? []).filter(attachment => /^(image|video)\//.test(attachment.mimeType)).map(async attachment => ({ file: attachment.file ?? new File([await useWorkspaceFiles(directory).read(attachment.path)], attachment.name, { type: attachment.mimeType }), label: attachment.referenceName || (attachment.referenceRole === "firstFrame" ? "首帧" : attachment.referenceRole === "lastFrame" ? "尾帧" : attachment.name), role: attachment.referenceRole })));
       await importConversationTurn({ id: `${browserSessionFile || "conversation"}/${item.id}`, directory, request: source?.content || results[0]!.prompt || "", references, results });
       return;
     }
@@ -596,14 +623,14 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       if (!browserConfig.enabled) throw new Error("请先在设置 → API 配置中启用模型联调并输入 Key");
       if (!configuredBrowserModels(outputKind).length) throw new Error("请先在设置 → API 配置中输入当前模型的 Key");
       if ((outputKind === "text" || outputKind === "audio") && files.some(file => !file.type.startsWith("text/") && file.type !== "application/json")) throw new Error("当前文字／音频适配器只支持文字输入，请移除引用素材后重试");
-      if ((outputKind === "image" || outputKind === "video") && files.some(file => !file.type.startsWith("image/") && !file.type.startsWith("text/") && file.type !== "application/json")) throw new Error("当前图片／视频适配器的参考输入仅支持图片，素材已保留，请调整引用后重试");
+      if ((outputKind === "image" || outputKind === "video") && files.some(file => !file.type.startsWith("image/") && !file.type.startsWith("video/") && !file.type.startsWith("text/") && file.type !== "application/json")) throw new Error("当前图片／视频适配器仅支持图片、视频或文字参考，素材已保留，请调整引用后重试");
       const isStoryboard = choice?.script ?? /分镜/.test(prompt);
         if (browserCancelled) throw new Error("已停止发送；已创建的画布节点保留供修改");
       const previousIds = new Set(generationResults.value.map(item => item.id));
       const textReferences = await Promise.all(files.filter(file => file.type.startsWith("text/") || file.type === "application/json").map(async file => { const text = await file.text(); if (text.length > 100000) throw new Error("文字引用最多支持 100000 字符，请缩小内容"); return `${file.name}：\n${text}`; }));
-      const referenceDescriptions = attachments.filter(item => item.mimeType.startsWith("image/")).flatMap((item, index) => item.referenceRole === "reference" && item.referenceCategory ? [`图${index + 1}为${({ character: "角色", scene: "场景", prop: "道具" })[item.referenceCategory]}参考（${item.referenceName || "分类参考图"}），保持对应主体特征。`] : []);
+      const referenceDescriptions = attachments.filter(item => item.mimeType.startsWith("image/")).flatMap((item, index) => item.referenceRole === "reference" && item.referenceCategory ? [`图${index + 1}为${({ character: "角色", scene: "场景", prop: "道具", other: "其他" })[item.referenceCategory]}参考（${item.referenceName || "分类参考图"}），保持对应主体特征。`] : []);
       const generationPrompt = isStoryboard ? `${prompt}\n${scriptGenerationInstruction}` : !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
-      const success = await generateInBrowser([generationPrompt, ...referenceDescriptions, ...textReferences].join("\n\n"), files.filter(file => file.type.startsWith("image/")), directory, outputKind, browserConfig.style, attachments.filter(item => item.mimeType.startsWith("image/")).map(item => item.referenceRole));
+      const success = await generateInBrowser([generationPrompt, ...referenceDescriptions, ...textReferences].join("\n\n"), files.filter(file => /^(image|video)\//.test(file.type)), directory, outputKind, browserConfig.style, attachments.filter(item => /^(image|video)\//.test(item.mimeType)).map(item => item.referenceRole));
       const results = generationResults.value.filter(item => !previousIds.has(item.id) && item.directory === directory);
       reply.browserResultIds = results.filter(item => item.kind !== "text").map(item => item.id);
       if (props.materialEditor && success && (outputKind === "image" || outputKind === "video")) { browserConfig.outputKind = outputKind; browserConfig.outputChosen = true; }
@@ -1032,7 +1059,7 @@ function addAttachments(files: File[], fromMaterialResult = false) {
       ElMessage.warning("每条消息最多添加 20 个附件");
       break;
     }
-    draftAttachments.value.push({ name: file.name, path: "", mimeType, file });
+    draftAttachments.value.push({ name: file.name, path: "", mimeType, file, ...((props.creationModes && !props.materialEditor && /^(image|video)\//.test(mimeType)) ? { referenceRole: referenceMode.value === "frames" ? "middleFrame" as const : "reference" as const, referenceCategory: "other" as const, referenceName: `其他${draftAttachments.value.filter(item => item.referenceCategory === "other").length + 1}` } : {}) });
   }
 }
 
@@ -1111,7 +1138,8 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
   const instance = sender;
   if (!ready || !message || !instance || message.directory !== directory) return;
   workspaceStore.pendingAgentMessage = null;
-  draftAttachments.value = [...message.attachments ?? []];
+  referenceMode.value = "reference";
+  draftAttachments.value = (message.attachments ?? []).map((attachment, index) => /^(image|video)\//.test(attachment.mimeType) ? { ...attachment, referenceRole: "reference", referenceCategory: "other", referenceName: `其他${index + 1}` } : attachment);
   await fillPrompt(message.prompt);
   if (sender === instance && props.active && message.send !== false) void submitMessage();
 }, { immediate: true, flush: "post" });
@@ -1119,7 +1147,7 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
 
 <style lang="scss">
 .agentConversation {
-  .senderEditor .chat-tag-input { color: var(--el-text-color-primary); font-weight: 600; background: var(--el-fill-color-dark); }
+  .senderEditor .chat-tag-input { color: var(--el-text-color-primary); font-weight: 600; background: #62656b; }
   .creationChoices { padding: 10px 0; .el-button { margin: 4px; } }
   display: flex;
   flex: 1;
@@ -1133,7 +1161,8 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
 
     .messageList {
       overflow-anchor: none;
-      scrollbar-gutter: stable;
+      scrollbar-width: none;
+      &::-webkit-scrollbar { display: none; }
     }
 
     .messageSpace {

@@ -1,6 +1,6 @@
 <template>
   <section v-show="visible" class="agent">
-    <agentMenu
+    <agentMenu v-if="!props.creationModes"
       :key="conversationKey"
       :name="name"
       :hideName="props.creationModes"
@@ -158,7 +158,7 @@ async function newConversation() {
   if (props.creationModes && browserWorkspaceMode) {
     try {
       if (startNewProject) await startNewProject("simple");
-      else { workspaceStore.creationMode = "simple"; await workspaceStore.createProject(); }
+      else { await workspaceStore.createProject("未命名项目", "simple"); }
     } catch (error) { ElMessage.error(error instanceof Error ? error.message : "新建对话失败"); }
     return;
   }

@@ -64,7 +64,7 @@ async function imageInputs(directory: string, inputs: { path: string; mimeType: 
   return Promise.all(inputs.map(async item => ({ type: "binary" as const, data: new Uint8Array(await useWorkspaceFiles(directory).read(item.path)), mimeType: item.mimeType })));
 }
 
-async function saveAssets(assets: { type: string; data?: string | Uint8Array; url?: string; mimeType?: string }[], input: { directory: string; outputDirectory: string; prompt?: string; modelId?: string }, kind: "image" | "video" | "audio", signal?: AbortSignal) {
+async function saveAssets(assets: { type: string; data?: string | Uint8Array; url?: string; mimeType?: string }[], input: { directory: string; outputDirectory: string; prompt?: string; modelId?: string; settings?: GenerationSettings }, kind: "image" | "video" | "audio", signal?: AbortSignal) {
   if (!assets.length) throw new Error("模型未返回生成素材");
   const files = useWorkspaceFiles(input.directory);
   // ACT: 沿用节点给出的工作区相对输出目录；文件授权和冲突保护仍由统一入口处理。
@@ -91,7 +91,7 @@ async function saveAssets(assets: { type: string; data?: string | Uint8Array; ur
     await files.write(path, blob, true);
     return { path, mimeType, mediaType: kind };
   }));
-  await recordGenerationResults(input.directory, saved.map(item => ({ id: crypto.randomUUID(), kind, path: item.path, mimeType: item.mimeType, name: item.path.split("/").at(-1), createdAt: Date.now(), prompt: input.prompt, model: input.modelId })));
+  await recordGenerationResults(input.directory, saved.map(item => ({ id: crypto.randomUUID(), kind, path: item.path, mimeType: item.mimeType, name: item.path.split("/").at(-1), createdAt: Date.now(), prompt: input.prompt, model: input.modelId, settings: input.settings })));
   if (saved[0]) await saveProjectCover(input.directory, saved[0].path, saved[0].mimeType);
   return saved;
 }
@@ -105,14 +105,16 @@ export const browserNodeAi: NodeAiAdapter = {
   async getMediaModels(signal) { signal?.throwIfAborted(); return availableBrowserModels(); },
   async generateImage(input, signal) {
     const context = modelContext("image", input.providerId, input.modelId, signal);
+    const label = resolveBrowserModel("image", input.providerId, input.modelId).label;
     const assets = await browserModels.image.generateImage.call(context, { ...input, model: input.modelId, images: await imageInputs(input.directory, input.images) });
-    return await saveAssets(assets, input, "image", signal) as Awaited<ReturnType<NodeAiAdapter["generateImage"]>>;
+    return await saveAssets(assets, { ...input, settings: { providerId: input.providerId, modelId: input.modelId, label, ratio: input.ratio ?? "", imageSize: input.size ?? "自动", n: input.n ?? 1, style: "", duration: 5, resolution: "", generateAudio: false, mode: input.images?.length ? "reference" : "text" } }, "image", signal) as Awaited<ReturnType<NodeAiAdapter["generateImage"]>>;
   },
   async generateVideo(input, signal) {
     const context = modelContext("video", input.providerId, input.modelId, signal);
+    const label = resolveBrowserModel("video", input.providerId, input.modelId).label;
     const frame = async (item?: { path: string; mimeType: string }) => item ? (await imageInputs(input.directory, [item]))[0] : undefined;
     const assets = await browserModels.video.generateVideo.call(context, { ...input, model: input.modelId, images: await imageInputs(input.directory, input.images), videos: await imageInputs(input.directory, input.videos), audios: await imageInputs(input.directory, input.audios), firstFrame: await frame(input.firstFrame), lastFrame: await frame(input.lastFrame) });
-    return await saveAssets(assets, input, "video", signal) as Awaited<ReturnType<NodeAiAdapter["generateVideo"]>>;
+    return await saveAssets(assets, { ...input, settings: { providerId: input.providerId, modelId: input.modelId, label, ratio: input.ratio ?? "adaptive", imageSize: "", n: 1, style: "", duration: input.duration ?? 5, resolution: input.resolution ?? "480P", generateAudio: input.generateAudio ?? true, mode: input.mode === "singleImage" ? "singleImage" : input.mode === "text" ? "text" : "reference" } }, "video", signal) as Awaited<ReturnType<NodeAiAdapter["generateVideo"]>>;
   },
   async generateAudio(input, signal) {
     const context = modelContext("audio", input.providerId, input.modelId, signal);

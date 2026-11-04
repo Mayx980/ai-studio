@@ -1,7 +1,7 @@
 import { recordGenerationResults, readGenerationSettings, type GenerationSettings, type GenerationRecord } from "@/lib/generationHistory";
 import { saveProjectCover } from "@/lib/projectCover";
 import { generationStyles } from "@/lib/generationStyles";
-import { defaultImageSize, defaultRatio, defaultVideoResolution } from "@toonflow/node-shared/generationDefaults";
+import { imageClaritySizes, defaultRatio, defaultVideoResolution } from "@toonflow/node-shared/generationDefaults";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
@@ -16,7 +16,7 @@ import textModel from "@/lib/browserModels/textModel";
 export type ModelKind = "image" | "video" | "audio" | "text";
 export const browserModels = { image: imageModel, video: videoModel, audio: audioModel, text: textModel };
 // ACT: 原型直接使用供应商协议；Key 不进入持久化 Store 或服务端配置。
-export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: defaultRatio, imageSize: defaultImageSize, imageResolution: "720P", count: 1, style: "", outputKind: "image" as "image" | "video", outputChosen: false, generateAudio: true, duration: "", resolution: defaultVideoResolution });
+export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: defaultRatio, imageSize: imageClaritySizes["480P"]![defaultRatio]!, imageResolution: "480P", count: 1, style: "", outputKind: "image" as "image" | "video", outputChosen: false, generateAudio: true, duration: "", resolution: defaultVideoResolution });
 export const additionalBrowserModels = reactive<{ id: string; kind: ModelKind; label: string; modelId: string; endpoint: string; apiKey: string }[]>([]);
 export const browserModelSelection = reactive<Record<ModelKind, string>>({ image: "", video: "", audio: "", text: "" });
 export function configuredBrowserModels(kind: ModelKind) {
@@ -36,7 +36,7 @@ export function resolveBrowserModel(kind: ModelKind, providerId?: string, modelI
 export const generationBusy = ref(false);
 export const generationError = ref("");
 export type BrowserGenerationResult = { id: string; kind: ModelKind; createdAt?: number; prompt?: string; model?: string; url?: string; text?: string; file?: File; directory?: string; path?: string; settings?: GenerationSettings };
-export type BrowserConversationImport = { id: string; directory: string; request: string; references: { file: File; label: string; role?: "firstFrame" | "reference" | "lastFrame" }[]; results: BrowserGenerationResult[] };
+export type BrowserConversationImport = { id: string; directory: string; request: string; references: { file: File; label: string; role?: "firstFrame" | "reference" | "middleFrame" | "lastFrame" }[]; results: BrowserGenerationResult[] };
 export type BrowserWorkflowNode = { canvasPath: string; nodeId: string };
 export type ProfessionalCanvas = {
   focus(directory: string, node: BrowserWorkflowNode): Promise<void>;
@@ -100,7 +100,7 @@ export function inferGenerationKind(prompt: string): ModelKind {
   return browserConfig.outputChosen ? browserConfig.outputKind : kind ?? browserConfig.outputKind;
 }
 
-export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "", referenceRoles?: ("firstFrame" | "reference" | "lastFrame" | undefined)[]) {
+export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "", referenceRoles?: ("firstFrame" | "reference" | "middleFrame" | "lastFrame" | undefined)[]) {
   if (generationBusy.value) return false;
   if (!browserConfig.enabled) { generationError.value = "请先在设置 → API 配置中启用模型联调"; return false; }
   const kind: ModelKind = requestedKind ?? inferGenerationKind(prompt);
@@ -115,9 +115,10 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   if (!apiKey || !prompt.trim()) { generationError.value = "请填写提示词，并在设置 → API 配置中输入当前模型的 Key。"; return false; }
   if (!/^https:\/\//i.test(endpoint)) { generationError.value = "接口地址必须使用 HTTPS。"; return false; }
   if ((kind === "text" || kind === "audio") && references.length) { generationError.value = "当前文字／音频适配器仅支持文字输入，请移除引用素材；输入与素材已保留。"; return false; }
-  if (references.some(file => !file.type.startsWith("image/"))) { generationError.value = "当前创作入口的参考素材仅支持图片。"; return false; }
+  if (references.some(file => !/^(image|video)\//.test(file.type))) { generationError.value = "参考素材仅支持图片或视频。"; return false; }
+  if (kind === "image" && references.some(file => file.type.startsWith("video/"))) { generationError.value = "当前图片模型不支持参考视频，请切换视频生成或移除视频。素材已保留。"; return false; }
   let firstFrameIndex: number | undefined;
-  if (referenceRoles && (referenceRoles.length !== references.length || referenceRoles.some(role => role !== undefined && !["firstFrame", "reference", "lastFrame"].includes(role)))) { generationError.value = "素材用途与图片不匹配，请重新选择素材"; return false; }
+  if (referenceRoles && (referenceRoles.length !== references.length || referenceRoles.some(role => role !== undefined && !["firstFrame", "reference", "middleFrame", "lastFrame"].includes(role)))) { generationError.value = "素材用途与图片不匹配，请重新选择素材"; return false; }
   const selectedFirstFrame = referenceRoles?.indexOf("firstFrame") ?? -1;
   const selectedLastFrame = referenceRoles?.indexOf("lastFrame") ?? -1;
   if (kind !== "video" && (selectedFirstFrame >= 0 || selectedLastFrame >= 0)) { generationError.value = "首帧和尾帧用于视频生成，请选择视频产物或将图片放入参考图。素材已保留。"; return false; }
@@ -135,7 +136,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
     firstFrameIndex = selectedFirstFrame >= 0 ? selectedFirstFrame : frameIndex("首帧");
     if (selectedLastFrame >= 0 || lastFrameIndex !== undefined || /(?:作为|用作|设为|设置为)\s*尾帧|分别.{0,6}首尾帧/.test(rolePrompt)) { generationError.value = "当前视频模型不支持尾帧，素材已保留。请更换支持尾帧的模型或修改要求。"; return false; }
     if ((referenceRoles?.filter(role => role === "firstFrame").length ?? 0) > 1 || selectedFirstFrame >= 0 && frameIndex("首帧") !== undefined && frameIndex("首帧") !== selectedFirstFrame) { generationError.value = "首帧选择与输入要求冲突，请确认后重试。素材已保留。"; return false; }
-    if (firstFrameIndex !== undefined && (!references[firstFrameIndex] || references.length !== 1)) { generationError.value = "当前首帧模式仅接受一张图片，请仅保留指定的首帧图片；其他图片不会被静默忽略。"; return false; }
+    if (firstFrameIndex !== undefined && (!references[firstFrameIndex]?.type.startsWith("image/") || references.length !== 1)) { generationError.value = "当前首帧模式仅接受一张图片，请仅保留指定的首帧图片；其他图片不会被静默忽略。"; return false; }
     if (firstFrameIndex === undefined && /(?:作为|用作|设为|设置为)\s*首帧/.test(rolePrompt)) { generationError.value = "请明确指定首帧图片，例如“图1作为首帧”。"; return false; }
   }
   controller = new AbortController();
@@ -148,12 +149,13 @@ export async function generateInBrowser(prompt: string, references: File[], dire
       generationResults.value.push({ id: crypto.randomUUID(), kind, text, directory });
       return true;
     }
-    const images = await Promise.all(references.map(async file => ({ type: "binary" as const, data: new Uint8Array(await file.arrayBuffer()), mimeType: file.type, name: file.name })));
+    const media = await Promise.all(references.map(async file => ({ type: "binary" as const, data: new Uint8Array(await file.arrayBuffer()), mimeType: file.type, name: file.name })));
+    const images = media.filter(item => item.mimeType.startsWith("image/")), videos = media.filter(item => item.mimeType.startsWith("video/"));
     const tool = { fetch: studioFetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" };
     const context = { config: { apiKey, endpoint }, signal, tool };
     const settings: GenerationSettings = { providerId: chosen!.id, modelId: chosen!.modelId, label: chosen!.label, ratio, imageSize, n: count, style, duration: Number(duration) || 5, resolution, generateAudio, mode: firstFrameIndex !== undefined ? "singleImage" : references.length ? "reference" : "text" };
     const assets = kind === "audio" ? await audioModel.generateAudio.call(context, { model: chosen!.modelId, prompt }) : kind === "image" ? await imageModel.generateImage.call(context, { model: chosen!.modelId, prompt, images, ...(ratio ? { ratio } : {}), size: imageSize, n: count })
-      : await videoModel.generateVideo.call(context, { generateAudio, model: chosen!.modelId, prompt, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: images[firstFrameIndex!] } : { mode: images.length ? ["imageReference:10"] : "text", images }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
+      : await videoModel.generateVideo.call(context, { generateAudio, model: chosen!.modelId, prompt, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: media[firstFrameIndex!] } : { mode: images.length || videos.length ? ["imageReference:10", "videoReference:5"] : "text", images, videos }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
     signal.throwIfAborted();
     if (!assets.length) throw new Error("模型未返回生成素材");
     for (const asset of assets) {
