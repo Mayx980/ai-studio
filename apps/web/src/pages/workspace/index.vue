@@ -63,7 +63,7 @@
     <floatingAgent @openSettings="settingsVisible = true" @applyTemplate="applyAssistantTemplate" @enterCanvas="enterCanvas" v-model="agentVisible" :expanded="workspaceStore.creationMode === 'simple'" @resize="agentWidth = $event" />
     <settings v-model="settingsVisible" />
     <shortcutHelp v-model="shortcutsVisible" />
-    <canvasTutorial v-if="tutorialNodeId && workspaceStore.creationMode === 'professional'" :nodeId="tutorialNodeId" :kind="tutorialKind" :imageIds="tutorialImageIds" :connections="canvasPanelRef?.tutorialConnections ?? 0" :focusNode="id => canvasPanelRef?.focusTutorialNode(id)" @complete="finishTutorial" />
+    <canvasTutorial v-if="tutorialNodeId && workspaceStore.creationMode === 'professional'" :nodeId="tutorialNodeId" :kind="tutorialKind" :steps="tutorialSteps" :focusNode="id => canvasPanelRef?.focusTutorialNode(id)" @complete="finishTutorial" />
 
   </main>
 </template>
@@ -86,6 +86,7 @@ import anonymousData from "@/lib/anonymousData";
 import canvasPanel from "./panels/canvas/canvasHost.vue";
 import type { DocumentNodeOptions } from "./panels/canvas/canvasFiles";
 import floatingAgent from "./components/floatingAgent.vue";
+import type { CanvasTutorialStep } from "@/lib/canvasTutorial";
 import canvasTutorial from "@/components/canvasTutorial.vue";
 import { applyTemplateParameters, type TemplateApplication } from "@/lib/creationTemplates";
 import { currentAccount } from "@/stores/prototypeAccount";
@@ -115,9 +116,9 @@ provide("openWorkspaceSettings", () => { settingsVisible.value = true; });
 const canvasPanelRef = ref<InstanceType<typeof canvasPanel>>();
 const tutorialNodeId = ref("");
 const tutorialKind = ref<"image" | "video" | "canvas">("canvas");
-const tutorialImageIds = ref<string[]>([]);
+const tutorialSteps = ref<CanvasTutorialStep[]>([]);
 const tutorialPreparing = ref(false);
-const tutorialKey = () => `afxen.canvasTutorial.${tutorialKind.value === "canvas" ? "imageToVideo" : tutorialKind.value}.${currentAccount.value?.id ?? "user"}`;
+const tutorialKey = () => `afxen.canvasTutorial.${tutorialKind.value === "canvas" ? "projectGuide" : tutorialKind.value}.${currentAccount.value?.id ?? "user"}`;
 let tutorialPreparation: Promise<boolean> | undefined;
 function openTutorial(panel: InstanceType<typeof canvasPanel>) {
   if (localStorage.getItem(tutorialKey()) === "completed") return Promise.resolve(false);
@@ -129,8 +130,8 @@ function openTutorial(panel: InstanceType<typeof canvasPanel>) {
       const tutorial = await panel.prepareTutorial();
       if (!tutorial || directory !== workspaceStore.project?.directory) return false;
       agentVisible.value = false;
-      tutorialImageIds.value = tutorial.imageIds;
-      tutorialNodeId.value = tutorial.videoId;
+      tutorialSteps.value = tutorial.steps;
+      tutorialNodeId.value = tutorial.nodeId;
       return true;
     } finally { tutorialPreparing.value = false; tutorialPreparation = undefined; }
   })();
@@ -140,15 +141,6 @@ function finishTutorial() {
   try { localStorage.setItem(tutorialKey(), "completed"); tutorialNodeId.value = ""; }
   catch { ElMessage.error("教学进度保存失败，请检查浏览器存储后重试"); }
 }
-let tutorialAttempt = "";
-watch(() => [workspaceStore.project?.directory, workspaceStore.creationMode, canvasPanelRef.value?.canvasReady, activePanel.value], async () => {
-  const directory = workspaceStore.project?.directory;
-  if (workspaceStore.pendingCanvasEntry) return;
-  if (!directory || directory === tutorialAttempt || workspaceStore.creationMode !== "professional" || activePanel.value !== "canvas" || !canvasPanelRef.value?.canvasReady) return;
-  tutorialAttempt = directory;
-  try { await openTutorial(canvasPanelRef.value); }
-  catch (error) { ElMessage.error(error instanceof Error ? error.message : "教学准备失败，请刷新重试"); }
-});
 watch(() => workspaceStore.project?.directory, () => { tutorialNodeId.value = ""; });
 const shortcutsVisible = ref(false);
 const documentPanelCache = shallowRef<{ directory: string; instance: InstanceType<typeof documentPanel> }>();
@@ -195,7 +187,6 @@ watch(() => workspaceStore.pendingCanvasEntry, async entry => {
   if (!entry || entry.directory !== workspaceStore.project?.directory) return;
   workspaceStore.pendingCanvasEntry = null;
   try {
-    tutorialAttempt = entry.directory;
     workspaceStore.creationMode = "professional";
     activePanel.value = "canvas";
     await nextTick();
@@ -212,8 +203,8 @@ watch(() => workspaceStore.pendingCanvasEntry, async entry => {
       tutorialKind.value = entry.nodeType === "remote-imageGenerationNode" ? "image" : entry.nodeType === "remote-videoGenerationNode" ? "video" : "canvas";
       const teaching = tutorialKind.value !== "canvas" && localStorage.getItem(tutorialKey()) !== "completed" ? tutorialKind.value : undefined;
       const id = await panel.createInitialNode(entry.nodeType, teaching);
-      if (teaching) { tutorialImageIds.value = []; tutorialNodeId.value = id; }
-    } else { tutorialKind.value = "canvas"; await openTutorial(panel); }
+      if (teaching) { tutorialSteps.value = []; tutorialNodeId.value = id; }
+    } else if (entry.tutorial) { tutorialKind.value = "canvas"; await openTutorial(panel); }
     agentVisible.value = false;
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "画布打开失败，项目已保留"); }
 }, { immediate: true, flush: "post" });
@@ -229,7 +220,7 @@ async function enterCanvas() {
 }
 provide("importConversationTurn", async (turn: BrowserConversationImport) => {
   if (workspaceStore.project?.directory !== turn.directory) throw new Error("项目已切换，请返回原对话重试");
-  tutorialAttempt = turn.directory; tutorialNodeId.value = "";
+  tutorialNodeId.value = "";
   workspaceStore.creationMode = "professional"; activePanel.value = "canvas";
   await nextTick();
   const panel = canvasPanelRef.value;

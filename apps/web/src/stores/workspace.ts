@@ -24,7 +24,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const lastSimpleDirectory = ref("");
   const pendingAgentSession = ref<{ directory: string; file: string } | null>(null);
   const pendingAgentMessage = ref<{ directory: string; prompt: string; attachments?: AgentAttachment[]; model: string; reasoningEffort: string; send?: boolean } | null>(null);
-  const pendingCanvasEntry = ref<{ directory: string; nodeType?: string; files?: File[] } | null>(null);
+  const pendingCanvasEntry = ref<{ directory: string; nodeType?: string; tutorial?: boolean; files?: File[] } | null>(null);
 
   async function openProject(path: string, previousDirectory = path, signal?: AbortSignal) {
     pendingAgentSession.value = null;
@@ -122,12 +122,13 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (project.value?.directory === path) project.value = target;
   }
 
-  async function duplicateProject(source: Project) {
+  async function duplicateProject(source: Project, includeAgent = true) {
     if (!browserWorkspaceMode) throw new Error("创建副本目前支持浏览器项目");
     const directory = `browser://${crypto.randomUUID()}`;
     const original = useWorkspaceFiles(source.directory), target = useWorkspaceFiles(directory);
     async function copy(path = "") {
       for (const entry of (await original.list(path)).entries) {
+        if (!includeAgent && !path && entry.name === ".agent") continue;
         if (entry.type === "directory") { await target.mkdir(entry.path); await copy(entry.path); }
         else await target.write(entry.path, await original.read(entry.path), true);
       }
@@ -137,7 +138,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       for (const entry of (await target.list()).entries) await target.remove(entry.path, entry.type === "directory");
       throw error;
     }
-    projectList.value.unshift({ ...source, directory, name: `${source.name} 副本`, lastOpenedAt: Date.now() });
+    const duplicated = { ...source, directory, name: `${source.name} 副本`, lastOpenedAt: Date.now() };
+    projectList.value.unshift(duplicated);
+    return duplicated;
   }
 
   function removeProject(path: string) {

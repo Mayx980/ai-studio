@@ -188,7 +188,7 @@ import { waitForControlValue } from "@/lib/mcpControl";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import anonymousData from "@/lib/anonymousData";
 import { createClipboardMediaFile, dropCanvasFiles, getClipboardMediaFiles, importCanvasFiles, isCanvasFileDrag } from "./canvasDrop";
-import { canvasTutorialPrompt, canvasTutorialImagePrompts, loadCanvasTutorialReferences, loadSingleNodeTutorialReferences, singleImageTutorialPrompt, singleVideoTutorialPrompt } from "@/lib/canvasTutorial";
+import { createCanvasTutorialSteps, loadSingleNodeTutorialReferences, singleImageTutorialPrompt, singleVideoTutorialPrompt } from "@/lib/canvasTutorial";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 import "@vue-flow/minimap/dist/style.css";
@@ -500,13 +500,7 @@ const beginBrowserWorkflow: BeginBrowserWorkflow = async (prompt, kind, referenc
   } };
 };
 
-const tutorialConnections = computed(() => {
-  const video = flow.getNodes.value.find(node => ["portraitVideo", "imageToVideo"].includes(node.data.canvasTutorial));
-  const sources: string[] = video?.data.canvasTutorialImageIds ?? [];
-  return video ? new Set(flow.getEdges.value.filter(edge => edge.target === video.id && edge.sourceHandle === "image" && (!sources.length || sources.includes(edge.source))).map(edge => edge.source)).size : 0;
-});
-
-defineExpose({ beginBrowserWorkflow, waitUntilReady, importBrowserResult, canvasId, canvasReady, getCanvasContext, importConversationTurn, prepareTutorial, focusTutorialNode, tutorialConnections, createInitialNode, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
+defineExpose({ beginBrowserWorkflow, waitUntilReady, importBrowserResult, canvasId, canvasReady, getCanvasContext, importConversationTurn, prepareTutorial, focusTutorialNode, createInitialNode, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
   getCanvases: (signal?: AbortSignal) => {
     if (!canvasMenuRef.value) throw new Error("画布菜单尚未就绪");
     return canvasMenuRef.value.getCanvases(signal);
@@ -755,74 +749,20 @@ function createEmptyNode(type: string) {
 }
 async function prepareTutorial() {
   await waitUntilReady();
-  if (!props.active || props.settingsVisible) return;
-  const existing = flow.getNodes.value.find(node => ["portraitVideo", "imageToVideo"].includes(node.data.canvasTutorial));
-  if (existing) {
-    flow.removeSelectedElements(); flow.addSelectedNodes([existing]);
-    await nextTick();
-    await fitTutorial(existing.position);
-    return { videoId: existing.id, imageIds: existing.data.canvasTutorialImageIds ?? flow.getEdges.value.filter(edge => edge.target === existing.id && edge.sourceHandle === "image").map(edge => edge.source) };
-  }
-  // ACT: 只在空画布放置教学素材，已有项目内容不重排、不覆盖。
-  if (flow.getNodes.value.length) return;
-  const directory = project.value?.directory;
-  if (!directory || !availableNodes.value.some(node => node.type === "remote-videoGenerationNode")) throw new Error("视频节点尚未启用，无法准备新手教学");
-  const signal = canvasController.signal;
-  const references = await loadCanvasTutorialReferences(signal);
-  if (flow.getNodes.value.length) return;
-  const targetId = crypto.randomUUID();
-  const createdIds: string[] = [];
-  try {
-    await canvasHistory.batch(async () => {
-      const ids = await importCanvasFiles(references, { x: -440, y: 0 }, { directory, availableNodes: availableNodes.value, signal, flow: {
-        screenToFlowCoordinate: flow.screenToFlowCoordinate,
-        addNodes(nodes) {
-          const before = new Set(flow.getNodes.value.map(node => node.id));
-          const result = flow.addNodes(nodes);
-          createdIds.push(...flow.getNodes.value.filter(node => !before.has(node.id)).map(node => node.id));
-          return result;
-        },
-      }, throwOnError: true });
-      signal.throwIfAborted();
-      ids.forEach((id, index) => {
-        flow.updateNode(id, { position: { x: -500, y: index * 360 } });
-        const prompt = canvasTutorialImagePrompts[index]!;
-        flow.updateNodeData(id, { label: index === 0 ? "图1 女大学生" : "图2 男主播", prompt, promptModel: [[{ type: "Write", text: prompt }]], ratio: "16:9" });
-      });
-      flow.addNodes({ id: targetId, type: "remote-videoGenerationNode", position: { x: 0, y: 60 }, data: {
-        label: "新手教学 · 10秒人像剧情", canvasTutorial: "imageToVideo", canvasTutorialImageIds: ids, prompt: canvasTutorialPrompt,
-        promptModel: canvasTutorialPrompt.split("\n").map(text => [{ type: "Write", text }]), duration: 10, ratio: "16:9", resolution: "480P",
-        referenceOrder: { in: ids.map(id => encodeURIComponent(JSON.stringify([id, "image"]))) },
-      } });
-      createdIds.push(targetId);
-      flow.removeSelectedElements(); flow.addSelectedNodes([flow.findNode(targetId)!]);
-    });
-    await nextTick(); await waitUntilReady();
-    await waitForControlValue(() => flow.getNodes.value.every(node => node.dimensions.width > 0 && node.dimensions.height > 0) ? true : undefined, AbortSignal.any([signal, AbortSignal.timeout(10000)]));
-    await fitTutorial({ x: 0, y: 60 });
-    await flushCanvasSave();
-    return { videoId: targetId, imageIds: createdIds.filter(id => id !== targetId) };
-  } catch (error) {
-    const ids = createdIds;
-    flow.removeNodes(ids);
-    const failures = await Promise.allSettled(ids.map(id => useWorkspaceFiles(directory).remove(`assets/${id}`, true).catch(error => { if (error.code !== "ENOENT") throw error; })));
-    if (!signal.aborted) await flushCanvasSave();
-    if (failures.some(result => result.status === "rejected")) throw new Error("教学准备失败，部分素材未能清理，请保留项目并重试");
-    throw error;
-  }
-}
-async function fitTutorial(position: { x: number; y: number }) {
-  const bounds = canvasElement.value!.getBoundingClientRect();
-  await flow.setViewport(vueFlowRuntime.getTransformForBounds({ x: position.x - 540, y: position.y - 140, width: 1140, height: 840 }, bounds.width, bounds.height, flow.minZoom.value, 0.9, 0.12));
+  if (!props.active || props.settingsVisible || !flow.getNodes.value.length) return;
+  const steps = createCanvasTutorialSteps(flow.getNodes.value, flow.getEdges.value);
+  await flow.fitView({ padding: .2 });
+  return { nodeId: flow.getNodes.value[0]!.id, steps };
 }
 async function focusTutorialNode(id: string) {
-  if (!id) { await fitTutorial({ x: 0, y: 60 }); return; }
+  if (!id) { flow.removeSelectedElements(); await flow.fitView({ padding: .2 }); return; }
   const node = flow.findNode(id);
   if (!node || !props.active) return;
   flow.removeSelectedElements(); flow.addSelectedNodes([node]);
   await nextTick();
   const bounds = canvasElement.value!.getBoundingClientRect();
-  await flow.setViewport(vueFlowRuntime.getTransformForBounds({ x: node.position.x - 300, y: node.position.y - 100, width: 900, height: 800 }, bounds.width, bounds.height, flow.minZoom.value, 0.9, 0.12));
+  const width = Math.max(node.dimensions.width, 780), height = node.dimensions.height + 400;
+  await flow.setViewport(vueFlowRuntime.getTransformForBounds({ x: node.computedPosition.x + (node.dimensions.width - width) / 2, y: node.computedPosition.y - 60, width, height }, bounds.width, bounds.height, flow.minZoom.value, 0.9, 0.12));
 }
 async function createInitialNode(type: string, tutorial?: "image" | "video") {
   await waitUntilReady();
