@@ -6,6 +6,7 @@
     <teleport :to="actionsTarget || 'body'" :disabled="!actionsTarget"><div class="promptTools" :class="{ inlineTools: !!actionsTarget }">
     <el-tooltip v-if="pickReferences || uploadLocal" content="上传本地文件" placement="top"><el-button class="uploadButton" text circle :disabled="disabled" aria-label="上传本地文件" @click.stop="uploadLocal ? uploadLocal() : pickReferences?.(nodeId, 'local')"><icon-upload :size="17" /></el-button></el-tooltip>
     <el-tooltip v-if="pickReferences" content="引用" placement="top"><el-button class="referenceButton" text circle :disabled="disabled" aria-label="引用" @click.stop="pickReferences(nodeId, 'personal')"><icon-paperclip :size="17" /></el-button></el-tooltip>
+    <el-tooltip v-if="references.length" content="提及参考图" placement="top"><el-button class="mentionButton" text circle :disabled="disabled" aria-label="提及参考图" @mousedown.prevent @click.stop="openReferenceMentions">@</el-button></el-tooltip>
     <el-tooltip v-if="optimizeKind" content="优化提示词" placement="top"><el-button class="optimizeButton" text circle :disabled="disabled || !optimizePrompt || !text.trim() || optimizing" :loading="optimizing" title="优化提示词" aria-label="优化提示词" @click.stop="startOptimization"><icon-wand :size="17" /></el-button></el-tooltip>
     </div></teleport>
     <el-tooltip v-if="expandable" content="放大输入框" placement="top"><el-button class="expandButton" :icon="IconArrowsDiagonal" text circle title="放大输入框" aria-label="放大输入框" @mousedown.prevent @click.stop="expanded = true" /></el-tooltip>
@@ -339,6 +340,12 @@ watch(senderElement, (element, _previous, onCleanup) => {
     popup.remove();
   });
 });
+
+async function openReferenceMentions() {
+  if (!sender || props.disabled) return;
+  sender.focus("mark");
+  await sender.setText("@");
+}
 
 async function insertReference(reference: MentionItem) {
   const instance = sender;

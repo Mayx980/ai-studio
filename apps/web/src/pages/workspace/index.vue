@@ -209,9 +209,10 @@ watch(() => workspaceStore.pendingCanvasEntry, async entry => {
       return;
     }
     if (entry.nodeType) {
-      const id = await panel.createInitialNode(entry.nodeType);
       tutorialKind.value = entry.nodeType === "remote-imageGenerationNode" ? "image" : entry.nodeType === "remote-videoGenerationNode" ? "video" : "canvas";
-      if (tutorialKind.value !== "canvas" && localStorage.getItem(tutorialKey()) !== "completed") { tutorialImageIds.value = []; tutorialNodeId.value = id; }
+      const teaching = tutorialKind.value !== "canvas" && localStorage.getItem(tutorialKey()) !== "completed" ? tutorialKind.value : undefined;
+      const id = await panel.createInitialNode(entry.nodeType, teaching);
+      if (teaching) { tutorialImageIds.value = []; tutorialNodeId.value = id; }
     } else { tutorialKind.value = "canvas"; await openTutorial(panel); }
     agentVisible.value = false;
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "画布打开失败，项目已保留"); }

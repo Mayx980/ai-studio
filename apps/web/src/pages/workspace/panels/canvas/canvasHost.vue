@@ -424,10 +424,10 @@ defineExpose({
     return panel.importBrowserResult(...args);
   },
   canvasId, canvasReady, canvasListReady, getCanvasContext, readDocumentNode, readDocumentNodes, focusDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, resolveDocumentNodeFile, performFileAction, flushSave, cancelSave,
-  createInitialNode: async (type: string) => {
+  createInitialNode: async (type: string, tutorial?: "image" | "video") => {
     const panel = activeInstance.value;
     if (!panel) throw new Error("画布尚未就绪");
-    return panel.createInitialNode(type);
+    return panel.createInitialNode(type, tutorial);
   },
   prepareTutorial: async () => {
     const panel = activeInstance.value;

@@ -19,3 +19,17 @@ export const canvasTutorialImagePrompts = [
   "专业影棚人像摄影，电影感写实风格，真人实拍，中画幅相机，85mm定焦镜头，f/2.0浅景深，电影级宽银幕画幅，纯白无缝背景纸，干净无杂物。20岁女大学生，淡颜系长相，身形纤细柔和，气质青涩干净，鹅蛋脸，面部轮廓流畅柔和，下颌线纤细，肤色白皙通透，保留真实细腻皮肤肌理与面部绒毛，可见毛孔，不过度磨皮，自然野生细眉，眼型圆润舒展，浅卧蚕柔和，瞳色深黑清亮，眼神澄澈懵懂，带着天然的好奇感，鼻梁秀气小巧，鼻头圆润，唇形薄厚适中，唇色淡粉自然，唇角平直。乌黑长发扎低马尾，颅顶蓬松，脸颊散落多根细碎胎毛碎发，发丝轻盈有空气感，身着宽松黑色连帽外套，内搭简单白色圆领T恤，双肩背黑色皮质背包。主光柔光箱正面漫射柔光，辅光反光板柔和补暗部，均匀面光，无生硬阴影，发丝边缘柔和通透，低饱和清透色调，干净韩式写真质感。",
   "专业影棚人像摄影，电影感写实风格，真人实拍，中画幅相机，85mm定焦镜头，f/2.0浅景深，电影级宽银幕画幅，纯白无缝背景纸，干净无杂物。22岁男主播，冷感浓颜长相，轮廓立体锋利，下颌线清晰利落，肤色白皙通透，保留真实细腻皮肤肌理与面部绒毛，可见毛孔，不过度磨皮，剑眉浓密有型，眉峰清晰，眼型狭长，瞳色深黑清亮，眼神松弛温柔，鼻梁高挺立体，鼻型精致，唇形饱满，唇色柔和偏淡，唇角自然舒展。黑色蓬松凌乱锡纸烫短发，发丝层次丰富有空气感，左耳佩戴银色圆环耳圈，脖颈佩戴银色十字架吊坠项链，身着垂感黑色缎面翻领衬衫，面料自带细腻柔光光泽，领口微敞。主光柔光箱45度侧前方打光，辅光反光板柔和填充暗部，轮廓光勾勒发丝与肩颈线条，光比适中，低饱和高级暗调，干净清冷的直播氛围感，电影感写实。",
 ];
+
+
+export const singleImageTutorialPrompt = "去掉人物，其他不变";
+export const singleVideoTutorialPrompt = "女人{{ref 2}}穿着白色毛衣 站在{{ref 1}}房顶上给云朵刷粉色的油漆，白色的云朵变成了粉色的云朵。女人动作优雅、专注而平静，没有任何惊讶的表情。模拟胶片摄影，轻微胶片颗粒和褪色质感，柔和景深，梦幻超现实主义，诗意、安静、优雅，荒诞但非常自然，像一部被遗忘的1950年代艺术电影。没有背景音乐，只有刷漆的声音。";
+export async function loadSingleNodeTutorialReferences(kind: "image" | "video", signal: AbortSignal) {
+  const names = kind === "image" ? ["cloudPaintingReference"] : ["cloudPaintingReference", "womanReference"];
+  return Promise.all(names.map(async (name, index) => {
+    const response = await fetch(`/onboarding/${name}.png`, { signal });
+    if (!response.ok) throw new Error(`教学参考图读取失败（HTTP ${response.status}）`);
+    const blob = await response.blob();
+    if (!blob.size || blob.type !== "image/png") throw new Error("教学参考图无效，请刷新后重试");
+    return new File([blob], `图${index + 1}.png`, { type: "image/png" });
+  }));
+}

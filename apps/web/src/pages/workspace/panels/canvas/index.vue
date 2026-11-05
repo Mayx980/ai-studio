@@ -188,7 +188,7 @@ import { waitForControlValue } from "@/lib/mcpControl";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import anonymousData from "@/lib/anonymousData";
 import { createClipboardMediaFile, dropCanvasFiles, getClipboardMediaFiles, importCanvasFiles, isCanvasFileDrag } from "./canvasDrop";
-import { canvasTutorialPrompt, canvasTutorialImagePrompts, loadCanvasTutorialReferences } from "@/lib/canvasTutorial";
+import { canvasTutorialPrompt, canvasTutorialImagePrompts, loadCanvasTutorialReferences, loadSingleNodeTutorialReferences, singleImageTutorialPrompt, singleVideoTutorialPrompt } from "@/lib/canvasTutorial";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 import "@vue-flow/minimap/dist/style.css";
@@ -824,11 +824,15 @@ async function focusTutorialNode(id: string) {
   const bounds = canvasElement.value!.getBoundingClientRect();
   await flow.setViewport(vueFlowRuntime.getTransformForBounds({ x: node.position.x - 300, y: node.position.y - 100, width: 900, height: 800 }, bounds.width, bounds.height, flow.minZoom.value, 0.9, 0.12));
 }
-async function createInitialNode(type: string) {
+async function createInitialNode(type: string, tutorial?: "image" | "video") {
   await waitUntilReady();
   if (!props.active || props.settingsVisible || !creationNodes.value.some(item => item.type === type)) throw new Error("该节点尚未启用或画布不可编辑");
   const rect = canvasElement.value?.getBoundingClientRect();
   if (!rect || !nodeMenuRef.value) throw new Error("画布正在初始化，请稍后重试");
+  const directory = project.value?.directory;
+  if (!directory) throw new Error("请先打开项目");
+  const references = tutorial ? await loadSingleNodeTutorialReferences(tutorial, canvasController.signal) : [];
+  canvasController.signal.throwIfAborted();
   const ids = new Set(flow.getNodes.value.map(node => node.id));
   const center = screenToFlowCoordinate({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
   await nodeMenuRef.value.addNode(type, { x: center.x - 200, y: center.y - 160 });
@@ -837,6 +841,25 @@ async function createInitialNode(type: string) {
   await nextTick();
   await waitUntilReady();
   await waitForControlValue(() => node.dimensions.width > 0 && node.dimensions.height > 0 ? true : undefined, AbortSignal.any([canvasController.signal, AbortSignal.timeout(10000)]));
+  if (tutorial) {
+    const files = useWorkspaceFiles(directory), uploaded: string[] = [];
+    try {
+      const localReferences = [];
+      for (const [index, file] of references.entries()) {
+        canvasController.signal.throwIfAborted();
+        const path = await uploadNodeFile(files, node.id, file); uploaded.push(path);
+        localReferences.push({ source: "local", sourceHandle: `local:${crypto.randomUUID()}`, name: `图${index + 1}`, dataType: "IMAGE", value: { url: path, mimeType: file.type } });
+      }
+      canvasController.signal.throwIfAborted();
+      const prompt = tutorial === "image" ? singleImageTutorialPrompt : singleVideoTutorialPrompt;
+      flow.updateNodeData(node.id, { canvasTutorial: `single${tutorial === "image" ? "Image" : "Video"}`, prompt, promptModel: [[{ type: "Write", text: prompt }]], localReferences, referenceOrder: { in: localReferences.map(item => encodeURIComponent(JSON.stringify([item.source, item.sourceHandle]))) } });
+    } catch (error) {
+      const cleanup = await Promise.allSettled(uploaded.map(path => files.remove(path)));
+      if (cleanup.some(result => result.status === "rejected")) throw new Error(`教学准备失败，部分参考图片未能清理：${error instanceof Error ? error.message : "保存失败"}`);
+      throw error;
+    }
+  }
+  flow.removeSelectedElements(); flow.addSelectedNodes([node]);
   await fitCreationNodes([node.id]);
   await flushCanvasSave();
   return node.id;
