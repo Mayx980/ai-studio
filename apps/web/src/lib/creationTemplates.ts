@@ -12,7 +12,9 @@ export type CreationTemplate = { sourceDirectory?: string; id: string; name: str
 export type TemplateApplication = { prompt: string; references: File[]; template?: CreationTemplate };
 export const templateDirectory = "browser://personalTemplates";
 const personal = ref<CreationTemplate[]>([]);
-export const submittedTemplates = computed(() => personal.value.filter(item => currentAccount.value?.role === "admin" || item.review?.authorId === currentAccount.value?.id));
+const removedTemplateIds = ref<string[]>([]);
+export function templateIsRemoved(item: CreationTemplate) { return removedTemplateIds.value.includes(item.id) || item.id === "creatorRecommendationProject" || (item.name === "达人种草" && item.kind === "image" && (item.media.name === "项目编排.png" || item.media.path.endsWith("/preview.png"))); }
+export const submittedTemplates = computed(() => personal.value.filter(item => !templateIsRemoved(item)).filter(item => currentAccount.value?.role === "admin" || item.review?.authorId === currentAccount.value?.id));
 const media = (path: string, name: string, mimeType = "video/mp4"): TemplateMedia => ({ path: `/templates/${path}`, name, mimeType });
 const builtin: CreationTemplate[] = [
   { id: "productShowcase", name: "重庆溜达节 · 落地签模板", category: "产品展示", kind: "video", media: media("productShowcase.mp4", "产品展示.mp4"), references: [], ratio: "9:16", resolution: "720P", duration: 10, prompt: "创意：重庆溜达节-落地签模板\n请上传一张产品底图" },
@@ -22,7 +24,7 @@ const builtin: CreationTemplate[] = [
   { id: "personReview", name: "达人口播种草", category: "达人种草", kind: "video", media: media("personReview.mp4", "人物口播.mp4"), references: [], ratio: "9:16", resolution: "720P", duration: 15, prompt: "创意：达人口播种草\n请基于上传的产品图与产品信息，制作一支「口播种草」风格短视频。\n产品名称：冷萃咖啡浓缩液（无糖低酸）\n核心卖点：冷萃低酸更顺滑；一瓶兑水/兑奶秒变冰美式/拿铁；0糖低卡；随身便携" },
   { id: "authenticReview", name: "对镜真心口播", category: "真实测评", kind: "video", media: media("authenticReview.mp4", "真实测评.mp4"), references: [], ratio: "9:16", resolution: "720P", duration: 15, prompt: "创意：对镜真心口播\n请基于上传的产品图与产品信息，制作一支「对镜口播」风格短视频。\n产品名称：维C亮肤精华\n核心卖点：维C提亮抗氧；淡化暗沉；清爽好吸收" },
 ];
-export const creationTemplates = computed(() => [...personal.value.filter(item => (item.kind === "video" || item.project) && item.review?.status === "approved"), ...builtin.filter(item => item.kind === "video")]);
+export const creationTemplates = computed(() => [...personal.value.filter(item => (item.kind === "video" || item.project) && item.review?.status === "approved"), ...builtin.filter(item => item.kind === "video")].filter(item => !templateIsRemoved(item)));
 let loading: Promise<void> | undefined;
 function parseTemplates(text: string): CreationTemplate[] {
   const values: unknown = JSON.parse(text);
@@ -35,6 +37,11 @@ function parseTemplates(text: string): CreationTemplate[] {
 }
 export function loadCreationTemplates() {
   loading ??= (async () => {
+    try {
+      const removed: unknown = await useWorkspaceFiles(templateDirectory).readJson("removedTemplates.json");
+      if (!Array.isArray(removed) || removed.some(id => typeof id !== "string")) throw new Error("模板删除记录无效");
+      removedTemplateIds.value = removed;
+    } catch (error) { if ((error as { code?: string }).code !== "ENOENT") throw error; }
     try { personal.value = parseTemplates(await useWorkspaceFiles(templateDirectory).readText("templates.json")); }
     catch (error) { if ((error as { code?: string }).code !== "ENOENT") throw error; }
   })().catch(error => { loading = undefined; throw error; });
@@ -125,4 +132,18 @@ export async function reviewCreationTemplate(id: string, status: "approved" | "r
   item.review = { authorId: item.review.authorId, status, reason: status === "rejected" ? reason.trim() : undefined, reviewedAt: new Date().toISOString() };
   await files.writeTextSnapshot("templates.json", JSON.stringify(next), snapshot);
   personal.value = next;
+}
+
+export async function removeCreationTemplate(id: string) {
+  if (currentAccount.value?.role !== "admin") throw new Error("仅管理员可以删除展示卡片");
+  if (!id.trim() || id.length > 200) throw new Error("模板标识无效");
+  const files = useWorkspaceFiles(templateDirectory);
+  const snapshot = await files.readTextSnapshot("removedTemplates.json").catch(error => { if (error.code !== "ENOENT") throw error; return undefined; });
+  const removed: unknown = snapshot ? JSON.parse(snapshot.text) : [];
+  if (!Array.isArray(removed) || removed.some(value => typeof value !== "string")) throw new Error("模板删除记录无效");
+  if (currentAccount.value?.role !== "admin") throw new Error("账号已切换");
+  const next = [...new Set([...removed, id])];
+  if (snapshot) await files.writeTextSnapshot("removedTemplates.json", JSON.stringify(next), snapshot);
+  else await files.writeJson("removedTemplates.json", next, true);
+  removedTemplateIds.value = next;
 }

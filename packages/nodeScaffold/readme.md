@@ -495,3 +495,8 @@ const apiKey = computed(() => String(config.value.apiKey ?? ""));
 - 其它依赖随各节点独立打包；不同节点可以使用不同 UI 框架和第三方库版本，同一个库也可能重复出现在不同 UMD 中。
 - 其它 UI 库的组件优先局部 import，所需 CSS 也在节点源码中 import。Vite 的 UMD 模式配合 `cssCodeSplit: true` 将 CSS 注入同一个 JS。需要 provider 的组件库，在节点根组件内包裹它自己的 provider。
 - 独立子包提供依赖管理边界，不提供页面样式隔离；全局 CSS、reset 或依赖 `app.use()` 全局安装的库需要单独适配。节点自有样式优先使用 `<style scoped>`。
+
+
+## 只读画布宿主
+
+宿主可提供 `readOnlyCanvas: true`。节点骨架会隐藏修改、删除和顶部编辑工具，禁止改名与连接，保留画布内只读输入和媒体播放；节点引用与文字插件同步遵循只读状态。宿主仍须提供只读的 `workspaceFiles` 并禁用 `nodeAi`，不能仅依赖隐藏按钮保护项目。创作过程预览读取现有项目快照，不接入原项目保存循环，拖拽与缩放只保留在当前查看状态。

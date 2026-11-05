@@ -10,7 +10,6 @@ import "element-plus/es/components/result/style/css";
 
 import router from "@/router";
 import { registerDesktopProtocol } from "@/lib/desktopProtocol";
-import { registerPopupAvoidance } from "@/lib/popupAvoidance";
 import { registerDownloads } from "@/lib/saveFile";
 import { isMobile, isDesktop, isRemoteConnection } from "@/lib/platform";
 import "@/lib/mobile";
@@ -50,7 +49,6 @@ async function notifyDesktopReady(failed = false) {
   app.onUnmount(registerAnonymousData());
   app.mount("#app");
   isMounted = true;
-  app.onUnmount(registerPopupAvoidance());
   app.onUnmount(registerDownloads());
   if (!isDesktop) return;
   if (!isRemoteConnection) app.onUnmount(registerDesktopProtocol());

@@ -1,8 +1,9 @@
 <template>
-  <aside class="agentHistorySidebar" :class="{ collapsed: !conversationHistoryOpen }" aria-label="对话历史侧边栏">
+  <aside class="agentHistorySidebar" :class="{ collapsed: !conversationHistoryOpen }" aria-label="对话历史侧边栏" @click.self="conversationHistoryOpen = true">
     <button class="newChat" type="button" aria-label="新聊天" :disabled="busy || generationBusy" @click="newChat"><icon-message-plus :size="18" /><span>新聊天</span></button>
     <button class="historyToggle" type="button" aria-label="历史对话" :aria-expanded="conversationHistoryOpen" @click="conversationHistoryOpen = !conversationHistoryOpen"><icon-history :size="18" /><span>历史对话</span></button>
     <div v-if="conversationHistoryOpen" class="historyItems"><el-alert v-if="error" :title="error" type="error" :closable="false" /><button v-for="item in history" :key="item.directory + item.file" type="button" :disabled="busy || generationBusy" @click="open(item)">{{ item.name }}</button></div>
+    <button v-if="conversationHistoryOpen" class="collapseHistory" type="button" aria-label="折叠历史对话侧边栏" @click="conversationHistoryOpen = false"><icon-layout-sidebar-left-collapse :size="18" /></button>
   </aside>
 </template>
 <script setup lang="ts">
@@ -45,6 +46,7 @@ async function open(item: { directory: string; file: string }) {
 <style scoped lang="scss">
 .agentHistorySidebar { position: absolute; inset: 0 auto 0 68px; width: 240px; box-sizing: border-box; padding: 24px 12px; background: #141414; border-right: 1px solid #292b30; display: flex; flex-direction: column; gap: 10px;
   button { display: flex; align-items: center; gap: 10px; border: 0; border-radius: 8px; background: transparent; color: #e5e7eb; padding: 10px; text-align: left; cursor: pointer; &:hover { background: #292b30; } }
+  .collapseHistory { margin-top: auto; align-self: flex-end; }
   .newChat { background: #24242c; } .historyItems { min-height: 0; overflow: auto; button { width: 100%; overflow-wrap: anywhere; } }
   &.collapsed { width: 54px; padding: 24px 5px; button { padding: 12px; span { display: none; } } }
 }

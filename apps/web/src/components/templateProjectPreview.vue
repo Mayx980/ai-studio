@@ -5,9 +5,10 @@
     <template v-else>
       <div class="previewToolbar"><span>只读 · 可拖拽节点、平移和缩放查看</span><el-button text @click="flow?.zoomOut()" aria-label="缩小画布">−</el-button><el-button text @click="flow?.zoomIn()" aria-label="放大画布">＋</el-button><el-button text @click="fitView">适应视图</el-button></div>
       <div class="previewBody" @load.capture="fitLoadedMedia" @loadedmetadata.capture="fitLoadedMedia">
-        <vue-flow :key="canvasPath" v-model:nodes="nodes" :edges="edges" :nodesDraggable="true" :nodesConnectable="false" :edgesUpdatable="false" :nodesFocusable="true" :edgesFocusable="false" :deleteKeyCode="null" :selectionKeyCode="null" :multiSelectionKeyCode="null" :zoomOnDoubleClick="false" :minZoom="0.05" :maxZoom="3" fitViewOnInit @init="flow = $event" @nodesInitialized="fitView" @nodeClick="selectedId = $event.node.id" @nodeDragStart="selectedId = ''" @nodeDragStop="rememberPosition">
+        <vue-flow :key="canvasPath" v-model:nodes="nodes" :edges="edges" :nodeTypes="nodeTypes" :selectNodesOnDrag="false" :nodesDraggable="true" :nodesConnectable="false" :edgesUpdatable="false" :nodesFocusable="true" :edgesFocusable="false" :deleteKeyCode="null" :selectionKeyCode="null" :multiSelectionKeyCode="null" :zoomOnDoubleClick="false" :minZoom="0.05" :maxZoom="3" fitViewOnInit @init="flow = $event" @nodesInitialized="fitView" @nodeClick="selectedId = $event.node.id" @nodeDragStart="selectedId = ''" @nodeDragStop="rememberPosition">
+          <template v-for="type in remoteTypes" :key="type" #[`node-${type}`]="nodeProps"><remoteNode v-bind="nodeProps" :component="nodeTypes[type]" /></template>
           <template #node-preview="nodeProps"><templatePreviewNode v-bind="nodeProps" :selected="nodeProps.id === selectedId" @closeInput="selectedId = ''" @selectReference="selectNode" /></template>
-          <background :gap="20" patternColor="#30343c" />
+          <background patternColor="#30343c" :gap="16" />
         </vue-flow>
 
       </div>
@@ -15,18 +16,29 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, nextTick, ref, shallowRef, watch } from "vue";
-import { VueFlow, type VueFlowStore, type Node } from "@vue-flow/core";
+import { computed, markRaw, nextTick, provide, ref, shallowRef, watch } from "vue";
+import { VueFlow, type VueFlowStore, type Node, type NodeTypesObject } from "@vue-flow/core";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 import { Background } from "@vue-flow/background";
 import type { CreationTemplate } from "@/lib/creationTemplates";
 import { readTemplateProject } from "@/lib/projectTemplates";
 import type { readCanvasFiles } from "@/pages/workspace/panels/canvas/canvasFiles";
+import { loadNodeComponent } from "@/pages/workspace/panels/canvas/loadNodeComponent";
+import remoteNode from "@/pages/workspace/panels/canvas/components/remoteNode.vue";
+import groupNode from "@/pages/workspace/panels/canvas/components/groupNode.vue";
+import type { WorkspaceFiles } from "@toonflow/nodes-scaffold/workspaceFiles";
+import type { NodeAiAdapter } from "@toonflow/nodes-scaffold/nodeAi";
 import templatePreviewNode from "./templatePreviewNode.vue";
 const props = defineProps<{ template: CreationTemplate }>();
 const loading = ref(true), error = ref(""), canvasPath = ref(""), selectedId = ref("");
 const flow = shallowRef<VueFlowStore>();
+const nodeTypes = shallowRef<NodeTypesObject>({ canvasGroup: markRaw(groupNode) });
+const remoteTypes = computed(() => Object.keys(nodeTypes.value).filter(type => type.startsWith("remote-")));
+provide("readOnlyCanvas", true);
+const denyChange = async (): Promise<never> => { throw new Error("当前为只读创作过程，请复制项目后编辑"); };
+provide("workspaceDirectory", () => "browser://readOnlyPreview");
+provide("nodeAi", { enabled: () => false, getModels: async () => [], getMediaModels: async () => [], generate: denyChange, generateImage: denyChange, generateVideo: denyChange, generateAudio: denyChange } satisfies NodeAiAdapter);
 const viewedPositions = new Map<string, { x: number; y: number }>();
 function rememberPosition({ node }: { node: Node }) { viewedPositions.set(`${canvasPath.value}:${node.id}`, { x: node.position.x, y: node.position.y }); }
 function fitView() { void flow.value?.fitView({ padding: .15 }); }
@@ -37,6 +49,19 @@ const canvases = shallowRef<Awaited<ReturnType<typeof readCanvasFiles>>>([]);
 const allMediaUrls = shallowRef(new Map<string, Map<string, { url: string; mimeType: string }[]>>());
 const mediaUrls = computed(() => allMediaUrls.value.get(canvasPath.value) ?? new Map<string, { url: string; mimeType: string }[]>());
 let contents = new Map<string, ArrayBuffer>();
+const files: WorkspaceFiles = {
+  async list(path = "") {
+    const prefix = path ? path + "/" : "", entries = new Map<string, { name: string; path: string; type: "file" | "directory" }>();
+    for (const file of contents.keys()) if (file.startsWith(prefix)) { const rest = file.slice(prefix.length), name = rest.split("/")[0]!; entries.set(name, { name, path: prefix + name, type: rest.includes("/") ? "directory" : "file" }); }
+    return { directory: "browser://readOnlyPreview", entries: [...entries.values()] };
+  },
+  async read(path) { const value = contents.get(path); if (!value) throw Object.assign(new Error(`项目缺少文件：${path}`), { code: "ENOENT" }); return value.slice(0); },
+  async readText(path) { return new TextDecoder().decode(await files.read(path)); },
+  async readTextSnapshot(path) { return { text: await files.readText(path), revision: "readOnly", encoding: "utf-8" }; },
+  async readJson<T>(path: string): Promise<T> { return JSON.parse(await files.readText(path)); },
+  write: denyChange, writeJson: denyChange, writeTextSnapshot: denyChange, rename: denyChange, remove: denyChange, mkdir: denyChange,
+};
+provide("workspaceFiles", () => files);
 const canvas = computed(() => canvases.value.find(item => item.id === canvasPath.value));
 function nodeText(node: Node) {
   const data = node.data;
@@ -46,7 +71,7 @@ function nodeText(node: Node) {
   const text = Object.values(data?.outputs ?? {}).find(output => (output as { dataType?: string }).dataType === "STRING") as { value?: unknown } | undefined;
   return typeof text?.value === "string" ? text.value : "";
 }
-// ACT: 复用保存的素材、输入与拓扑，只读渲染不挂载会生成内容或写文件的插件。
+// ACT: 复用专业画布节点组件，文件与模型能力由只读宿主收口，原项目不挂载保存循环。
 function nodeParameters(node: Node) {
   const data = node.data;
   const parameters = [{ key: "modelLabel", label: "生成模型" }, { key: "ratio", label: "比例" }, { key: "size", label: "尺寸" }, { key: "n", label: "数量" }, { key: "resolution", label: "清晰度" }, { key: "duration", label: "时长（秒）" }];
@@ -60,11 +85,14 @@ const previewNodes = computed(() => {
   return saved.map(node => {
     const group = ["group", "canvasGroup"].includes(node.type ?? "");
     const references = [...sources.get(node.id) ?? []].flatMap(id => { const source = byId.get(id); return source ? [{ id, label: source.data?.label || id, text: nodeText(source), media: mediaUrls.value.get(id)?.[0] }] : []; });
-    return { id: node.id, position: viewedPositions.get(`${canvasPath.value}:${node.id}`) ?? { ...node.position }, parentNode: node.parentNode, data: { label: node.data?.label || node.id, text: nodeText(node), media: mediaUrls.value.get(node.id) ?? [], parameters: nodeParameters(node), references }, type: group ? "group" : "preview", style: group ? node.style : { width: typeof node.width === "number" ? `${node.width}px` : (typeof node.width === "string" ? node.width : "320px") } };
+    return { ...node, id: node.id, draggable: true, position: viewedPositions.get(`${canvasPath.value}:${node.id}`) ?? { ...node.position }, parentNode: node.parentNode, data: { ...JSON.parse(JSON.stringify(node.data ?? {})), label: node.data?.label || node.id, text: nodeText(node), media: mediaUrls.value.get(node.id) ?? [], parameters: nodeParameters(node), references }, type: group ? "canvasGroup" : nodeTypes.value[node.type ?? ""] ? node.type : "preview", style: group ? node.style : { width: typeof node.width === "number" ? `${node.width}px` : (typeof node.width === "string" ? node.width : "320px") } };
   });
 });
 watch(previewNodes, value => { nodes.value = value; }, { immediate: true });
-const edges = computed(() => (canvas.value?.data.edges ?? []).map(edge => ({ id: edge.id, source: edge.source, target: edge.target, sourceHandle: "out", targetHandle: "in", label: typeof edge.label === "string" ? edge.label : undefined })));
+const edges = computed(() => {
+  const types = new Map((canvas.value?.data.nodes ?? []).map(node => [node.id, node.type]));
+  return (canvas.value?.data.edges ?? []).map(edge => ({ ...JSON.parse(JSON.stringify(edge)), sourceHandle: nodeTypes.value[types.get(edge.source) ?? ""] ? edge.sourceHandle : "out", targetHandle: nodeTypes.value[types.get(edge.target) ?? ""] ? edge.targetHandle : "in", updatable: false, selectable: false }));
+});
 watch(canvasPath, () => { selectedId.value = ""; });
 watch(() => props.template, async (template, _previous, cleanup) => {
   let active = true; const releases: string[] = [];
@@ -74,7 +102,13 @@ watch(() => props.template, async (template, _previous, cleanup) => {
     const snapshot = await readTemplateProject(template);
     if (!active) return;
     contents = snapshot.contents;
-    canvases.value = snapshot.project.canvases.map(path => ({ id: path, name: path.split("/").at(-1)!.replace(/\.json$/i, ""), data: JSON.parse(new TextDecoder().decode(contents.get(path))) }));
+    const savedCanvases = snapshot.project.canvases.map(path => ({ id: path, name: path.split("/").at(-1)!.replace(/\.json$/i, ""), data: JSON.parse(new TextDecoder().decode(contents.get(path))) }));
+    const builtinNames = new Set(["textNode", "imageNode", "videoNode", "audioNode", "imageGenerationNode", "videoGenerationNode", "audioGenerationNode"]);
+    const types = [...new Set<string>(savedCanvases.flatMap(canvas => canvas.data.nodes.map((node: Node) => node.type)).filter((type: unknown): type is string => typeof type === "string" && builtinNames.has(type.replace(/^remote-/, ""))))];
+    const loaded = await Promise.all(types.map(async type => [type, markRaw(await loadNodeComponent(type.replace(/^remote-/, ""), ""))] as const));
+    if (!active) return;
+    nodeTypes.value = { canvasGroup: markRaw(groupNode), ...Object.fromEntries(loaded) };
+    canvases.value = savedCanvases;
     const allUrls = new Map<string, Map<string, { url: string; mimeType: string }[]>>(), files = new Map<string, string>();
     for (const canvas of canvases.value) {
       const urls = new Map<string, { url: string; mimeType: string }[]>();

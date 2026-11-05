@@ -85,27 +85,3 @@ html:not(.dark) { --agent-input-bg: var(--el-bg-color); }
 
 html.dark .home, html.dark .studioSidebar, html.dark .studioSidebar .sidebarFooter { background-color: #090909; }
 html.dark .workspacePage, html.dark .vue-flow { background-color: #090909; }
-
-
-.safePopupManaged {
-  translate: var(--popupShiftX, 0px) var(--popupShiftY, 0px) !important;
-  &.safePopupDocked { max-width: var(--popupMaxWidth) !important; max-height: var(--popupMaxHeight) !important; overflow-y: auto; }
-  &.safePopupShifted > .el-popper__arrow { display: none; }
-}
-body.popupSpaceReserved {
-  &::after { content: ""; position: fixed; left: 0; right: 0; bottom: 0; height: var(--popupDockHeight); z-index: 1900; background: var(--el-bg-color-overlay, #202020); border-top: 1px solid var(--el-border-color); }
-  #app > .home, #app > .workspacePage { height: calc(100dvh - var(--popupDockHeight)) !important; min-height: 0 !important; overflow: auto; }
-  .agentSidebar { height: calc(100dvh - var(--popupDockHeight)) !important; max-height: calc(100dvh - var(--popupDockHeight)) !important; }
-  > .el-overlay { height: calc(100dvh - var(--popupDockHeight)) !important; bottom: var(--popupDockHeight); overflow: auto; }
-  .el-image-viewer__wrapper { bottom: var(--popupDockHeight) !important; height: calc(100dvh - var(--popupDockHeight)) !important; }
-  .el-overlay-dialog { bottom: var(--popupDockHeight) !important; height: calc(100dvh - var(--popupDockHeight)) !important; }
-  .el-dialog { max-height: calc(100dvh - var(--popupDockHeight) - 24px) !important; }
-  .el-dialog.is-fullscreen { height: calc(100dvh - var(--popupDockHeight)) !important; max-height: calc(100dvh - var(--popupDockHeight)) !important; }
-}
-
-.popupSpotlight { position: fixed; inset: 0; width: 100vw; height: 100dvh; pointer-events: none; }
-.safePopupManaged { background: #181820 !important; color: #eeeef5 !important; border-radius: 12px !important; border-color: #4b4a63 !important; box-shadow: 0 8px 24px #0004 !important;
-  &:not(.el-select__popper):not([data-safe-popup]) { width: min(300px, calc(100vw - 24px)) !important; max-width: calc(100vw - 24px); box-sizing: border-box; }
-  .el-button--primary { background: linear-gradient(110deg, #7660e5, #477de8); border-color: transparent; }
-  &.safePopupShifted > .el-tour__arrow { display: none; }
-}

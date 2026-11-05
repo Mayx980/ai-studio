@@ -18,7 +18,7 @@
       </el-alert>
       <el-tooltip v-if="isScript && textReady && !contentOnly" content="放大脚本表格" placement="top"><el-button class="expandScript" text circle :icon="IconArrowsDiagonal" aria-label="放大脚本表格" @click.stop="fullscreen = true; editing = true" /></el-tooltip>
       <span v-if="isScript && textReady && !contentOnly" class="scriptSaveStatus" role="status">{{ documentState.error ? '保存失败，内容已保留' : documentState.dirty ? '正在保存…' : '已保存' }}</span>
-      <scriptTable ref="scriptTableRef" v-if="isScript && textReady" v-model="outputs.text.value" v-model:rows="scriptRows" :nodeId="node.id" :embedded="contentOnly" :contentOnly="contentOnly" :disabled="generating || !!documentState.error" />
+      <scriptTable ref="scriptTableRef" v-if="isScript && textReady" v-model="outputs.text.value" v-model:rows="scriptRows" :nodeId="node.id" :embedded="contentOnly" :contentOnly="contentOnly" :disabled="readOnly || generating || !!documentState.error" />
       <div v-else-if="outputs.text.value.trim() && previewReady" class="textPreview nopan nowheel" :aria-label="isScript ? '脚本与分镜内容' : '文本内容'">
         <markdownPreview :modelValue="outputs.text.value" :files="textReady ? textFiles : undefined" :path="textPath" :active="previewReady" />
       </div>
@@ -49,8 +49,8 @@
   </nodeSkeleton>
   <el-dialog v-model="editing" :title="isScript ? '编辑脚本／分镜文案' : '编辑文本'" width="min(860px, calc(100vw - 32px))" :fullscreen="fullscreen" alignCenter appendToBody @closed="fullscreen = false">
     <div class="textEditor" :class="{ fullscreen }">
-      <scriptTable v-if="isScript" v-model="outputs.text.value" v-model:rows="scriptRows" :nodeId="node.id" embedded :disabled="generating || !!documentState.error" />
-      <markdownEditor v-else v-model="outputs.text.value" :files="textReady ? textFiles : undefined" :path="textPath" :active="editing" :disabled="generating || textReloading" :readonly="!!documentState.error" :ariaLabel="isScript ? '编辑脚本与分镜内容' : '编辑文本内容'" />
+      <scriptTable v-if="isScript" v-model="outputs.text.value" v-model:rows="scriptRows" :nodeId="node.id" embedded :disabled="readOnly || generating || !!documentState.error" />
+      <markdownEditor v-else v-model="outputs.text.value" :files="textReady ? textFiles : undefined" :path="textPath" :active="editing" :disabled="generating || textReloading" :readonly="readOnly || !!documentState.error" :ariaLabel="isScript ? '编辑脚本与分镜内容' : '编辑文本内容'" />
     </div>
   </el-dialog>
 </template>
@@ -83,6 +83,7 @@ defineOptions({
     { id: "text", type: "source", dataType: "STRING", label: "文本输出" },
   ] satisfies NodeHandle[],
 });
+const readOnly = inject("readOnlyCanvas", false);
 const { node, nodeProps, outputs, handles, ai, files, nodeEvent, previewReady } = useNode({
   label: "文本",
   outputs: { text: { dataType: "STRING", value: "" } },
@@ -185,6 +186,7 @@ async function loadText(fromDisk = false) {
     if (data.value.textPath || fromDisk) textSnapshot = await textFiles.readTextSnapshot(textPath);
     const value = fromDisk ? textSnapshot!.text : data.value.textSnapshot !== undefined ? data.value.textSnapshot : textSnapshot?.text ?? outputs.value.text.value;
     if (typeof value !== "string") throw new Error("文本内容无效");
+    if (readOnly) { outputs.value.text.value = value; textReady.value = true; return; }
     if (!data.value.textPath && !fromDisk) {
       for (const directory of ["assets", `assets/${node.id}`]) {
         await textFiles.mkdir(directory).catch((error: { response?: { data?: { data?: { code?: string } } } }) => {
@@ -231,7 +233,7 @@ async function reloadText() {
 }
 
 watch(() => outputs.value.text.value, async (value) => {
-  if (!textReady.value) return;
+  if (readOnly || !textReady.value) return;
   documentState.dirty = true;
   if (generating.value) return;
   try { await saveText(value); }

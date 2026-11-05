@@ -5,7 +5,7 @@
     <div class="stateHeader">
       <strong>{{ node.data.label || node.type }}</strong>
       <span class="stateLabel">error</span>
-      <div class="stateActions nodrag nopan" @pointerdown.stop @mousedown.stop @dblclick.stop>
+      <div v-if="!readOnly" class="stateActions nodrag nopan" @pointerdown.stop @mousedown.stop @dblclick.stop>
         <el-button :icon="IconRefresh" text :loading="reloading" title="重新加载节点" aria-label="重新加载节点" @click.stop="retry" />
         <el-button :icon="IconTrash" text title="移除节点" aria-label="移除节点" @click.stop="removeNodes(node.id)" />
       </div>
@@ -26,6 +26,7 @@ const props = defineProps<{ component?: Component | string; error?: string; load
 const { node } = useNode<NodeData>();
 const { removeNodes } = useVueFlow();
 const reload = inject<((type: string) => Promise<void>)>("reloadRemoteNode");
+const readOnly = inject("readOnlyCanvas", false);
 const runtimeError = ref("");
 const reloading = ref(false);
 

@@ -15,7 +15,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { navigationCollapsed } from "@/stores/navigation";
-import { IconLayoutSidebar, IconHome, IconHistory, IconPhoto, IconFolder, IconCheck } from "@tabler/icons-vue";
+import { IconLayoutSidebar, IconHome, IconPhoto, IconFolder, IconCheck } from "@tabler/icons-vue";
 import type { Project } from "@/stores/workspace";
 import { currentAccount } from "@/stores/prototypeAccount";
 import brandLogo from "@/components/brandLogo.vue";
@@ -24,7 +24,6 @@ import accountMenu from "@/components/accountMenu.vue";
 defineProps<{ activeSection: string; disabled?: boolean }>();
 const emit = defineEmits<{ navigate: [section: string]; newAgent: []; openProject: [project: Project]; openSettings: [] }>();
 const sections = computed(() => [
-  { value: "history", label: "历史对话", icon: IconHistory },
   { value: "assets", label: "资产", icon: IconPhoto },
   { value: "projects", label: "我的项目", icon: IconFolder },
   { value: "reviews", label: currentAccount.value?.role === "admin" ? "模板审核" : "我的模板提交", icon: IconCheck },

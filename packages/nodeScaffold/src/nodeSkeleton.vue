@@ -1,8 +1,9 @@
 <template>
   <div v-if="documentTarget" class="nodeDocumentPlaceholder" :style="canvasSize" aria-hidden="true" />
   <teleport :to="documentTarget ?? 'body'" :disabled="!documentTarget">
-  <div ref="skeletonElement" v-bind="$attrs" class="nodeSkeleton" :class="{ documentNode: documentTarget }" @wheel.capture="zoomCanvas" @dblclick.stop="focusNode" @contextmenu="documentTarget && openMenu($event)">
+  <div ref="skeletonElement" v-bind="$attrs" class="nodeSkeleton" :class="{ documentNode: documentTarget, readOnlyNode: readOnly }" @beforeinput.capture="preventReadOnlyInput" @paste.capture="preventReadOnlyInput" @drop.capture="preventReadOnlyInput" @click.capture="preventReadOnlyControl" @keydown.capture="preventReadOnlyControl" @wheel.capture="zoomCanvas" @dblclick.stop="focusNode" @contextmenu="documentTarget && openMenu($event)">
     <el-dropdown
+      v-if="!readOnly"
       ref="menu"
       trigger="contextmenu"
       virtualTriggering
@@ -25,7 +26,7 @@
       </template>
     </el-dropdown>
     <div
-      v-if="!documentContentOnly && (documentTarget || (topVisible && slotsVisible))"
+      v-if="!readOnly && !documentContentOnly && (documentTarget || (topVisible && slotsVisible))"
       class="floatingSlot topSlot nodrag nopan nowheel"
       :style="{ width: typeof topWidth === 'number' ? `${topWidth}px` : topWidth }"
       @pointerdown.stop
@@ -99,12 +100,12 @@
         v-else
         class="labelText"
         tabindex="0"
-        :title="`${label}（双击编辑名称）`"
+        :title="readOnly ? label : `${label}（双击编辑名称）`"
         @dblclick.stop="editLabel"
         @keydown.enter.stop.prevent="editLabel">
         {{ label }}
       </span>
-      <div class="nodeActions nodrag nopan" @pointerdown.stop @mousedown.stop @dblclick.stop>
+      <div v-if="!readOnly" class="nodeActions nodrag nopan" @pointerdown.stop @mousedown.stop @dblclick.stop>
         <el-button
           :icon="IconRefresh"
           :loading="loading || reloading"
@@ -142,7 +143,7 @@
             linking: localStartHandle?.id === item.id && localStartHandle.type === group.type,
           }"
           :type="group.type"
-          :connectable="!loading"
+          :connectable="!readOnly && !loading"
           :position="group.position"
           :isValidConnection="validateConnection"
           :data-connection-status="getHandleStatus(item)"
@@ -190,6 +191,12 @@ const topVisible = defineModel<boolean>("topVisible", { default: false });
 const bottomVisible = defineModel<boolean>("bottomVisible", { default: false });
 const emit = defineEmits<{ fullscreen: [] }>();
 const downloading = ref(false);
+const readOnly = inject("readOnlyCanvas", false);
+function preventReadOnlyInput(event: Event) { if (readOnly) { event.preventDefault(); event.stopPropagation(); } }
+function preventReadOnlyControl(event: MouseEvent | KeyboardEvent) {
+  const target = event.target instanceof Element ? event.target : undefined;
+  if (readOnly && target?.closest("button, .el-select, input:not([readonly]), [role=combobox]") && !target.closest(".videoPlayer, .audioContent")) { event.preventDefault(); event.stopPropagation(); }
+}
 const props = withDefaults(
   defineProps<
     NodeData & {
@@ -225,6 +232,7 @@ const documentContext = inject<NodeDocumentContext | undefined>("nodeDocument", 
 const documentTarget = computed(() => documentContext?.targets.get(nodeId));
 const documentContentOnly = computed(() => documentTarget.value?.dataset.nodeContentOnly === "true");
 const skeletonElement = ref<HTMLElement>();
+watch(() => node.selected, async selected => { if (readOnly && selected) { await nextTick(); await focusNode(); } });
 const canvasSize = shallowRef<{ width: string; height: string }>();
 let documentLease: symbol | undefined;
 function mountDocument(target: HTMLElement) {
@@ -306,9 +314,10 @@ const connectedHandles = computed<Set<string>>((previous) => {
   return previous?.size === connected.size && [...connected].every((key) => previous.has(key)) ? previous : connected;
 });
 
-async function focusNode(event: MouseEvent) {
+async function focusNode(event?: MouseEvent) {
   if (documentTarget.value) return;
-  const element = event.currentTarget as HTMLElement;
+  const element = (event?.currentTarget as HTMLElement | undefined) ?? skeletonElement.value;
+  if (!element) return;
   await nextTick();
   const flowElement = vueFlowRef.value;
   if (!flowElement || !element.isConnected) return;
@@ -388,6 +397,7 @@ async function reloadNode() {
 }
 
 async function openMenu(event: MouseEvent | TouchEvent) {
+  if (readOnly) return;
   event.preventDefault();
   if (documentTarget.value) event.stopPropagation();
   menu.value?.handleClose();
@@ -427,6 +437,7 @@ const assetOutputs = computed(() =>
 );
 
 async function handleCommand(command: string) {
+  if (readOnly) return;
   if (command === "saveAsset") saveNodeToAssets?.(props.label, assetOutputs.value);
   if (command === "clipboard" && copyNodeToClipboard && !copyingToClipboard.value) {
     copyingToClipboard.value = true;
@@ -483,6 +494,7 @@ async function handleCommand(command: string) {
 }
 
 async function editLabel() {
+  if (readOnly) return;
   labelDraft.value = props.label;
   editingLabel.value = true;
   await nextTick();
@@ -781,4 +793,8 @@ watch(
     transform: rotate(360deg);
   }
 }
+</style>
+
+<style scoped lang="scss">
+.readOnlyNode { :deep(.sendButton), :deep(.promptActions), :deep(.promptTools), :deep(.removeButton), :deep(.editButton), :deep(.expandScript), :deep(.scriptSaveStatus) { display: none !important; } :deep(.promptFooter .el-select), :deep(.promptFooter button) { pointer-events: none; } }
 </style>

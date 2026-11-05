@@ -1,4 +1,6 @@
 <template>
+  <div v-if="readOnly" class="readOnlyPrompt promptInputWrap nodrag nopan nowheel"><div v-if="$slots.references" class="referenceCovers"><slot name="references" /></div><el-input :modelValue="text" type="textarea" :autosize="{ minRows: 4, maxRows: 12 }" readonly aria-label="节点输入内容" /></div>
+  <template v-else>
   <div class="promptInputWrap nodrag nopan nowheel" :class="{ inlineActions: !!actionsTarget }">
     <div v-if="$slots.references" class="referenceCovers"><slot name="references" /></div>
     <teleport :to="actionsTarget || 'body'" :disabled="!actionsTarget"><div class="promptTools" :class="{ inlineTools: !!actionsTarget }">
@@ -21,6 +23,7 @@
     <div ref="expandedTarget" class="promptExpandedTarget nodrag nopan nowheel" @pointerdown.stop @mousedown.stop @dblclick.stop />
   </el-dialog>
   <imageViewer v-if="previewUrl" :urlList="[previewUrl]" @close="previewReferenceId = undefined" />
+  </template>
 </template>
 
 <script setup lang="ts">
@@ -33,6 +36,7 @@ import xSender, { type AnyTagProps, type MentionItem } from "x-sender";
 import "x-sender/lib/XSender.css";
 
 const { id: nodeId } = useNode();
+const readOnly = inject("readOnlyCanvas", false);
 const pickReferences = inject<((nodeId: string, scope?: string) => Promise<void>) | undefined>("pickNodeReferences", undefined);
 const props = defineProps<{ references: (MentionItem & { value: string })[]; expandable?: boolean; placeholder?: string; optimizeKind?: "image" | "video" | "audio"; actionsTarget?: HTMLElement; uploadLocal?: () => void; disabled?: boolean }>();
 const model = defineModel<AnyTagProps[][]>({ required: true });
@@ -488,4 +492,8 @@ function handleMentionKey(event: KeyboardEvent) {
     user-select: none;
   }
 }
+</style>
+
+<style scoped lang="scss">
+.readOnlyPrompt { :deep(.el-textarea__inner) { background: transparent; color: inherit; box-shadow: none; resize: none; line-height: 1.7; } }
 </style>
