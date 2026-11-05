@@ -14,6 +14,8 @@ export type Project = {
   folder?: string;
   creationMode?: "simple" | "professional";
   historyArchived?: boolean;
+  tutorial?: boolean;
+  example?: boolean;
 };
 
 export const useWorkspaceStore = defineStore("workspace", () => {
@@ -58,7 +60,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   async function restoreProjectEntry() {
     const current = project.value;
     if (!current) return;
-    if (!browserWorkspaceMode) { creationMode.value = "professional"; pendingCanvasEntry.value = { directory: current.directory }; return; }
+    if (!browserWorkspaceMode) { creationMode.value = "professional"; pendingCanvasEntry.value = { directory: current.directory, tutorial: current.tutorial }; return; }
     const { readCanvasFiles } = await import("@/pages/workspace/panels/canvas/canvasFiles");
     const canvases = await readCanvasFiles(useWorkspaceFiles(current.directory));
     const hasNodes = canvases.some(canvas => canvas.data.nodes.length > 0);
@@ -68,7 +70,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     const session = latest ? await readBrowserConversation(current.directory, latest.file) : undefined;
     creationMode.value = hasNodes ? "professional" : session?.creationMode ?? current.creationMode ?? (latest ? "simple" : "professional");
     if (creationMode.value === "simple" && latest) pendingAgentSession.value = { directory: current.directory, file: latest.file };
-    if (creationMode.value === "professional") pendingCanvasEntry.value = { directory: current.directory };
+    if (creationMode.value === "professional") pendingCanvasEntry.value = { directory: current.directory, tutorial: current.tutorial };
   }
 
   async function createProject(name = "未命名项目", mode: "simple" | "professional" = "professional"): Promise<Project> {

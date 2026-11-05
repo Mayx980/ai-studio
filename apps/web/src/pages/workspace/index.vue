@@ -164,10 +164,11 @@ async function startNewProject(mode: "simple" | "professional") {
   } finally { startingProject = false; }
 }
 provide("startNewProject", startNewProject);
-provide("openSidebarProject", async (directory: string) => {
+provide("openSidebarProject", async (directory: string, mode?: "simple") => {
   await flushSave();
   await workspaceStore.openProject(directory);
-  await workspaceStore.restoreProjectEntry();
+  if (mode === "simple") { workspaceStore.creationMode = "simple"; agentVisible.value = true; }
+  else await workspaceStore.restoreProjectEntry();
 });
 let applyingAssistantTemplate = false;
 async function applyAssistantTemplate(value: TemplateApplication) {

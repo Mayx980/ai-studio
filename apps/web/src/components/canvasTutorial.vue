@@ -1,5 +1,5 @@
 <template>
-  <el-tour v-model="open" v-model:current="step" :mask="false" :targetAreaClickable="true" :scrollIntoViewOptions="false" :contentStyle="{ width: '300px', maxWidth: 'calc(100vw - 24px)'  }" @close="emit('complete')" @finish="emit('complete')">
+  <el-tour v-model="open" v-model:current="step" :mask="false" :targetAreaClickable="true" :scrollIntoViewOptions="false" :contentStyle="{ width: '300px', maxWidth: 'calc(100vw - 24px)', background: '#34343c', color: '#f1f1f5', border: '1px solid #8775ef', borderRadius: '12px', boxShadow: '0 0 0 1px #4e97f080, 0 8px 28px #0005'  }" @close="emit('complete')" @finish="emit('complete')">
     <template v-if="kind !== 'canvas'">
       <el-tour-step title="1. 查看示例提示词" :target="target(kind === 'image' ? '.promptCard' : '.promptInputWrap')" :nextButtonProps="{ children: '下一步' }"><p v-if="kind === 'image'">已添加图1，并填写“去掉人物，其他不变”。可以直接体验去除人物，也可以修改提示词。</p><p v-else>已添加图1和图2，并填写女人在房顶给云朵刷粉色油漆的完整提示词。图2对应女人，图1对应房顶场景。</p></el-tour-step>
       <el-tour-step :title="kind === 'image' ? '2. 查看参考图片' : '2. 使用 @ 引用参考图'" :target="target(kind === 'video' ? '.mentionButton' : '.referenceCovers')" :prevButtonProps="{ children: '上一步' }" :nextButtonProps="{ children: '下一步' }"><p v-if="kind === 'image'">输入框上方的图1是本次编辑的参考图片。点击缩略图可以放大查看，移除后可通过上传或引用入口替换。</p><p v-else>提示词已插入真实的图2、图1引用标签。点击输入框的 @ 按钮可再次选择参考图；女人引用图2，房顶引用图1，点击标签可以查看对应图片。</p></el-tour-step>
@@ -36,3 +36,7 @@ function target(selector: string, id = props.nodeId) {
   };
 }
 </script>
+
+<style lang="scss">
+[data-tour-target] { outline: 2px solid #8075ef; outline-offset: 4px; box-shadow: 0 0 16px #6981ed66; }
+</style>

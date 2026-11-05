@@ -63,12 +63,12 @@ const applying = ref(false), uploadOpen = ref(false), saving = ref(false), uploa
 const draft = reactive({ name: "", category: "产品展示", prompt: "", modelId: "", ratio: "", resolution: "" });
 const projectCases = ref<CreationTemplate[]>([]);
 let projectVersion = 0;
-watch(() => [professional.value, ...workspace.projectList.filter(project => project.name.includes("达人种草")).map(project => `${project.directory}:${project.lastOpenedAt}:${project.name}`)], async () => {
+watch(() => [professional.value, ...workspace.projectList.filter(project => (project.name.includes("达人种草") || project.example)).map(project => `${project.directory}:${project.lastOpenedAt}:${project.name}`)], async () => {
   const version = ++projectVersion;
   if (!professional.value) return;
   const result: CreationTemplate[] = [];
   try {
-    for (const project of workspace.projectList.filter(project => project.name.includes("达人种草"))) {
+    for (const project of workspace.projectList.filter(project => (project.name.includes("达人种草") || project.example))) {
       const snapshot = await captureTemplateProject(project.directory);
       const canvases = snapshot.project.canvases.map(path => JSON.parse(new TextDecoder().decode(snapshot.files.get(path)!)));
       const outputs = canvases.flatMap(canvas => canvas.nodes.flatMap((node: { data?: { outputs?: Record<string, { value?: { url?: string; mimeType?: string } }> } }) => Object.values(node.data?.outputs ?? {}).map(output => output.value))).filter((value): value is { url: string; mimeType: string } => !!value?.url && /^(image|video)\//.test(value.mimeType ?? ""));

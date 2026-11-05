@@ -2,9 +2,10 @@
   <teleport to="body">
     <aside v-show="visible && materialEditorState?.source !== 'canvas'" id="agentPanel" class="agentSidebar" :class="{ expanded, navigationCollapsed, historyExpanded: conversationHistoryOpen, materialSplit: !!materialEditorState }" :style="panelStyle" :inert="!!materialEditorState" aria-label="智能助手对话侧栏">
       <studioSidebar v-if="expanded && !materialEditorState" activeSection="agent" :disabled="sidebarOpening" @navigate="navigate" @newAgent="newAgent" @openProject="openRecent" @openSettings="emit('openSettings')" />
-      <agentHistorySidebar v-if="expanded && !materialEditorState" />
+      <agentHistorySidebar v-if="expanded && !materialEditorState && conversationHistoryOpen" />
       <div v-if="!expanded" class="resizeHandle" role="separator" aria-label="调整对话侧栏宽度" aria-orientation="vertical" :aria-valuemin="minimumWidth" :aria-valuemax="maximumWidth" :aria-valuenow="width" tabindex="0" @pointerdown="startResize" @pointermove="resize" @pointerup="stopResize" @pointercancel="stopResize" @lostpointercapture="stopResize" @keydown.left.prevent="preferredWidth = width + 16" @keydown.right.prevent="preferredWidth = width - 16" />
       <div ref="assistantContent" class="assistantContent">
+        <header v-if="expanded && !materialEditorState" class="assistantHeader"><el-button text :disabled="sidebarOpening || generationBusy" @click="newChat"><icon-message-plus :size="18" />新聊天</el-button><el-button text :aria-expanded="conversationHistoryOpen" @click="conversationHistoryOpen = !conversationHistoryOpen"><icon-history :size="18" />历史对话</el-button></header>
         <agent v-model="visible" creationModes :closable="!expanded"><template #menuActions><el-button v-if="expanded" class="enterCanvasButton" text :icon="IconVector" aria-label="进入画布" @click="emit('enterCanvas')">进入画布</el-button></template></agent>
         <creativeCases v-if="expanded && !materialEditorState" class="assistantTemplates" @apply="applyCase" />
       </div>
@@ -25,6 +26,7 @@ import type { Project } from "@/stores/workspace";
 import { ElMessage } from "element-plus";
 import { useRouter } from "vue-router";
 import agent from "@/components/agent/index.vue";
+import { generationBusy } from "@/stores/browserGeneration";
 const router = useRouter();
 function navigate(section: string) { if (section === "history") { conversationHistoryOpen.value = !conversationHistoryOpen.value; return; } void router.push({ path: "/home", query: { section } }); }
 const props = defineProps<{ expanded?: boolean }>();
@@ -42,6 +44,7 @@ async function sidebarAction(action: () => Promise<void>) {
   catch (error) { ElMessage.error(error instanceof Error ? error.message : "项目打开失败"); }
   finally { sidebarOpening.value = false; }
 }
+function newChat() { if (generationBusy.value || !startNewProject) return; return sidebarAction(async () => { await startNewProject("simple"); }); }
 function newAgent() { return sidebarAction(async () => { await useWorkspaceStore().resumeSimpleConversation(); }); }
 function openRecent(project: Project) { return sidebarAction(async () => { if (!openSidebarProject) throw new Error("工作区尚未就绪"); await openSidebarProject(project.directory); }); }
 const viewportWidth = ref(window.innerWidth), viewportHeight = ref(window.innerHeight), preferredWidth = ref(440);
@@ -63,15 +66,13 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
 </style>
 
 <style scoped lang="scss">
-.assistantContent { height: 100%; min-width: 0; }
+.assistantContent { height: 100%; min-width: 0; .assistantHeader { display: flex; justify-content: flex-end; align-items: center; gap: 8px; min-height: 36px; .el-button { gap: 6px; } } }
 .agentSidebar.expanded:not(.materialSplit) { background: #090909; padding: 24px 24px 24px 244px; isolation: isolate;
   &::before { content: ""; position: absolute; top: 0; left: calc(220px + (100% - 220px) / 2); transform: translateX(-50%); width: min(1000px, calc(100% - 220px)); height: 440px; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 45% 0%, #2c8f7840, transparent 48%), radial-gradient(ellipse at 56% 0%, #397ac14d, transparent 52%), radial-gradient(ellipse at 50% -10%, #a34c8c30, transparent 50%); }
   .assistantContent { overflow-y: auto; scrollbar-width: none; &::-webkit-scrollbar { display: none; } padding: 0 0 24px; :deep(.agent) { max-width: 1080px; height: calc((100dvh - 48px) * .6); min-height: 440px; margin: auto; &:has(.emptyConversation) { height: auto; min-height: calc((100dvh - 48px) * .6); overflow: visible; } } .assistantTemplates { max-width: 1080px; margin: 30px auto; } }
-  &.navigationCollapsed { padding-left: 146px; &::before { left: calc(68px + (100% - 68px) / 2); width: min(1000px, calc(100% - 68px)); } }
-  &.historyExpanded { padding-left: 332px; }
-  &:not(.navigationCollapsed) :deep(.agentHistorySidebar) { left: 220px; }
-  &:not(.navigationCollapsed) { padding-left: 298px; }
-  @media(max-width:700px) { &.historyExpanded { padding-left: min(332px, 52vw); :deep(.agentHistorySidebar) { width: calc(52vw - 68px); } } padding: 16px 8px 12px 80px; &::before { left: calc(68px + (100% - 68px) / 2); width: calc(100% - 68px); height: 340px; } .assistantContent :deep(.agent) { min-height: 440px; } }
+  &.navigationCollapsed { padding-left: 92px; &::before { left: calc(68px + (100% - 68px) / 2); width: min(1000px, calc(100% - 68px)); } }
+  &.historyExpanded { padding-right: 324px; }
+  @media(max-width:700px) { &.historyExpanded { padding-right: min(260px, 42vw); :deep(.agentHistorySidebar) { width: min(248px, 40vw); } } padding: 16px 8px 12px 80px; &::before { left: calc(68px + (100% - 68px) / 2); width: calc(100% - 68px); height: 340px; } .assistantContent :deep(.agent) { min-height: 440px; } }
 }
 @media(max-width:700px) { .agentSidebar:not(.expanded):not(.materialSplit) { padding-top: 64px; } }
 </style>

@@ -2,7 +2,7 @@
   <el-container class="home" :class="{ navigationCollapsed, assetWorkspace: homeSection === 'assets' }">
 
     <studioSidebar :activeSection="homeSection" :disabled="creating || opening" @navigate="navigateSection" @newAgent="startAgent" @openProject="openProject" @openSettings="settingsVisible = true" />
-    <el-main class="pageContent">
+    <el-main v-if="examplesReady" class="pageContent">
       <section v-if="homeSection === 'create'" class="homeLanding" aria-label="首页">
         <button class="newCanvasEntry" type="button" :disabled="creating || opening" @click="createCanvas()"><span class="canvasPlus"><icon-plus :size="28" /></span><strong>新建画布创作</strong></button>
         <div class="nodeShortcuts" aria-label="节点快捷创作"><button v-for="item in nodeShortcuts" :key="item.type" type="button" :disabled="creating || opening" :aria-label="`新建${item.label}节点项目`" @click="createCanvas(item.type)"><span><component :is="item.icon" :size="26" /></span>{{ item.label }}</button></div>
@@ -36,7 +36,8 @@
 import { currentAccount } from "@/stores/prototypeAccount";
 import { locale } from "@toonflow/i18n/vue";
 import axios from "axios";
-import { computed, ref, watch } from "vue";
+import { ensureExampleProject } from "@/lib/exampleProjects";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { IconPlus, IconFolderOpen, IconTrash, IconDots, IconChevronRight, IconSortAscending, IconSortDescending, IconFileText, IconMovie, IconPhoto, IconVideo, IconVolume } from "@tabler/icons-vue";
@@ -56,6 +57,8 @@ import workspacePicker from "./workspacePicker.vue";
 
 import studioSidebar from "@/components/studioSidebar.vue";
 import templateReview from "@/components/templateReview.vue";
+const examplesReady = ref(false);
+onMounted(async () => { try { await ensureExampleProject(); } catch (error) { ElMessage.error(error instanceof Error ? error.message : "示例读取失败"); } finally { examplesReady.value = true; } });
 const workspaceStore = useWorkspaceStore(), router = useRouter(), route = useRoute();
 const homeSection = computed({ get: () => ["create", "templates", "history", "assets", "projects", "reviews"].includes(String(route.query.section)) ? String(route.query.section) : "create", set: section => { void router.replace({ path: "/home", query: { section } }); } });
 const settingsVisible = ref(false), creating = ref(false), opening = ref(false), sortDescending = ref(true), viewMode = ref("grid"), projectSearch = ref("");
@@ -90,7 +93,7 @@ async function createCanvas(nodeType?: string) {
       else ElMessage.warning(candidates.length ? "存在多个“教学引导”项目，请保留唯一教学来源后重试；本次打开空白画布。" : "未找到“教学引导”项目，本次打开空白画布。请先在当前浏览器保存名为“教学引导”的课程项目。");
     }
     const project = source ? await workspaceStore.duplicateProject(source, false) : await workspaceStore.createProject();
-    if (source) await workspaceStore.openProject(project.directory);
+    if (source) { project.tutorial = true; await workspaceStore.openProject(project.directory); }
     workspaceStore.creationMode = "professional";
     workspaceStore.pendingCanvasEntry = { directory: project.directory, nodeType, tutorial };
     await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
@@ -225,8 +228,8 @@ async function removeHistory(item: ConversationHistory) {
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "删除对话失败"); }
   finally { historyLoading.value = false; }
 }
-watch(homeSection, async section => {
-  if (section !== "history") return;
+watch(() => [homeSection.value, examplesReady.value], async ([section, ready]) => {
+  if (section !== "history" || !ready) return;
   historyLoading.value = true;
   historyError.value = "";
   try {

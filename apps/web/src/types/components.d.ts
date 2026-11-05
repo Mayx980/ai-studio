@@ -103,7 +103,7 @@ declare module 'vue' {
     IconKey: typeof import('@tabler/icons-vue')['IconKey']
     IconLanguage: typeof import('@tabler/icons-vue')['IconLanguage']
     IconLayoutGrid: typeof import('@tabler/icons-vue')['IconLayoutGrid']
-    IconLayoutSidebarLeftCollapse: typeof import('@tabler/icons-vue')['IconLayoutSidebarLeftCollapse']
+    IconLayoutSidebarRightCollapse: typeof import('@tabler/icons-vue')['IconLayoutSidebarRightCollapse']
     IconList: typeof import('@tabler/icons-vue')['IconList']
     IconLogin: typeof import('@tabler/icons-vue')['IconLogin']
     IconMessagePlus: typeof import('@tabler/icons-vue')['IconMessagePlus']

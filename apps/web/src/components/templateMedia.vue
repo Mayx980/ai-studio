@@ -1,6 +1,6 @@
 <template>
-  <video v-if="media.mimeType.startsWith('video/')" ref="video" class="templateMedia" :src="url" :controls="controls" :autoplay="autoplay" :muted="!controls" playsinline :loop="!controls" preload="metadata" @error="failed = true" />
-  <img v-else class="templateMedia" :src="url" :alt="media.name" loading="lazy" @error="failed = true" />
+  <video v-if="url && media.mimeType.startsWith('video/')" ref="video" class="templateMedia" :src="url" :controls="controls" :autoplay="autoplay" :muted="!controls" playsinline :loop="!controls" preload="metadata" @error="failed = true" @loadeddata="failed = false" />
+  <img v-else-if="url" class="templateMedia" :src="url" :alt="media.name" loading="lazy" @load="failed = false" @error="failed = true" />
   <span v-if="failed" class="mediaError" role="alert">素材无法预览，请检查文件格式或重新上传</span>
 </template>
 <script setup lang="ts">
