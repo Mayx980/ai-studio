@@ -28,7 +28,6 @@ import { ElMessage } from "element-plus";
 import { useRouter } from "vue-router";
 import { useWorkspaceStore, type Project } from "@/stores/workspace";
 import { generateBrowserText } from "@/lib/browserNodeAi";
-import { curatedCreatorTemplate } from "@/lib/curatedProject";
 import { captureTemplateProject, copyTemplateProject } from "@/lib/projectTemplates";
 import templateProjectPreview from "@/components/templateProjectPreview.vue";
 import templateMedia from "@/components/templateMedia.vue";
@@ -52,7 +51,25 @@ function openPreview(item: CreationTemplate, process = false) { previewMode.valu
 const category = ref("全部"), preview = ref<CreationTemplate>(), previewMedia = ref<InstanceType<typeof templateMedia>>();
 const applying = ref(false), uploadOpen = ref(false), saving = ref(false), uploadFile = ref<File>();
 const draft = reactive({ name: "", category: "产品展示", prompt: "", modelId: "", ratio: "", resolution: "" });
-const modeCases = computed(() => [...creationTemplates.value, ...(professional.value ? [curatedCreatorTemplate] : [])].filter(item => professional.value ? !!item.project : item.kind === "video"));
+const projectCases = ref<CreationTemplate[]>([]);
+let projectVersion = 0;
+watch(() => [professional.value, ...workspace.projectList.filter(project => project.name.includes("达人种草")).map(project => `${project.directory}:${project.lastOpenedAt}:${project.name}`)], async () => {
+  const version = ++projectVersion;
+  if (!professional.value) return;
+  const result: CreationTemplate[] = [];
+  try {
+    for (const project of workspace.projectList.filter(project => project.name.includes("达人种草"))) {
+      const snapshot = await captureTemplateProject(project.directory);
+      const canvases = snapshot.project.canvases.map(path => JSON.parse(new TextDecoder().decode(snapshot.files.get(path)!)));
+      const outputs = canvases.flatMap(canvas => canvas.nodes.flatMap((node: { data?: { outputs?: Record<string, { value?: { url?: string; mimeType?: string } }> } }) => Object.values(node.data?.outputs ?? {}).map(output => output.value))).filter((value): value is { url: string; mimeType: string } => !!value?.url && /^(image|video)\//.test(value.mimeType ?? ""));
+      const media = outputs.find(value => value.mimeType.startsWith("video/")) ?? outputs[0];
+      if (!media) continue;
+      result.push({ id: `project${project.directory.slice(10).replaceAll("-", "")}`, sourceDirectory: project.directory, name: project.name, category: "达人种草", prompt: "", kind: media.mimeType.startsWith("video/") ? "video" : "image", references: [], media: { directory: project.directory, path: media.url, mimeType: media.mimeType, name: project.name }, project: snapshot.project });
+    }
+    if (version === projectVersion) projectCases.value = result;
+  } catch (error) { if (version === projectVersion) loadError.value = error instanceof Error ? error.message : "项目读取失败"; }
+}, { immediate: true });
+const modeCases = computed(() => [...creationTemplates.value, ...(professional.value ? projectCases.value : [])].filter(item => professional.value ? !!item.project : item.kind === "video"));
 const categories = computed(() => ["全部", ...new Set(modeCases.value.map(item => item.category))]);
 const categoryCases = computed(() => modeCases.value.filter(item => category.value === "全部" || item.category === category.value));
 const visibleCases = computed(() => !query.value.trim() ? categoryCases.value : rankedIds.value ? rankedIds.value.flatMap(id => categoryCases.value.find(item => item.id === id) ?? []) : []);
@@ -186,7 +203,7 @@ async function saveTemplate() {
       .caseName { display: block; padding: 9px 8px; font-size: 13px; font-weight: 600; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     }
   }
-  &.curated { .caseGrid { grid-template-columns: repeat(auto-fill,minmax(280px,1fr)); gap: 24px; .caseCard .casePreview { aspect-ratio: 16/9; :deep(.templateMedia) { object-fit: cover; } } .caseName { padding: 12px 10px; padding-right: 46px; } } .cardAction { bottom: 8px; right: 10px; } }
+  &.curated { .caseGrid { grid-template-columns: repeat(auto-fill,minmax(280px,1fr)); gap: 24px; .caseCard .casePreview { aspect-ratio: 16/9; :deep(.templateMedia) { object-fit: contain; background: #29292d; } } .caseName { padding: 12px 10px; padding-right: 46px; } } .cardAction { bottom: 8px; right: 10px; } }
   &.compact { margin: 8px 14px; max-height: 200px; overflow: auto; .caseHeader h2 { font-size: 13px; margin: 0; } .caseCategories { margin: 0; } .caseGrid { display: flex; article { flex: 0 0 140px; .caseCard .casePreview { height: 80px; aspect-ratio: auto; } } } }
   @media(max-width:700px) { .caseFilters { flex-wrap: wrap; gap: 8px; .caseCategories { flex-basis: 100%; } .templateSearch { flex-basis: 100%; width: 100%; min-width: 0; } } }
   @media(max-width:420px) { .caseGrid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; } }

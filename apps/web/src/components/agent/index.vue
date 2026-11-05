@@ -310,6 +310,7 @@ watch(() => workspaceStore.project?.directory, directory => {
   showConversation(null);
   if (visible.value && directory) void loadHistory(true);
 }, { immediate: true });
+watch(() => workspaceStore.pendingAgentSession, requested => { if (requested && requested.directory === workspaceStore.project?.directory && initialized.value) { void selectConversation(requested.file); workspaceStore.pendingAgentSession = null; } });
 watch(visible, active => {
   if (active && !initialized.value) void loadHistory(true);
 });

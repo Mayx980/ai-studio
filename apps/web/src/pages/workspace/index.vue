@@ -63,7 +63,7 @@
     <floatingAgent @openSettings="settingsVisible = true" @applyTemplate="applyAssistantTemplate" @enterCanvas="enterCanvas" v-model="agentVisible" :expanded="workspaceStore.creationMode === 'simple'" @resize="agentWidth = $event" />
     <settings v-model="settingsVisible" />
     <shortcutHelp v-model="shortcutsVisible" />
-    <canvasTutorial v-if="tutorialNodeId && workspaceStore.creationMode === 'professional'" :nodeId="tutorialNodeId" :imageIds="tutorialImageIds" :connections="canvasPanelRef?.tutorialConnections ?? 0" :focusNode="id => canvasPanelRef?.focusTutorialNode(id)" @complete="finishTutorial" />
+    <canvasTutorial v-if="tutorialNodeId && workspaceStore.creationMode === 'professional'" :nodeId="tutorialNodeId" :kind="tutorialKind" :imageIds="tutorialImageIds" :connections="canvasPanelRef?.tutorialConnections ?? 0" :focusNode="id => canvasPanelRef?.focusTutorialNode(id)" @complete="finishTutorial" />
 
   </main>
 </template>
@@ -114,9 +114,10 @@ const settingsVisible = ref(false);
 provide("openWorkspaceSettings", () => { settingsVisible.value = true; });
 const canvasPanelRef = ref<InstanceType<typeof canvasPanel>>();
 const tutorialNodeId = ref("");
+const tutorialKind = ref<"image" | "video" | "canvas">("canvas");
 const tutorialImageIds = ref<string[]>([]);
 const tutorialPreparing = ref(false);
-const tutorialKey = () => `afxen.canvasTutorial.imageToVideo.${currentAccount.value?.id ?? 'user'}`;
+const tutorialKey = () => `afxen.canvasTutorial.${tutorialKind.value === "canvas" ? "imageToVideo" : tutorialKind.value}.${currentAccount.value?.id ?? "user"}`;
 let tutorialPreparation: Promise<boolean> | undefined;
 function openTutorial(panel: InstanceType<typeof canvasPanel>) {
   if (localStorage.getItem(tutorialKey()) === "completed") return Promise.resolve(false);
@@ -142,6 +143,7 @@ function finishTutorial() {
 let tutorialAttempt = "";
 watch(() => [workspaceStore.project?.directory, workspaceStore.creationMode, canvasPanelRef.value?.canvasReady, activePanel.value], async () => {
   const directory = workspaceStore.project?.directory;
+  if (workspaceStore.pendingCanvasEntry) return;
   if (!directory || directory === tutorialAttempt || workspaceStore.creationMode !== "professional" || activePanel.value !== "canvas" || !canvasPanelRef.value?.canvasReady) return;
   tutorialAttempt = directory;
   try { await openTutorial(canvasPanelRef.value); }
@@ -193,6 +195,7 @@ watch(() => workspaceStore.pendingCanvasEntry, async entry => {
   if (!entry || entry.directory !== workspaceStore.project?.directory) return;
   workspaceStore.pendingCanvasEntry = null;
   try {
+    tutorialAttempt = entry.directory;
     workspaceStore.creationMode = "professional";
     activePanel.value = "canvas";
     await nextTick();
@@ -205,8 +208,11 @@ watch(() => workspaceStore.pendingCanvasEntry, async entry => {
       agentVisible.value = false;
       return;
     }
-    const teaching = await openTutorial(panel);
-    if (!teaching && entry.nodeType) await panel.createInitialNode(entry.nodeType);
+    if (entry.nodeType) {
+      const id = await panel.createInitialNode(entry.nodeType);
+      tutorialKind.value = entry.nodeType === "remote-imageGenerationNode" ? "image" : entry.nodeType === "remote-videoGenerationNode" ? "video" : "canvas";
+      if (tutorialKind.value !== "canvas" && localStorage.getItem(tutorialKey()) !== "completed") { tutorialImageIds.value = []; tutorialNodeId.value = id; }
+    } else { tutorialKind.value = "canvas"; await openTutorial(panel); }
     agentVisible.value = false;
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "画布打开失败，项目已保留"); }
 }, { immediate: true, flush: "post" });

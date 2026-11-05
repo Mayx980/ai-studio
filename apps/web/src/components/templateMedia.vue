@@ -14,7 +14,7 @@ watch(() => props.media, async (media, _previous, cleanup) => {
   url.value = ""; failed.value = false;
   let active = true;
   if (isPublicTemplateMedia(media.path)) { url.value = media.path; return; }
-  const source = useWorkspaceFiles(templateDirectory).acquireUrl(media.path, media.mimeType);
+  const source = useWorkspaceFiles(media.directory ?? templateDirectory).acquireUrl(media.path, media.mimeType);
   cleanup(() => { active = false; source.release(); });
   try { const value = await source.url; if (active) url.value = value; } catch { if (active) failed.value = true; }
 }, { immediate: true });

@@ -13,12 +13,15 @@ export type Project = {
   lastOpenedAt: number;
   folder?: string;
   creationMode?: "simple" | "professional";
+  historyArchived?: boolean;
 };
 
 export const useWorkspaceStore = defineStore("workspace", () => {
   const creationMode = ref<"simple" | "professional">("simple");
   const project = ref<Project | null>(null);
   const projectList = ref<Project[]>([]);
+  const draftProjects = ref<Project[]>([]);
+  const lastSimpleDirectory = ref("");
   const pendingAgentSession = ref<{ directory: string; file: string } | null>(null);
   const pendingAgentMessage = ref<{ directory: string; prompt: string; attachments?: AgentAttachment[]; model: string; reasoningEffort: string; send?: boolean } | null>(null);
   const pendingCanvasEntry = ref<{ directory: string; nodeType?: string; files?: File[] } | null>(null);
@@ -29,9 +32,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (browserWorkspaceMode) {
       if (!path.trim()) throw new Error("项目标识不能为空");
       signal?.throwIfAborted();
-      const existing = projectList.value.find(item => item.directory === previousDirectory || item.directory === path);
+      const existing = [...projectList.value, ...draftProjects.value].find(item => item.directory === previousDirectory || item.directory === path);
       project.value = { ...existing, directory: path, name: existing?.name || (path.startsWith("browser:") ? "未命名项目" : path.split(/[\\/]/).filter(Boolean).at(-1)!) || "未命名项目", lastOpenedAt: Date.now() };
-      projectList.value = [project.value, ...projectList.value.filter(item => item.directory !== previousDirectory && item.directory !== path)];
+      if (!draftProjects.value.some(item => item.directory === path)) projectList.value = [project.value, ...projectList.value.filter(item => item.directory !== previousDirectory && item.directory !== path)];
+      if (project.value.creationMode === "simple" && !project.value.historyArchived) lastSimpleDirectory.value = path;
       pendingAgentMessage.value = null;
       return;
     }
@@ -70,17 +74,42 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   async function createProject(name = "未命名项目", mode: "simple" | "professional" = "professional"): Promise<Project> {
     if (!browserWorkspaceMode) throw new Error("当前自动创作项目使用浏览器保存，请在浏览器原型模式打开");
     if (!name.trim() || name.trim().length > 80) throw new Error("请输入1–80个字符的项目名称");
+    const previousSimpleDirectory = lastSimpleDirectory.value;
     const directory = `browser://${crypto.randomUUID()}`;
     await useWorkspaceFiles(directory).writeJson("画布1.json", { toonflowCanvas: true, nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }, true);
     await openProject(directory);
     renameProject(directory, name);
     project.value!.creationMode = mode;
+    if (mode === "simple") {
+      projectList.value = projectList.value.filter(item => item.directory !== directory);
+      draftProjects.value.unshift(project.value!); lastSimpleDirectory.value = directory;
+      archiveSimpleConversation(previousSimpleDirectory);
+    }
     creationMode.value = mode;
     return project.value!;
   }
 
+  function completeSimpleProject(directory: string, name: string) {
+    const target = [...projectList.value, ...draftProjects.value].find(item => item.directory === directory);
+    if (!target) return;
+    if (target.name === "未命名项目") target.name = name.trim().slice(0, 80) || target.name;
+    if (!projectList.value.some(item => item.directory === directory)) projectList.value.unshift(target);
+    draftProjects.value = draftProjects.value.filter(item => item.directory !== directory);
+    if (project.value?.directory === directory) project.value = target;
+  }
+  function archiveSimpleConversation(directory = lastSimpleDirectory.value) {
+    for (const item of [...projectList.value, ...draftProjects.value, ...(project.value ? [project.value] : [])]) if (item.directory === directory) item.historyArchived = true;
+  }
+  async function resumeSimpleConversation() {
+    const existing = [...projectList.value, ...draftProjects.value].find(item => item.directory === lastSimpleDirectory.value && !item.historyArchived)
+      ?? [...projectList.value, ...draftProjects.value].filter(item => item.creationMode === "simple" && !item.historyArchived).sort((a, b) => b.lastOpenedAt - a.lastOpenedAt)[0];
+    if (existing) await openProject(existing.directory);
+    else if (project.value?.creationMode !== "simple" || project.value.historyArchived) await createProject("未命名项目", "simple");
+    creationMode.value = "simple";
+  }
+
   function renameProject(path: string, name: string) {
-    const target = projectList.value.find(item => item.directory === path);
+    const target = [...projectList.value, ...draftProjects.value].find(item => item.directory === path);
     if (!target || !name.trim()) return;
     target.name = name.trim();
     if (project.value?.directory === path) project.value = target;
@@ -116,11 +145,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (project.value?.directory === path) project.value = null;
   }
 
-  return { creationMode, project, projectList, pendingAgentMessage, pendingAgentSession, pendingCanvasEntry, createProject, openProject, restoreProjectEntry, renameProject, moveProject, duplicateProject, removeProject };
+  return { creationMode, project, projectList, draftProjects, lastSimpleDirectory, completeSimpleProject, archiveSimpleConversation, resumeSimpleConversation, pendingAgentMessage, pendingAgentSession, pendingCanvasEntry, createProject, openProject, restoreProjectEntry, renameProject, moveProject, duplicateProject, removeProject };
 }, {
   persist: {
     key: browserWorkspaceMode ? currentAccount.value?.id === "admin" ? "aiStudio.browserProjects.admin" : "aiStudio.browserProjects" : "toonflow.projectList",
     storage: browserWorkspaceMode ? { getItem: (key: string) => localStorage.getItem(key) ?? (key === "aiStudio.browserProjects" ? settingsStorage.getItem("toonflow.projectList") : null), setItem: (key: string, value: string) => localStorage.setItem(key, value) } : settingsStorage,
-    pick: ["project", "projectList"],
+    pick: ["project", "projectList", "draftProjects", "lastSimpleDirectory"],
   },
 });

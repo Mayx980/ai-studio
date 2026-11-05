@@ -63,6 +63,10 @@ export async function captureTemplateProject(directory: string) {
   return { files: contents, project: manifest };
 }
 export async function readTemplateProject(template: CreationTemplate) {
+  if (template.sourceDirectory) {
+    const snapshot = await captureTemplateProject(template.sourceDirectory);
+    return { contents: snapshot.files, project: snapshot.project };
+  }
   const project = template.project;
   const builtin = template.id === curatedCreatorTemplate.id;
   if ((!builtin && !/^template[a-f0-9]+$/.test(template.id)) || !project || !Array.isArray(project.files) || !project.files.length || !Array.isArray(project.canvases) || !project.canvases.length

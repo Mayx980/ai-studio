@@ -1,7 +1,7 @@
 <template>
   <el-container class="home" :class="{ navigationCollapsed, assetWorkspace: homeSection === 'assets' }">
 
-    <studioSidebar :activeSection="homeSection" :disabled="creating || opening" @navigate="homeSection = $event" @newAgent="startAgent" @openProject="openProject" @openSettings="settingsVisible = true" />
+    <studioSidebar :activeSection="homeSection" :disabled="creating || opening" @navigate="navigateSection" @newAgent="startAgent" @openProject="openProject" @openSettings="settingsVisible = true" />
     <el-main class="pageContent">
       <section v-if="homeSection === 'create'" class="homeLanding" aria-label="首页">
         <button class="newCanvasEntry" type="button" :disabled="creating || opening" @click="createCanvas()"><span class="canvasPlus"><icon-plus :size="28" /></span><strong>新建画布创作</strong></button>
@@ -50,7 +50,7 @@ import creativeCases from "@/components/creativeCases.vue";
 import projectThumbnail from "@/components/projectThumbnail.vue";
 import settings from "@/components/settings/index.vue";
 import assetsPage from "@/components/assetsPage.vue";
-import { navigationCollapsed } from "@/stores/navigation";
+import { navigationCollapsed, conversationHistoryOpen } from "@/stores/navigation";
 import workspacePicker from "./workspacePicker.vue";
 
 import studioSidebar from "@/components/studioSidebar.vue";
@@ -75,11 +75,15 @@ async function createCanvas(nodeType?: string) {
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "项目创建失败"); }
   finally { creating.value = false; }
 }
+async function navigateSection(section: string) {
+  if (section === "history") { await startAgent(); conversationHistoryOpen.value = true; }
+  else homeSection.value = section;
+}
 async function startAgent() {
   if (creating.value || opening.value) return;
   creating.value = true;
   try {
-    await workspaceStore.createProject("未命名项目", "simple"); workspaceStore.creationMode = "simple";
+    await workspaceStore.resumeSimpleConversation();
     await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "新建对话失败"); }
   finally { creating.value = false; }
@@ -204,7 +208,7 @@ watch(homeSection, async section => {
   historyLoading.value = true;
   historyError.value = "";
   try {
-    const lists = await Promise.all(workspaceStore.projectList.map(async project => {
+    const lists = await Promise.all([...workspaceStore.projectList, ...workspaceStore.draftProjects].filter(project => project.historyArchived).map(async project => {
       const items = browserWorkspaceMode ? await listBrowserConversations(project.directory) : (await axios.get<{ data: AgentHistory[] }>("/api/agent/list", { params: { directory: project.directory }, headers: { "x-toonflow-workspace": "1" } })).data.data;
       return items.map(item => ({ ...item, directory: project.directory, projectName: project.name }));
     }));
