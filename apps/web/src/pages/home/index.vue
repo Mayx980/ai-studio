@@ -35,7 +35,7 @@
 <script setup lang="ts">
 import { locale } from "@toonflow/i18n/vue";
 import axios from "axios";
-import { createPortraitTutorialCanvas } from "@/lib/canvasTutorial";
+import { openTutorialProject } from "@/lib/canvasTutorial";
 import { ensureExampleProject } from "@/lib/exampleProjects";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
@@ -72,11 +72,14 @@ async function createCanvas(nodeType?: string) {
   if (creating.value || opening.value) return;
   creating.value = true;
   try {
-    const project = await workspaceStore.createProject();
-    if (!nodeType) await createPortraitTutorialCanvas(project.directory);
-    project.tutorialEntry = nodeType === "remote-imageGenerationNode" ? "image" : nodeType === "remote-videoGenerationNode" ? "video" : "canvas";
-    workspaceStore.creationMode = "professional";
-    workspaceStore.pendingCanvasEntry = { directory: project.directory, nodeType };
+    const kind = !nodeType ? "canvas" : nodeType === "remote-imageGenerationNode" ? "image" : nodeType === "remote-videoGenerationNode" ? "video" : undefined;
+    if (kind && !workspaceStore.tutorialVisited.includes(kind)) await openTutorialProject(kind);
+    else {
+      const project = await workspaceStore.createProject();
+      project.tutorialEntry = kind ?? "canvas";
+      workspaceStore.creationMode = "professional";
+      workspaceStore.pendingCanvasEntry = { directory: project.directory, nodeType };
+    }
     await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "项目创建失败"); }
   finally { creating.value = false; }

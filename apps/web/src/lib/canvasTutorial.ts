@@ -3,13 +3,13 @@ import type { Node, Edge } from "@vue-flow/core";
 export const singleImageTutorialPrompt = "去掉人物，其他不变";
 export const singleVideoTutorialPrompt = "女人{{ref 2}}穿着白色毛衣 站在{{ref 1}}房顶上给云朵刷粉色的油漆，白色的云朵变成了粉色的云朵。女人动作优雅、专注而平静，没有任何惊讶的表情。模拟胶片摄影，轻微胶片颗粒和褪色质感，柔和景深，梦幻超现实主义，诗意、安静、优雅，荒诞但非常自然，像一部被遗忘的1950年代艺术电影。没有背景音乐，只有刷漆的声音。";
 export async function loadSingleNodeTutorialReferences(kind: "image" | "video", signal: AbortSignal) {
-  const names = kind === "image" ? ["femaleReference"] : ["cloudPaintingReference", "womanReference"];
+  const names = kind === "image" ? ["cloudPaintingReference"] : ["cloudPaintingReference", "womanReference"];
   return Promise.all(names.map(async (name, index) => {
     const response = await fetch(`/onboarding/${name}.png`, { signal });
     if (!response.ok) throw new Error(`教学参考图读取失败（HTTP ${response.status}）`);
     const blob = await response.blob();
     if (!blob.size || blob.type !== "image/png") throw new Error("教学参考图无效，请刷新后重试");
-    return new File([blob], `图${kind === "video" ? index + 3 : 1}.png`, { type: "image/png" });
+    return new File([blob], `图${index + 1}.png`, { type: "image/png" });
   }));
 }
 
@@ -71,4 +71,20 @@ export async function createPortraitTutorialCanvas(directory: string) {
   nodes.push({ id: videoId, type: "remote-videoGenerationNode", position: { x: 760, y: 240 }, data: { label: "新手教学 · 10秒人像剧情", prompt: portraitVideoTutorialPrompt, promptModel: portraitVideoTutorialPrompt.split("\n").map(text => [{ type: "Write", text }]), duration: 10, resolution: "480P", referenceOrder: { in: nodes.map(node => encodeURIComponent(JSON.stringify([node.id, "image"]))) } } });
   const edges = nodes.slice(0, 2).map(node => ({ id: crypto.randomUUID(), source: node.id, sourceHandle: "image", target: videoId, targetHandle: "in" }));
   await files.writeJson("画布1.json", { ...canvas, nodes, edges });
+}
+
+
+export async function openTutorialProject(kind: "image" | "video" | "canvas") {
+  const { useWorkspaceStore } = await import("@/stores/workspace");
+  const workspace = useWorkspaceStore();
+  const existing = workspace.projectList.filter(project => project.tutorial && project.tutorialEntry === kind).sort((a, b) => b.lastOpenedAt - a.lastOpenedAt)[0];
+  const project = existing ?? await workspace.createProject(`${{ canvas: "画布", image: "图片", video: "视频" }[kind]}教学引导`);
+  if (existing) await workspace.openProject(existing.directory);
+  else {
+    project.tutorialEntry = kind;
+    if (kind === "canvas") await createPortraitTutorialCanvas(project.directory);
+    project.tutorial = kind === "canvas";
+  }
+  workspace.creationMode = "professional";
+  workspace.pendingCanvasEntry = { directory: project.directory, tutorial: true, ...(!existing && kind !== "canvas" ? { nodeType: kind === "image" ? "remote-imageGenerationNode" : "remote-videoGenerationNode" } : {}) };
 }
