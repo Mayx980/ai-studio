@@ -1,5 +1,5 @@
 <template>
-  <el-tour v-model="open" v-model:current="step" :mask="false" :targetAreaClickable="true" :scrollIntoViewOptions="false" :contentStyle="{ width: '300px', maxWidth: 'calc(100vw - 24px)', background: '#34343c', color: '#f1f1f5', border: '1px solid #8775ef', borderRadius: '12px', boxShadow: '0 0 0 1px #4e97f080, 0 8px 28px #0005'  }" @close="emit('complete')" @finish="emit('complete')">
+  <el-tour v-model="open" v-model:current="step" :mask="false" :targetAreaClickable="true" :scrollIntoViewOptions="false" :contentStyle="{ width: '300px', maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100dvh - 24px)', overflowY: 'auto', background: '#34343c', color: '#f1f1f5', border: '1px solid #8775ef', borderRadius: '12px', boxShadow: '0 0 0 1px #4e97f080, 0 8px 28px #0005'  }" @close="emit('complete')" @finish="emit('complete')">
     <template v-if="kind !== 'canvas'">
       <el-tour-step title="1. 查看示例提示词" :target="target(kind === 'image' ? '.promptCard' : '.promptInputWrap')" :nextButtonProps="{ children: '下一步' }"><p v-if="kind === 'image'">已添加图1，并填写“去掉人物，其他不变”。可以直接体验去除人物，也可以修改提示词。</p><p v-else>上传参考图片，然后在输入框中补充提示词内容</p></el-tour-step>
       <el-tour-step :title="kind === 'image' ? '2. 查看参考图片' : '2. 使用 @ 引用参考图'" :target="target(kind === 'video' ? '.mentionButton' : '.referenceCovers')" :prevButtonProps="{ children: '上一步' }" :nextButtonProps="{ children: '下一步' }"><p v-if="kind === 'image'">输入框上方的图1是本次编辑的参考图片。点击缩略图可以放大查看，移除后可通过上传或引用入口替换。</p><p v-else>提示词已插入真实的图1、图2引用标签。点击输入框的 @ 按钮可再次选择参考图；女人引用图2，房顶引用图1，点击标签可以查看对应图片。</p></el-tour-step>
@@ -23,7 +23,12 @@ watch(step, async value => {
   if (id !== undefined) await props.focusNode(id);
   if (step.value === value) focusVersion.value++;
 }, { immediate: true });
-onBeforeUnmount(() => document.querySelectorAll("[data-tour-target]").forEach(element => element.removeAttribute("data-tour-target")));
+function refreshTarget() { focusVersion.value++; }
+window.addEventListener("resize", refreshTarget);
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", refreshTarget);
+  document.querySelectorAll("[data-tour-target]").forEach(element => element.removeAttribute("data-tour-target"));
+});
 function target(selector: string, id = props.nodeId, area?: "toolbar") {
   void focusVersion.value;
   return () => {
@@ -32,7 +37,13 @@ function target(selector: string, id = props.nodeId, area?: "toolbar") {
     const node = id ? canvas?.querySelector<HTMLElement>(`.vue-flow__node[data-id="${CSS.escape(id)}"]`) : undefined;
     const root = area === "toolbar" ? document.querySelector<HTMLElement>(".workspacePage .toolMenuContent") : id ? node : canvas;
     const element = selector.split(",").map(part => root?.querySelector<HTMLElement>(part.trim())).find(Boolean) ?? (id ? node : undefined);
-    element?.setAttribute("data-tour-target", ""); return element ?? null;
+    element?.setAttribute("data-tour-target", "");
+    if (!element) return null;
+    const bounds = element.getBoundingClientRect();
+    // ACT: 目标太大或已离屏时改为居中，避免教程排到视口之外；高亮仍保留。
+    const room = Math.max(bounds.top, window.innerHeight - bounds.bottom);
+    if (room < 320 || bounds.bottom < 0 || bounds.top > window.innerHeight || bounds.right < 0 || bounds.left > window.innerWidth) return null;
+    return element;
   };
 }
 </script>
