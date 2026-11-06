@@ -33,9 +33,9 @@
   </el-container>
 </template>
 <script setup lang="ts">
-import { currentAccount } from "@/stores/prototypeAccount";
 import { locale } from "@toonflow/i18n/vue";
 import axios from "axios";
+import { createPortraitTutorialCanvas } from "@/lib/canvasTutorial";
 import { ensureExampleProject } from "@/lib/exampleProjects";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
@@ -72,30 +72,11 @@ async function createCanvas(nodeType?: string) {
   if (creating.value || opening.value) return;
   creating.value = true;
   try {
-    let tutorial = false;
-    let source: Project | undefined;
-    if (!nodeType && localStorage.getItem(`afxen.canvasTutorial.projectGuide.${currentAccount.value?.id ?? "user"}`) !== "completed") {
-      let candidates = workspaceStore.projectList.filter(project => project.name.trim() === "教学引导");
-      if (!candidates.length && browserWorkspaceMode) {
-        // ACT: 原型账号共用同浏览器的教学来源，仅复用明确指定的课程项目，不展示其它账号的项目列表。
-        const key = currentAccount.value?.id === "admin" ? "aiStudio.browserProjects" : "aiStudio.browserProjects.admin";
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          const saved = JSON.parse(raw) as { projectList?: unknown };
-          if (!Array.isArray(saved?.projectList)) throw new Error("无法读取教学项目记录，请检查保存该项目的账号");
-          candidates = saved.projectList.filter(project => typeof project?.name === "string" && project.name.trim() === "教学引导").map(project => {
-            if (typeof project.directory !== "string" || !project.directory.startsWith("browser://") || !Number.isFinite(project.lastOpenedAt)) throw new Error("教学项目记录无效，请在原账号重新打开项目后重试");
-            return { directory: project.directory, name: project.name, lastOpenedAt: project.lastOpenedAt, creationMode: "professional" };
-          });
-        }
-      }
-      if (candidates.length === 1) { source = candidates[0]; tutorial = true; }
-      else ElMessage.warning(candidates.length ? "存在多个“教学引导”项目，请保留唯一教学来源后重试；本次打开空白画布。" : "未找到“教学引导”项目，本次打开空白画布。请先在当前浏览器保存名为“教学引导”的课程项目。");
-    }
-    const project = source ? await workspaceStore.duplicateProject(source, false) : await workspaceStore.createProject();
-    if (source) { project.tutorial = true; await workspaceStore.openProject(project.directory); }
+    const project = await workspaceStore.createProject();
+    if (!nodeType) await createPortraitTutorialCanvas(project.directory);
+    project.tutorialEntry = nodeType === "remote-imageGenerationNode" ? "image" : nodeType === "remote-videoGenerationNode" ? "video" : "canvas";
     workspaceStore.creationMode = "professional";
-    workspaceStore.pendingCanvasEntry = { directory: project.directory, nodeType, tutorial };
+    workspaceStore.pendingCanvasEntry = { directory: project.directory, nodeType };
     await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "项目创建失败"); }
   finally { creating.value = false; }

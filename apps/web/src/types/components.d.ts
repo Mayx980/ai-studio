@@ -111,6 +111,7 @@ declare module 'vue' {
     IconMusic: typeof import('@tabler/icons-vue')['IconMusic']
     IconPencil: typeof import('@tabler/icons-vue')['IconPencil']
     IconPlus: typeof import('@tabler/icons-vue')['IconPlus']
+    IconSchool: typeof import('@tabler/icons-vue')['IconSchool']
     IconSearch: typeof import('@tabler/icons-vue')['IconSearch']
     IconSitemap: typeof import('@tabler/icons-vue')['IconSitemap']
     IconSparkles: typeof import('@tabler/icons-vue')['IconSparkles']

@@ -15,6 +15,7 @@ export type Project = {
   creationMode?: "simple" | "professional";
   historyArchived?: boolean;
   tutorial?: boolean;
+  tutorialEntry?: "image" | "video" | "canvas";
   example?: boolean;
 };
 
@@ -155,6 +156,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   persist: {
     key: browserWorkspaceMode ? currentAccount.value?.id === "admin" ? "aiStudio.browserProjects.admin" : "aiStudio.browserProjects" : "toonflow.projectList",
     storage: browserWorkspaceMode ? { getItem: (key: string) => localStorage.getItem(key) ?? (key === "aiStudio.browserProjects" ? settingsStorage.getItem("toonflow.projectList") : null), setItem: (key: string, value: string) => localStorage.setItem(key, value) } : settingsStorage,
-    pick: ["project", "projectList", "draftProjects", "lastSimpleDirectory"],
+    pick: ["project", "projectList", "draftProjects", "lastSimpleDirectory", "creationMode"],
   },
 });

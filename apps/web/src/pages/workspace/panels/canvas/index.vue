@@ -752,7 +752,8 @@ async function prepareTutorial() {
   if (!props.active || props.settingsVisible || !flow.getNodes.value.length) return;
   const steps = createCanvasTutorialSteps(flow.getNodes.value, flow.getEdges.value);
   await flow.fitView({ padding: .2 });
-  return { nodeId: flow.getNodes.value[0]!.id, steps };
+  const single = flow.getNodes.value.find(node => ["singleImage", "singleVideo"].includes(node.data?.canvasTutorial));
+  return { nodeId: single?.id ?? flow.getNodes.value[0]!.id, steps, kind: single?.data.canvasTutorial === "singleImage" ? "image" as const : single ? "video" as const : "canvas" as const };
 }
 async function focusTutorialNode(id: string) {
   if (!id) { flow.removeSelectedElements(); await flow.fitView({ padding: .2 }); return; }
@@ -788,7 +789,7 @@ async function createInitialNode(type: string, tutorial?: "image" | "video") {
       for (const [index, file] of references.entries()) {
         canvasController.signal.throwIfAborted();
         const path = await uploadNodeFile(files, node.id, file); uploaded.push(path);
-        localReferences.push({ source: "local", sourceHandle: `local:${crypto.randomUUID()}`, name: `图${index + 1}`, dataType: "IMAGE", value: { url: path, mimeType: file.type } });
+        localReferences.push({ source: "local", sourceHandle: `local:${crypto.randomUUID()}`, name: `图${tutorial === "video" ? index + 3 : 1}`, dataType: "IMAGE", value: { url: path, mimeType: file.type } });
       }
       canvasController.signal.throwIfAborted();
       const prompt = tutorial === "image" ? singleImageTutorialPrompt : singleVideoTutorialPrompt;

@@ -25,6 +25,7 @@
         :fileAction="performFileAction"
         :saveNode="saveDocumentNode" />
     </keep-alive>
+    <div v-if="workspaceStore.creationMode === 'professional' && activePanel === 'canvas'" class="tutorialTools" role="toolbar" aria-label="教学工具"><el-tooltip content="引导流程" placement="bottom"><el-button aria-label="新手引导" :disabled="tutorialPreparing || !canvasPanelRef?.canvasReady || settingsVisible" @click="startTutorial"><icon-school :size="20" /></el-button></el-tooltip></div>
     <div v-show="workspaceStore.creationMode === 'professional' || canvasMaterialSplit" class="canvasToolDock">
       <div class="bottomTools">
         <el-card v-if="activePanel === 'canvas'" class="toolMenu" shadow="never" :bodyStyle="{ padding: '3px 6px' }">
@@ -89,7 +90,6 @@ import floatingAgent from "./components/floatingAgent.vue";
 import type { CanvasTutorialStep } from "@/lib/canvasTutorial";
 import canvasTutorial from "@/components/canvasTutorial.vue";
 import { applyTemplateParameters, type TemplateApplication } from "@/lib/creationTemplates";
-import { currentAccount } from "@/stores/prototypeAccount";
 
 provide("nodeAi", browserNodeAi);
 provide("optimizeNodePrompt", async (prompt: string, kind: "image" | "video" | "audio", signal: AbortSignal) => {
@@ -118,10 +118,8 @@ const tutorialNodeId = ref("");
 const tutorialKind = ref<"image" | "video" | "canvas">("canvas");
 const tutorialSteps = ref<CanvasTutorialStep[]>([]);
 const tutorialPreparing = ref(false);
-const tutorialKey = () => `afxen.canvasTutorial.${tutorialKind.value === "canvas" ? "projectGuide" : tutorialKind.value}.${currentAccount.value?.id ?? "user"}`;
 let tutorialPreparation: Promise<boolean> | undefined;
 function openTutorial(panel: InstanceType<typeof canvasPanel>) {
-  if (localStorage.getItem(tutorialKey()) === "completed") return Promise.resolve(false);
   if (tutorialNodeId.value) return Promise.resolve(true);
   tutorialPreparation ??= (async () => {
     tutorialPreparing.value = true;
@@ -130,6 +128,7 @@ function openTutorial(panel: InstanceType<typeof canvasPanel>) {
       const tutorial = await panel.prepareTutorial();
       if (!tutorial || directory !== workspaceStore.project?.directory) return false;
       agentVisible.value = false;
+      tutorialKind.value = workspaceStore.project?.tutorialEntry ?? tutorial.kind;
       tutorialSteps.value = tutorial.steps;
       tutorialNodeId.value = tutorial.nodeId;
       return true;
@@ -137,9 +136,11 @@ function openTutorial(panel: InstanceType<typeof canvasPanel>) {
   })();
   return tutorialPreparation;
 }
-function finishTutorial() {
-  try { localStorage.setItem(tutorialKey(), "completed"); tutorialNodeId.value = ""; }
-  catch { ElMessage.error("教学进度保存失败，请检查浏览器存储后重试"); }
+function finishTutorial() { tutorialNodeId.value = ""; }
+async function startTutorial() {
+  if (!canvasPanelRef.value || tutorialPreparing.value) return;
+  try { await openTutorial(canvasPanelRef.value); }
+  catch (error) { ElMessage.error(error instanceof Error ? error.message : "教学引导打开失败"); }
 }
 watch(() => workspaceStore.project?.directory, () => { tutorialNodeId.value = ""; });
 const shortcutsVisible = ref(false);
@@ -202,10 +203,9 @@ watch(() => workspaceStore.pendingCanvasEntry, async entry => {
     }
     if (entry.nodeType) {
       tutorialKind.value = entry.nodeType === "remote-imageGenerationNode" ? "image" : entry.nodeType === "remote-videoGenerationNode" ? "video" : "canvas";
-      const teaching = tutorialKind.value !== "canvas" && localStorage.getItem(tutorialKey()) !== "completed" ? tutorialKind.value : undefined;
-      const id = await panel.createInitialNode(entry.nodeType, teaching);
-      if (teaching) { tutorialSteps.value = []; tutorialNodeId.value = id; }
-    } else if (entry.tutorial) { tutorialKind.value = "canvas"; await openTutorial(panel); }
+      const teaching = tutorialKind.value !== "canvas" ? tutorialKind.value : undefined;
+      await panel.createInitialNode(entry.nodeType, teaching);
+    }
     agentVisible.value = false;
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "画布打开失败，项目已保留"); }
 }, { immediate: true, flush: "post" });
@@ -641,4 +641,8 @@ function saveDocumentNode(directory: string, canvasPath: string, nodeId: string,
 <style scoped lang="scss">
 .workspacePage.materialSplit { .canvasPanel { width: 50%; } .canvasToolDock { left: 25%; } }
 @media(max-width:700px) { .workspacePage.materialSplit { .canvasPanel { width: 100%; height: 50dvh; } .canvasToolDock { left: 50%; bottom: calc(50dvh + 12px); } } }
+</style>
+
+<style scoped lang="scss">
+.tutorialTools { position: absolute; top: 12px; left: calc((100% - var(--agentWidth, 0px)) / 2); transform: translateX(-50%); z-index: 20; .el-button { background: #303039; border: 1px solid #8075ef; border-radius: 10px; color: #ded9ff; } }
 </style>
