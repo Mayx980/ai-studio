@@ -7,7 +7,7 @@
     :downloadUrl="previewUrl"
     :downloadName="outputFile?.url.split(/[\\/]/).at(-1)"
     @fullscreen="player?.enterFullscreen()"
-    :bottomWidth="660"
+    :bottomWidth="'min(960px, calc(100vw - 48px))'"
     :style="{ width: previewUrl && videoWidth ? `${videoWidth + 18}px` : undefined }">
     <template #topActions>
       <el-button :icon="IconMusic" text :disabled="!outputFile || generating || deleting || uploading || actions?.processing" @click.stop="actions?.open('extractAudio')">提取音轨</el-button>
@@ -39,70 +39,59 @@
       <el-button v-else class="videoEmpty" text aria-label="上传视频" @click.stop="fileInput?.click()">上传视频</el-button>
     </div>
     <template #bottom>
-      <el-card class="promptCard" shadow="never" :bodyStyle="{ padding: '14px 16px 12px' }">
-
-        <div v-if="frameMode" class="referenceHint">
-          {{ selectedMode === "startFrameOptional" ? "仅一张图片时作为尾帧；两张图片按顺序作为首帧、尾帧" : "图片引用按顺序作为首帧、尾帧" }}
-        </div>
-        <promptInput :disabled="generating || deleting || uploading" optimizeKind="video" :actionsTarget="promptActions" v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable><template #references><referenceItem
-          v-if="refList.length"
-          v-model="refList"
-          @preview="setReferencePreview"
-          @remove="removeReference" /></template></promptInput>
-        <div class="promptFooter">
-          <el-select
-            v-model="data.model"
-            class="modelSelect"
-            filterable
-            :loading="modelsLoading"
-            :disabled="generating || deleting"
-            placeholder="选择模型"
-            aria-label="生成模型"
-            noDataText="请先在设置中添加视频模型"
-            placement="top-start"
-            @visible-change="(visible) => visible && loadModels().catch((error) => showNodeError(error, '模型读取失败'))">
-            <template #prefix><icon-sparkles :size="17" /></template>
-            <el-option v-if="data.model && !selectedModel" :value="data.model" :label="data.modelLabel || '未接入模型'" disabled />
-            <el-option-group v-for="provider in modelGroups" :key="provider.id" :label="provider.label">
-              <el-option
-                v-for="item in provider.models"
-                :key="item.modelId"
-                :label="item.label"
-                :value="JSON.stringify([item.providerId, item.modelId])" />
-            </el-option-group>
-          </el-select>
-          <generationSettings
-            v-model:duration="data.duration"
-            v-model:resolution="data.resolution"
-            v-model:ratio="data.ratio"
-            v-model:generateAudio="data.generateAudio"
-            :ratios="ratioOptions"
-            :model="selectedModel"
-            :disabled="generating || deleting || !selectedModel" />
-            <mediaPrice v-if="generationInput" :input="{ ...generationInput, mediaType: 'video' }" :supported="selectedModel?.supportsPrice === true" />
-          <div ref="promptActions" class="promptActions" />
-          <div class="generationActions">
-            <el-tooltip :content="generating ? '停止生成' : '生成'" placement="top">
-            <el-button
-              class="sendButton"
-              :icon="generating ? IconPlayerStop : IconArrowUp"
-              :disabled="deleting || uploading || (!generating && (!generationPrompt || !selectedModel))"
-              :title="generating ? '停止生成' : '生成视频'"
-              :aria-label="generating ? '停止生成' : '生成视频'"
-              @click="generating ? generationState.cancel() : startGeneration().catch((error) => showNodeError(error, '视频生成失败'))" />
-            </el-tooltip>
+      <section class="promptCard" aria-label="视频创作面板" :aria-busy="generating || pickingReferences || uploading">
+        <div class="composerBody">
+          <aside class="materialTray" aria-label="参考素材">
+            <div class="trayHeading"><icon-photo :size="14" /><span>参考素材</span><span v-if="refList.length" class="materialCount">{{ refList.length }}</span></div>
+            <referenceItem v-if="refList.length" v-model="refList" @preview="setReferencePreview" @remove="!composerLocked && removeReference($event)" />
+            <button v-if="pickReferences" class="addMaterial" type="button" :disabled="composerLocked" aria-label="添加参考素材" @click="addReferences">
+              <icon-loader-2 v-if="pickingReferences" class="spinning" :size="22" /><icon-plus v-else :size="22" />
+              <span>{{ pickingReferences ? '正在添加…' : '添加素材' }}</span>
+              <small>{{ videoReferenceSupported ? '图片 / 视频' : '参考图片' }}</small>
+            </button>
+          </aside>
+          <div class="descriptionArea">
+            <div class="descriptionHeading"><span>视频描述</span><el-button class="clearPrompt" text :disabled="composerLocked || !data.prompt.trim()" aria-label="清空视频描述" title="清空视频描述" @click="clearPrompt"><icon-x :size="15" /></el-button></div>
+            <promptInput :disabled="composerLocked" optimizeKind="video" :actionsTarget="promptActions" v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" placeholder="描述你想生成的视频画面，也可以上传并@参考图片，指定主体、场景、动作和视觉风格……" expandable />
+            <div class="descriptionBottom"><span class="descriptionHint">{{ refList.length ? '输入 @ 引用素材 · 拖动缩略图调整顺序' : '从主体、场景和镜头运动开始描述' }}</span><span class="characterCount">{{ data.prompt.length }} 字</span></div>
           </div>
         </div>
-      </el-card>
+        <div v-if="frameMode" class="referenceHint">{{ selectedMode === 'startFrameOptional' ? '仅一张图片时作为尾帧；两张图片按顺序作为首帧、尾帧' : '图片引用按顺序作为首帧、尾帧' }}</div>
+        <div class="promptFooter">
+          <div class="parameterControls">
+            <span class="generationType"><icon-movie :size="17" />{{ selectedMode === 'text' ? '文生视频' : frameMode ? '图生视频' : '视频生成' }}</span>
+            <el-select v-model="data.model" class="modelSelect" filterable :loading="modelsLoading" :disabled="composerLocked" placeholder="选择视频模型" aria-label="生成模型" noDataText="请先在设置中添加视频模型" placement="top-start" @visible-change="(visible) => visible && loadModels().catch((error) => showNodeError(error, '模型读取失败'))">
+              <template #prefix><icon-sparkles :size="17" /></template>
+              <el-option v-if="data.model && !selectedModel" :value="data.model" :label="data.modelLabel || '未接入模型'" disabled />
+              <el-option-group v-for="provider in modelGroups" :key="provider.id" :label="provider.label"><el-option v-for="item in provider.models" :key="item.modelId" :label="item.label" :value="JSON.stringify([item.providerId, item.modelId])" /></el-option-group>
+            </el-select>
+            <el-select v-if="selectedModel?.mode?.length" v-model="data.mode" class="modeSelect" :disabled="composerLocked" aria-label="视频参考模式" placement="top-start">
+              <template #prefix><icon-photo :size="16" /></template>
+              <el-option v-for="mode in selectedModel.mode" :key="JSON.stringify(mode)" :value="JSON.stringify(mode)" :label="modeLabel(mode)" :disabled="!matchingModes.some(item => JSON.stringify(item) === JSON.stringify(mode))" />
+            </el-select>
+            <generationSettings v-model:duration="data.duration" v-model:resolution="data.resolution" v-model:ratio="data.ratio" v-model:generateAudio="data.generateAudio" :ratios="ratioOptions" :model="selectedModel" :disabled="composerLocked || !selectedModel" />
+          </div>
+          <div class="generationActions">
+            <el-tooltip content="清空描述并恢复参数，保留素材与已有结果" placement="top"><el-button class="resetButton" text :disabled="composerLocked" aria-label="重置视频输入" @click="resetComposer"><icon-refresh :size="19" /></el-button></el-tooltip>
+            <el-button class="sendButton" :disabled="deleting || uploading || pickingReferences || (!generating && !canGenerate)" :aria-label="generating ? '停止生成视频' : '生成视频'" @click="generating ? generationState.cancel() : submitGeneration()"><icon-loader-2 v-if="generating" class="spinning" :size="18" /><icon-sparkles v-else :size="18" />{{ generating ? '停止生成' : '生成视频' }}</el-button>
+          </div>
+        </div>
+        <div class="composerUtility"><div ref="promptActions" class="promptActions" /><mediaPrice v-if="generationInput" :input="{ ...generationInput, mediaType: 'video' }" :supported="selectedModel?.supportsPrice === true" /></div>
+        <div v-if="generating || pickingReferences || uploading" class="generationFeedback" role="status"><icon-loader-2 class="spinning" :size="15" /><span>{{ generating ? (generationState.background ? '视频正在生成，完成后将显示在上方。离开画布后任务仍会继续。' : '视频正在生成，完成后将显示在上方。') : pickingReferences ? '正在选择或保存参考素材…' : '正在保存上传的视频…' }}</span><div class="activityTrack" /></div>
+        <div v-else-if="composerError" class="generationFeedback errorFeedback" role="alert"><icon-alert-circle :size="16" /><span>{{ composerError }}</span><el-button text :disabled="!canGenerate" @click="submitGeneration">重试</el-button></div>
+        <div v-else-if="generationState.status.value === 'succeeded'" class="generationFeedback successFeedback" role="status"><icon-circle-check :size="16" /><span>视频已生成，可在上方预览和下载。</span></div>
+        <p v-else-if="!selectedModel" class="configurationHint">请先在设置中配置视频模型，再选择模型开始创作。</p>
+        <p v-else-if="selectedModel.mode?.length && !matchingModes.length" class="configurationHint">当前素材与模型的参考模式不匹配，请调整素材或更换模型。</p>
+      </section>
     </template>
   </nodeSkeleton>
   <videoActions ref="actions" :file="outputFile" :src="previewUrl" :disabled="generating || deleting || uploading" />
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onScopeDispose, ref, watch } from "vue";
-import { ElTooltip, ElButton, ElCard, ElSelect, ElOption, ElOptionGroup, ElLoading, ElDropdown, ElDropdownMenu, ElDropdownItem } from "element-plus";
-import { IconCameraAi, IconSparkles, IconArrowUp, IconPlayerStop, IconTransfer, IconMusic, IconLayersSubtract, IconScissors, IconPhotoScan, IconPlayerSkipBack, IconPlayerSkipForward } from "@tabler/icons-vue";
+import { computed, inject, nextTick, onMounted, onScopeDispose, ref, watch } from "vue";
+import { ElTooltip, ElButton, ElMessageBox, ElSelect, ElOption, ElOptionGroup, ElLoading, ElDropdown, ElDropdownMenu, ElDropdownItem } from "element-plus";
+import { IconCameraAi, IconSparkles, IconPlus, IconRefresh, IconX, IconMovie, IconPhoto, IconLoader2, IconAlertCircle, IconCircleCheck, IconTransfer, IconMusic, IconLayersSubtract, IconScissors, IconPhotoScan, IconPlayerSkipBack, IconPlayerSkipForward } from "@tabler/icons-vue";
 import { nodeSkeleton, nodeTools, useNode, z, type NodeMediaModel, type NodeVideoRequest, type NodeHandle } from "@toonflow/nodes-scaffold/runtime";
 import { groupNodeModels } from "@toonflow/node-shared/groupNodeModels";
 import { showNodeError } from "@toonflow/node-shared/showNodeError";
@@ -152,6 +141,53 @@ const videoWidth = ref(0);
 let generationController: AbortController | undefined;
 const generationState = useNodeGeneration(outputs, () => generationController?.abort());
 const { generating } = generationState;
+const pickReferences = inject<((nodeId: string, scope?: string) => Promise<void>) | undefined>("pickNodeReferences", undefined);
+const pickingReferences = ref(false);
+const actionError = ref("");
+const composerLocked = computed(() => generating.value || deleting.value || uploading.value || pickingReferences.value);
+const composerError = computed(() => actionError.value || generationState.error.value);
+const videoReferenceSupported = computed(() => selectedModel.value?.mode?.some(mode => Array.isArray(mode) && mode.some(item => item.startsWith("videoReference:") && Number(item.split(":")[1]) > 0)) ?? false);
+const canGenerate = computed(() => !!generationPrompt.value && !!selectedModel.value && !refList.value.some(item => item.value === undefined) && (!selectedModel.value.mode?.length || matchingModes.value.length > 0));
+
+function modeLabel(mode: NonNullable<NodeMediaModel["mode"]>[number]) {
+  if (Array.isArray(mode)) return "多素材参考";
+  return ({ text: "纯文本", singleImage: "单图参考", startEndRequired: "首尾帧", endFrameOptional: "首帧 / 首尾帧", startFrameOptional: "尾帧 / 首尾帧" } as Record<string, string>)[mode] ?? mode;
+}
+function clearPrompt() {
+  if (composerLocked.value) return;
+  data.value.prompt = "";
+  data.value.promptModel = [[{ type: "Write", text: "" }]];
+  actionError.value = "";
+}
+async function resetComposer() {
+  if (composerLocked.value) return;
+  if (data.value.prompt.trim()) {
+    try { await ElMessageBox.confirm("将清空视频描述并恢复生成参数。参考素材、当前模型和已有视频结果会保留。", "重置视频输入", { confirmButtonText: "重置", cancelButtonText: "取消", type: "warning" }); }
+    catch { return; }
+  }
+  if (composerLocked.value || disposed) return;
+  clearPrompt();
+  const choice = selectedModel.value;
+  data.value.duration = choice ? getDurations(choice)[0] : 5;
+  const resolutions = choice ? getResolutions(choice, data.value.duration) : [];
+  data.value.resolution = resolutions.includes("480P") ? "480P" : resolutions[0] ?? "";
+  data.value.ratio = "9:16";
+  data.value.generateAudio = choice?.audio === true || choice?.audio === "optional";
+  const mode = matchingModes.value.find(Array.isArray) ?? matchingModes.value[0];
+  data.value.mode = mode === undefined ? "" : JSON.stringify(mode);
+}
+async function addReferences() {
+  if (!pickReferences || composerLocked.value) return;
+  pickingReferences.value = true;
+  try { await pickReferences(id, "local"); }
+  catch (error) { actionError.value = error instanceof Error ? error.message : "添加素材失败"; }
+  finally { pickingReferences.value = false; }
+}
+async function submitGeneration() {
+  actionError.value = "";
+  try { await startGeneration(); }
+  catch (error) { actionError.value = error instanceof Error ? error.message : "视频生成失败"; }
+}
 let generation: Promise<void> | undefined;
 let modelsRequest: Promise<void> | undefined;
 // ACT: 供应商未声明视频比例范围，沿用界面的通用比例，具体支持范围由供应商校验。
@@ -477,58 +513,72 @@ nodeTools.register({
 }
 
 .promptCard {
-  .referenceHint {
-    margin: 8px 0;
-    color: var(--el-text-color-secondary);
-    font-size: 12px;
-  }
-
-  .promptFooter {
-    .promptActions { display: flex; align-items: center; flex: none; margin-left: auto; }
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 12px;
-
-    .modelSelect {
-      width: 190px;
+  --composerLine: rgba(255, 255, 255, .1);
+  --composerMuted: #a2a2b2;
+  --composerAccent: linear-gradient(110deg, #9254f4, #467df7);
+  box-sizing: border-box;
+  padding: 22px 24px 14px;
+  border: 1px solid var(--composerLine);
+  border-radius: 20px;
+  background: linear-gradient(130deg, #202027, #19191f 65%, #1c1e28);
+  color: #ededf4;
+  box-shadow: 0 16px 48px #0005, inset 0 1px 0 #ffffff06;
+  transition: border-color 180ms, box-shadow 180ms;
+  container-type: inline-size;
+  &:focus-within { border-color: #8674d9; box-shadow: 0 0 0 3px #8265ed16, 0 16px 48px #0005; }
+  button:focus-visible { outline: 2px solid #a892ff; outline-offset: 3px; }
+  .composerBody {
+    display: grid;
+    grid-template-columns: 168px minmax(0, 1fr);
+    gap: 24px;
+    min-height: 210px;
+    .materialTray {
+      border-right: 1px solid var(--composerLine);
+      padding-right: 20px;
+      .trayHeading { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; color: var(--composerMuted); font-size: 11px; .materialCount { margin-left: auto; color: #c6b5fa; } }
+      :deep(.referenceList) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: 160px; overflow-y: auto; overflow-x: hidden; margin-bottom: 8px; padding: 2px; }
+      :deep(.referenceItem) { width: 60px; height: 60px; border-radius: 10px; }
+      .addMaterial { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; width: 100%; min-height: 90px; border: 1px dashed #ffffff26; border-radius: 12px; background: #ffffff03; color: #c7c2d8; cursor: pointer; transition: background 180ms, border-color 180ms; font: inherit; font-size: 12px; small { font-size: 10px; color: var(--composerMuted); } &:hover:enabled { background: #9370ef12; border-color: #a38ad5; } &:disabled { opacity: .5; cursor: not-allowed; } }
+    }
+    .descriptionArea {
       min-width: 0;
-
-      &:deep(.el-select__wrapper) {
-        gap: 6px;
-        padding: 0;
-        box-shadow: none;
-        background: transparent;
-      }
-    }
-
-    .generationActions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-left: 0;
-
-      .sendButton {
-        width: 32px;
-        height: 32px;
-        margin-left: 0;
-        padding: 0;
-        --el-button-bg-color: var(--el-color-primary);
-        --el-button-border-color: transparent;
-        --el-button-text-color: #fff;
-        --el-button-hover-bg-color: var(--el-color-primary-light-3);
-        --el-button-hover-border-color: transparent;
-        --el-button-hover-text-color: #fff;
-        --el-button-disabled-bg-color: var(--el-color-primary);
-        --el-button-disabled-border-color: transparent;
-        --el-button-disabled-text-color: #fff;
-        &.is-disabled { opacity: .45; }
-      }
+      .descriptionHeading { display: flex; justify-content: space-between; align-items: center; height: 22px; color: #b7b3c6; font-size: 11px; letter-spacing: .5px; .clearPrompt { margin: 0; padding: 4px; height: 26px; color: var(--composerMuted); } }
+      :deep(.promptInputWrap) { margin: 10px 0 0; padding: 0 0 8px; }
+      :deep(.promptInput) { min-height: 144px; color: #ededf4; --chat-text: #ededf4; --chat-text-placeholder: #91909e; }
+      :deep(.chat-rich-text) { min-height: 144px !important; max-height: 240px !important; overflow-y: auto; }
+      :deep([contenteditable]) { min-height: 144px; font-size: 15px; line-height: 1.9; }
+      :deep(.chat-placeholder-wrap) { color: #91909e; font-size: 15px; line-height: 1.9; }
+      .descriptionBottom { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--composerMuted); font-size: 10px; .characterCount { flex-shrink: 0; font-variant-numeric: tabular-nums; } }
     }
   }
+  .referenceHint { margin: 12px 0 0; color: #c5b5eb; font-size: 12px; }
+  .promptFooter {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding-top: 18px; margin-top: 16px; border-top: 1px solid var(--composerLine);
+    .parameterControls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+    .generationType { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: #c1bbd1; white-space: nowrap; padding-right: 5px; }
+    .modelSelect { width: 180px; }
+    .modeSelect { width: 142px; }
+    :deep(.el-select__wrapper) { min-height: 38px; border-radius: 10px; padding: 6px 10px; background: #ffffff05; box-shadow: 0 0 0 1px var(--composerLine) inset; color: #e6e3ef; transition: box-shadow 180ms, background 180ms; &:hover { background: #ffffff0a; box-shadow: 0 0 0 1px #ffffff30 inset; } }
+    :deep(.el-select__selected-item) { font-size: 12px; color: #dfdbe9; }
+    :deep(.settingsButton) { min-height: 38px; margin: 0; padding: 8px 11px; border: 1px solid var(--composerLine); border-radius: 10px; background: #ffffff05; color: #dfdbe9; font-size: 12px; }
+    .generationActions { display: flex; align-items: center; gap: 10px; margin-left: auto;
+      .resetButton { width: 38px; height: 38px; margin: 0; padding: 8px; color: #aaa7bb; border-radius: 10px; }
+      .sendButton { display: inline-flex; gap: 8px; min-width: 132px; height: 42px; margin: 0; padding: 0 18px; border: 0; border-radius: 11px; background: var(--composerAccent); color: white; font-weight: 600; letter-spacing: .5px; box-shadow: 0 4px 18px #7855dd30; transition: filter 180ms, transform 150ms, box-shadow 180ms; :deep(> span) { gap: 7px; } &:hover:enabled { filter: brightness(1.12); box-shadow: 0 4px 24px #7855dd55; } &:active:enabled { transform: translateY(1px); } &.is-disabled { background: #35323f; color: #aaa2bb; box-shadow: none; opacity: .7; } }
+    }
+  }
+  .composerUtility { display: flex; align-items: center; justify-content: space-between; min-height: 30px; margin-top: 6px; .promptActions { display: flex; :deep(.el-button) { color: #aaa5bb; } } }
+  .generationFeedback { position: relative; display: flex; align-items: center; gap: 8px; padding: 12px 0 5px; border-top: 1px solid var(--composerLine); color: #bfb4df; font-size: 12px; overflow: hidden; > span { flex: 1; min-width: 0; line-height: 1.6; overflow-wrap: anywhere; } .activityTrack { position: absolute; height: 2px; top: 0; left: 0; width: 30%; background: var(--composerAccent); animation: activity 2s ease-in-out infinite; } &.errorFeedback { color: #f0a9ad; .el-button { color: #c5adff; margin: 0; } } &.successFeedback { color: #94cdb7; } }
+  .configurationHint { margin: 5px 0; color: var(--composerMuted); font-size: 12px; }
 }
-</style>
-
-<style scoped lang="scss">
-.promptCard { .promptFooter { justify-content: flex-start; gap: 4px; flex-wrap: wrap; .modelSelect { flex: none; width: 180px; } .promptActions { margin-left: auto; } } }
+.spinning { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes activity { from { transform: translateX(-110%); } to { transform: translateX(440%); } }
+@container (max-width: 720px) {
+  .promptCard .composerBody { grid-template-columns: 112px minmax(0, 1fr); gap: 16px; .materialTray { padding-right: 14px; :deep(.referenceList) { grid-template-columns: 1fr; } :deep(.referenceItem) { width: 72px; height: 72px; } } }
+  .promptCard .promptFooter .generationActions { margin-left: auto; }
+}
+@container (max-width: 450px) {
+  .promptCard .composerBody { grid-template-columns: 1fr; .materialTray { border-right: 0; padding-right: 0; display: flex; align-items: center; gap: 10px; .trayHeading { display: none; } :deep(.referenceList) { display: flex; max-width: 65%; margin: 0; overflow-x: auto; } .addMaterial { width: 86px; min-height: 72px; small { display: none; } } } }
+}
+@media (prefers-reduced-motion: reduce) { .spinning, .activityTrack { animation: none !important; } .promptCard, .promptCard :deep(*) { transition: none !important; } }
 </style>

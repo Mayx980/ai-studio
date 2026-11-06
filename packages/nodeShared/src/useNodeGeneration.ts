@@ -71,5 +71,5 @@ export function useNodeGeneration(outputs: Readonly<Ref<NodeOutputs>>, cancel: (
     return pending;
   }
 
-  return { generating, run, background: !!target, cancel: cancelGeneration, wait: () => generation.pending?.then(() => {}, () => {}) };
+  return { generating, status: computed(() => generation.status), error: computed(() => generation.error), run, background: !!target, cancel: cancelGeneration, wait: () => generation.pending?.then(() => {}, () => {}) };
 }

@@ -1,5 +1,5 @@
 <template>
-  <el-popover v-model:visible="settingsVisible" trigger="click" placement="top-start" width="min(340px, calc(100vw - 24px))" :disabled="disabled" :showArrow="false" :popperStyle="{ padding: '14px' }">
+  <el-popover v-model:visible="settingsVisible" trigger="click" placement="top-start" width="min(340px, calc(100vw - 24px))" :disabled="disabled" :showArrow="false" :popperStyle="{ padding: '16px', background: '#22222b', color: '#ededf4', border: '1px solid #494356', borderRadius: '12px' }">
     <template #reference>
       <el-button class="settingsButton" text size="small" :disabled="disabled" :aria-expanded="settingsVisible" aria-label="视频生成设置">
         <span class="ratioShape" :style="ratioStyle(ratio)" aria-hidden="true" />
