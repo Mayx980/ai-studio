@@ -132,6 +132,7 @@ function openTutorial(panel: InstanceType<typeof canvasPanel>) {
       tutorialKind.value = workspaceStore.project?.tutorialEntry ?? tutorial.kind;
       tutorialSteps.value = tutorial.steps;
       tutorialNodeId.value = tutorial.nodeId;
+      if (tutorialKind.value === "canvas") workspaceStore.canvasTutorialVersion = 1;
       return true;
     } finally { tutorialPreparing.value = false; tutorialPreparation = undefined; }
   })();

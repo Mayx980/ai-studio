@@ -73,7 +73,7 @@ async function createCanvas(nodeType?: string) {
   creating.value = true;
   try {
     const kind = !nodeType ? "canvas" : nodeType === "remote-imageGenerationNode" ? "image" : nodeType === "remote-videoGenerationNode" ? "video" : undefined;
-    if (kind && !workspaceStore.tutorialVisited.includes(kind)) await openTutorialProject(kind);
+    if (kind && (kind === "canvas" ? workspaceStore.canvasTutorialVersion < 1 : !workspaceStore.tutorialVisited.includes(kind))) await openTutorialProject(kind);
     else {
       const project = await workspaceStore.createProject();
       project.tutorialEntry = kind ?? "canvas";

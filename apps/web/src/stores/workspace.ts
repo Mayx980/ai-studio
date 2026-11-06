@@ -26,6 +26,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const draftProjects = ref<Project[]>([]);
   const lastSimpleDirectory = ref("");
   const tutorialVisited = ref<("image" | "video" | "canvas")[]>([]);
+  const canvasTutorialVersion = ref(0);
   const pendingAgentSession = ref<{ directory: string; file: string } | null>(null);
   const pendingAgentMessage = ref<{ directory: string; prompt: string; attachments?: AgentAttachment[]; model: string; reasoningEffort: string; send?: boolean } | null>(null);
   const pendingCanvasEntry = ref<{ directory: string; nodeType?: string; tutorial?: boolean; files?: File[] } | null>(null);
@@ -152,11 +153,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (project.value?.directory === path) project.value = null;
   }
 
-  return { creationMode, project, projectList, draftProjects, lastSimpleDirectory, tutorialVisited, completeSimpleProject, archiveSimpleConversation, resumeSimpleConversation, pendingAgentMessage, pendingAgentSession, pendingCanvasEntry, createProject, openProject, restoreProjectEntry, renameProject, moveProject, duplicateProject, removeProject };
+  return { creationMode, project, projectList, draftProjects, lastSimpleDirectory, tutorialVisited, canvasTutorialVersion, completeSimpleProject, archiveSimpleConversation, resumeSimpleConversation, pendingAgentMessage, pendingAgentSession, pendingCanvasEntry, createProject, openProject, restoreProjectEntry, renameProject, moveProject, duplicateProject, removeProject };
 }, {
   persist: {
     key: browserWorkspaceMode ? currentAccount.value?.id === "admin" ? "aiStudio.browserProjects.admin" : "aiStudio.browserProjects" : "toonflow.projectList",
     storage: browserWorkspaceMode ? { getItem: (key: string) => localStorage.getItem(key) ?? (key === "aiStudio.browserProjects" ? settingsStorage.getItem("toonflow.projectList") : null), setItem: (key: string, value: string) => localStorage.setItem(key, value) } : settingsStorage,
-    pick: ["project", "projectList", "draftProjects", "lastSimpleDirectory", "creationMode", "tutorialVisited"],
+    pick: ["project", "projectList", "draftProjects", "lastSimpleDirectory", "creationMode", "tutorialVisited", "canvasTutorialVersion"],
   },
 });
