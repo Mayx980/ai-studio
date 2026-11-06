@@ -1,8 +1,11 @@
 <template>
   <div class="simpleReferenceSlots" aria-label="参考素材">
-    <teleport :to="tabsTarget || 'body'" :disabled="!tabsTarget"><div class="referenceTabs" role="tablist" aria-label="参考素材类型">
-      <template v-for="(tab, index) in tabs" :key="tab.value"><span v-if="index" class="tabDivider" aria-hidden="true">｜</span><button type="button" role="tab" :aria-selected="mode === tab.value" :disabled="disabled || opening" @click="mode = tab.value">{{ tab.label }}</button></template>
-    </div></teleport>
+    <teleport :to="tabsTarget || 'body'" :disabled="!tabsTarget">
+      <el-popover v-model:visible="modeVisible" trigger="click" placement="top-start" :width="180" :disabled="disabled || opening" :hideAfter="0">
+        <template #reference><button class="referenceModeButton" type="button" :disabled="disabled || opening" :aria-expanded="modeVisible" aria-label="参考图模式"><icon-photo :size="16" />{{ mode === 'frames' ? '首尾帧' : '参考图' }}<icon-chevron-down :size="13" /></button></template>
+        <div class="referenceTabs" role="tablist" aria-label="参考素材类型"><button v-for="tab in tabs" :key="tab.value" type="button" role="tab" :aria-selected="mode === tab.value" :disabled="disabled || opening" @click="mode = tab.value; modeVisible = false">{{ tab.label }}</button></div>
+      </el-popover>
+    </teleport>
     <input ref="fileInput" type="file" :accept="target.role === 'firstFrame' || target.role === 'lastFrame' ? 'image/*' : 'image/*,video/*'" :multiple="['reference', 'middleFrame'].includes(target.role) && !replacing" hidden :disabled="disabled || opening" @change="selectFiles" />
     <div v-if="mode === 'reference'" class="referenceDeck" aria-label="参考图片">
       <button v-if="!referenceImages.length" class="slotCard" type="button" :disabled="disabled || opening" aria-label="添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="28" /></button>
@@ -39,13 +42,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, ref, watch } from "vue";
 import { ClickOutside as vClickOutside, ElMessage, type PopoverInstance } from "element-plus";
-import { IconPlus, IconRefresh, IconX } from "@tabler/icons-vue";
+import { IconPlus, IconRefresh, IconX, IconPhoto, IconChevronDown } from "@tabler/icons-vue";
 import type { AgentAttachment, ReferenceRole, ReferenceCategory } from "@/components/agent/types";
 import attachmentPreview from "@/components/agent/attachmentPreview.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import { materialEditorState, type MaterialTarget } from "@/stores/materialEditor";
 const props = withDefaults(defineProps<{ showFrames?: boolean; tabsTarget?: HTMLElement; directory?: string; disabled?: boolean; ensureDirectory?: () => Promise<string | undefined> }>(), { showFrames: true });
 const attachments = defineModel<AgentAttachment[]>({ required: true });
+const modeVisible = ref(false);
 const mode = defineModel<"reference" | "frames">("mode", { default: "reference" });
 let active = true;
 const owner = Symbol(), fileInput = ref<HTMLInputElement>(), assetsOpen = ref(false), opening = ref(false);
@@ -130,6 +134,7 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; if (materialEditor
   .frameDivider { align-self: center; border: 0; background: transparent; color: var(--el-text-color-secondary); cursor: pointer; display: grid; place-items: center; width: 26px; height: 30px; svg { display: none; } &:hover, &:focus-visible { span { display: none; } svg { display: block; } } }
   @media(max-width:600px) { flex-wrap: wrap; .referenceDeck, .frameDeck { width: 100%; } }
 }
-.referenceTabs { display: flex; align-items: center; gap: 0; flex: none; border: 1px solid var(--el-border-color); border-radius: 8px; overflow: hidden; .tabDivider { color: var(--el-border-color); } button { padding: 6px 10px; border: 0; background: transparent; color: var(--el-text-color-secondary); cursor: pointer; font: inherit; font-size: 12px; &[aria-selected="true"] { color: var(--el-color-primary); } &:hover { background: var(--el-fill-color); } &:focus-visible { outline: 1px solid var(--el-color-primary); outline-offset: -2px; } } }
+.referenceModeButton { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 6px; height: 48px; min-width: 88px; padding: 0 12px; border: 1px solid #45414e; border-radius: 12px; color: #d0cbdc; background: #24232c; font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; transition: background 180ms, border-color 180ms; &:hover:enabled, &[aria-expanded="true"] { background: #2e2938; border-color: #9071d5; } &:focus-visible { outline: 2px solid #a28ae9; outline-offset: 2px; } &:disabled { opacity: .5; cursor: not-allowed; } }
+.referenceTabs { display: grid; gap: 4px; button { padding: 9px 10px; border: 0; border-radius: 8px; text-align: left; color: var(--el-text-color-secondary); background: transparent; cursor: pointer; font: inherit; font-size: 12px; &[aria-selected="true"] { color: var(--el-color-primary); background: var(--el-fill-color); } &:focus-visible { outline: 1px solid var(--el-color-primary); } } }
 .referenceSourceMenu { display: grid; gap: 3px; button { border: 0; border-radius: 6px; padding: 9px 10px; color: var(--el-text-color-primary); background: transparent; font: inherit; font-size: 13px; text-align: left; cursor: pointer; &:hover, &:focus-visible { background: var(--el-fill-color); } } }
 </style>

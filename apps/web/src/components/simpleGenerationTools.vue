@@ -1,8 +1,8 @@
 <template>
   <div class="simpleGenerationTools">
-    <div class="outputTabs" role="tablist" aria-label="创作类型"><button type="button" role="tab" :aria-selected="browserConfig.outputKind === 'image'" @click="selectOutput('image')"><icon-photo :size="16" />图片生成</button><span v-if="!imageOnly" class="tabDivider" aria-hidden="true">｜</span><button v-if="!imageOnly" type="button" role="tab" :aria-selected="browserConfig.outputKind === 'video'" @click="selectOutput('video')"><icon-movie :size="16" />视频生成</button></div>
-    <el-popover v-if="browserConfig.outputChosen && browserConfig.outputKind === 'image'" trigger="click" placement="top" :width="180" :hideAfter="0">
-      <template #reference><el-button class="styleSelect" :class="{ selected: !!browserConfig.style }" plain aria-label="选择风格"><icon-palette :size="16" />{{ browserConfig.style || '风格' }}</el-button></template>
+    <div class="outputTabs" role="tablist" aria-label="创作类型"><button type="button" role="tab" :disabled="disabled" :aria-selected="browserConfig.outputKind === 'image'" @click="selectOutput('image')"><icon-photo :size="16" />图片生成</button><button v-if="!imageOnly" type="button" role="tab" :disabled="disabled" :aria-selected="browserConfig.outputKind === 'video'" @click="selectOutput('video')"><icon-movie :size="16" />视频生成</button></div>
+    <el-popover trigger="click" placement="top" :width="180" :hideAfter="0" :disabled="disabled || browserConfig.outputKind !== 'image'">
+      <template #reference><el-button class="styleSelect" :class="{ selected: !!browserConfig.style }" plain :disabled="disabled || browserConfig.outputKind !== 'image'" :title="browserConfig.outputKind === 'video' ? '当前仅图片生成支持风格预设' : '选择图片风格'" aria-label="选择风格"><icon-palette :size="16" />{{ browserConfig.style || '风格' }}</el-button></template>
       <div class="styleList" role="listbox" aria-label="视觉风格"><button type="button" role="option" :aria-selected="!browserConfig.style" @click="browserConfig.style = ''">不指定风格</button><button v-for="(style, index) in styles" :key="style" type="button" role="option" :aria-selected="browserConfig.style === style" @click="browserConfig.style = browserConfig.style === style ? '' : style"><span class="styleSwatch" :style="{ background: `hsl(${index * 37 % 360} 24% 62%)` }" />{{ style }}</button></div>
     </el-popover>
   </div>
@@ -12,14 +12,20 @@ import { IconPalette, IconPhoto, IconMovie } from "@tabler/icons-vue";
 import { onMounted } from "vue";
 import { generationStyles } from "@/lib/generationStyles";
 import { browserConfig } from "@/stores/browserGeneration";
-defineProps<{ imageOnly?: boolean }>();
+defineProps<{ imageOnly?: boolean; disabled?: boolean }>();
 const styles = Object.keys(generationStyles);
 onMounted(() => { browserConfig.outputChosen = true; });
 function selectOutput(kind: string | number | boolean) { if (kind === "image" || kind === "video") { browserConfig.outputKind = kind; browserConfig.outputChosen = true; } }
 </script>
 <style scoped lang="scss">
-.simpleGenerationTools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; .el-button { margin: 0; height: 30px; border-radius: 12px; } .outputSelect { border: 0; background: transparent; } .styleSelect { border: 1px solid var(--el-border-color); border-radius: 8px; background: transparent; &:hover, &:focus-visible { border-color: var(--el-color-primary); background: transparent; } } .el-button:not(.styleSelect):hover, .el-button:not(.styleSelect):focus-visible { background: var(--el-fill-color); border-color: transparent; } .selected { --el-button-text-color: var(--el-color-primary); --el-button-hover-text-color: var(--el-color-primary); --el-button-active-text-color: var(--el-color-primary); color: var(--el-color-primary); } }
-.outputTabs { display: flex; align-items: center; gap: 0; border: 1px solid var(--el-border-color); border-radius: 8px; overflow: hidden; .tabDivider { color: var(--el-border-color); } button { display: flex; align-items: center; gap: 5px; padding: 6px 8px; border: 0; background: transparent; color: var(--el-text-color-secondary); font: inherit; font-size: 13px; cursor: pointer; &[aria-selected="true"] { color: var(--el-color-primary); } &:hover { background: var(--el-fill-color); } &:focus-visible { outline: 1px solid var(--el-color-primary); outline-offset: -2px; } } }
-
-.styleList { max-height: min(420px, 60vh); overflow-y: auto; display: grid; gap: 2px; button { display: flex; align-items: center; gap: 10px; border: 0; background: transparent; padding: 9px 7px; text-align: left; cursor: pointer; color: var(--el-text-color-primary); &[aria-selected="true"] { background: var(--el-color-primary-light-9); color: var(--el-color-primary); } .styleSwatch { width: 18px; height: 18px; border-radius: 4px; } } }
+.simpleGenerationTools { display: contents;
+  .outputTabs { display: contents;
+    button { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 6px; height: 48px; min-width: 88px; padding: 0 12px; border: 1px solid #45414e; border-radius: 12px; background: #24232c; color: #d0cbdc; font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; transition: background 180ms, border-color 180ms; &[aria-selected="true"] { color: #c0a3ff; border-color: #7960ba; background: linear-gradient(135deg, #6c40af29, #3465a317); } &:hover:enabled { border-color: #9071d5; } &:focus-visible { outline: 2px solid #a28ae9; outline-offset: 2px; } &:disabled { opacity: .5; cursor: not-allowed; } }
+  }
+  .styleSelect { flex: none; margin: 0; height: 48px; min-width: 80px; padding: 0 12px; border: 1px solid #45414e; border-radius: 12px; background: #24232c; color: #d0cbdc; font-size: 12px; :deep(> span) { gap: 6px; } &:hover:enabled { border-color: #9071d5; background: #2e2938; } &:focus-visible { outline: 2px solid #a28ae9; outline-offset: 2px; } &.selected { color: #c0a3ff; border-color: #7960ba; } &.is-disabled { color: #8e879e; background: #24232c; border-color: #393541; } }
+}
+.styleList { max-height: min(420px, 60vh); overflow-y: auto; display: grid; gap: 2px;
+  button { display: flex; align-items: center; gap: 10px; border: 0; background: transparent; padding: 9px 7px; text-align: left; cursor: pointer; color: var(--el-text-color-primary); &[aria-selected="true"] { background: var(--el-color-primary-light-9); color: var(--el-color-primary); } .styleSwatch { width: 18px; height: 18px; border-radius: 4px; } }
+}
+@media (prefers-reduced-motion: reduce) { .simpleGenerationTools button { transition: none !important; } }
 </style>

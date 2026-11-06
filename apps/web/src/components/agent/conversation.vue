@@ -115,10 +115,10 @@
       <div ref="senderElement" class="senderEditor" @pointerdown.capture="inputStarted = true" @input.capture="inputStarted = true" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
-      <div class="senderActions">
+      <div class="senderActions" :class="{ simpleToolbar: props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple') }">
         <div v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" ref="referenceTabsTarget" class="referenceTabsTarget" />
-        <simpleGenerationTools v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" :imageOnly="props.materialEditor && !!props.materialRole" />
-        <browserModelOptions :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor && props.materialRole ? 'image' : undefined" :prompt="draftPrompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
+        <simpleGenerationTools v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" :imageOnly="props.materialEditor && !!props.materialRole" :disabled="locked" />
+        <browserModelOptions :disabled="locked" :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor && props.materialRole ? 'image' : undefined" :prompt="draftPrompt" /><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
         <referencePicker v-if="!props.creationModes" :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
         <mentionMenu :currentOnly="props.creationModes && workspaceStore.creationMode === 'simple'" :attachments="props.creationModes ? activeDraftAttachments : undefined" @selectAttachment="insertAttachmentMention" :hideTrigger="props.creationModes" ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
@@ -158,7 +158,7 @@
         </el-popover>
         <el-button class="sendButton" type="primary" circle :disabled="!sending && locked" :aria-label="sending ? '停止生成' : editingId ? '重发消息' : '发送消息'" :title="sending ? '停止生成' : editingId ? '重发消息' : '发送消息'" @click="sending ? stopGeneration() : submitMessage()">
           <el-icon v-if="sending" class="is-loading"><icon-loader-2 :size="16" /></el-icon>
-          <icon-arrow-up v-else :size="16" />
+          <icon-arrow-up v-else :size="16" /><span v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')">{{ sending ? '停止生成' : '生成' }}</span>
         </el-button>
       </div>
     </div>
@@ -1576,4 +1576,12 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
 
 <style scoped lang="scss">
 .messageInput { :deep(.chat-sender), :deep(.chat-rich-text), :deep(.chat-rich-text > [contenteditable]) { background: transparent; } }
+</style>
+
+<style scoped lang="scss">
+.agentConversation .messageInput .senderActions.simpleToolbar {
+  display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 8px; padding: 10px 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin;
+  .referenceTabsTarget { display: flex; flex: none; }
+  > .sendButton { position: sticky; right: 0; z-index: 1; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 100px; width: auto; height: 48px; margin: 0 0 0 auto; padding: 0 16px; border-radius: 12px; transform: none; background: linear-gradient(110deg, #8747ed, #397df6); box-shadow: 0 4px 14px #7552d52b; font-size: 12px; :deep(> span) { gap: 6px; } &:hover:enabled { background: linear-gradient(110deg, #985ef4, #548dfa); } &:active:enabled { filter: brightness(.94); } &.is-disabled { background: #383241; color: #a49bad; box-shadow: none; } }
+}
 </style>

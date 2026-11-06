@@ -1,10 +1,10 @@
 <template>
   <aside class="studioSidebar" :class="{ collapsed: navigationCollapsed }" aria-label="主导航" @click.self="navigationCollapsed = false">
     <button class="collapseButton" type="button" :aria-expanded="!navigationCollapsed" :aria-label="navigationCollapsed ? '展开导航栏' : '折叠导航栏'" @click="navigationCollapsed = !navigationCollapsed"><icon-layout-sidebar :size="16" /></button><div class="sidebarScroll" @click.self="navigationCollapsed = false">
-      <button class="studioBrand" type="button" aria-label="AFXEN 首页" @click="emit('navigate', 'create')"><brandLogo class="fullBrand" /><brandLogo class="compactBrand" compact /></button>
+      <button class="studioBrand" type="button" aria-label="AFXEN 首页" @click="emit('newAgent')"><brandLogo class="fullBrand" /><brandLogo class="compactBrand" compact /></button>
       <nav @click.self="navigationCollapsed = false">
-        <button type="button" :aria-current="activeSection === 'create' ? 'page' : undefined" title="首页" @click="emit('navigate', 'create')"><icon-home :size="20" /><span>首页</span></button>
-        <button type="button" :disabled="disabled" :aria-current="activeSection === 'agent' ? 'page' : undefined" title="Agent 助手" @click="emit('newAgent')"><icon-sparkles :size="20" /><span>Agent 助手</span></button>
+        <button type="button" :aria-current="activeSection === 'create' ? 'page' : undefined" title="画布创作" @click="emit('navigate', 'create')"><icon-layout-sidebar :size="20" /><span>画布创作</span></button>
+        <button type="button" :disabled="disabled" :aria-current="activeSection === 'agent' ? 'page' : undefined" title="首页" @click="emit('newAgent')"><icon-home :size="20" /><span>首页</span></button>
         <button v-for="item in sections" :key="item.value" type="button" :aria-current="activeSection === item.value ? 'page' : undefined" :title="item.label" @click="emit('navigate', item.value)"><component :is="item.icon" :size="20" /><span>{{ item.label }}</span></button>
       </nav>
 
