@@ -7,7 +7,7 @@
       <el-tour-step title="4. 生成并查看结果" :target="target('.promptFooter, .promptCard')" :prevButtonProps="{ children: '上一步' }" :nextButtonProps="{ children: '开始创作' }"><p>点击右下角上箭头提交生成，成功后结果显示在当前节点中，可放大查看或保存。引导不会自动调用模型。</p></el-tour-step>
     </template>
     <template v-else>
-      <el-tour-step v-for="(item, index) in steps" :key="`${item.nodeId}:${index}`" :title="`${index + 1}. ${item.title}`" :target="target(item.selector, item.nodeId)" :prevButtonProps="{ children: '上一步' }" :nextButtonProps="{ children: index === steps.length - 1 ? '开始创作' : '下一步' }"><p>{{ item.description }}</p></el-tour-step>
+      <el-tour-step v-for="(item, index) in steps" :key="`${item.nodeId}:${index}`" :title="`${index + 1}. ${item.title}`" :target="target(item.selector, item.nodeId, item.area)" :prevButtonProps="{ children: '上一步' }" :nextButtonProps="{ children: index === steps.length - 1 ? '开始创作' : '下一步' }"><p>{{ item.description }}</p></el-tour-step>
     </template>
     <template #indicators="{ current, total }"><span>{{ current + 1 }} / {{ total }}</span><el-button text @click="emit('complete')">跳过</el-button></template>
   </el-tour>
@@ -24,13 +24,13 @@ watch(step, async value => {
   if (step.value === value) focusVersion.value++;
 }, { immediate: true });
 onBeforeUnmount(() => document.querySelectorAll("[data-tour-target]").forEach(element => element.removeAttribute("data-tour-target")));
-function target(selector: string, id = props.nodeId) {
+function target(selector: string, id = props.nodeId, area?: "toolbar") {
   void focusVersion.value;
   return () => {
     document.querySelectorAll("[data-tour-target]").forEach(element => element.removeAttribute("data-tour-target"));
     const canvas = document.querySelector<HTMLElement>(".workspacePage .canvasRuntime:not(.backgroundCanvas)");
     const node = id ? canvas?.querySelector<HTMLElement>(`.vue-flow__node[data-id="${CSS.escape(id)}"]`) : undefined;
-    const root = id ? node : canvas;
+    const root = area === "toolbar" ? document.querySelector<HTMLElement>(".workspacePage .toolMenuContent") : id ? node : canvas;
     const element = selector.split(",").map(part => root?.querySelector<HTMLElement>(part.trim())).find(Boolean) ?? (id ? node : undefined);
     element?.setAttribute("data-tour-target", ""); return element ?? null;
   };
