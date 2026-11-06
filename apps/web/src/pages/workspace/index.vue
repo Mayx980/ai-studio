@@ -117,7 +117,8 @@ const canvasPanelRef = ref<InstanceType<typeof canvasPanel>>();
 const tutorialNodeId = ref("");
 const tutorialKind = ref<"image" | "video" | "canvas">("canvas");
 const tutorialSteps = ref<CanvasTutorialStep[]>([]);
-const tutorialPreparing = ref(false), tutorialOpening = ref(false);
+const tutorialPreparing = ref(false), tutorialOpening = ref(false), canvasEntryPreparing = ref(false);
+let dismissedTutorialDirectory = "";
 let tutorialPreparation: Promise<boolean> | undefined;
 function openTutorial(panel: InstanceType<typeof canvasPanel>) {
   if (tutorialNodeId.value) return Promise.resolve(true);
@@ -136,10 +137,11 @@ function openTutorial(panel: InstanceType<typeof canvasPanel>) {
   })();
   return tutorialPreparation;
 }
-function finishTutorial() { tutorialNodeId.value = ""; }
+function finishTutorial() { dismissedTutorialDirectory = workspaceStore.project?.directory ?? ""; tutorialNodeId.value = ""; }
 async function startTutorial() {
   if (!canvasPanelRef.value || tutorialPreparing.value || tutorialOpening.value) return;
   tutorialOpening.value = true;
+  dismissedTutorialDirectory = "";
   try {
     const kind = workspaceStore.project?.tutorialEntry ?? "canvas";
     await flushSave();
@@ -194,6 +196,7 @@ onMounted(() => { if (browserWorkspaceMode && !workspaceStore.project) void star
 watch(() => workspaceStore.pendingCanvasEntry, async entry => {
   if (!entry || entry.directory !== workspaceStore.project?.directory) return;
   workspaceStore.pendingCanvasEntry = null;
+  canvasEntryPreparing.value = true;
   try {
     workspaceStore.creationMode = "professional";
     activePanel.value = "canvas";
@@ -218,6 +221,13 @@ watch(() => workspaceStore.pendingCanvasEntry, async entry => {
       if (!workspaceStore.tutorialVisited.includes(tutorialKind.value)) workspaceStore.tutorialVisited.push(tutorialKind.value);
     }
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "画布打开失败，项目已保留"); }
+  finally { canvasEntryPreparing.value = false; }
+}, { immediate: true, flush: "post" });
+watch(() => [canvasPanelRef.value?.canvasReady, workspaceStore.project?.directory, workspaceStore.creationMode, activePanel.value], async () => {
+  const panel = canvasPanelRef.value, project = workspaceStore.project;
+  if (!panel?.canvasReady || !project?.tutorial || workspaceStore.creationMode !== "professional" || activePanel.value !== "canvas" || canvasEntryPreparing.value || tutorialOpening.value || tutorialNodeId.value || dismissedTutorialDirectory === project.directory) return;
+  try { await openTutorial(panel); }
+  catch (error) { ElMessage.error(error instanceof Error ? error.message : "教学引导打开失败，请点击底部引导流程重试"); }
 }, { immediate: true, flush: "post" });
 async function enterCanvas() {
   try {
