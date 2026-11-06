@@ -24,11 +24,13 @@
 | --- | --- | --- | --- |
 | BR-shared-content | 共享保存与冲突保护 | 3.1 共享保存与恢复 | SC-reopen-project, SC-conflicting-save |
 | BR-project-lifecycle | 项目创建、复制与列表管理 | 3.2 首页与项目管理 | SC-project-management |
+| BR-mode-roundtrip | 模式共享数据与复杂编排保护 | 3.3 简单创作与结果应用 | SC-mode-roundtrip |
 | BR-explicit-generation | 明确提交才生成 | 3.3 简单创作与结果应用 | SC-simple-creation |
 | BR-result-application | 已有结果应用不重复生成 | 3.3 简单创作与结果应用 | SC-simple-creation |
 | BR-reference-integrity | 真实引用与素材用途 | 3.4 引用与素材自定义 | SC-reference-application |
 | BR-professional-confirmation | 专业阶段确认与会话保存 | 3.5 专业创作与阶段确认 | SC-professional-creation |
 | BR-canvas-dependencies | 画布编辑与内容依赖 | 3.6 画布与分镜 | SC-storyboard-editing |
+| BR-script-input | 脚本文字与有效参考输入边界 | 3.6 画布与分镜 | SC-script-input |
 | BR-storyboard-identity | 分镜稳定引用与导入导出 | 3.6 画布与分镜 | SC-storyboard-editing |
 | BR-model-credentials | 实例模型与服务凭据 | 3.7 模型配置与生成结果 | SC-model-configuration |
 | BR-generation-lifecycle | 生成归属、部分失败与停止 | 3.7 模型配置与生成结果 | SC-generation-navigation |
@@ -45,9 +47,11 @@
 | SC-conflicting-save | SF-creation-workbench | 使用者 | 旧页面保存不能静默覆盖较新内容 | 3.1 共享保存与恢复 |
 | SC-project-management | SF-creation-workbench | 使用者 | 项目创建、改名、复制及移除列表项 | 3.2 首页与项目管理 |
 | SC-simple-creation | SF-creation-workbench | 使用者 | 明确生成并重复应用同一结果 | 3.3 简单创作与结果应用 |
+| SC-mode-roundtrip | SF-creation-workbench | 使用者 | 模式往返和简单视图保存保留复杂编排 | 3.3 简单创作与结果应用 |
 | SC-reference-application | SF-creation-workbench | 使用者 | 切换参考用途并应用子对话素材 | 3.4 引用与素材自定义 |
 | SC-professional-creation | SF-creation-workbench | 使用者 | 修改剧情分镜后继续并恢复专业会话 | 3.5 专业创作与阶段确认 |
 | SC-storyboard-editing | SF-creation-workbench | 使用者 | 导入、排序改号、引用及导出分镜 | 3.6 画布与分镜 |
+| SC-script-input | SF-creation-workbench | 使用者 | 仅参考可生成、两者都空不调用模型 | 3.6 画布与分镜 |
 | SC-model-configuration | SF-creation-workbench | 使用者 | 保存无关设置不泄露或清空凭据 | 3.7 模型配置与生成结果 |
 | SC-generation-navigation | SF-creation-workbench | 使用者 | 生成中切换项目且结果归属不变 | 3.7 模型配置与生成结果 |
 | SC-asset-management | SF-creation-workbench | 使用者 | 素材改名移动后恢复文件标签及来源 | 3.8 素材与生成历史 |
