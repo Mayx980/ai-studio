@@ -1,5 +1,7 @@
 本规范适用于整个仓库。
 
+产品需求入口见 [requirements/readme.md](requirements/readme.md)；修改产品规则时同步维护产品规格与验收索引。
+
 # 开发规范说明
 
 ## 代码风格要求

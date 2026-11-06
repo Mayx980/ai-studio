@@ -579,3 +579,5 @@ Copyright © 2026 北京爱阿科技有限公司
 ## 当前仓库开发
 
 本仓库基于固定上游版本接入，保留上游目录、UI 与业务实现。[来源与接入边界](governance/upstream.md) · [使用 wf-prod 开发](governance/development.md)。
+
+[产品需求与验收场景](requirements/readme.md)记录当前创作工作台的产品边界；实现与验证进度见 [Issue #7 实施计划](.wf-prod/plans/issue-7/plan.md)。
