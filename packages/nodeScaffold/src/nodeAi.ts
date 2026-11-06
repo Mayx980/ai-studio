@@ -61,6 +61,7 @@ export type NodeAiTool = {
 };
 
 export type NodeAiAdapter = {
+  continueOnUnmount?: boolean;
   enabled(): boolean;
   getModels(signal?: AbortSignal): Promise<NodeAiModel[]>;
   getMediaModels(signal?: AbortSignal): Promise<NodeMediaModel[]>;
@@ -272,22 +273,22 @@ export function useNodeAi() {
   }
 
   function generateImage(input: NodeImageRequest, signal?: AbortSignal) {
-    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateImage(input, requestSignal(signal)); }
+    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateImage(input, adapter.continueOnUnmount ? signal : requestSignal(signal)); }
     return generateMedia("image", input, signal);
   }
 
   function generateVideo(input: NodeVideoRequest, signal?: AbortSignal) {
-    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateVideo(input, requestSignal(signal)); }
+    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateVideo(input, adapter.continueOnUnmount ? signal : requestSignal(signal)); }
     return generateMedia("video", input, signal);
   }
 
   function generateAudio(input: NodeAudioRequest, signal?: AbortSignal) {
-    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateAudio(input, requestSignal(signal)); }
+    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateAudio(input, adapter.continueOnUnmount ? signal : requestSignal(signal)); }
     return generateMedia("audio", input, signal);
   }
 
   async function generate(input: NodeAiRequest): Promise<NodeAiResult> {
-    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generate({ ...input, signal: requestSignal(input.signal) }); }
+    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generate({ ...input, signal: adapter.continueOnUnmount ? input.signal : requestSignal(input.signal) }); }
     const signal = requestSignal(input.signal);
     const callSignal = input.tools?.length ? AbortSignal.any([signal, AbortSignal.timeout(600000)]) : signal;
     const { providerId, modelId, prompt, systemPrompt, onEvent } = input;

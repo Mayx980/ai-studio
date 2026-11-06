@@ -296,7 +296,7 @@ async function generateText() {
   } catch (error) {
     if (error instanceof Error && error.name !== "AbortError") ElMessage.error(error.message);
   } finally {
-    // 卸载会取消请求并停止 watcher，生成收尾必须自行保存已收到的正文。
+    // 视图卸载后 watcher 会停止，生成收尾仍须保存到提交时绑定的正文文件。
     try { await saveText(outputs.value.text.value); }
     catch (error) { ElMessage.error(error instanceof Error ? error.message : "文本保存失败"); }
     generating.value = false;

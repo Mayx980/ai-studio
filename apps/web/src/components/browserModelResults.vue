@@ -48,6 +48,11 @@ async function applyResult(item: Result) {
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "素材读取失败"); }
   finally { applyingId.value = ""; if (active) emit("busy", false); }
 }
+async function applyFirst() {
+  const item = results.value.find(item => ["image", "video"].includes(item.kind));
+  if (item) await applyResult(item);
+}
+defineExpose({ applyFirst });
 async function continueResult(item: Result) {
   if (props.disabled || applyingId.value) return;
   applyingId.value = item.id; emit("busy", true);

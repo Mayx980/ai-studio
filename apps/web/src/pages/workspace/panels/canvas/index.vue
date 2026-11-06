@@ -186,6 +186,8 @@ import { generalSettings } from "@/stores/settings";
 import { getShortcutBindings, shortcutLabel, shortcutMatches, shortcutPressed } from "@/lib/canvasShortcuts";
 import { waitForControlValue } from "@/lib/mcpControl";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { captureGenerationCanvas, registerGenerationCanvas } from "@/lib/canvasGeneration";
 import anonymousData from "@/lib/anonymousData";
 import { createClipboardMediaFile, dropCanvasFiles, getClipboardMediaFiles, importCanvasFiles, isCanvasFileDrag } from "./canvasDrop";
 import { createCanvasTutorialSteps, loadSingleNodeTutorialReferences, singleImageTutorialPrompt, singleVideoTutorialPrompt } from "@/lib/canvasTutorial";
@@ -288,6 +290,16 @@ provide("copyNodeToClipboard", async (node: Parameters<typeof copyNodeToClipboar
   await copyNodeToClipboard(node, directory);
 });
 provide("retainNodeFiles", true);
+provide("backgroundNodeGeneration", () => {
+  const directory = project.value?.directory, path = canvasId.value;
+  if (!browserWorkspaceMode || !directory || !path) return;
+  return captureGenerationCanvas(directory, path, async () => { saveCanvas.flush(); await saving; await flushing; });
+});
+watch(() => [project.value?.directory, canvasId.value], ([directory, path], _previous, cleanup) => {
+  if (!directory || !path) return;
+  const release = registerGenerationCanvas(JSON.stringify([directory, path]), async () => { await waitUntilReady(); await flushCanvasSave(); });
+  cleanup(release);
+}, { immediate: true, flush: "sync" });
 provide("selectionConnection", shallowRef<NodeConnectionFeedback>());
 provide("saveNodeToAssets", (label: string, outputs: { label: string; output: NodeOutput }[]) => assetLibraryRef.value?.openSave(label, outputs));
 let canvasController = new AbortController();

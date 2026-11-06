@@ -52,7 +52,7 @@
               :disabled="deleting || uploading || actions?.processing || (!generating && (!generationPrompt || !selectedModel))"
               :title="generating ? '停止生成' : '生成音频'"
               :aria-label="generating ? '停止生成' : '生成音频'"
-              @click="generating ? generationController?.abort() : startGeneration().catch(error => showNodeError(error, '音频生成失败'))" />
+              @click="generating ? generationState.cancel() : startGeneration().catch(error => showNodeError(error, '音频生成失败'))" />
             </el-tooltip>
           </div>
         </div>
@@ -158,7 +158,7 @@ onScopeDispose(() => {
   disposed = true;
   window.removeEventListener("toonflow:plugin-installed", refreshProviderModels);
   window.removeEventListener("toonflow:provider-config-changed", refreshProviderModels);
-  generationController?.abort();
+  if (!generationState.background) generationController?.abort();
 });
 
 async function refreshProviderModels(event?: Event) {
@@ -251,7 +251,7 @@ nodeEvent.on("save", reason => {
 nodeEvent.on("delete", async () => {
   if (uploading.value) throw new Error("音频正在替换，请稍后删除节点");
   deleting.value = true;
-  generationController?.abort();
+  generationState.cancel();
   try {
     await Promise.all([generation, actions.value?.cancelAndWait()]);
     await files.removeNodeFiles();

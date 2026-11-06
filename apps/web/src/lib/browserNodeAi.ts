@@ -97,6 +97,7 @@ async function saveAssets(assets: { type: string; data?: string | Uint8Array; ur
 }
 
 export const browserNodeAi: NodeAiAdapter = {
+  continueOnUnmount: true,
   enabled: () => browserWorkspaceMode || browserConfig.enabled,
   async getModels(signal) {
     signal?.throwIfAborted();

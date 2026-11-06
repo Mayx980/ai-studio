@@ -96,7 +96,7 @@
               :disabled="deleting || uploading || (!generating && (editor?.busy || !generationPrompt || !selectedModel))"
               :title="generating ? '停止生成' : '生成图片'"
               :aria-label="generating ? '停止生成' : '生成图片'"
-              @click="generating ? generationController?.abort() : startGeneration().catch((error) => showNodeError(error, '图片生成失败'))" />
+              @click="generating ? generationState.cancel() : startGeneration().catch((error) => showNodeError(error, '图片生成失败'))" />
             </el-tooltip>
           </div>
         </div>
@@ -257,7 +257,7 @@ onScopeDispose(() => {
   disposed = true;
   window.removeEventListener("toonflow:plugin-installed", refreshProviderModels);
   window.removeEventListener("toonflow:provider-config-changed", refreshProviderModels);
-  generationController?.abort();
+  if (!generationState.background) generationController?.abort();
 });
 
 async function refreshProviderModels(event: Event) {
@@ -343,7 +343,7 @@ async function startGeneration() {
   const controller = new AbortController();
   const inpaintData = data.value.inpaint;
   generationController = controller;
-  // ACT: 工具立即返回，任务由节点持有，停止或卸载时取消。
+  // ACT: 工具立即返回，浏览器任务独立于节点视图，显式停止或删除时取消。
   generation = generationState.run(() => workspace.list()
     .then(({ directory }) => {
       controller.signal.throwIfAborted();
@@ -369,9 +369,9 @@ nodeEvent.on("save", (reason) => {
 nodeEvent.on("delete", async () => {
   if (uploading.value || lighting.value?.generating || multiAngle.value?.generating || panorama.value?.busy || (editor.value?.busy && !generating.value)) throw new Error("图片处理中，请稍后删除节点");
   deleting.value = true;
-  generationController?.abort();
+  generationState.cancel();
   try {
-    await generation;
+    await generationState.wait();
     await files.removeNodeFiles();
   } finally {
     deleting.value = false;

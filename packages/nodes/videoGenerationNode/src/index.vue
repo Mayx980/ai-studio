@@ -89,7 +89,7 @@
               :disabled="deleting || uploading || (!generating && (!generationPrompt || !selectedModel))"
               :title="generating ? '停止生成' : '生成视频'"
               :aria-label="generating ? '停止生成' : '生成视频'"
-              @click="generating ? generationController?.abort() : startGeneration().catch((error) => showNodeError(error, '视频生成失败'))" />
+              @click="generating ? generationState.cancel() : startGeneration().catch((error) => showNodeError(error, '视频生成失败'))" />
             </el-tooltip>
           </div>
         </div>
@@ -253,7 +253,7 @@ onScopeDispose(() => {
   disposed = true;
   window.removeEventListener("toonflow:plugin-installed", refreshProviderModels);
   window.removeEventListener("toonflow:provider-config-changed", refreshProviderModels);
-  generationController?.abort();
+  if (!generationState.background) generationController?.abort();
 });
 
 async function refreshProviderModels(event: Event) {
@@ -321,7 +321,7 @@ async function startGeneration() {
   const workspace = files.getWorkspaceFiles();
   const controller = new AbortController();
   generationController = controller;
-  // ACT: 工具立即返回，任务由节点持有，停止或卸载时取消。
+  // ACT: 工具立即返回，浏览器任务独立于节点视图，显式停止或删除时取消。
   generation = generationState.run(() => workspace
     .list()
     .then(({ directory }) => {
@@ -346,9 +346,9 @@ nodeEvent.on("save", (reason) => {
 nodeEvent.on("delete", async () => {
   if (uploading.value) throw new Error("视频正在替换，请稍后删除节点");
   deleting.value = true;
-  generationController?.abort();
+  generationState.cancel();
   try {
-    await generation;
+    await generationState.wait();
     await files.removeNodeFiles();
   } finally {
     deleting.value = false;

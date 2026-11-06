@@ -46,7 +46,7 @@
                   </template>
                   <attachmentList v-if="item.attachments?.length" :attachments="item.attachments" :directory="directory" />
                   <div v-if="item.role === 'user'" class="messageText"><mentionContent :content="item.content" :mentions="item.mentions" :directory="directory" /></div>
-                  <browserModelResults v-if="item.browserResultIds?.length && !item.professional" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showCanvas="false" @enterCanvas="addMessageToCanvas(item)" :showReference="false" :applicationLabel="props.materialEditor ? props.materialLabel : undefined" :framePosition="props.materialRole === 'lastFrame' ? 'last' : 'first'" :disabled="locked" @busy="setMaterialBusy" @apply="emit('applyMaterial', $event)" @reference="referenceGeneratedFile" />
+                  <browserModelResults :ref="value => setMessageResults(item.id, value)" v-if="item.browserResultIds?.length && !item.professional" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showCanvas="false" @enterCanvas="addMessageToCanvas(item)" :showReference="false" :applicationLabel="props.materialEditor ? props.materialLabel : undefined" :framePosition="props.materialRole === 'lastFrame' ? 'last' : 'first'" :disabled="locked" @busy="setMaterialBusy" @apply="emit('applyMaterial', $event)" @reference="referenceGeneratedFile" />
                   <professionalCreation v-if="item.professional && directory" :state="item.professional" :directory="directory" :stopToken="professionalStopToken" :attachments="messages.find(message => message.id === item.replyTo)?.attachments ?? []" :disabled="props.disabled || busy || browserSubmitting || deletingId !== undefined" @busy="professionalBusy = $event" @change="saveProfessionalProgress" @results="item.browserResultIds = $event" />
                   <div v-if="item.creationChoice && !item.creationChoice.resolved" class="creationChoices" role="group" aria-label="选择创作内容">
                     <p>{{ item.creationChoice.needsDetails ? "请先补充创作主体或用途，再确认要生成的内容。" : "你希望生成哪种内容？确认后我会在画布搭建节点和连线。" }}</p>
@@ -66,6 +66,7 @@
                 <template v-if="item.role === 'user'">
                   <el-button class="messageAction" text circle :disabled="locked || remoteRunning" aria-label="编辑消息" title="编辑消息" @click="editMessage(item)"><icon-pencil :size="14" /></el-button>
                 </template>
+                <el-tooltip v-if="props.materialEditor && item.role === 'assistant' && !item.professional && hasApplicableMaterial(item)" content="应用" placement="top"><el-button class="messageAction" text circle :disabled="locked" aria-label="应用" @click="messageResults.get(item.id)?.applyFirst()"><icon-check :size="14" /></el-button></el-tooltip>
                 <el-tooltip v-if="item.role === 'assistant'" content="引用到输入框" placement="top">
                   <el-button class="messageAction" text circle :disabled="locked" aria-label="引用到输入框" @click="referenceMessageResults(item)"><icon-paperclip :size="14" /></el-button>
                 </el-tooltip>
@@ -567,6 +568,13 @@ async function continueCreation(item: AgentMessage, kind: ModelKind, script = fa
   item.creationChoice.resolved = true;
   await submitMessage({ prompt, kind, script, attachments: source?.attachments ?? [] });
 }
+
+const messageResults = new Map<string, InstanceType<typeof browserModelResults>>();
+function setMessageResults(id: string, value: unknown) {
+  if (value) messageResults.set(id, value as InstanceType<typeof browserModelResults>);
+  else messageResults.delete(id);
+}
+function hasApplicableMaterial(item: AgentMessage) { return generationResults.value.some(result => result.directory === directory && item.browserResultIds?.includes(result.id) && ["image", "video"].includes(result.kind)); }
 
 async function referenceMessageResults(item: AgentMessage) {
   try {
