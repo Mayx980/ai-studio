@@ -19,7 +19,7 @@ restoreMaterialWorkspaces();
     &:hover { background: #30283e; } &:focus-visible { outline: 2px solid #ab8aff; outline-offset: -2px; }
     .taskCaption { display: flex; flex-direction: column; gap: 8px; strong { font-size: 14px; font-weight: 500; } small { font-size: 12px; color: #aaa1ba; } }
     &.completed { color: #82d9b1; :deep(.generationTaskRing) { color: #82d9b1; } }
-    &.failed { color: #f0b17b; :deep(.generationTaskRing) { color: #f0b17b; } }
+    &.failed { color: #f56c6c; :deep(.generationTaskRing) { color: #f56c6c; } }
   }
 }
 .materialStorageError { position: fixed; bottom: 8px; left: 16px; width: min(480px, calc(100vw - 32px)); z-index: 1910; }
