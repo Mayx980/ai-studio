@@ -11,6 +11,7 @@ export function createPrototypePort(): PrototypePort {
   return {
     workspaceMode: true,
     requiresAccount: true,
+    readLegacyState: key => localStorage.getItem(key),
     readAccount: () => sessionStorage.getItem("afxen.prototypeAccount"),
     writeAccount: id => sessionStorage.setItem("afxen.prototypeAccount", id),
     clearAccount: () => sessionStorage.removeItem("afxen.prototypeAccount"),

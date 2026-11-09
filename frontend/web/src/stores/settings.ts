@@ -1,4 +1,5 @@
 import { studio } from "@/ports";
+import { prototype } from "@/ports/prototype";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import axios from "axios";
 import { normalizeLocale } from "@toonflow/i18n";
@@ -21,7 +22,7 @@ export const settingsStorage = {
     const stores = settings.value.stores as Record<string, unknown> | undefined;
     if (stores && Object.hasOwn(stores, key)) return JSON.stringify(stores[key]);
     // ACT: 只迁移当前来源可读取的旧缓存，保留原值；不同端口的 localStorage 不能互读。
-    const value = localStorage.getItem(key);
+    const value = prototype.readLegacyState(key);
     if (value !== null) settingsStorage.setItem(key, value);
     return value;
   },

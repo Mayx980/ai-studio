@@ -39,6 +39,7 @@ export type PrototypeMediaAsset = { type: string; data?: string; url?: string; m
 export interface PrototypePort {
   readonly workspaceMode: boolean;
   readonly requiresAccount: boolean;
+  readLegacyState(key: string): string | null;
   readAccount(): string | null;
   writeAccount(id: string): void;
   clearAccount(): void;

@@ -12,6 +12,7 @@ const unavailableSync = (): never => { throw new Error("隔离预览不连接浏
 configurePrototypePort({
   workspaceMode: false,
   requiresAccount: false,
+  readLegacyState: () => null,
   readAccount: () => null,
   writeAccount: unavailableSync,
   clearAccount: unavailableSync,
