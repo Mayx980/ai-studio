@@ -89,9 +89,9 @@ watch(kind, () => { parametersVisible.value = false; durationVisible.value = fal
 </script>
 
 <style scoped lang="scss">
-.inlineModelSelect { flex: none; width: 160px; :deep(.el-select__wrapper) { min-height: 32px; border-radius: 12px; background: #24232c; box-shadow: inset 0 0 0 1px #45414e; } :deep(.el-select__selected-item) { color: #d0cbdc; font: 500 12px/1 Arial, sans-serif; } }
+.inlineModelSelect { flex: none; width: 160px; :deep(.el-select__wrapper) { min-height: 32px; border-radius: 12px; background: #24232c; box-shadow: inset 0 0 0 1px #45414e; } :deep(.el-select__selected-item) { color: #f2f2f2; font: 400 13px/1 Arial, sans-serif; } }
 .parameterKindSelect { flex: none; width: 110px; }
-.inlineParameter { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #e3dfeb; font: 500 12px/1 Arial, sans-serif; white-space: nowrap; cursor: pointer; transition: background 180ms, color 180ms;
+.inlineParameter { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #f2f2f2; font: 400 13px/1 Arial, sans-serif; white-space: nowrap; cursor: pointer; transition: background 180ms, color 180ms;
   .parameterDot { color: #77717f; }
   .formatIcon { display: inline-block; box-sizing: border-box; flex: none; border: 2px solid currentColor; border-radius: 3px; }
   &:hover:enabled, &[aria-expanded="true"] { background: #3c314e; color: #ceafff; }
