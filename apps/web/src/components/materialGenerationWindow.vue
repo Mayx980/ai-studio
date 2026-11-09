@@ -138,15 +138,16 @@ async function applyMaterial(file: File) {
     .styleSelect { min-width: 60px; max-width: 110px; padding: 0 8px; > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
     .inlineParameter { height: 32px; padding: 0 6px; gap: 6px; }
     .quickMention { height: 32px; width: 28px; font-size: 18px; }
-    > .sendButton { position: static; height: 32px; min-width: 76px; padding: 0 12px; }
+    > .sendButton { position: static; height: 28px; min-width: 60px; padding: 0 8px; margin: 0; font-size: 12px; > span > svg { width: 14px; height: 14px; } }
   }
 }
 @container (max-width: 420px) {
   .materialGenerationWindow :deep(.agentConversation .messageInput .senderActions.simpleToolbar) {
     .outputTabs button { gap: 4px; padding: 0 6px; font-size: 12px; svg { width: 14px; height: 14px; } }
     .inlineModelSelect { flex-basis: 100px; min-width: 100px; max-width: none; .el-select__wrapper { padding: 4px 8px; } .el-select__selected-item { font-size: 12px; } }
-    .inlineParameter { font-size: 12px; gap: 4px; padding: 0 4px; }
-    .styleSelect { min-width: 52px; font-size: 12px; }
+    .inlineParameter { font-size: 12px; gap: 4px; padding: 0 3px; &:not(.formatParameter) > svg { display: none; } }
+    .quickMention { width: 24px; }
+    .styleSelect { width: 32px; min-width: 32px; max-width: 32px; padding: 0; > span { gap: 0; font-size: 0; } svg { width: 16px; height: 16px; flex: none; } }
   }
 }
 .materialWindow-enter-active, .materialWindow-leave-active { transition: transform 240ms ease, opacity 240ms ease; }

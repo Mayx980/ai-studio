@@ -91,6 +91,7 @@ declare module 'vue' {
     Ffmpeg: typeof import('./../components/settings/panels/pluginMarket/ffmpeg.vue')['default']
     FfmpegRequired: typeof import('./../components/settings/ffmpegRequired.vue')['default']
     General: typeof import('./../components/settings/panels/general/index.vue')['default']
+    GenerationTaskRing: typeof import('./../components/generationTaskRing.vue')['default']
     IconArrowGuide: typeof import('@tabler/icons-vue')['IconArrowGuide']
     IconArrowRight: typeof import('@tabler/icons-vue')['IconArrowRight']
     IconBorderRadius: typeof import('@tabler/icons-vue')['IconBorderRadius']

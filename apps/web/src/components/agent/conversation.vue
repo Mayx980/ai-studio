@@ -159,7 +159,7 @@
           </div>
         </el-popover>
         <el-button class="sendButton" type="primary" circle :disabled="!sending && locked" :aria-label="sending ? '停止生成' : editingId ? '重发消息' : '发送消息'" :title="sending ? '停止生成' : editingId ? '重发消息' : '发送消息'" @click="sending ? stopGeneration() : submitMessage()">
-          <el-icon v-if="sending" class="is-loading"><icon-loader-2 :size="16" /></el-icon>
+          <generationTaskRing v-if="sending && props.materialEditor" :size="16" /><el-icon v-else-if="sending" class="is-loading"><icon-loader-2 :size="16" /></el-icon>
           <icon-arrow-up v-else :size="16" /><span v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')">{{ sending ? '停止生成' : '生成' }}</span>
         </el-button>
       </div>
@@ -189,6 +189,7 @@ import brandLogo from "@/components/brandLogo.vue";
 import { browserConfig as defaultBrowserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, inferGenerationKind, browserResultFile, type ModelKind, type BrowserConversationImport } from "@/stores/browserGeneration";
 import professionalCreation from "./professionalCreation.vue";
 import simpleReferenceSlots from "@/components/simpleReferenceSlots.vue";
+import generationTaskRing from "@/components/generationTaskRing.vue";
 import simpleGenerationTools from "@/components/simpleGenerationTools.vue";
 import browserModelOptions from "@/components/browserModelOptions.vue";
 import browserModelResults from "@/components/browserModelResults.vue";

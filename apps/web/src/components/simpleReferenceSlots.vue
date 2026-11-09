@@ -6,7 +6,7 @@
         <div class="referenceTabs" role="tablist" aria-label="参考素材类型"><button v-for="tab in tabs" :key="tab.value" type="button" role="tab" :aria-selected="mode === tab.value" :disabled="disabled || opening" @click="mode = tab.value; modeVisible = false">{{ tab.label }}</button></div>
       </el-popover>
     </teleport>
-    <button v-for="task in materialWorkspaces.filter(item => item.directory === directory)" :key="task.id" class="materialTaskEntry" :class="task.status" type="button" @click="task.request = { owner, directory: task.directory, label: task.label, target: task.target, apply: file => applyFiles([file], task.target) }; openMaterialWorkspace(task)"><icon-loader-2 v-if="task.status === 'queued' || task.status === 'generating'" :size="14" /><span>{{ task.label }} · {{ materialStatusLabel(task) }}</span></button>
+    <button v-for="task in materialWorkspaces.filter(item => item.directory === directory)" :key="task.id" class="materialTaskEntry" :class="task.status" type="button" @click="task.request = { owner, directory: task.directory, label: task.label, target: task.target, apply: file => applyFiles([file], task.target) }; openMaterialWorkspace(task)"><generationTaskRing v-if="task.status === 'queued' || task.status === 'generating'" :size="26" /><span>{{ task.label }} · {{ materialStatusLabel(task) }}</span></button>
     <input ref="fileInput" type="file" :accept="target.role === 'firstFrame' || target.role === 'lastFrame' ? 'image/*' : 'image/*,video/*'" :multiple="['reference', 'middleFrame'].includes(target.role) && !replacing" hidden :disabled="disabled || opening" @change="selectFiles" />
     <div v-if="mode === 'reference'" class="referenceDeck" aria-label="参考图片">
       <button v-if="!referenceImages.length" class="slotCard" type="button" :disabled="disabled || opening" aria-label="添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="28" /></button>
@@ -47,7 +47,7 @@ import { IconPlus, IconRefresh, IconX, IconPhoto, IconChevronDown } from "@table
 import type { AgentAttachment, ReferenceRole, ReferenceCategory } from "@/components/agent/types";
 import attachmentPreview from "@/components/agent/attachmentPreview.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
-import { IconLoader2 } from "@tabler/icons-vue";
+import generationTaskRing from "./generationTaskRing.vue";
 import { materialEditorState, materialWorkspaces, materialStatusLabel, openMaterialWorkspace, type MaterialTarget } from "@/stores/materialEditor";
 const props = withDefaults(defineProps<{ showFrames?: boolean; tabsTarget?: HTMLElement; directory?: string; disabled?: boolean; ensureDirectory?: () => Promise<string | undefined> }>(), { showFrames: true });
 const attachments = defineModel<AgentAttachment[]>({ required: true });
@@ -120,7 +120,7 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; for (const task of
 </script>
 <style scoped lang="scss">
 .simpleReferenceSlots {
-  .materialTaskEntry { flex: none; align-self: center; display: flex; align-items: center; gap: 6px; max-width: 220px; padding: 10px 12px; border: 1px solid #4e435f; border-radius: 12px; background: #26232e; color: #d9ccec; cursor: pointer; font-size: 12px; span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } &.completed { color: #82d9b1; } &.failed { color: #f0b17b; } &.generating svg, &.queued svg { animation: materialTaskSpin 1s linear infinite; } }
+  .materialTaskEntry { flex: none; align-self: center; display: flex; align-items: center; gap: 6px; max-width: 220px; padding: 10px 12px; border: 1px solid #4e435f; border-radius: 12px; background: #26232e; color: #d9ccec; cursor: pointer; font-size: 12px; span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } &.completed { color: #82d9b1; } &.failed { color: #f0b17b; } }
   display: flex; justify-content: flex-start; align-items: flex-start; gap: 12px; padding: 8px 12px 14px; min-width: 0;
 
   .referenceDeck, .frameDeck { display: flex; justify-content: flex-start; align-items: flex-start; gap: 10px; min-width: 0; flex-wrap: wrap; padding: 4px 10px 8px 0; }
@@ -141,6 +141,4 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; for (const task of
 .referenceModeButton { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 6px; height: 32px; min-width: 88px; padding: 0 12px; border: 1px solid #45414e; border-radius: 12px; color: #f2f2f2; background: #24232c; font: 400 13px/1 Arial, sans-serif; white-space: nowrap; cursor: pointer; transition: background 180ms, border-color 180ms; &:hover:enabled, &[aria-expanded="true"] { background: #2e2938; border-color: #9071d5; } &:focus-visible { outline: 2px solid #a28ae9; outline-offset: 2px; } &:disabled { opacity: .5; cursor: not-allowed; } }
 .referenceTabs { display: grid; gap: 4px; button { padding: 9px 10px; border: 0; border-radius: 8px; text-align: left; color: var(--el-text-color-secondary); background: transparent; cursor: pointer; font: inherit; font-size: 12px; &[aria-selected="true"] { color: var(--el-color-primary); background: var(--el-fill-color); } &:focus-visible { outline: 1px solid var(--el-color-primary); } } }
 .referenceSourceMenu { display: grid; gap: 3px; button { border: 0; border-radius: 6px; padding: 9px 10px; color: var(--el-text-color-primary); background: transparent; font: inherit; font-size: 13px; text-align: left; cursor: pointer; &:hover, &:focus-visible { background: var(--el-fill-color); } } }
-@keyframes materialTaskSpin { to { transform: rotate(360deg); } }
-@media(prefers-reduced-motion:reduce) { .simpleReferenceSlots .materialTaskEntry svg { animation: none !important; } }
 </style>
