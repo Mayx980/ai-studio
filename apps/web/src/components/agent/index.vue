@@ -38,6 +38,7 @@
 </template>
 
 <script setup lang="ts">
+import { materialWorkspaces } from "@/stores/materialEditor";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { createBrowserConversation, readBrowserConversation, listBrowserConversations, renameBrowserConversation, removeBrowserConversation } from "./browserConversations";
 import { restoreBrowserResults } from "@/stores/browserGeneration";
@@ -205,6 +206,11 @@ async function loadHistory(openLatest = false) {
     const data = browserWorkspaceMode ? { code: 200, data: await listBrowserConversations(directory), message: "" } : (await axios.get<{ code: number; data: AgentHistory[]; message?: string }>("/api/agent/list", { params: { directory }, headers: { "x-toonflow-workspace": "1" } })).data;
     if (data.code !== 200) throw new Error(data.message || "读取历史对话失败");
     if (currentRequest !== requestId) return;
+    if (browserWorkspaceMode) {
+      const independentFiles = new Set(materialWorkspaces.value.filter(item => item.directory === directory).map(item => item.sessionFile));
+      data.data = (await Promise.all(data.data.map(async item => ({ item, session: await readBrowserConversation(directory, item.file) })))).filter(({ item, session }) => session.purpose !== "material" && !independentFiles.has(item.file)).map(({ item }) => item);
+      if (currentRequest !== requestId) return;
+    }
     history.value = data.data;
     // 首条回复结束前会话可能尚未落盘，仍允许从历史菜单切回。
     for (const item of conversations.value) if (item.file) setSessionFile(item, item.file);

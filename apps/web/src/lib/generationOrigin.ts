@@ -44,7 +44,7 @@ export async function resolveGenerationOrigin(directory: string, record: Pick<Ge
   if (matches.length > 1) throw new Error("该历史素材对应多个来源，请从原项目中选择；不会自动跳转到其他项目");
   return matches[0];
 }
-export async function openGenerationOrigin(value: GenerationOrigin) {
+export async function validateGenerationOrigin(value: GenerationOrigin) {
   const origin = readGenerationOrigin(value)!;
   if (origin.type === "conversation") {
     const { readBrowserConversation } = await import("@/components/agent/browserConversations");
@@ -54,6 +54,10 @@ export async function openGenerationOrigin(value: GenerationOrigin) {
     const canvas = (await readCanvasFiles(useWorkspaceFiles(origin.directory), origin.canvasPath))[0];
     if (!canvas?.data.nodes.some(node => node.id === origin.nodeId)) throw new Error("原画布或节点已不存在，素材仍保留");
   }
+  return origin;
+}
+export async function openGenerationOrigin(value: GenerationOrigin) {
+  const origin = await validateGenerationOrigin(value);
   const { useWorkspaceStore } = await import("@/stores/workspace");
   const workspace = useWorkspaceStore();
   await workspace.openProject(origin.directory);

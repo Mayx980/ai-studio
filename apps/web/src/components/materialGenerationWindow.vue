@@ -82,7 +82,7 @@ async function loadSession() {
   loading.value = true; loadError.value = "";
   try {
     const item = props.workspace;
-    session.value = item.sessionFile ? await readBrowserConversation(item.directory, item.sessionFile) : { ...await createBrowserConversation(item.directory), creationMode: "simple" };
+    session.value = item.sessionFile ? await readBrowserConversation(item.directory, item.sessionFile) : { ...await createBrowserConversation(item.directory, "material"), creationMode: "simple" };
     await restoreBrowserResults(item.directory);
     item.sessionFile = session.value.file; saveMaterialWorkspaces();
   } catch (error) { loadError.value = error instanceof Error ? error.message : "独立生成对话恢复失败"; }

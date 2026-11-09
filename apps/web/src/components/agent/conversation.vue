@@ -528,7 +528,7 @@ async function persistBrowserMessages() {
   const save = browserSaveQueue.catch(() => {}).then(async () => {
     if ((!browserWorkspaceMode && !props.materialEditor) || !directory) return;
     if (!browserSessionFile) {
-      const session = await createBrowserConversation(directory);
+      const session = await createBrowserConversation(directory, props.materialEditor ? "material" : undefined);
       browserSessionFile = session.file;
       emit("session", session.file);
     }

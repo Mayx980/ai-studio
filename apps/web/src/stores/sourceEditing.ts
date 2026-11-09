@@ -1,7 +1,7 @@
 import { ref, shallowRef } from "vue";
 import type { AgentAttachment } from "@/components/agent/types";
 import type { GenerationRecord } from "@/lib/generationHistory";
-import { generationRecordForPath, openGenerationOrigin, readGenerationOrigin, type GenerationOrigin } from "@/lib/generationOrigin";
+import { generationRecordForPath, readGenerationOrigin, validateGenerationOrigin, type GenerationOrigin } from "@/lib/generationOrigin";
 import { captureVideoFrame } from "@/lib/videoFrame";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
@@ -44,6 +44,7 @@ export async function startSourceEdit(item: Omit<SourceEdit, "startedAt" | "name
   if (!readGenerationOrigin(item.origin)) throw new Error("缺少可验证的素材来源");
   sourceEditBusy.value = true; sourceEditError.value = "";
   try {
+    await validateGenerationOrigin(item.origin);
     const files = useWorkspaceFiles(item.directory);
     const attachments: AgentAttachment[] = [];
     for (const attachment of item.attachments) {
@@ -54,20 +55,20 @@ export async function startSourceEdit(item: Omit<SourceEdit, "startedAt" | "name
     }
     sourceEdit.value = { ...item, attachments, name: attachments[item.index]!.name, startedAt: Date.now(), parameters: Object.fromEntries(browserParameterKeys.map(key => [key, browserConfig[key]])), modelSelection: { ...browserModelSelection } };
     save();
-    await openGenerationOrigin(item.origin);
   } catch (error) { sourceEdit.value = undefined; save(); throw error; }
   finally { sourceEditBusy.value = false; }
 }
 function sameOrigin(a: GenerationOrigin, b: GenerationOrigin) {
   return a.directory === b.directory && a.type === b.type && (a.type === "canvas" && b.type === "canvas" ? a.canvasPath === b.canvasPath && a.nodeId === b.nodeId : a.type === "conversation" && b.type === "conversation" && a.sessionFile === b.sessionFile);
 }
-window.addEventListener("afxen:generation-recorded", event => {
+export function receiveSourceResult(event: Event) {
   const context = sourceEdit.value;
   if (!context) return;
   const detail = (event as CustomEvent<{ directory: string; records: GenerationRecord[] }>).detail;
   const result = detail?.records?.findLast(item => ["image", "video"].includes(item.kind) && item.origin && sameOrigin(item.origin, context.origin) && (item.createdAt ?? 0) >= context.startedAt);
   if (result) { sourceEdit.value = { ...context, result: { ...result, directory: detail.directory } }; save(); }
-});
+}
+window.addEventListener("afxen:generation-recorded", receiveSourceResult);
 export async function returnFromSourceEdit(apply = false) {
   const context = sourceEdit.value;
   if (!context || sourceEditBusy.value) return;
@@ -92,7 +93,6 @@ export async function returnFromSourceEdit(apply = false) {
       const path = await uploadNodeFile(useWorkspaceFiles(context.directory), crypto.randomUUID(), file);
       attachments[context.index] = { ...attachments[context.index]!, name: file.name, path, mimeType, origin: result.origin, assetPath: undefined };
     }
-    await openGenerationOrigin({ type: "conversation", directory: context.directory, sessionFile: context.sessionFile });
     for (const key of browserParameterKeys) if (context.parameters && typeof context.parameters[key] === typeof browserConfig[key]) Object.assign(browserConfig, { [key]: context.parameters[key] });
     for (const key of ["image", "video", "audio", "text"] as const) if (typeof context.modelSelection?.[key] === "string") browserModelSelection[key] = context.modelSelection[key];
     useWorkspaceStore().pendingAgentDraft = { file: context.sessionFile, prompt: context.prompt, attachments };

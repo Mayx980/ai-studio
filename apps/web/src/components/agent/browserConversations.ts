@@ -8,9 +8,9 @@ async function sessionFiles(directory: string) {
   for (const path of [".agent", folder]) await files.mkdir(path).catch(error => { if (error.code !== "EEXIST") throw error; });
   return files;
 }
-export async function createBrowserConversation(directory: string): Promise<AgentConversation> {
+export async function createBrowserConversation(directory: string, purpose?: "material"): Promise<AgentConversation> {
   const files = await sessionFiles(directory);
-  const session: AgentConversation = { file: `${crypto.randomUUID()}.json`, name: "新对话", messages: [] };
+  const session: AgentConversation = { file: `${crypto.randomUUID()}.json`, name: "新对话", messages: [], ...(purpose ? { purpose } : {}) };
   await files.writeJson(`${folder}/${session.file}`, session, true);
   return session;
 }
