@@ -299,7 +299,7 @@ sudo spctl --master-disable
 
 ### 4.2 Docker ইনস্টলেশন
 
-প্রথমে Git, [Docker Engine](https://docs.docker.com/engine/install/) এবং Docker Compose ইনস্টল করুন। Windows ও macOS-এ Docker Desktop-এর Linux container mode ব্যবহার করা যায়। রিপোজিটরিতে [Dockerfile](../../Dockerfile), [Compose কনফিগারেশন](../../compose.yaml) এবং [বিল্ড থেকে বাদ দেওয়ার নিয়ম](../../.dockerignore) রয়েছে। ইমেজটি Bun 1.3.14 দিয়ে তৈরি করা হয় এবং এতে FFmpeg অন্তর্ভুক্ত থাকে।
+প্রথমে Git, [Docker Engine](https://docs.docker.com/engine/install/) এবং Docker Compose ইনস্টল করুন। Windows ও macOS-এ Docker Desktop-এর Linux container mode ব্যবহার করা যায়। রিপোজিটরিতে [Dockerfile](../../ops/Dockerfile), [Compose কনফিগারেশন](../../ops/compose.yaml) এবং [বিল্ড থেকে বাদ দেওয়ার নিয়ম](../../.dockerignore) রয়েছে। ইমেজটি Bun 1.3.14 দিয়ে তৈরি করা হয় এবং এতে FFmpeg অন্তর্ভুক্ত থাকে।
 
 <details>
 <summary><strong>Eপ্রসারিত করুন Docker ইনস্টলেশন পদক্ষেপ</strong></summary>

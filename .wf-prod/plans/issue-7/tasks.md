@@ -6,12 +6,9 @@
 
 - [x] 按已确认的单人／共享工作区服务端方向修订计划，人工确认服务端凭据、兼容与实施方案，以及 `issue-design/7@2dea9ee` 的相关增量承接安排，见 note 128590。
 - [x] 建立 `requirements/prd.md` 和 `requirements/outline.md`，明确产品规则及验收场景。
-- [ ] 维护方恢复原生 `apps/web` 路径的设计承接能力；按同一来源 base/HEAD 重新预检，不改 verified package 或绕过 writer。
-- [ ] 通过既有接入入口恢复真实 Project Facts 及原生应用和包的路径归属；Implement 不执行首次 Facts bootstrap，不凭包名虚构 entity。
-- [ ] 在实体身份有效后，按 actual diff 补齐必要 System、Contract 设计，复跑受影响的 owner 输入检查。
-- [ ] 在唯一 `issue/7` 上三方压缩吸收确认增量，核对结果树、来源记录、兼容性及无关默认分支内容；不重复吸收已等价进入设计的资产草稿。
-
-前提：修订计划已获人工确认；设计吸收依赖 provider 恢复，System/Contract 依赖有效实体登记。依据：#7 当前有效决定，尤其服务端方向 note 128571 和批准 note 128590。位置：`issue/7`、必要设计文档及 exact 设计范围。通过标准：共享实例边界、来源和最终树可核实，无整树覆盖或额外 Issue 关闭副作用；原型的内存 Key、演示账号和本地存储不直接成为正式方案。
+- [ ] 在原 `issue/7` 完成工程阶段的目录、真实 Project Facts、必要 Port/Scenario/Preview 和文档，按 note 129227 / 129245 验证并独立审核；完成证据取实际 commit/MR。
+- [ ] 工程阶段交付后，按届时 current provider 对原设计来源重新预检，再承接已确认范围。
+- [ ] 根据有效实体身份补齐产品增量所需的 System、Contract 和领域设计；本次工程基线不能代替具体业务合同。
 
 ## 任务 2：服务端持久化、索引和共享访问
 
@@ -21,7 +18,7 @@
 - [ ] 另一个浏览器访问同一 Server 可打开相同项目、素材、对话、标签和模板；不提供个人隔离、账号登录、角色审核或实时协同的表象。
 - [ ] 全局资产/模板接口有自己的受限根，不通过放宽工作区校验读写；禁止越界、符号链接逃逸、同名覆盖和过期页面静默覆盖新版本。
 
-依赖：任务 1 的审阅及必要 Contract。位置：`apps/server/src/utils/workspace`、`utils/assets`、`utils/conf`、相关 routes、`apps/web/src/lib/workspaceFiles.ts`、`stores/workspace.ts`、设置和会话保存链路；新工具经 `u` 导出。通过标准：独立浏览器及本地 Server 重启后均能读取已保存内容；冲突/取消/失败不丢数据；没有新数据库或第二套文件原语。
+依赖：任务 1 的审阅及必要 Contract。位置：`services/server/src/utils/workspace`、`utils/assets`、`utils/conf`、相关 routes、`frontend/web/src/lib/workspaceFiles.ts`、`stores/workspace.ts`、设置和会话保存链路；新工具经 `u` 导出。通过标准：独立浏览器及本地 Server 重启后均能读取已保存内容；冲突/取消/失败不丢数据；没有新数据库或第二套文件原语。
 
 ## 任务 3：首页、品牌和项目入口
 
@@ -29,7 +26,7 @@
 - [ ] 验证首页新建画布、五类节点入口、最近项目、项目搜索/重命名/封面/副本/列表移除及来源板块返回。
 - [ ] 取消或失败不登记未完成项目、不覆盖已有项目；普通新建与首次教学按当前规则区分。
 
-依赖：任务 1、任务 2 的项目入口。依据：#7 品牌/主题及后续品牌、首页、项目交互决定。位置：`apps/web/src/pages/home`、`studioSidebar.vue`、`brandLogo.vue`、`stores/workspace.ts`、外观设置。通过标准：入口可达、已保存偏好可恢复、服务端项目封面正确、重复点击不重复创建；列表移除保持保留文件的现有约定。
+依赖：任务 1、任务 2 的项目入口。依据：#7 品牌/主题及后续品牌、首页、项目交互决定。位置：`frontend/web/src/pages/home`、`studioSidebar.vue`、`brandLogo.vue`、`stores/workspace.ts`、外观设置。通过标准：入口可达、已保存偏好可恢复、服务端项目封面正确、重复点击不重复创建；列表移除保持保留文件的现有约定。
 
 ## 任务 4：简单创作、引用与画布往返
 
@@ -49,7 +46,7 @@
 - [ ] 核对 TXT/Markdown/CSV/XLSX/DOCX 现有导入范围、大小限制、解析预览和映射确认；取消不改表。Excel 使用同一保存数据，不导出画布连接或 Key。
 - [ ] 调整或删除行时说明连接影响，不删除下游已有素材；整表重新生成保留覆盖确认与原内容保护。
 
-依赖：任务 1、任务 2/4 的引用与服务端保存能力；真实模型验证依赖任务 6。依据：#7 notes 124133/124212/124497/124535/124603/124678/125106/125145，以及明确引用的 #4 脚本决定。位置：`professionalCreation.vue/.ts`、`packages/nodes/textNode/src/script*`、文本节点、共享引用组件及所属会话状态。通过标准：编辑、导入、刷新、重新打开、排序后引用仍指向正确镜头，导出与保存表格一致，不声称支持未实现的多模态识别、OCR 或成片合成。
+依赖：任务 1、任务 2/4 的引用与服务端保存能力；真实模型验证依赖任务 6。依据：#7 notes 124133/124212/124497/124535/124603/124678/125106/125145，以及明确引用的 #4 脚本决定。位置：`professionalCreation.vue/.ts`、`frontend/nodes/textNode/src/script*`、文本节点、共享引用组件及所属会话状态。通过标准：编辑、导入、刷新、重新打开、排序后引用仍指向正确镜头，导出与保存表格一致，不声称支持未实现的多模态识别、OCR 或成片合成。
 
 ## 任务 6：服务端模型配置、参数及节点生成
 
@@ -60,7 +57,7 @@
 - [ ] 核对媒体下载、保存、历史记录、结果应用，以及切换画布后继续生成；结果回到原项目/画布/节点，不能写入新项目或重建已删除节点。
 - [ ] 明确停止仅停止本地等待还是供应商任务，保留已成功结果及部分失败说明。
 
-依赖：任务 1、任务 2；任务 4/5 的生成验证消费本任务结果。位置：`apps/server/src/utils/ai`、`utils/media`、`utils/conf`、AI/配置 routes、`packages/providers`、API 设置组件、创作调用、`canvasGeneration.ts`、共享生成入口及节点公开导出。通过标准：普通 Web+Server 和构建版均可接线，不需要 studio 中转，无意外供应商或自动请求；结果固定保存到原项目，应用内导航不误取消，浏览器关闭或进程重启后续跑不作承诺；缺有效 Key 时列明未实测项。
+依赖：任务 1、任务 2；任务 4/5 的生成验证消费本任务结果。位置：`services/server/src/utils/ai`、`utils/media`、`utils/conf`、AI/配置 routes、`packages/providers`、API 设置组件、创作调用、`canvasGeneration.ts`、共享生成入口及节点公开导出。通过标准：普通 Web+Server 和构建版均可接线，不需要 studio 中转，无意外供应商或自动请求；结果固定保存到原项目，应用内导航不误取消，浏览器关闭或进程重启后续跑不作承诺；缺有效 Key 时列明未实测项。
 
 ## 任务 7：实例资产与生成历史
 

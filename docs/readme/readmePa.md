@@ -299,7 +299,7 @@ sudo spctl --master-disable
 
 ### 4.2 Docker ਸਥਾਪਨਾ
 
-ਪਹਿਲਾਂ Git, [Docker Engine](https://docs.docker.com/engine/install/) ਅਤੇ Docker Compose ਸਥਾਪਿਤ ਕਰੋ। Windows ਅਤੇ macOS ਉੱਤੇ Docker Desktop ਦਾ Linux container mode ਵਰਤ ਸਕਦੇ ਹੋ। ਰਿਪੋਜ਼ਟਰੀ ਵਿੱਚ [Dockerfile](../../Dockerfile), [Compose ਸੈਟਿੰਗਾਂ](../../compose.yaml) ਅਤੇ [ਬਿਲਡ ਤੋਂ ਬਾਹਰ ਰੱਖਣ ਦੇ ਨਿਯਮ](../../.dockerignore) ਦਿੱਤੇ ਹਨ। ਇਮੇਜ Bun 1.3.14 ਨਾਲ ਬਣਦੀ ਹੈ ਅਤੇ ਇਸ ਵਿੱਚ FFmpeg ਸ਼ਾਮਲ ਹੈ।
+ਪਹਿਲਾਂ Git, [Docker Engine](https://docs.docker.com/engine/install/) ਅਤੇ Docker Compose ਸਥਾਪਿਤ ਕਰੋ। Windows ਅਤੇ macOS ਉੱਤੇ Docker Desktop ਦਾ Linux container mode ਵਰਤ ਸਕਦੇ ਹੋ। ਰਿਪੋਜ਼ਟਰੀ ਵਿੱਚ [Dockerfile](../../ops/Dockerfile), [Compose ਸੈਟਿੰਗਾਂ](../../ops/compose.yaml) ਅਤੇ [ਬਿਲਡ ਤੋਂ ਬਾਹਰ ਰੱਖਣ ਦੇ ਨਿਯਮ](../../.dockerignore) ਦਿੱਤੇ ਹਨ। ਇਮੇਜ Bun 1.3.14 ਨਾਲ ਬਣਦੀ ਹੈ ਅਤੇ ਇਸ ਵਿੱਚ FFmpeg ਸ਼ਾਮਲ ਹੈ।
 
 <details>
 <summary><strong>Docker ਸਥਾਪਨਾ ਦੇ ਕਦਮ ਖੋਲ੍ਹੋ</strong></summary>

@@ -1,0 +1,1 @@
+{"binding":"project_observed","code_unit_id":"frontendcompatmacintel","dependencies":["packagesfile"],"entity_id":"macintelhost","entrypoints":["frontend/compat/macIntel/build.ts"],"excluded_paths":[],"paths":["frontend/compat/macIntel/"],"provider":null,"schema":"wf-prod.project_facts_code_unit","schema_version":1,"toolchains":["bun","typescript"]}

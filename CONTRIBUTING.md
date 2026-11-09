@@ -2,14 +2,14 @@
 
 欢迎参与 Toonflow。无论是反馈问题、改进文档、开发插件，还是修复代码，都可以帮助创作者更顺畅地完成作品。
 
-参与讨论和协作前，请阅读 [社区行为准则](./CODE_OF_CONDUCT.md)。项目介绍和使用方法见 [README](./README.md)，完整开发说明见 [开发与扩展指南](./docs/development.md)，代码修改以 [开发规范](./AGENTS.md) 为准。
+参与讨论和协作前，请阅读 [社区行为准则](./CODE_OF_CONDUCT.md)。项目介绍和使用方法见 [README](./README.md)，完整开发说明见 [开发与扩展指南](./docs/sourceDevelopment.md)，代码修改以 [开发规范](./AGENTS.md) 为准。
 
 ## 从哪里开始
 
 - **报告问题**：在 [GitHub Issues](https://github.com/HBAI-Ltd/Toonflow-app/issues) 搜索已有记录，再补充信息或提交新问题。
 - **提出建议**：说明创作场景、遇到的限制和期望结果；较大的功能或架构调整建议先讨论范围与影响。
 - **改进文档**：修正错误、补全步骤，或提供能够复现的操作说明。
-- **开发扩展**：参考 [节点脚手架](./packages/nodeScaffold/readme.md)、[工具脚手架](./packages/toolScaffold/readme.md) 和现有实现。
+- **开发扩展**：参考 [节点脚手架](./frontend/nodeScaffold/readme.md)、[工具脚手架](./packages/toolScaffold/readme.md) 和现有实现。
 - **贡献代码**：选择一个明确的问题，提交范围集中的 Pull Request（PR）。
 
 不必等到能修改代码才参与。清晰的复现步骤、经过脱敏的截图和实际使用反馈同样有价值。
@@ -66,7 +66,7 @@ bun run dev
 | `bun run dev:plugins` | 一次性构建节点、工具并同步到 `data/`，不是持续监听命令。 |
 | `bun run dev:desktop` | 完成下方平台准备后，构建并启动桌面应用。 |
 
-更新服务与业务 Server 相互独立，普通开发无需启动。涉及更新功能时再按 [更新服务说明](./apps/updateServer/readme.md) 使用 `bun run dev:updateServer`。
+更新服务与业务 Server 相互独立，普通开发无需启动。涉及更新功能时再按 [更新服务说明](./services/updateServer/readme.md) 使用 `bun run dev:updateServer`。
 
 ### 桌面开发（按需）
 
@@ -77,7 +77,7 @@ bun run dev
 
 ```sh
 # 仅 Intel Mac 需要；执行后回到仓库根目录
-cd compat/macIntel
+cd frontend/compat/macIntel
 bun install --frozen-lockfile
 cd ../..
 ```
@@ -85,7 +85,7 @@ cd ../..
 Apple Silicon 与 Intel Mac 都需要在各自的 Mac 上准备当前架构的原生启动库，首次桌面开发或更新原生启动实现后执行：
 
 ```sh
-bun packages/startup/scripts/buildMac.ts
+bun frontend/startup/scripts/buildMac.ts
 ```
 
 完成对应平台准备后，启动桌面开发：
@@ -96,28 +96,28 @@ bun run dev:desktop
 
 该命令会同步开发节点和工具、构建 Web 与 MCP，再启动桌面应用。桌面宿主复用业务 Server，并监听系统分配的本机端口，**不需要提前运行 `bun run dev`**。它使用构建后的 Web 页面，不是 Vite 热更新页面；修改 Web 后需重新构建再验证。
 
-目录选择、原生保存、协议唤起和更新等行为必须在桌面宿主中验证，浏览器验证不能替代。安装包、SDK 准备和平台限制详见 [开发与构建指南](./docs/development.md)。
+目录选择、原生保存、协议唤起和更新等行为必须在桌面宿主中验证，浏览器验证不能替代。安装包、SDK 准备和平台限制详见 [开发与构建指南](./docs/sourceDevelopment.md)。
 
 ## 定位代码与开发扩展
 
 | 改动范围 | 主要入口 |
 | --- | --- |
-| 页面、画布、设置与前端状态 | `apps/web/src/` |
-| HTTP 接口、Agent 运行时与服务端工具 | `apps/server/src/` |
-| 桌面宿主、原生交互、安装与更新 | `apps/desktop/`；Intel Mac 兼容层在 `compat/macIntel/` |
-| 画布节点 | `packages/nodes/`、[节点脚手架](./packages/nodeScaffold/readme.md) |
+| 页面、画布、设置与前端状态 | `frontend/web/src/` |
+| HTTP 接口、Agent 运行时与服务端工具 | `services/server/src/` |
+| 桌面宿主、原生交互、安装与更新 | `frontend/desktop/`；Intel Mac 兼容层在 `frontend/compat/macIntel/` |
+| 画布节点 | `frontend/nodes/`、[节点脚手架](./frontend/nodeScaffold/readme.md) |
 | Agent 工具及其交互组件 | `packages/tools/`、[工具脚手架](./packages/toolScaffold/readme.md) |
 | 模型提供方与技能 | `packages/providers/src/`、`packages/skills/` |
 
 修改节点或工具时，编辑 `packages/` 中的源码，再运行 `bun run dev:plugins`。它会写入 `build/nodes/`、`build/tools/`，并**覆盖 `data/nodes/`、`data/tools/` 中的同名开发产物**；不要直接修改这些产物来代替源码改动。该命令不清理旧产物，改名或删除插件后需检查开发目录中的残留文件。
 
-`bun run build:nodes` 和 `bun run build:tools` 则分别清空对应的 `build/` 子目录后重新构建，不同步到 `data/`。不要把生产构建当作开发插件同步。其他扩展方式见 [开发与扩展指南](./docs/development.md)。
+`bun run build:nodes` 和 `bun run build:tools` 则分别清空对应的 `build/` 子目录后重新构建，不同步到 `data/`。不要把生产构建当作开发插件同步。其他扩展方式见 [开发与扩展指南](./docs/sourceDevelopment.md)。
 
 ## 数据与工作区边界
 
 - Web/Server 开发默认使用仓库根目录的 `data/`，桌面开发脚本也显式使用该目录。这里包含设置、插件等本机数据，必须保持 Git 忽略；不要与日常使用的数据混用，也不要让多个服务进程同时写同一数据目录或工作区。
 - 验证配置或文件写入时，使用独立的临时数据目录和工作区。独立 Server 可在启动前设置 `TOONFLOW_DATA_DIR`；复用 `createApp` 时通过 `dataDirectory` 传入，且必须在动态加载路由前确定目录。先确认实际读写位置，再执行保存、覆盖或删除操作。
-- 前端工作区文件操作统一复用 `apps/web/src/lib/workspaceFiles.ts` 默认导出的 `useWorkspaceFiles`，不要重复封装 Axios 或拼接文件接口。文件 `path`、`target` 使用工作区内相对路径，目录参数使用绝对路径。
+- 前端工作区文件操作统一复用 `frontend/web/src/lib/workspaceFiles.ts` 默认导出的 `useWorkspaceFiles`，不要重复封装 Axios 或拼接文件接口。文件 `path`、`target` 使用工作区内相对路径，目录参数使用绝对路径。
 - 防抖、保存队列或跨 `await` 的多步操作先获取目录字符串快照，再使用固定目录实例，避免切换项目后写错目录。`readJson<T>` 不校验业务结构，调用方仍须检查文件标记与内容。
 - 全局设置继续使用设置接口及 `u.conf`，不重复创建配置实例；未经需求不要把完整覆盖保存改成部分合并。项目列表由 Pinia 持久化，移除列表项不等于删除工作区文件。写入失败必须向调用方反馈，不能吞掉异常后返回成功。
 
@@ -147,8 +147,8 @@ bun run dev:desktop
 - 沿用 Bun、TypeScript、ES Modules 和 Express。独立入口 `src/index.ts` 单进程监听；桌面通过 `@toonflow/server/app` 复用 `createApp`，不导入独立启动入口，不增加 cluster。
 - **一个接口一个文件**：`src/routes/` 下的每个 `.ts` 都会被扫描为路由，文件默认导出 Router，只注册一个 HTTP 方法与路径，接口内使用 `"/"`。工具、类型和配置不要放进路由目录，也不为简单接口增加 controller、service、repository 层。
 - 路由按文件相对路径生成 `/api` 前缀，大小写与路径一致，`index.ts` 对应所在目录。例如 `routes/settings/get.ts` 对应 `/api/settings/get`，HTTP 方法由文件内的注册语句决定。
-- 新增、移动、重命名或删除路由后，执行 `bun run --cwd apps/server routes`。**不要手改 `src/router.ts` 的 imports、注册项或 hash**，也不要依赖构建或文件监听自动补齐；更改 URL 或 HTTP 方法前搜索并同步所有调用方。
-- Server 的 `@/` 指向 `apps/server/src/`；业务工具放在 `utils/` 对应模块，通过 `src/utils.ts` 统一导出，接口使用 `import u from "@/utils"`。
+- 新增、移动、重命名或删除路由后，执行 `bun run --cwd services/server routes`。**不要手改 `src/router.ts` 的 imports、注册项或 hash**，也不要依赖构建或文件监听自动补齐；更改 URL 或 HTTP 方法前搜索并同步所有调用方。
+- Server 的 `@/` 指向 `services/server/src/`；业务工具放在 `utils/` 对应模块，通过 `src/utils.ts` 统一导出，接口使用 `import u from "@/utils"`。
 - 外部输入复用 `validateFields` 与 Zod，查询参数和路径参数显式指定来源。该中间件只校验，不把默认值、转换或裁剪结果写回请求；需要规范化时显式处理。
 - JSON 响应复用 `success`、`error`，保持 `{ code, data, message }`。包装函数不会设置 HTTP 状态，需要时显式调用 `res.status(...)`；普通异常交给统一错误处理中间件，流式响应沿用流内错误处理和资源清理。
 
@@ -161,7 +161,7 @@ bun run dev:desktop
 根目录 `bun run typecheck` 会检查各工作区，包括桌面端。Windows x64 或 Apple Silicon 在首次桌面构建前单独检查类型时，先准备 Electrobun SDK：
 
 ```sh
-bun apps/desktop/node_modules/electrobun/bin/electrobun.cjs prepare
+bun frontend/desktop/node_modules/electrobun/bin/electrobun.cjs prepare
 ```
 
 Intel Mac 则先安装兼容 SDK，并运行一次桌面开发或构建命令生成适配文件。类型检查本身不会安装依赖、生成适配文件或编译原生库。只改 Web 或 Server 时，可以先执行下面对应工作区的检查。
@@ -172,12 +172,12 @@ Intel Mac 则先安装兼容 SDK，并运行一次桌面开发或构建命令生
 
 | 命令 | 适用情况 |
 | --- | --- |
-| `bun run --cwd apps/server routes` | 服务端路由文件新增、移动、重命名或删除后生成注册文件。 |
-| `bun run --cwd apps/web typecheck` | 检查 Web 的 TypeScript 与 Vue 类型。 |
-| `bun run --cwd apps/server typecheck` | 检查业务 Server 类型。 |
+| `bun run --cwd services/server routes` | 服务端路由文件新增、移动、重命名或删除后生成注册文件。 |
+| `bun run --cwd frontend/web typecheck` | 检查 Web 的 TypeScript 与 Vue 类型。 |
+| `bun run --cwd services/server typecheck` | 检查业务 Server 类型。 |
 | `bun run typecheck` | 完成对应环境准备后，检查各工作区类型；适合共享接口或跨包改动。 |
-| `bun run --cwd apps/web build` | 验证 Web 构建，输出到 `build/web/`。 |
-| `bun run --cwd apps/server build` | 构建 Server、MCP，并输出技能与提供方文件；不代替路由生成。 |
+| `bun run --cwd frontend/web build` | 验证 Web 构建，输出到 `build/web/`。 |
+| `bun run --cwd services/server build` | 构建 Server、MCP，并输出技能与提供方文件；不代替路由生成。 |
 | `bun run build` | 构建工具、Web、Server、MCP，并输出技能与提供方；**不包含节点、桌面构建或类型检查**。 |
 | `bun run build:desktop` | 构建当前平台桌面应用及随包资源，包含节点、工具、Web 与 MCP 构建。 |
 | `bun run package:desktop` | 重新构建并制作 Windows NSIS 安装包或 macOS DMG，需满足对应平台的打包要求。 |

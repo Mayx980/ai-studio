@@ -299,7 +299,7 @@ sudo spctl --master-disable
 
 ### 4.2 Docker 설치
 
-먼저 Git, [Docker Engine](https://docs.docker.com/engine/install/), Docker Compose를 설치하세요. Windows와 macOS에서는 Linux 컨테이너 모드의 Docker Desktop을 사용할 수 있습니다. 저장소에는 [Dockerfile](../../Dockerfile), [Compose 설정](../../compose.yaml), [빌드 제외 설정](../../.dockerignore)이 포함되어 있습니다. 이미지는 Bun 1.3.14로 빌드되며 FFmpeg를 포함합니다.
+먼저 Git, [Docker Engine](https://docs.docker.com/engine/install/), Docker Compose를 설치하세요. Windows와 macOS에서는 Linux 컨테이너 모드의 Docker Desktop을 사용할 수 있습니다. 저장소에는 [Dockerfile](../../ops/Dockerfile), [Compose 설정](../../ops/compose.yaml), [빌드 제외 설정](../../.dockerignore)이 포함되어 있습니다. 이미지는 Bun 1.3.14로 빌드되며 FFmpeg를 포함합니다.
 
 <details>
 <summary><strong>Docker 설치 단계 펼치기</strong></summary>

@@ -1,0 +1,1 @@
+{"binding":"project_observed","code_unit_id":"packagesproviders","dependencies":["packagesffmpeg"],"entity_id":null,"entrypoints":["packages/providers/index.ts"],"excluded_paths":[],"paths":["packages/providers/"],"provider":null,"schema":"wf-prod.project_facts_code_unit","schema_version":1,"toolchains":["bun","typescript"]}

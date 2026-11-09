@@ -299,7 +299,7 @@ sudo spctl --master-disable
 
 ### 4.2 Docker 安裝
 
-先安裝 Git、[Docker Engine](https://docs.docker.com/engine/install/) 和 Docker Compose；Windows / macOS 可使用 Docker Desktop 的 Linux 容器模式。儲存庫提供 [Dockerfile](../../Dockerfile)、[Compose 設定](../../compose.yaml) 和[建置排除規則](../../.dockerignore)，以 Bun 1.3.14 建置，映像檔內含 FFmpeg。
+先安裝 Git、[Docker Engine](https://docs.docker.com/engine/install/) 和 Docker Compose；Windows / macOS 可使用 Docker Desktop 的 Linux 容器模式。儲存庫提供 [Dockerfile](../../ops/Dockerfile)、[Compose 設定](../../ops/compose.yaml) 和[建置排除規則](../../.dockerignore)，以 Bun 1.3.14 建置，映像檔內含 FFmpeg。
 
 <details>
 <summary><strong>展開 Docker 安裝步驟</strong></summary>

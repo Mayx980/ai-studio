@@ -299,7 +299,7 @@ sudo spctl --master-disable
 
 ### 4.2 Установка через Docker
 
-Сначала установите Git, [Docker Engine](https://docs.docker.com/engine/install/) и Docker Compose. В Windows и macOS можно использовать Docker Desktop в режиме контейнеров Linux. В репозитории есть [Dockerfile](../../Dockerfile), [конфигурация Compose](../../compose.yaml) и [правила исключения файлов из сборки](../../.dockerignore). Образ собирается на Bun 1.3.14 и содержит FFmpeg.
+Сначала установите Git, [Docker Engine](https://docs.docker.com/engine/install/) и Docker Compose. В Windows и macOS можно использовать Docker Desktop в режиме контейнеров Linux. В репозитории есть [Dockerfile](../../ops/Dockerfile), [конфигурация Compose](../../ops/compose.yaml) и [правила исключения файлов из сборки](../../.dockerignore). Образ собирается на Bun 1.3.14 и содержит FFmpeg.
 
 <details>
 <summary><strong>Показать шаги установки через Docker</strong></summary>

@@ -299,7 +299,7 @@ sudo spctl --master-disable
 
 ### 4.2 التثبيت باستخدام Docker
 
-ثبّت أولًا Git و[Docker Engine](https://docs.docker.com/engine/install/) وDocker Compose. على Windows وmacOS، يمكنك استخدام Docker Desktop في وضع حاويات Linux. يتضمن المستودع [Dockerfile](../../Dockerfile) و[إعدادات Compose](../../compose.yaml) و[استثناءات البناء](../../.dockerignore). تُبنى الصورة باستخدام Bun 1.3.14 وتتضمن FFmpeg.
+ثبّت أولًا Git و[Docker Engine](https://docs.docker.com/engine/install/) وDocker Compose. على Windows وmacOS، يمكنك استخدام Docker Desktop في وضع حاويات Linux. يتضمن المستودع [Dockerfile](../../ops/Dockerfile) و[إعدادات Compose](../../ops/compose.yaml) و[استثناءات البناء](../../.dockerignore). تُبنى الصورة باستخدام Bun 1.3.14 وتتضمن FFmpeg.
 
 <details>
 <summary><strong>عرض خطوات التثبيت باستخدام Docker</strong></summary>

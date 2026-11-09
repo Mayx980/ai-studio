@@ -299,7 +299,7 @@ sudo spctl --master-disable
 
 ### 4.2 Docker ఇన్‌స్టాలేషన్
 
-ముందుగా Git, [Docker Engine](https://docs.docker.com/engine/install/), Docker Composeను ఇన్‌స్టాల్ చేయండి. Windows, macOSలో Docker Desktopను Linux container modeలో ఉపయోగించవచ్చు. రిపోజిటరీలో [Dockerfile](../../Dockerfile), [Compose కాన్ఫిగరేషన్](../../compose.yaml), [బిల్డ్ నుంచి మినహాయించే నియమాలు](../../.dockerignore) ఉన్నాయి. ఇమేజ్‌ను Bun 1.3.14తో నిర్మిస్తారు; ఇందులో FFmpeg కూడా ఉంటుంది.
+ముందుగా Git, [Docker Engine](https://docs.docker.com/engine/install/), Docker Composeను ఇన్‌స్టాల్ చేయండి. Windows, macOSలో Docker Desktopను Linux container modeలో ఉపయోగించవచ్చు. రిపోజిటరీలో [Dockerfile](../../ops/Dockerfile), [Compose కాన్ఫిగరేషన్](../../ops/compose.yaml), [బిల్డ్ నుంచి మినహాయించే నియమాలు](../../.dockerignore) ఉన్నాయి. ఇమేజ్‌ను Bun 1.3.14తో నిర్మిస్తారు; ఇందులో FFmpeg కూడా ఉంటుంది.
 
 <details>
 <summary><strong>Docker ఇన్‌స్టాలేషన్ దశలను విస్తరించండి</strong></summary>

@@ -54,13 +54,13 @@ ffmpeg.ffprobe("assets/first.mp4", (error, data) => {
 
 输出覆盖、超时、事件和错误处理沿用原生库，调用方负责使用新文件名保护素材。`signal` 仅取消工厂准备阶段；运行中的命令由调用方监听取消并调用 `command.kill("SIGKILL")`，同时处理启动前已取消的情况和监听器清理。入口按需检查 FFmpeg/FFprobe，缺失时仍通知前端下载并抛出 `FfmpegRequiredError`；不自动安装或重试。
 
-工具不再使用 `convert`、配置回调或 JSON plan。`FfmpegFactory`、`FfmpegCommand`、`FfprobeData` 从 `@toonflow/ffmpeg/types` 和 `@toonflow/tools-scaffold/runtime` 导出，直接复用原生类型。浏览器节点通过 `await useNode().ffmpeg(signal?)` 使用对应的文件型链式 API，由 HTTP 事件流交给同一宿主执行，具体边界见 `packages/nodeScaffold/readme.md`。
+工具不再使用 `convert`、配置回调或 JSON plan。`FfmpegFactory`、`FfmpegCommand`、`FfprobeData` 从 `@toonflow/ffmpeg/types` 和 `@toonflow/tools-scaffold/runtime` 导出，直接复用原生类型。浏览器节点通过 `await useNode().ffmpeg(signal?)` 使用对应的文件型链式 API，由 HTTP 事件流交给同一宿主执行，具体边界见 `frontend/nodeScaffold/readme.md`。
 
 工具包的静态提示词在 `build.ts` 的 `createToolConfig({ ..., prompt: "工具操作规则", configRules: [...] }, import.meta.url)` 中声明。`prompt` 为可选字符串，最多 20000 个字符，支持多行文本；随元数据打包，旧插件未声明时按空字符串处理。
 
 `src/index.ts` 返回的工具定义保留 `promptSnippet` 简短用途说明；`promptGuidelines` 用于根据 `context.config` 和运行上下文生成的动态规则，例如只读模式、当前画布 ID。扩展 SDK 工具时追加原有 `promptGuidelines`，不要覆盖其规则。
 
-宿主把包级 `prompt` 与运行时 `promptGuidelines` 合并，Agent 仅汇总本轮实际加载工具的摘要与规则，并对相同文本去重；一个工具包提供多个工具时，包级提示词只出现一次。工具被禁用或因缺少上下文返回空数组时，其规则不会进入系统提示词。新增工具不需要修改 `apps/server/src/agent/runtime/prompt.ts`。
+宿主把包级 `prompt` 与运行时 `promptGuidelines` 合并，Agent 仅汇总本轮实际加载工具的摘要与规则，并对相同文本去重；一个工具包提供多个工具时，包级提示词只出现一次。工具被禁用或因缺少上下文返回空数组时，其规则不会进入系统提示词。新增工具不需要修改 `services/server/src/agent/runtime/prompt.ts`。
 
 现有插件：
 

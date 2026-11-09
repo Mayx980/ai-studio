@@ -299,7 +299,7 @@ Untuk arahan lanjut, rujuk [Panduan Pengguna](https://qcn7xdsqgc4z.feishu.cn/doc
 
 ### 4.2 Pemasangan Docker
 
-Pasang Git, [Docker Engine](https://docs.docker.com/engine/install/) dan Docker Compose terlebih dahulu. Pada Windows dan macOS, anda boleh menggunakan Docker Desktop dalam mod kontena Linux. Repositori ini menyediakan [Dockerfile](../../Dockerfile), [konfigurasi Compose](../../compose.yaml) dan [senarai pengecualian binaan](../../.dockerignore). Imej dibina dengan Bun 1.3.14 dan merangkumi FFmpeg.
+Pasang Git, [Docker Engine](https://docs.docker.com/engine/install/) dan Docker Compose terlebih dahulu. Pada Windows dan macOS, anda boleh menggunakan Docker Desktop dalam mod kontena Linux. Repositori ini menyediakan [Dockerfile](../../ops/Dockerfile), [konfigurasi Compose](../../ops/compose.yaml) dan [senarai pengecualian binaan](../../.dockerignore). Imej dibina dengan Bun 1.3.14 dan merangkumi FFmpeg.
 
 <details>
 <summary><strong>Paparkan langkah pemasangan Docker</strong></summary>

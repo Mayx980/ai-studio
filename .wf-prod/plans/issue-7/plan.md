@@ -1,6 +1,6 @@
 # Issue #7 实施计划：单人／共享工作区服务端版
 
-本服务端修订计划已获人工确认，见 [note 128590](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_128590)。当前完成产品规格及验收索引；设计承接和依赖实体登记的设计仍受下述前置限制，业务代码尚未修改。
+本服务端修订计划已获人工确认，见 [note 128590](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_128590)。当前完成产品规格及验收索引；依 note 129227 在同一分支先处理工程结构、真实 Facts、必要 Port/Scenario/Preview 和开发文档，尚未承接设计分支或实施 #7 的产品业务。
 
 ## 对象、来源与版本
 
@@ -21,7 +21,7 @@
 
 本次不新增真实登录、公司 SSO、用户角色、个人数据隔离、完整团队后台、服务端持久任务队列、成片工作区或视频合成导出，不整体承接 #4。同实例的数据可由另一个浏览器重新打开，是服务端保存的结果，不宣称具有云端账号同步或实时多人协作。原型中的管理员审核、账号切换和教学完成状态按账号隔离不进入正式主流程；模板管理只表达该共享实例的内容管理。
 
-不搬迁 `apps/`、`packages/` 或 `compat/`，不创建第二套原型或独立服务框架，不修改当前 verified workflow 包，不新增测试模块、框架、自检脚本或 CI 自动测试入口。保留旧浏览器数据和已有服务端文件，不未经授权自动迁移、覆盖或删除。
+依 note 129227 允许本次工程目录迁移；不创建第二套原型或独立服务框架，不修改当前 verified workflow 包，不新增测试模块、框架、自检脚本或 CI 自动测试入口。保留旧浏览器数据和已有服务端文件，不未经授权自动迁移、覆盖或删除。
 
 ## 已核实的实现与差距
 
@@ -36,7 +36,7 @@
 | 脚本与共享节点 | 已改动节点公开导出、引用、提示词输入、行端口、分镜表导入导出 | 核对所有调用方和兼容路径，避免仅修单个入口 |
 | 教学与生成 | 已有八步画布教学、单节点课程及离开画布继续生成的接线 | 核对视口内可见性、首次记录、反复打开、原项目保护及结果归属 |
 
-已追踪 `createApp`、`u.conf`、`u.workspace`、`u.workspaceFile`、`u.assets`、AI 路由、Agent 会话路由与前端设置持久化的真实链路。上述为代码调查结果，未证明功能已通过验证。本次环境尚无 Bun 和工作区依赖，未运行类型检查、构建、HTTP 行为、浏览器交互或真实模型生成。
+已追踪 `createApp`、`u.conf`、`u.workspace`、`u.workspaceFile`、`u.assets`、AI 路由、Agent 会话路由与前端设置持久化的真实链路。上述为代码调查结果，未证明功能已通过验证。工程阶段已准备 Bun 和依赖，按 actual diff 显式执行类型检查、构建及必要手动验证；最终实绩见本次 MR。真实模型生成仍需有效配置，不因工程检查通过而视为完成。
 
 ## 服务端实现方案
 
@@ -65,11 +65,11 @@
 
 ## 实施前置与依赖
 
-1. **Git 与权限已恢复。** 当前认证账号 `jiazhi.chen` 具有 Maintainer 权限；原评论作者 `yuxin.ma` 具有 Owner 权限。origin 已经人工授权统一为同项目 HTTPS，启动基线和当前工作区身份已由受控脚本回读。
-2. **设计承接仍受 provider 能力限制。** 当前绑定 `wf-prod 0.8.0` 的 `workflow/scripts/git/design.py inspect` 报 `outside-design-scope:apps/web/designs/creationExperience.md`。保留原设计分支，不改包、不伪造 Facts、不复制整树或用普通 merge 绕过。需要维护方提供支持原生路径的可绑定 provider/承接能力，重新读取并通过 exact 来源预检后，才能执行设计吸收。
-3. **必要设计基线需要补齐。** 对设计候选运行 classifier 时，`packages/**` 归 Construction，`apps/web/**` 为 unmanaged；正式 Server 路径也需按 actual diff 核实。`check-owner-inputs` 已报告 Construction 缺少 System、Contract 基线。已建立独立可完成的 [产品规格](../../../requirements/prd.md) 与 [验收索引](../../../requirements/outline.md)。System roster、entity Profile 和 Contract 服务身份必须引用有效 Project Facts 中的 exact entity；当前仓库没有 Facts，不能凭目录或包名虚构身份。待该前置恢复，按现有目录解析规则在唯一 System、Contract root 补齐本次所需设计，不预建第二 root，也不复制 UI 设计代替。
-4. **Facts 与路径归属不得伪造。** 首次 Facts bootstrap 不由本入口实施；`apps/web` 当前不能据此声称已通过标准 Experience ownership 或隔离 Scenario 检查。需通过既有接入入口登记原生应用和包的真实归属，再恢复依赖该身份的设计和生产修改，不迁移目录来迎合 classifier。
-5. **UI/UX 辅助按需核验。** 开始相关设计或 UI 调整前，按 workflow 核验已安装 `ui-ux-pro-max` 的官方来源、版本和查询能力，只查询与当前 Vue/Element Plus 场景有关的建议；不替换已确认品牌和视觉，不另存第二套设计系统。
+1. **Git 与权限。** 工程阶段仍绑定原 `issue/7`，不创建第二分支、Onboard Issue 或替换设计来源，授权见 note 129227。
+2. **工程登记。** 本轮 Onboard 首次建立 [Project Facts](../../../facts/project.yaml)，登记迁移后的真实入口、直接依赖、共享 Preview 和根配置；所有代码单元保留 `project_observed`。
+3. **设计与协议。** 当前工程 [System](../../../architecture/readme.md) 和 [Contract](../../../contracts/readme.md)只补齐存量边界及导航。产品增量所需共享项目索引、凭据脱敏和冲突协议仍待后续实施阶段完成，不把已有代码或 Facts 合法当作方案认可。
+4. **设计承接。** `issue-design/7@2dea9ee` 保留原状，本轮不吸收。工程阶段交付后按届时 fresh Git、当前 provider 和 exact 来源重新预检，不沿用历史版本的路径失败作为永久限制，也不把路径已迁移等同于预检已通过。
+5. **约束。** 不新增测试、自检、框架或 CI；固定工具路径的命名例外仅限 `facts/code-units/` 和 `uiux_manifest.md`，见 note 129245。其余命名及数据保护继续按 AGENTS。
 
 设计预检和必要基线的缺口不阻止产品规格、验收索引、计划维护和独立调查，但阻止依赖它们的设计承接或生产修改。人工审阅已完成，不再重复索取同一版计划批准。
 
@@ -84,7 +84,7 @@
 ## 验证安排
 
 - 计划阶段：运行实施与计划写入前置，核对文件范围、Markdown 导航、来源版本及任务和验收对应关系；不将这些检查当成功能验证。
-- 代码阶段：先确认 Bun 1.3.14 和锁文件依赖环境，显式准备依赖。Web 执行已有 `bun run --cwd apps/web typecheck`、`bun run --cwd apps/web build`；Server 执行已有 `bun run --cwd apps/server typecheck`、`bun run --cwd apps/server build`，路由文件变化先运行 `bun run --cwd apps/server routes`；再按 actual diff 追加受影响节点、共享包及 provider 的既有检查和构建。
+- 代码阶段：先确认 Bun 1.3.14 和锁文件依赖环境，显式准备依赖。Web 执行已有 `bun run --cwd frontend/web typecheck`、`bun run --cwd frontend/web build`；Server 执行已有 `bun run --cwd services/server typecheck`、`bun run --cwd services/server build`，路由文件变化先运行 `bun run --cwd services/server routes`；再按 actual diff 追加受影响节点、共享包及 provider 的既有检查和构建。
 - 本地 HTTP 与持久化人工验证：使用临时 `TOONFLOW_DATA_DIR`，核对创建/保存/读取、非法参数、越界路径、同名冲突、过期 revision、部分失败、配置脱敏和保存凭据保持语义；重启本地 Server 后读取已保存内容。只进行本次开发验证，不操作真实用户目录或生产环境，不新增临时测试文件。
 - 浏览器人工验证：使用隔离数据目录及两个独立浏览器上下文验证同实例的项目、媒体、对话和模板可恢复；覆盖刷新、模式切换、项目切换、失败重试、只读模板、教学关闭及八步前后操作。两端旧版本保存要报冲突，不能冒充实时协同；实际确认教程弹窗在视口内可见，不以 DOM 文本存在代替。
 - 真实供应商：仅使用用户明确启用的配置，不将示例素材、无效 Key 的鉴权响应或构建成功当作真实生成验收。缺有效 Key 时，明确列出未实测协议与产物，交接后续人工验证。

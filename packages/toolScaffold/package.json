@@ -5,8 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./index.ts",
-    "./runtime": "./src/runtime.ts",
-    "./client": "./src/client.ts"
+    "./runtime": "./src/runtime.ts"
   },
   "scripts": {
     "typecheck": "tsc"
