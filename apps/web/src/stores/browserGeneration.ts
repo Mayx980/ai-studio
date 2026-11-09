@@ -21,6 +21,27 @@ export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKi
 export const browserParameterKeys = ["kind", "ratio", "imageSize", "imageResolution", "count", "style", "outputKind", "outputChosen", "generateAudio", "duration", "resolution"] as const;
 export const additionalBrowserModels = reactive<{ id: string; kind: ModelKind; label: string; modelId: string; endpoint: string; apiKey: string }[]>([]);
 export const browserModelSelection = reactive<Record<ModelKind, string>>({ image: "", video: "", audio: "", text: "" });
+export type BrowserModelConnection = {
+  enabled: boolean;
+  endpoint: string;
+  keys: typeof browserConfig.keys;
+  models: (typeof additionalBrowserModels)[number][];
+  selection: typeof browserModelSelection;
+};
+// ACT: 同源来源编辑页只接收主页面内存中的连接配置，凭据不经过URL或持久化存储。
+if (window.parent !== window && window.frameElement?.getAttribute("data-source-editor") === "true") {
+  window.addEventListener("afxen:source-models", event => {
+    const connection = (event as CustomEvent<BrowserModelConnection>).detail;
+    if (!connection || typeof connection.enabled !== "boolean" || typeof connection.endpoint !== "string" || !connection.keys || !connection.selection || !Array.isArray(connection.models)) return;
+    const kinds = ["image", "video", "audio", "text"] as const;
+    if (kinds.some(kind => typeof connection.keys[kind] !== "string" || typeof connection.selection[kind] !== "string") || connection.models.some(model => !model || !kinds.includes(model.kind) || [model.id, model.label, model.modelId, model.endpoint, model.apiKey].some(value => typeof value !== "string"))) return;
+    browserConfig.enabled = connection.enabled;
+    browserConfig.endpoint = connection.endpoint;
+    Object.assign(browserConfig.keys, connection.keys);
+    additionalBrowserModels.splice(0, additionalBrowserModels.length, ...connection.models.map(model => ({ ...model })));
+    Object.assign(browserModelSelection, connection.selection);
+  });
+}
 export function configuredBrowserModels(kind: ModelKind, config = browserConfig) {
   if (!config.enabled) return [];
   const adapter = browserModels[kind];

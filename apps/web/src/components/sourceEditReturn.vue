@@ -21,6 +21,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { IconX, IconCheck } from "@tabler/icons-vue";
+import { browserConfig, browserModelSelection, additionalBrowserModels, type BrowserModelConnection } from "@/stores/browserGeneration";
 import { sourceEdit, sourceEditBusy, sourceEditError, restoreSourceEdit, returnFromSourceEdit, receiveSourceResult } from "@/stores/sourceEditing";
 if (window.parent === window) restoreSourceEdit();
 const sourceUrl = computed(() => {
@@ -33,9 +34,19 @@ const sourceUrl = computed(() => {
 const sourceWindows = ref<string[]>([]);
 watch(sourceUrl, url => { if (url && !sourceWindows.value.includes(url)) sourceWindows.value.push(url); }, { immediate: true });
 const boundWindows = new Set<Window>();
+function syncSourceModels(sourceWindow: Window) {
+  const connection: BrowserModelConnection = {
+    enabled: browserConfig.enabled, endpoint: browserConfig.endpoint, keys: { ...browserConfig.keys },
+    models: additionalBrowserModels.map(model => ({ ...model })), selection: { ...browserModelSelection },
+  };
+  sourceWindow.dispatchEvent(new CustomEvent("afxen:source-models", { detail: connection }));
+}
+watch(() => [browserConfig.enabled, browserConfig.endpoint, browserConfig.keys, additionalBrowserModels, browserModelSelection], () => {
+  for (const sourceWindow of boundWindows) syncSourceModels(sourceWindow);
+}, { deep: true });
 function bindSourceWindow(event: Event) {
   const sourceWindow = (event.target as HTMLIFrameElement).contentWindow;
-  if (sourceWindow) { sourceWindow.addEventListener("afxen:generation-recorded", receiveSourceResult); boundWindows.add(sourceWindow); }
+  if (sourceWindow) { sourceWindow.addEventListener("afxen:generation-recorded", receiveSourceResult); boundWindows.add(sourceWindow); syncSourceModels(sourceWindow); }
 }
 onBeforeUnmount(() => { for (const sourceWindow of boundWindows) sourceWindow.removeEventListener("afxen:generation-recorded", receiveSourceResult); });
 </script>
