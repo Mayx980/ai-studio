@@ -20,6 +20,7 @@ import agentHistorySidebar from "@/components/agentHistorySidebar.vue";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { navigationCollapsed, conversationHistoryOpen } from "@/stores/navigation";
 import studioSidebar from "@/components/studioSidebar.vue";
+import { clearGenerationOriginRoute } from "@/lib/generationOrigin";
 import creativeCases from "@/components/creativeCases.vue";
 import type { TemplateApplication } from "@/lib/creationTemplates";
 import type { Project } from "@/stores/workspace";
@@ -45,7 +46,7 @@ async function sidebarAction(action: () => Promise<void>) {
   finally { sidebarOpening.value = false; }
 }
 function newChat() { if (generationBusy.value || !startNewProject) return; return sidebarAction(async () => { await startNewProject("simple"); }); }
-function newAgent() { return sidebarAction(async () => { await useWorkspaceStore().resumeSimpleConversation(); }); }
+function newAgent() { return sidebarAction(async () => { await clearGenerationOriginRoute(); await useWorkspaceStore().resumeSimpleConversation(); }); }
 function openRecent(project: Project) { return sidebarAction(async () => { if (!openSidebarProject) throw new Error("工作区尚未就绪"); await openSidebarProject(project.directory); }); }
 const viewportWidth = ref(window.innerWidth), viewportHeight = ref(window.innerHeight), preferredWidth = ref(440);
 const minimumWidth = computed(() => Math.min(320, viewportWidth.value));

@@ -28,8 +28,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const tutorialVisited = ref<("image" | "video" | "canvas")[]>([]);
   const canvasTutorialVersion = ref(0);
   const pendingAgentSession = ref<{ directory: string; file: string } | null>(null);
+  const pendingAgentDraft = ref<{ file: string; prompt: string; attachments: AgentAttachment[] } | null>(null);
   const pendingAgentMessage = ref<{ directory: string; prompt: string; attachments?: AgentAttachment[]; model: string; reasoningEffort: string; send?: boolean } | null>(null);
-  const pendingCanvasEntry = ref<{ directory: string; nodeType?: string; tutorial?: boolean; files?: File[] } | null>(null);
+  const pendingCanvasEntry = ref<{ directory: string; nodeType?: string; tutorial?: boolean; files?: File[]; canvasPath?: string; nodeId?: string } | null>(null);
 
   async function openProject(path: string, previousDirectory = path, signal?: AbortSignal) {
     pendingAgentSession.value = null;
@@ -153,7 +154,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (project.value?.directory === path) project.value = null;
   }
 
-  return { creationMode, project, projectList, draftProjects, lastSimpleDirectory, tutorialVisited, canvasTutorialVersion, completeSimpleProject, archiveSimpleConversation, resumeSimpleConversation, pendingAgentMessage, pendingAgentSession, pendingCanvasEntry, createProject, openProject, restoreProjectEntry, renameProject, moveProject, duplicateProject, removeProject };
+  return { creationMode, project, projectList, draftProjects, lastSimpleDirectory, tutorialVisited, canvasTutorialVersion, completeSimpleProject, archiveSimpleConversation, resumeSimpleConversation, pendingAgentMessage, pendingAgentSession, pendingAgentDraft, pendingCanvasEntry, createProject, openProject, restoreProjectEntry, renameProject, moveProject, duplicateProject, removeProject };
 }, {
   persist: {
     key: browserWorkspaceMode ? currentAccount.value?.id === "admin" ? "aiStudio.browserProjects.admin" : "aiStudio.browserProjects" : "toonflow.projectList",

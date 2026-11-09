@@ -1,3 +1,4 @@
+import { readGenerationOrigin, rememberFileOrigin, type GenerationOrigin } from "@/lib/generationOrigin";
 import { recordGenerationResults, readGenerationSettings, type GenerationSettings, type GenerationRecord } from "@/lib/generationHistory";
 import { saveProjectCover } from "@/lib/projectCover";
 import { generationStyles } from "@/lib/generationStyles";
@@ -17,6 +18,7 @@ export type ModelKind = "image" | "video" | "audio" | "text";
 export const browserModels = { image: imageModel, video: videoModel, audio: audioModel, text: textModel };
 // ACT: 原型直接使用供应商协议；Key 不进入持久化 Store 或服务端配置。
 export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: defaultRatio, imageSize: imageClaritySizes["480P"]![defaultRatio]!, imageResolution: "480P", count: 1, style: "", outputKind: "image" as "image" | "video", outputChosen: false, generateAudio: true, duration: "", resolution: defaultVideoResolution });
+export const browserParameterKeys = ["kind", "ratio", "imageSize", "imageResolution", "count", "style", "outputKind", "outputChosen", "generateAudio", "duration", "resolution"] as const;
 export const additionalBrowserModels = reactive<{ id: string; kind: ModelKind; label: string; modelId: string; endpoint: string; apiKey: string }[]>([]);
 export const browserModelSelection = reactive<Record<ModelKind, string>>({ image: "", video: "", audio: "", text: "" });
 export function configuredBrowserModels(kind: ModelKind, config = browserConfig) {
@@ -35,7 +37,7 @@ export function resolveBrowserModel(kind: ModelKind, providerId?: string, modelI
 }
 export const generationBusy = ref(false);
 export const generationError = ref("");
-export type BrowserGenerationResult = { id: string; kind: ModelKind; createdAt?: number; prompt?: string; model?: string; url?: string; text?: string; file?: File; directory?: string; path?: string; settings?: GenerationSettings };
+export type BrowserGenerationResult = { id: string; kind: ModelKind; createdAt?: number; prompt?: string; model?: string; url?: string; text?: string; file?: File; directory?: string; path?: string; settings?: GenerationSettings; origin?: GenerationOrigin; references?: GenerationRecord["references"] };
 export type BrowserConversationImport = { id: string; directory: string; request: string; references: { file: File; label: string; role?: "firstFrame" | "reference" | "middleFrame" | "lastFrame" }[]; results: BrowserGenerationResult[] };
 export type BrowserWorkflowNode = { canvasPath: string; nodeId: string };
 export type ProfessionalCanvas = {
@@ -64,7 +66,7 @@ export async function restoreBrowserResults(directory: string) {
     if (generationResults.value.some(result => result.id === item.id && result.directory === directory)) continue;
     const type = item.mimeType?.startsWith(`${item.kind}/`) ? item.mimeType : `${item.kind}/${item.kind === "video" ? "mp4" : item.kind === "audio" ? "mpeg" : "png"}`;
     const file = new File([await files.read(item.path)], item.name || item.path.split("/").at(-1)!, { type });
-    generationResults.value.push({ ...item, settings: readGenerationSettings(item.settings), directory, file, url: URL.createObjectURL(file) });
+    generationResults.value.push({ ...item, settings: readGenerationSettings(item.settings), origin: readGenerationOrigin(item.origin), directory, file, url: URL.createObjectURL(file) });
   }
 }
 async function saveBrowserResults(directory: string, signal?: AbortSignal) {
@@ -83,7 +85,7 @@ async function saveBrowserResults(directory: string, signal?: AbortSignal) {
     if (item.url?.startsWith("blob:")) URL.revokeObjectURL(item.url);
     item.url = URL.createObjectURL(item.file);
   }
-  await recordGenerationResults(directory, generationResults.value.filter(item => item.directory === directory && item.path && item.kind !== "text").map(({ id, kind, path, file, createdAt, prompt, model, settings }) => ({ id, prompt, model, settings: readGenerationSettings(settings), kind: kind as GenerationRecord["kind"], path: path!, createdAt, mimeType: file?.type, name: file?.name })));
+  await recordGenerationResults(directory, generationResults.value.filter(item => item.directory === directory && item.path && item.kind !== "text").map(({ id, kind, path, file, createdAt, prompt, model, settings, origin, references }) => ({ id, prompt, model, origin, references, settings: readGenerationSettings(settings), kind: kind as GenerationRecord["kind"], path: path!, createdAt, mimeType: file?.type, name: file?.name })));
 }
 
 // ACT: 输出意图按动作后的目标优先；参考素材或“视频脚本”中的视频不单独决定输出。
@@ -100,7 +102,7 @@ export function inferGenerationKind(prompt: string): ModelKind {
   return browserConfig.outputChosen ? browserConfig.outputKind : kind ?? browserConfig.outputKind;
 }
 
-export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "", referenceRoles?: ("firstFrame" | "reference" | "middleFrame" | "lastFrame" | undefined)[], options?: { config: typeof browserConfig; modelSelection?: typeof browserModelSelection; queue?: boolean; cancelled?: () => boolean; onStart?: () => void; onTask?: (id: string) => void }) {
+export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "", referenceRoles?: ("firstFrame" | "reference" | "middleFrame" | "lastFrame" | undefined)[], options?: { config?: typeof browserConfig; origin?: GenerationOrigin; references?: GenerationRecord["references"]; modelSelection?: typeof browserModelSelection; queue?: boolean; cancelled?: () => boolean; onStart?: () => void; onTask?: (id: string) => void }) {
   while (options?.queue && generationBusy.value) await new Promise<void>(resolve => { const stop = watch(generationBusy, busy => { if (!busy) { stop(); resolve(); } }); });
   if (options?.cancelled?.()) { generationError.value = "已取消等待生成"; return false; }
   const config = options?.config ?? browserConfig;
@@ -108,6 +110,8 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   if (generationBusy.value) return false;
   if (!config.enabled) { generationError.value = "请先在设置 → API 配置中启用模型联调"; return false; }
   const kind: ModelKind = requestedKind ?? inferGenerationKind(prompt);
+  const origin = readGenerationOrigin(options?.origin);
+  if ((kind === "image" || kind === "video") && (!origin || origin.directory !== directory)) { generationError.value = "缺少生成来源，请重新打开原画布或对话后生成"; return false; }
   config.kind = kind;
   const chosen = configuredBrowserModels(kind, config).find(model => model.id === modelSelection[kind]) ?? configuredBrowserModels(kind, config)[0];
   const { ratio, duration, resolution, imageSize, count, generateAudio } = config;
@@ -175,7 +179,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
     for (const asset of assets) {
       const mimeType = asset.mimeType || `${kind}/${kind === "image" ? "png" : kind === "audio" ? "mpeg" : "mp4"}`;
       const file = asset.type === "base64" && asset.data ? new File([Uint8Array.from(atob(asset.data), char => char.charCodeAt(0))], `生成结果.${mimeType.split("/")[1]}`, { type: mimeType }) : undefined;
-      generationResults.value.push({ id: crypto.randomUUID(), kind, createdAt: Date.now(), prompt, model: chosen!.label, settings, url: file ? URL.createObjectURL(file) : asset.url, file, directory });
+      generationResults.value.push({ id: crypto.randomUUID(), kind, createdAt: Date.now(), prompt, model: chosen!.label, settings, origin, references: options?.references, url: file ? URL.createObjectURL(file) : asset.url, file, directory });
     }
     if (browserWorkspaceMode && directory) await saveBrowserResults(directory, signal);
     return true;
@@ -187,13 +191,13 @@ export async function generateInBrowser(prompt: string, references: File[], dire
 
 const pendingResultFiles = new WeakMap<BrowserGenerationResult, Promise<File>>();
 export async function browserResultFile(item: BrowserGenerationResult): Promise<File> {
-  if (item.file) return item.file;
+  if (item.file) return rememberFileOrigin(item.file, item.origin);
   let pending = pendingResultFiles.get(item);
   if (!pending) {
     pending = readBrowserResultFile(item).finally(() => pendingResultFiles.delete(item));
     pendingResultFiles.set(item, pending);
   }
-  return pending;
+  return rememberFileOrigin(await pending, item.origin);
 }
 async function readBrowserResultFile(item: BrowserGenerationResult) {
   if (item.kind === "text") return new File([item.text || ""], "生成文字.md", { type: "text/markdown" });

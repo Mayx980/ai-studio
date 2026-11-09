@@ -8,9 +8,9 @@
         <div v-for="group in groups" :key="group.date" class="historyGroup"><h3>{{ group.date }}</h3><div class="historyGrid"><article v-for="item in group.items" :key="item.key" class="historyCard" :class="{ selected: selected.includes(item.key) }">
           <button class="mediaPreview" type="button" :aria-label="'预览 ' + item.name" @click="preview = item"><img v-if="item.kind === 'image'" :src="item.url" :alt="item.name" /><video v-else-if="item.kind === 'video'" :src="item.url" muted playsinline preload="metadata" /><icon-volume v-else :size="36" /></button>
           <input v-model="selected" type="checkbox" :value="item.key" :aria-label="'选择 ' + item.name" :disabled="busy" />
-          <div class="hoverActions"><el-tooltip content="保存到个人资产" placement="top"><el-button :disabled="busy" :aria-label="'保存到个人资产 ' + item.name" title="保存到个人资产" @click="run('save', [item])"><icon-folder-plus :size="16" /></el-button></el-tooltip><el-tooltip content="下载素材" placement="top"><el-button :disabled="busy" :aria-label="'下载 ' + item.name" title="下载素材" @click="run('download', [item])"><icon-download :size="16" /></el-button></el-tooltip><el-tooltip content="删除历史" placement="top"><el-button :disabled="busy" :aria-label="'删除 ' + item.name" title="删除历史" @click="run('delete', [item])"><icon-trash :size="16" /></el-button></el-tooltip></div>
+          <div class="hoverActions"><el-tooltip content="去画布/对话编辑" placement="top"><el-button :disabled="busy" aria-label="去画布/对话编辑" @click="run('canvas', [item])"><icon-edit :size="16" /></el-button></el-tooltip><el-tooltip content="保存到个人资产" placement="top"><el-button :disabled="busy" :aria-label="'保存到个人资产 ' + item.name" title="保存到个人资产" @click="run('save', [item])"><icon-folder-plus :size="16" /></el-button></el-tooltip><el-tooltip content="下载素材" placement="top"><el-button :disabled="busy" :aria-label="'下载 ' + item.name" title="下载素材" @click="run('download', [item])"><icon-download :size="16" /></el-button></el-tooltip><el-tooltip content="删除历史" placement="top"><el-button :disabled="busy" :aria-label="'删除 ' + item.name" title="删除历史" @click="run('delete', [item])"><icon-trash :size="16" /></el-button></el-tooltip></div>
         </article></div></div>
-        <div v-if="selected.length" class="selectionToolbar" role="toolbar" aria-label="批量素材操作"><el-tooltip content="取消选择" placement="top"><el-button text :disabled="busy" aria-label="取消选择" @click="selected = []"><icon-x :size="16" /></el-button></el-tooltip><span>已选择 {{ selected.length }} 项</span><el-button :disabled="busy" @click="run('canvas')">去画布编辑</el-button><el-button :disabled="busy" @click="run('newCanvas')">新建画布添加</el-button><el-button :disabled="busy" @click="run('save')">保存到个人资产</el-button><el-tooltip content="下载素材" placement="top"><el-button :disabled="busy" aria-label="下载图片" title="下载素材" @click="run('download')"><icon-download :size="17" /></el-button></el-tooltip><el-tooltip content="删除所选历史" placement="top"><el-button :disabled="busy" type="danger" aria-label="删除所选历史" @click="run('delete')"><icon-trash :size="17" /></el-button></el-tooltip></div>
+        <div v-if="selected.length" class="selectionToolbar" role="toolbar" aria-label="批量素材操作"><el-tooltip content="取消选择" placement="top"><el-button text :disabled="busy" aria-label="取消选择" @click="selected = []"><icon-x :size="16" /></el-button></el-tooltip><span>已选择 {{ selected.length }} 项</span><el-button :disabled="busy" @click="run('canvas')">去画布/对话编辑</el-button><el-button :disabled="busy" @click="run('newCanvas')">新建画布添加</el-button><el-button :disabled="busy" @click="run('save')">保存到个人资产</el-button><el-tooltip content="下载素材" placement="top"><el-button :disabled="busy" aria-label="下载图片" title="下载素材" @click="run('download')"><icon-download :size="17" /></el-button></el-tooltip><el-tooltip content="删除所选历史" placement="top"><el-button :disabled="busy" type="danger" aria-label="删除所选历史" @click="run('delete')"><icon-trash :size="17" /></el-button></el-tooltip></div>
       </template>
       <personalAssetBrowser v-else />
     </div>
@@ -32,6 +32,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import { readGenerationOrigin, resolveGenerationOrigin, openGenerationOrigin, type GenerationOrigin } from "@/lib/generationOrigin";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import saveAssetDialog from "@/components/saveAssetDialog.vue";
@@ -44,11 +45,11 @@ import saveFile from "@/lib/saveFile";
 import personalAssetBrowser from "@/components/personalAssetBrowser.vue";
 import { readGenerationSettings, type GenerationSettings } from "@/lib/generationHistory";
 const saveDialog = ref<InstanceType<typeof saveAssetDialog>>();
-type HistoryItem = { id: string; kind: "image" | "video" | "audio"; path: string; name: string; mimeType: string; prompt?: string; model?: string; settings?: GenerationSettings; createdAt?: number; directory: string; key: string; url: string };
+type HistoryItem = { id: string; kind: "image" | "video" | "audio"; path: string; name: string; mimeType: string; prompt?: string; model?: string; settings?: GenerationSettings; origin?: GenerationOrigin; createdAt?: number; directory: string; key: string; url: string };
 const workspace = useWorkspaceStore(), router = useRouter();
 const module = ref("history"), descending = ref(true), loading = ref(true), busy = ref(false), error = ref("");
 const items = ref<HistoryItem[]>([]), selected = ref<string[]>([]), preview = ref<HistoryItem>();
-const detailActions = [{ value: "newCanvas", label: "新建画布添加", icon: IconSquarePlus }, { value: "canvas", label: "去画布编辑", icon: IconEdit }, { value: "save", label: "保存到个人资产", icon: IconFolderPlus }, { value: "download", label: "下载素材", icon: IconDownload }, { value: "delete", label: "删除历史", icon: IconTrash }] as const;
+const detailActions = [{ value: "newCanvas", label: "新建画布添加", icon: IconSquarePlus }, { value: "canvas", label: "去画布/对话编辑", icon: IconEdit }, { value: "save", label: "保存到个人资产", icon: IconFolderPlus }, { value: "download", label: "下载素材", icon: IconDownload }, { value: "delete", label: "删除历史", icon: IconTrash }] as const;
 async function copyPrompt() { try { await navigator.clipboard.writeText(preview.value?.prompt || ""); ElMessage.success("已复制生成信息"); } catch { ElMessage.error("复制失败，请重试"); } }
 const releases: (() => void)[] = [];
 let disposed = false;
@@ -76,7 +77,7 @@ onMounted(async () => {
         const handle = files.acquireUrl(record.path, mimeType); releases.push(handle.release);
         const url = await handle.url;
         if (disposed) { handle.release(); return; }
-        items.value.push({ ...record, settings: readGenerationSettings(record.settings), name: record.name || record.path.split("/").at(-1), mimeType, createdAt: Number.isFinite(record.createdAt) && record.createdAt > 0 ? record.createdAt : undefined, directory: project.directory, key: `${project.directory}:${record.id}`, url });
+        items.value.push({ ...record, settings: readGenerationSettings(record.settings), origin: readGenerationOrigin(record.origin), name: record.name || record.path.split("/").at(-1), mimeType, createdAt: Number.isFinite(record.createdAt) && record.createdAt > 0 ? record.createdAt : undefined, directory: project.directory, key: `${project.directory}:${record.id}`, url });
       }
     } catch { failures.push(project.name); }
   }
@@ -89,8 +90,16 @@ async function run(action: "canvas" | "newCanvas" | "save" | "download" | "delet
   busy.value = true;
   let completed = 0;
   try {
+    if (action === "canvas") {
+      if (targets.length !== 1) throw new Error("请选择一个素材返回其原始创作来源");
+      const item = targets[0]!;
+      const origin = await resolveGenerationOrigin(item.directory, item);
+      if (!origin) throw new Error("该历史素材未记录可验证的生成来源，原素材仍保留");
+      await openGenerationOrigin(origin);
+      return;
+    }
     if (action === "save") {
-      await saveDialog.value?.open(await Promise.all(targets.map(async item => ({ file: await fileFor(item), metadata: { source: "生成历史", prompt: item.prompt, model: item.model } }))));
+      await saveDialog.value?.open(await Promise.all(targets.map(async item => ({ file: await fileFor(item), metadata: { source: "生成历史", prompt: item.prompt, model: item.model, origin: await resolveGenerationOrigin(item.directory, item) } }))));
       return;
     }
     if (action === "delete") {
@@ -104,9 +113,9 @@ async function run(action: "canvas" | "newCanvas" | "save" | "download" | "delet
         await files.writeJson(".agent/hiddenResults.json", [...new Set([...hidden, ...removed.map(item => item.id)])]);
         const keys = new Set(removed.map(item => item.key)); items.value = items.value.filter(item => !keys.has(item.key)); selected.value = selected.value.filter(key => !keys.has(key)); completed += removed.length;
       }
-    } else if (action === "canvas" || action === "newCanvas") {
+    } else if (action === "newCanvas") {
       const files = await Promise.all(targets.map(fileFor));
-      const project = action === "newCanvas" || !workspace.project ? await workspace.createProject() : workspace.project;
+      const project = await workspace.createProject();
       workspace.creationMode = "professional";
       workspace.pendingCanvasEntry = { directory: project.directory, files };
       await router.push({ path: "/workspace", query: { returnSection: "assets" } });

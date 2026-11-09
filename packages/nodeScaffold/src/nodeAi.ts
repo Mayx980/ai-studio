@@ -1,4 +1,5 @@
 import { inject, onScopeDispose } from "vue";
+import { useNode } from "@vue-flow/core";
 import { runAgentLoop, type AgentTool, type AgentToolResult } from "@earendil-works/pi-agent-core";
 import { createAssistantMessageEventStream, type AssistantMessage, type Context, type Message, type Model } from "@earendil-works/pi-ai";
 import { EventSourceParserStream } from "eventsource-parser/stream";
@@ -18,6 +19,7 @@ export type NodeMediaModel = Omit<MediaModel, "mode"> & {
   mode?: (string | string[])[];
 };
 export type NodeImageRequest = {
+  nodeId?: string;
   n?: number;
   directory: string;
   providerId: string;
@@ -29,7 +31,7 @@ export type NodeImageRequest = {
   size?: string;
 };
 export type NodeImageResult = { path: string; mimeType: string; mediaType: "image" };
-export type NodeVideoRequest = Omit<MediaGenerationRequest, "size"> & { directory: string; outputDirectory: string };
+export type NodeVideoRequest = Omit<MediaGenerationRequest, "size"> & { directory: string; outputDirectory: string; nodeId?: string };
 export type NodeVideoResult = { path: string; mimeType: string; mediaType: "video" };
 export type NodeMediaPriceRequest = (NodeImageRequest & { mediaType: "image" }) | (NodeVideoRequest & { mediaType: "video" }) | (NodeAudioRequest & { mediaType: "audio" });
 export type NodeMediaPrice = { price: string; tips: string };
@@ -180,6 +182,7 @@ async function requestModel(input: NodeAiRequest, context: Context, model: Model
 }
 
 export function useNodeAi() {
+  const { id } = useNode();
   const adapter = inject<NodeAiAdapter | undefined>("nodeAi", undefined);
   const controller = new AbortController();
   onScopeDispose(() => controller.abort());
@@ -273,12 +276,12 @@ export function useNodeAi() {
   }
 
   function generateImage(input: NodeImageRequest, signal?: AbortSignal) {
-    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateImage(input, adapter.continueOnUnmount ? signal : requestSignal(signal)); }
+    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateImage({ ...input, nodeId: id }, adapter.continueOnUnmount ? signal : requestSignal(signal)); }
     return generateMedia("image", input, signal);
   }
 
   function generateVideo(input: NodeVideoRequest, signal?: AbortSignal) {
-    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateVideo(input, adapter.continueOnUnmount ? signal : requestSignal(signal)); }
+    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateVideo({ ...input, nodeId: id }, adapter.continueOnUnmount ? signal : requestSignal(signal)); }
     return generateMedia("video", input, signal);
   }
 

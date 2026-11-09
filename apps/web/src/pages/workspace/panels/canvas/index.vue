@@ -249,7 +249,23 @@ function toggleSidebar(showAssets: boolean) {
 const assetLibraryRef = ref<InstanceType<typeof assetLibrary>>();
 const edgeDisconnect = ref<{ id: string; x: number; y: number }>();
 const flow = useVueFlow(props.runtimeKey);
-provide("nodeAi", browserNodeAi);
+provide("nodeAi", {
+  ...browserNodeAi,
+  async generateImage(input: Parameters<typeof browserNodeAi.generateImage>[0], signal?: AbortSignal) {
+    const path = canvasId.value, node = flow.nodes.value.find(node => input.nodeId ? node.id === input.nodeId : input.outputDirectory === `assets/${node.id}`);
+    if (!path || !node) throw new Error("无法确认原图片节点，请重新打开画布");
+    const origin = { type: "canvas" as const, directory: input.directory, canvasPath: path, nodeId: node.id };
+    await flushCanvasSave();
+    return browserNodeAi.generateImage({ ...input, origin }, signal);
+  },
+  async generateVideo(input: Parameters<typeof browserNodeAi.generateVideo>[0], signal?: AbortSignal) {
+    const path = canvasId.value, node = flow.nodes.value.find(node => input.nodeId ? node.id === input.nodeId : input.outputDirectory === `assets/${node.id}`);
+    if (!path || !node) throw new Error("无法确认原视频节点，请重新打开画布");
+    const origin = { type: "canvas" as const, directory: input.directory, canvasPath: path, nodeId: node.id };
+    await flushCanvasSave();
+    return browserNodeAi.generateVideo({ ...input, origin }, signal);
+  },
+});
 const nodeDocument: NodeDocumentContext = { targets: shallowReactive(new Map()), mounts: new Map(), states: shallowReactive(new Map()) };
 const canvasDirty = ref(false);
 const canvasSaveError = ref("");

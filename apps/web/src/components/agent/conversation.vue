@@ -46,8 +46,8 @@
                   </template>
                   <attachmentList v-if="item.attachments?.length" :attachments="item.attachments" :directory="directory" />
                   <div v-if="item.role === 'user'" class="messageText"><mentionContent :content="item.content" :mentions="item.mentions" :directory="directory" /></div>
-                  <browserModelResults :ref="value => setMessageResults(item.id, value)" v-if="item.browserResultIds?.length && !item.professional" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showCanvas="false" @enterCanvas="addMessageToCanvas(item)" :showReference="false" :applicationLabel="props.materialEditor ? props.materialLabel : undefined" :framePosition="props.materialRole === 'lastFrame' ? 'last' : 'first'" :disabled="locked" @busy="setMaterialBusy" @apply="emit('applyMaterial', $event)" @reference="referenceGeneratedFile" />
-                  <professionalCreation v-if="item.professional && directory" :state="item.professional" :directory="directory" :stopToken="professionalStopToken" :attachments="messages.find(message => message.id === item.replyTo)?.attachments ?? []" :disabled="props.disabled || busy || browserSubmitting || deletingId !== undefined" @busy="professionalBusy = $event" @change="saveProfessionalProgress" @results="item.browserResultIds = $event" />
+                  <browserModelResults :ref="value => setMessageResults(item.id, value)" v-if="item.browserResultIds?.length && !item.professional" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showCanvas="false" @enterCanvas="addMessageToCanvas(item)" :showReference="false" :applicationLabel="props.materialEditor ? props.materialLabel : undefined" :framePosition="props.materialRole && props.materialRole !== 'reference' ? props.materialRole === 'lastFrame' ? 'last' : 'first' : undefined" :disabled="locked" @busy="setMaterialBusy" @apply="emit('applyMaterial', $event)" @reference="referenceGeneratedFile" />
+                  <professionalCreation v-if="item.professional && directory" :state="item.professional" :sourceSessionFile="browserSessionFile" :directory="directory" :stopToken="professionalStopToken" :attachments="messages.find(message => message.id === item.replyTo)?.attachments ?? []" :disabled="props.disabled || busy || browserSubmitting || deletingId !== undefined" @busy="professionalBusy = $event" @change="saveProfessionalProgress" @results="item.browserResultIds = $event" />
                   <div v-if="item.creationChoice && !item.creationChoice.resolved" class="creationChoices" role="group" aria-label="选择创作内容">
                     <p>{{ item.creationChoice.needsDetails ? "请先补充创作主体或用途，再确认要生成的内容。" : "你希望生成哪种内容？确认后我会在画布搭建节点和连线。" }}</p>
                     <el-button v-for="choice in item.creationChoice.needsDetails ? [] : creationChoices" :key="choice.label" size="small" :disabled="locked" @click="continueCreation(item, choice.kind, choice.script, choice.label)">{{ choice.label }}</el-button>
@@ -111,7 +111,7 @@
         @lostpointercapture="stopSenderResize"
         @keydown.up.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) + 16)"
         @keydown.down.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) - 16)" />
-      <simpleReferenceSlots v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" v-model:mode="referenceMode" :showFrames="browserConfig.outputKind === 'video'" :tabsTarget="referenceTabsTarget" :directory="directory" :disabled="locked" />
+      <simpleReferenceSlots v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" v-model:mode="referenceMode" :showFrames="browserConfig.outputKind === 'video'" :tabsTarget="referenceTabsTarget" :directory="directory" :disabled="locked" @edit="editReferenceAttachment" />
       <attachmentList v-if="unassignedAttachments.length" class="draftAttachments" numbered :attachments="unassignedAttachments" :directory="directory" removable restorable :disabled="locked" @remove="removeVisibleAttachment($event)" @restore="restoreVisibleAttachment" />
       <div ref="senderElement" class="senderEditor" @pointerdown.capture="inputStarted = true" @input.capture="inputStarted = true" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
@@ -189,6 +189,8 @@ import brandLogo from "@/components/brandLogo.vue";
 import { browserConfig as defaultBrowserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, inferGenerationKind, browserResultFile, type ModelKind, type BrowserConversationImport } from "@/stores/browserGeneration";
 import professionalCreation from "./professionalCreation.vue";
 import simpleReferenceSlots from "@/components/simpleReferenceSlots.vue";
+import { fileGenerationOrigin } from "@/lib/generationOrigin";
+import { startSourceEdit } from "@/stores/sourceEditing";
 import generationTaskRing from "@/components/generationTaskRing.vue";
 import simpleGenerationTools from "@/components/simpleGenerationTools.vue";
 import browserModelOptions from "@/components/browserModelOptions.vue";
@@ -535,6 +537,22 @@ async function persistBrowserMessages() {
   browserSaveQueue = save;
   return save;
 }
+
+watch(() => props.initialDraft, draft => {
+  if (!draft) return;
+  draftAttachments.value = draft.attachments.map(item => ({ ...item }));
+  draftPrompt.value = draft.prompt;
+  if (sender) void sender.reset({ clearHistory: false, chatNode: templatePromptModel(draft.prompt) });
+});
+async function editReferenceAttachment(attachment: AgentAttachment) {
+  if (locked.value || !directory || !attachment.origin) return;
+  try {
+    await persistBrowserMessages();
+    if (!browserSessionFile) throw new Error("原对话尚未保存，请重试");
+    await startSourceEdit({ directory, sessionFile: browserSessionFile, prompt: sender?.getText() ?? draftPrompt.value, attachments: draftAttachments.value, index: draftAttachments.value.indexOf(attachment), origin: attachment.origin });
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "素材来源打开失败"); }
+}
+
 function saveProfessionalProgress() { void persistBrowserMessages().catch(error => ElMessage.error(error instanceof Error ? error.message : "创作流程保存失败")); }
 const importConversationTurn = inject<((turn: BrowserConversationImport) => Promise<void>)>("importConversationTurn");
 const importMessageResult = inject<((file: File, directory: string, script?: boolean) => Promise<void>)>("importBrowserResult");
@@ -649,7 +667,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       const textReferences = await Promise.all(files.filter(file => file.type.startsWith("text/") || file.type === "application/json").map(async file => { const text = await file.text(); if (text.length > 100000) throw new Error("文字引用最多支持 100000 字符，请缩小内容"); return `${file.name}：\n${text}`; }));
       const referenceDescriptions = attachments.filter(item => item.mimeType.startsWith("image/")).flatMap((item, index) => item.referenceRole === "reference" && item.referenceCategory ? [`图${index + 1}为${({ character: "角色", scene: "场景", prop: "道具", other: "其他" })[item.referenceCategory]}参考（${item.referenceName || "分类参考图"}），保持对应主体特征。`] : []);
       const generationPrompt = isStoryboard ? `${prompt}\n${scriptGenerationInstruction}` : !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
-      const success = await generateInBrowser([generationPrompt, ...referenceDescriptions, ...textReferences].join("\n\n"), files.filter(file => /^(image|video)\//.test(file.type)), directory, outputKind, browserConfig.style, attachments.filter(item => /^(image|video)\//.test(item.mimeType)).map(item => item.referenceRole), { config: generationConfig, modelSelection: generationSelection, queue: true, cancelled: () => browserCancelled, onStart: () => { previousIds = new Set(generationResults.value.map(item => item.id)); ownsBrowserGeneration = true; if (props.materialEditor) emit("generationState", { status: "generating", taskId }); }, onTask: vendorTaskId => { if (props.materialEditor) emit("generationState", { status: "generating", taskId, vendorTaskId }); } });
+      const success = await generateInBrowser([generationPrompt, ...referenceDescriptions, ...textReferences].join("\n\n"), files.filter(file => /^(image|video)\//.test(file.type)), directory, outputKind, browserConfig.style, attachments.filter(item => /^(image|video)\//.test(item.mimeType)).map(item => item.referenceRole), { config: generationConfig, origin: browserSessionFile && directory ? { type: "conversation", directory, sessionFile: browserSessionFile, messageId: userId } : undefined, references: attachments.map(({ path, mimeType, name, referenceRole }) => ({ path, mimeType, name, referenceRole })), modelSelection: generationSelection, queue: true, cancelled: () => browserCancelled, onStart: () => { previousIds = new Set(generationResults.value.map(item => item.id)); ownsBrowserGeneration = true; if (props.materialEditor) emit("generationState", { status: "generating", taskId }); }, onTask: vendorTaskId => { if (props.materialEditor) emit("generationState", { status: "generating", taskId, vendorTaskId }); } });
       const results = generationResults.value.filter(item => !previousIds.has(item.id) && item.directory === directory);
       reply.browserResultIds = results.filter(item => item.kind !== "text").map(item => item.id);
       if (props.materialEditor && success && (outputKind === "image" || outputKind === "video")) { browserConfig.outputKind = outputKind; browserConfig.outputChosen = true; }
@@ -1082,7 +1100,7 @@ function addAttachments(files: File[], fromMaterialResult = false) {
       ElMessage.warning("每条消息最多添加 20 个附件");
       break;
     }
-    draftAttachments.value.push({ name: file.name, path: "", mimeType, file, ...((props.creationModes && !props.materialEditor && /^(image|video)\//.test(mimeType)) ? { referenceRole: referenceMode.value === "frames" ? "middleFrame" as const : "reference" as const, referenceCategory: "other" as const, referenceName: referenceMode.value === "frames" ? `中间帧${Math.max(draftAttachments.value.filter(item => item.referenceRole === "middleFrame").length, ...draftAttachments.value.filter(item => item.referenceRole === "middleFrame").map(item => Number(item.referenceName?.match(/^中间帧(\d+)$/)?.[1] ?? 0))) + 1}` : `其他${draftAttachments.value.filter(item => item.referenceCategory === "other" && item.referenceRole === "reference").length + 1}` } : {}) });
+    draftAttachments.value.push({ name: file.name, path: "", mimeType, file, origin: fileGenerationOrigin(file), ...((props.creationModes && !props.materialEditor && /^(image|video)\//.test(mimeType)) ? { referenceRole: referenceMode.value === "frames" ? "middleFrame" as const : "reference" as const, referenceCategory: "other" as const, referenceName: referenceMode.value === "frames" ? `中间帧${Math.max(draftAttachments.value.filter(item => item.referenceRole === "middleFrame").length, ...draftAttachments.value.filter(item => item.referenceRole === "middleFrame").map(item => Number(item.referenceName?.match(/^中间帧(\d+)$/)?.[1] ?? 0))) + 1}` : `其他${draftAttachments.value.filter(item => item.referenceCategory === "other" && item.referenceRole === "reference").length + 1}` } : {}) });
   }
 }
 

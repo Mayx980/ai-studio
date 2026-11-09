@@ -1,7 +1,8 @@
+import type { GenerationOrigin } from "@/lib/generationOrigin";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
-export type AssetMetadata = { createdAt?: number; source?: string; prompt?: string; model?: string };
+export type AssetMetadata = { createdAt?: number; source?: string; prompt?: string; model?: string; origin?: GenerationOrigin };
 
 export const useAssetStore = defineStore("assets", () => {
   const tags = ref<Record<string, string[]>>({});

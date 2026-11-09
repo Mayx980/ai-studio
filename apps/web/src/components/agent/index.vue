@@ -27,6 +27,7 @@
       :ref="instance => setConversationRef(item, instance)"
       :active="visible && item.key === conversationKey"
       :initialSession="item.session"
+      :initialDraft="workspaceStore.pendingAgentDraft?.file === item.file ? workspaceStore.pendingAgentDraft ?? undefined : undefined"
       :sessionFile="item.file"
       :disabled="loading || !initialized"
       :creationModes="props.creationModes"

@@ -1,11 +1,10 @@
 import { computed, reactive, ref, shallowRef, watch } from "vue";
 import type { AgentAttachment, ReferenceRole, ReferenceCategory } from "@/components/agent/types";
-import { browserConfig, browserModelSelection } from "./browserGeneration";
+import { browserConfig, browserModelSelection, browserParameterKeys } from "./browserGeneration";
 
 export type MaterialTarget = { role: ReferenceRole; category?: ReferenceCategory };
 type MaterialRequest = { owner: symbol; source?: "canvas"; directory: string; target: MaterialTarget; label: string; apply: (file: File) => void | Promise<void> };
 export type MaterialTaskStatus = "idle" | "queued" | "generating" | "completed" | "failed";
-const parameterKeys = ["kind", "ratio", "imageSize", "imageResolution", "count", "style", "outputKind", "outputChosen", "generateAudio", "duration", "resolution"] as const;
 export type MaterialWorkspace = {
   id: string; directory: string; label: string; target: MaterialTarget; sessionFile?: string;
   status: MaterialTaskStatus; taskId?: string; vendorTaskId?: string; resultIds: string[]; error: string; uncertain?: boolean;
@@ -26,14 +25,14 @@ export function saveMaterialWorkspaces() {
       id: item.id, ended: item.ended === true, directory: item.directory, label: item.label, target: item.target, sessionFile: item.sessionFile,
       status: item.status, taskId: item.taskId, vendorTaskId: item.vendorTaskId, resultIds: item.resultIds, error: item.error, uncertain: item.uncertain,
       prompt: item.prompt, attachments: item.attachments.filter(file => file.path).map(({ file, ...attachment }) => attachment),
-      parameters: Object.fromEntries(parameterKeys.map(key => [key, item.config[key]])), modelSelection: item.modelSelection,
+      parameters: Object.fromEntries(browserParameterKeys.map(key => [key, item.config[key]])), modelSelection: item.modelSelection,
     }))));
     materialStorageError.value = "";
   } catch { materialStorageError.value = "生成窗口保存失败，请保留当前页面并检查浏览器存储空间。"; }
 }
 function workspaceConfig(parameters?: Record<string, unknown>) {
   const config = reactive({ ...browserConfig, keys: browserConfig.keys });
-  for (const key of parameterKeys) if (parameters && typeof parameters[key] === typeof config[key]) Object.assign(config, { [key]: parameters[key] });
+  for (const key of browserParameterKeys) if (parameters && typeof parameters[key] === typeof config[key]) Object.assign(config, { [key]: parameters[key] });
   return config;
 }
 export function restoreMaterialWorkspaces() {

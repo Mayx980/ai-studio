@@ -1,9 +1,10 @@
 import type { AgentToolCall, AgentStats, AgentContext, AgentSubAgent, AgentMention } from "@toonflow/server/agent/types";
+import type { GenerationOrigin } from "@/lib/generationOrigin";
 import type { ProfessionalCreation } from "./professionalCreation";
 
 export type ReferenceRole = "firstFrame" | "reference" | "middleFrame" | "lastFrame";
 export type ReferenceCategory = "character" | "scene" | "prop" | "other";
-export type AgentAttachment = { name: string; path: string; mimeType: string; file?: File; referenceRole?: ReferenceRole; referenceCategory?: ReferenceCategory; referenceName?: string };
+export type AgentAttachment = { name: string; path: string; mimeType: string; file?: File; referenceRole?: ReferenceRole; referenceCategory?: ReferenceCategory; referenceName?: string; origin?: GenerationOrigin; assetPath?: string };
 
 export type AgentMessagePart =
   | { id: string; type: "text"; content: string }

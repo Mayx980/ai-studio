@@ -82,7 +82,7 @@ import type { AgentAttachment } from "./types";
 import type { ProfessionalCreation, ProfessionalOption } from "./professionalCreation";
 import messageMarkdown from "@/components/messageMarkdown.vue";
 import browserModelResults from "@/components/browserModelResults.vue";
-const props = defineProps<{ state: ProfessionalCreation; directory: string; attachments: AgentAttachment[]; disabled?: boolean; stopToken?: number }>();
+const props = defineProps<{ state: ProfessionalCreation; directory: string; attachments: AgentAttachment[]; disabled?: boolean; stopToken?: number; sourceSessionFile?: string }>();
 const emit = defineEmits<{ change: []; busy: [value: boolean]; results: [ids: string[]] }>();
 const begin = inject<BeginBrowserWorkflow>("beginBrowserWorkflow");
 const canvas = inject<ProfessionalCanvas>("professionalCanvas");
@@ -314,7 +314,7 @@ async function media(kind: "image" | "video" | "audio", prompt: string, label = 
   const previous = new Set(generationResults.value.map(item => item.id));
   let success: boolean;
   mediaWaiting = true;
-  try { success = await generateInBrowser(prompt, files, props.directory, kind); }
+  try { success = await generateInBrowser(prompt, files, props.directory, kind, "", undefined, { origin: props.sourceSessionFile ? { type: "conversation", directory: props.directory, sessionFile: props.sourceSessionFile } : undefined, references: referenceResults.length ? referenceResults.flatMap(item => item.path ? [{ path: item.path, mimeType: item.file?.type || "image/png", name: item.file?.name }] : []) : props.attachments.map(({ path, mimeType, name }) => ({ path, mimeType, name })) }); }
   finally { mediaWaiting = false; }
   const results = generationResults.value.filter(item => !previous.has(item.id) && item.directory === props.directory);
   if (!results.length && !success) throw new Error(generationError.value);

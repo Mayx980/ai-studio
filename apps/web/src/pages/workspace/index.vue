@@ -74,7 +74,8 @@ import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { generateBrowserText, browserNodeAi } from "@/lib/browserNodeAi";
 import { browserConfig, browserResultFile, resolveBrowserModel, additionalBrowserModels, type ProfessionalCanvas, type BeginBrowserWorkflow, type BrowserConversationImport } from "@/stores/browserGeneration";
 import { computed, defineAsyncComponent, nextTick, onMounted, onScopeDispose, provide, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
-import { onBeforeRouteLeave } from "vue-router";
+import { onBeforeRouteLeave, useRoute } from "vue-router";
+import { clearGenerationOriginRoute, openGenerationOrigin } from "@/lib/generationOrigin";
 import axios from "axios";
 import { IconPointer, IconHandStop, IconPlus, IconHelp } from "@tabler/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
@@ -165,6 +166,7 @@ async function startNewProject(mode: "simple" | "professional") {
   startingProject = true;
   try {
     await flushSave();
+    await clearGenerationOriginRoute();
     const project = await workspaceStore.createProject("未命名项目", mode);
     workspaceStore.creationMode = mode;
     if (mode === "professional") workspaceStore.pendingCanvasEntry = { directory: project.directory };
@@ -174,6 +176,7 @@ async function startNewProject(mode: "simple" | "professional") {
 provide("startNewProject", startNewProject);
 provide("openSidebarProject", async (directory: string, mode?: "simple") => {
   await flushSave();
+  await clearGenerationOriginRoute();
   await workspaceStore.openProject(directory);
   if (mode === "simple") { workspaceStore.creationMode = "simple"; agentVisible.value = true; }
   else await workspaceStore.restoreProjectEntry();
@@ -191,7 +194,16 @@ async function applyAssistantTemplate(value: TemplateApplication) {
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "模板应用失败"); }
   finally { applyingAssistantTemplate = false; }
 }
-onMounted(() => { if (browserWorkspaceMode && !workspaceStore.project) void startNewProject("professional").catch(error => ElMessage.error(error.message)); });
+const sourceRoute = useRoute();
+onMounted(async () => {
+  const { sourceType, sourceDirectory, source, canvasPath } = sourceRoute.query;
+  if (typeof sourceDirectory === "string" && typeof source === "string" && (sourceType === "conversation" || sourceType === "canvas" && typeof canvasPath === "string")) {
+    try { await openGenerationOrigin(sourceType === "conversation" ? { type: "conversation", directory: sourceDirectory, sessionFile: source } : { type: "canvas", directory: sourceDirectory, canvasPath: canvasPath as string, nodeId: source }); }
+    catch (error) { ElMessage.error(error instanceof Error ? error.message : "生成来源无法恢复"); }
+    return;
+  }
+  if (browserWorkspaceMode && !workspaceStore.project) await startNewProject("professional").catch(error => ElMessage.error(error.message));
+});
 watch(() => workspaceStore.pendingCanvasEntry, async entry => {
   if (!entry || entry.directory !== workspaceStore.project?.directory) return;
   workspaceStore.pendingCanvasEntry = null;
@@ -204,6 +216,11 @@ watch(() => workspaceStore.pendingCanvasEntry, async entry => {
     if (!panel) throw new Error("画布正在初始化，请稍后重试");
     await panel.waitUntilReady();
     if (entry.directory !== workspaceStore.project?.directory) return;
+    if (entry.canvasPath && entry.nodeId) {
+      await panel.focusDocumentNode(entry.directory, entry.canvasPath, entry.nodeId);
+      agentVisible.value = false;
+      return;
+    }
     if (entry.files?.length) {
       await panel.importBrowserResult(entry.files, entry.directory);
       agentVisible.value = false;

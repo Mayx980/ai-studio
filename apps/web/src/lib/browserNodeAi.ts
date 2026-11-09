@@ -1,6 +1,7 @@
-import { recordGenerationResults, readGenerationSettings, type GenerationSettings } from "@/lib/generationHistory";
+import { readGenerationOrigin, type GenerationOrigin } from "./generationOrigin";
+import { deferCanvasGeneration, recordGenerationResults, readGenerationSettings, type GenerationSettings } from "@/lib/generationHistory";
 import { saveProjectCover } from "@/lib/projectCover";
-import type { NodeAiAdapter, NodeAiRequest, NodeMediaModel } from "@toonflow/nodes-scaffold/nodeAi";
+import type { NodeAiAdapter, NodeAiRequest, NodeMediaModel, NodeImageRequest, NodeVideoRequest } from "@toonflow/nodes-scaffold/nodeAi";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { browserConfig, browserModels, browserModelSelection, configuredBrowserModels, resolveBrowserModel, type ModelKind } from "@/stores/browserGeneration";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
@@ -64,7 +65,7 @@ async function imageInputs(directory: string, inputs: { path: string; mimeType: 
   return Promise.all(inputs.map(async item => ({ type: "binary" as const, data: new Uint8Array(await useWorkspaceFiles(directory).read(item.path)), mimeType: item.mimeType })));
 }
 
-async function saveAssets(assets: { type: string; data?: string | Uint8Array; url?: string; mimeType?: string }[], input: { directory: string; outputDirectory: string; prompt?: string; modelId?: string; settings?: GenerationSettings }, kind: "image" | "video" | "audio", signal?: AbortSignal) {
+async function saveAssets(assets: { type: string; data?: string | Uint8Array; url?: string; mimeType?: string }[], input: { directory: string; outputDirectory: string; prompt?: string; modelId?: string; settings?: GenerationSettings; origin?: GenerationOrigin; images?: { path: string; mimeType: string }[]; videos?: { path: string; mimeType: string }[]; firstFrame?: { path: string; mimeType: string }; lastFrame?: { path: string; mimeType: string } }, kind: "image" | "video" | "audio", signal?: AbortSignal) {
   if (!assets.length) throw new Error("模型未返回生成素材");
   const files = useWorkspaceFiles(input.directory);
   // ACT: 沿用节点给出的工作区相对输出目录；文件授权和冲突保护仍由统一入口处理。
@@ -91,12 +92,16 @@ async function saveAssets(assets: { type: string; data?: string | Uint8Array; ur
     await files.write(path, blob, true);
     return { path, mimeType, mediaType: kind };
   }));
-  await recordGenerationResults(input.directory, saved.map(item => ({ id: crypto.randomUUID(), kind, path: item.path, mimeType: item.mimeType, name: item.path.split("/").at(-1), createdAt: Date.now(), prompt: input.prompt, model: input.modelId, settings: input.settings })));
-  if (saved[0]) await saveProjectCover(input.directory, saved[0].path, saved[0].mimeType);
+  const records = saved.map(item => ({ id: crypto.randomUUID(), kind, path: item.path, mimeType: item.mimeType, name: item.path.split("/").at(-1), createdAt: Date.now(), prompt: input.prompt, model: input.modelId, settings: input.settings, origin: readGenerationOrigin(input.origin), references: [...(input.images ?? []), ...(input.videos ?? []), ...[input.firstFrame, input.lastFrame].filter((item): item is { path: string; mimeType: string } => !!item)] }));
+  if (input.origin?.type === "canvas" && input.outputDirectory !== `assets/${input.origin.nodeId}`) deferCanvasGeneration(input.origin, records);
+  else {
+    await recordGenerationResults(input.directory, records);
+    if (saved[0]) await saveProjectCover(input.directory, saved[0].path, saved[0].mimeType);
+  }
   return saved;
 }
 
-export const browserNodeAi: NodeAiAdapter = {
+export const browserNodeAi = {
   continueOnUnmount: true,
   enabled: () => browserWorkspaceMode || browserConfig.enabled,
   async getModels(signal) {
@@ -104,13 +109,15 @@ export const browserNodeAi: NodeAiAdapter = {
     return configuredBrowserModels("text").map(model => ({ providerId: model.id, providerLabel: model.label, modelId: model.modelId, label: model.label, protocol: "openai-completions" as const }));
   },
   async getMediaModels(signal) { signal?.throwIfAborted(); return availableBrowserModels(); },
-  async generateImage(input, signal) {
+  async generateImage(input: NodeImageRequest & { origin?: GenerationOrigin }, signal?: AbortSignal) {
+    if (!input.origin) throw new Error("缺少原画布来源，请重新打开节点后生成");
     const context = modelContext("image", input.providerId, input.modelId, signal);
     const label = resolveBrowserModel("image", input.providerId, input.modelId).label;
     const assets = await browserModels.image.generateImage.call(context, { ...input, model: input.modelId, images: await imageInputs(input.directory, input.images) });
     return await saveAssets(assets, { ...input, settings: { providerId: input.providerId, modelId: input.modelId, label, ratio: input.ratio ?? "", imageSize: input.size ?? "自动", n: input.n ?? 1, style: "", duration: 5, resolution: "", generateAudio: false, mode: input.images?.length ? "reference" : "text" } }, "image", signal) as Awaited<ReturnType<NodeAiAdapter["generateImage"]>>;
   },
-  async generateVideo(input, signal) {
+  async generateVideo(input: NodeVideoRequest & { origin?: GenerationOrigin }, signal?: AbortSignal) {
+    if (!input.origin) throw new Error("缺少原画布来源，请重新打开节点后生成");
     const context = modelContext("video", input.providerId, input.modelId, signal);
     const label = resolveBrowserModel("video", input.providerId, input.modelId).label;
     const frame = async (item?: { path: string; mimeType: string }) => item ? (await imageInputs(input.directory, [item]))[0] : undefined;
@@ -126,4 +133,4 @@ export const browserNodeAi: NodeAiAdapter = {
     return await saveAssets(assets, input, "audio", signal) as Awaited<ReturnType<NodeAiAdapter["generateAudio"]>>;
   },
   generate: generateBrowserText,
-};
+} satisfies NodeAiAdapter;

@@ -14,6 +14,7 @@
   </el-dialog>
 </template>
 <script setup lang="ts">
+import { fileGenerationOrigin } from "@/lib/generationOrigin";
 import { computed, onBeforeUnmount, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { browserAssetFiles, listBrowserAssets, requiresAssetFolder, type BrowserAssetEntry } from "@/lib/browserAssets";
@@ -33,7 +34,7 @@ async function open(sources: AssetSaveSource[]) {
   if (saving.value || !sources.length) return;
   if (sources.some(item => !/^(image|video|audio)\//.test(item.file.type))) throw new Error("个人资产仅支持图片、视频和音频");
   clear();
-  items.value = sources.map(item => ({ ...item, name: (item.name || item.file.name).replace(/\.[^.]+$/, "").slice(0, 50), url: URL.createObjectURL(item.file), folder: "", tags: [], saved: false }));
+  items.value = sources.map(item => ({ ...item, metadata: { ...item.metadata, origin: item.metadata?.origin ?? fileGenerationOrigin(item.file) }, name: (item.name || item.file.name).replace(/\.[^.]+$/, "").slice(0, 50), url: URL.createObjectURL(item.file), folder: "", tags: [], saved: false }));
   activeIndex.value = 0; error.value = ""; folders.value = []; visible.value = true; loading.value = true;
   try {
     const collect = (entries: BrowserAssetEntry[]): string[] => entries.flatMap(entry => entry.type === "directory" ? [entry.path, ...collect(entry.children ?? [])] : []);

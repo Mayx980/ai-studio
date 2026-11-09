@@ -1,3 +1,4 @@
+import { commitCanvasGeneration } from "./generationHistory";
 import { nextTick } from "vue";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import type { NodeOutputs } from "@toonflow/nodes-scaffold/values";
@@ -10,6 +11,7 @@ export function registerGenerationCanvas(key: string, flush: () => Promise<void>
 export function captureGenerationCanvas(directory: string, path: string, settle: () => Promise<void>) {
   const files = useWorkspaceFiles(directory), key = JSON.stringify([directory, path]);
   return { key, async save(nodeId: string, outputs: NodeOutputs) {
+    await commitCanvasGeneration(directory, path, nodeId, outputs);
     await nextTick();
     async function flushLive() {
       const flush = liveCanvases.get(key);

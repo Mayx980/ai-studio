@@ -71,6 +71,7 @@
 import saveAssetDialog, { type AssetSaveSource } from "@/components/saveAssetDialog.vue";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { browserAssetFiles, browserAssetMimeType, listBrowserAssets } from "@/lib/browserAssets";
+import { rememberFileOrigin, generationRecordForPath, resolveGenerationOrigin } from "@/lib/generationOrigin";
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import axios from "axios";
 import { storeToRefs } from "pinia";
@@ -97,7 +98,7 @@ onBeforeUnmount(() => { for (const release of assetReleases) release(); });
 async function selectAsset(entry: AssetEntry) {
   if (selecting.value) return;
   selecting.value = true;
-  try { const data = browserWorkspaceMode ? new Blob([await browserAssetFiles().read(entry.path)], { type: browserAssetMimeType(entry.path) }) : (await axios.get<Blob>(assetUrl(entry.path), { responseType: "blob" })).data; emit("select", new File([data], entry.name, { type: data.type && data.type !== "application/octet-stream" ? data.type : mediaKind(entry) === "image" ? `image/${/\.jpe?g$/i.test(entry.name) ? "jpeg" : entry.name.split(".").pop()}` : mediaKind(entry) === "audio" ? "audio/mpeg" : "video/mp4" })); } catch (error) { showError(error); } finally { selecting.value = false; }
+  try { const data = browserWorkspaceMode ? new Blob([await browserAssetFiles().read(entry.path)], { type: browserAssetMimeType(entry.path) }) : (await axios.get<Blob>(assetUrl(entry.path), { responseType: "blob" })).data; emit("select", rememberFileOrigin(new File([data], entry.name, { type: data.type && data.type !== "application/octet-stream" ? data.type : mediaKind(entry) === "image" ? `image/${/\.jpe?g$/i.test(entry.name) ? "jpeg" : entry.name.split(".").pop()}` : mediaKind(entry) === "audio" ? "audio/mpeg" : "video/mp4" }), useAssetStore().metadata[entry.path]?.origin, entry.path)); } catch (error) { showError(error); } finally { selecting.value = false; }
 }
 const visible = defineModel<boolean>({ default: false });
 const assetCategories = ["角色", "场景", "物品", "风格", "音效"];
@@ -300,7 +301,9 @@ async function openSave(label: string, items: AssetOutput[]) {
       if (!["IMAGE", "VIDEO", "AUDIO"].includes(output.dataType) || !output.value || typeof output.value !== "object" || typeof output.value.url !== "string") continue;
       const extension = output.value.url.match(/\.[^./\\]+$/)?.[0] ?? "";
       const name = label.endsWith(extension) ? label : label + extension;
-      sources.push({ file: new File([await useWorkspaceFiles(directory).read(output.value.url)], name, { type: output.value.mimeType }), metadata: { source: "画布素材" } });
+      const record = await generationRecordForPath(directory, output.value.url);
+      const origin = record ? await resolveGenerationOrigin(directory, record) : undefined;
+      sources.push({ file: new File([await useWorkspaceFiles(directory).read(output.value.url)], name, { type: output.value.mimeType }), metadata: { source: "画布素材", prompt: record?.prompt, model: record?.model, origin } });
     }
     if (!sources.length) { ElMessage.info("个人资产仅支持图片、视频和音频。"); return; }
     await saveDialog.value?.open(sources);

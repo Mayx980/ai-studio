@@ -7,6 +7,7 @@
         </transition>
       </router-view>
       <customMaterialEditor />
+      <sourceEditReturn />
       <ffmpegRequired />
       <updateBox
         v-if="updateBoxBuild && !installFailure"
@@ -40,6 +41,7 @@
 </template>
 
 <script setup lang="ts">
+import sourceEditReturn from "@/components/sourceEditReturn.vue";
 import customMaterialEditor from "@/components/customMaterialEditor.vue";
 import { computed, onBeforeUnmount, ref, shallowRef, watch, watchEffect } from "vue";
 import { ElMessage, useZIndex } from "element-plus";
