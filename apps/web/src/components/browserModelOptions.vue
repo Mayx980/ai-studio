@@ -94,7 +94,7 @@ watch(kind, () => { parametersVisible.value = false; durationVisible.value = fal
 .inlineParameter { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #f2f2f2; font: 400 13px/1 Arial, sans-serif; white-space: nowrap; cursor: pointer; transition: background 180ms, color 180ms;
   .parameterDot { color: inherit; }
   .formatIcon { display: inline-block; box-sizing: border-box; flex: none; border: 2px solid currentColor; border-radius: 3px; }
-  &:hover:enabled, &[aria-expanded="true"] { background: #3c314e; color: #f2f2f2; }
+  &:hover, &[aria-expanded="true"] { background: #303030; color: #f2f2f2; }
   &:focus-visible { outline: 2px solid #a28ae9; outline-offset: -2px; }
   &:disabled { cursor: not-allowed; color: #f2f2f2; }
 }
