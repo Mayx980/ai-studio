@@ -19,10 +19,10 @@
             <el-input-number v-model="durationValue" :min="videoDurations[0] ?? 1" :max="videoDurations.at(-1) ?? 1" :precision="0" controlsPosition="right" :disabled="controlsDisabled || !videoDurations.length" aria-label="视频时长秒数" :title="`支持时长：${videoDurations.join('、')} 秒`"><template #suffix>s</template></el-input-number>
           </div></el-form-item>
           <el-form-item label="比例"><div class="segmentedOptions ratioSegments" role="group" aria-label="生成比例"><button v-for="item in ratios" :key="item" type="button" :disabled="controlsDisabled" :aria-pressed="browserConfig.ratio === item" @click="browserConfig.ratio = item"><span class="ratioIcon" :style="ratioStyle(item)" aria-hidden="true" /><span>{{ item }}</span></button></div></el-form-item>
-          <el-form-item label="生成数量"><div class="segmentedOptions" role="group" aria-label="生成数量"><button v-for="item in kind === 'image' ? 6 : 1" :key="item" type="button" :disabled="controlsDisabled || kind === 'video'" :aria-pressed="generationCount === item" @click="generationCount = item">{{ item }}</button></div></el-form-item>
+          <el-form-item v-if="kind === 'image'" label="生成数量"><div class="segmentedOptions" role="group" aria-label="生成数量"><button v-for="item in 6" :key="item" type="button" :disabled="controlsDisabled" :aria-pressed="generationCount === item" @click="generationCount = item">{{ item }}</button></div></el-form-item>
         </template>
       </div>
-      <div v-if="kind === 'image' || kind === 'video'" class="parameterDetails"><small>{{ kind === 'video' ? '当前视频接口每次生成 1 条视频' : `实际图片尺寸 ${browserConfig.imageSize.replace('*', ' × ')}` }}</small><label v-if="kind === 'video' && videoCapability?.audio === 'optional'">生成音频<el-switch v-model="browserConfig.generateAudio" aria-label="生成音频" /></label></div>
+      <div v-if="kind === 'image' || kind === 'video'" class="parameterDetails"><small v-if="kind === 'image'">实际图片尺寸 {{ browserConfig.imageSize.replace('*', ' × ') }}</small><label v-if="kind === 'video' && videoCapability?.audio === 'optional'">生成音频<el-switch v-model="browserConfig.generateAudio" aria-label="生成音频" /></label></div>
       <p v-else>当前适配器仅支持文字输入。</p>
     </el-form>
   </el-popover>
@@ -74,7 +74,7 @@ const ratios = computed(() => Object.keys(imageDimensions));
 const resolutions = computed(() => kind.value === "image" ? Object.keys(imageClaritySizes) : [...new Set(videoCapability.value?.durationResolutionMap.filter(item => item.duration.includes(videoDuration.value!)).flatMap(item => item.resolution) ?? [])]);
 const resolution = computed({ get: () => kind.value === "image" ? browserConfig.imageResolution : browserConfig.resolution, set: value => { if (kind.value === "image") { browserConfig.imageResolution = value; browserConfig.imageSize = imageClaritySizes[value]?.[browserConfig.ratio] ?? browserConfig.imageSize; } else browserConfig.resolution = value; } });
 const generationCount = computed({ get: () => kind.value === "video" ? 1 : browserConfig.count, set: value => { if (kind.value === "image") browserConfig.count = value; } });
-const parameterSummary = computed(() => [selectedModel.value?.label ?? "未接入模型", ...(["image", "video"].includes(kind.value) ? [browserConfig.ratio, ...(kind.value === "video" ? [`${videoDuration.value}s`] : []), resolution.value.toLowerCase(), `${generationCount.value}${kind.value === "video" ? '条' : '张'}`] : [])].join(" · "));
+const parameterSummary = computed(() => [selectedModel.value?.label ?? "未接入模型", ...(["image", "video"].includes(kind.value) ? [browserConfig.ratio, ...(kind.value === "video" ? [`${videoDuration.value}s`] : []), resolution.value.toLowerCase(), ...(kind.value === "image" ? [`${generationCount.value}张`] : [])] : [])].join(" · "));
 watch([kind, selectedModelId, videoDurations], () => {
   if (kind.value !== "video" || !selectedModelId.value) return;
   if (videoDurations.value.length && !videoDurations.value.includes(videoDuration.value!)) browserConfig.duration = String(videoDurations.value[0]);
