@@ -110,7 +110,7 @@
         @lostpointercapture="stopSenderResize"
         @keydown.up.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) + 16)"
         @keydown.down.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) - 16)" />
-      <simpleReferenceSlots v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" v-model:mode="referenceMode" :showFrames="browserConfig.outputKind === 'image'" :tabsTarget="referenceTabsTarget" :directory="directory" :disabled="locked" />
+      <simpleReferenceSlots v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" v-model:mode="referenceMode" :showFrames="browserConfig.outputKind === 'video'" :tabsTarget="referenceTabsTarget" :directory="directory" :disabled="locked" />
       <attachmentList v-if="unassignedAttachments.length" class="draftAttachments" numbered :attachments="unassignedAttachments" :directory="directory" removable restorable :disabled="locked" @remove="removeVisibleAttachment($event)" @restore="restoreVisibleAttachment" />
       <div ref="senderElement" class="senderEditor" @pointerdown.capture="inputStarted = true" @input.capture="inputStarted = true" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
