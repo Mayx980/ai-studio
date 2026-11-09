@@ -14,7 +14,7 @@
         <attachmentPreview :attachment="attachment" :directory="directory" />
         <span class="referenceLabel">{{ referenceLabel(attachment, index) }}</span>
         <el-tooltip content="替换图片"><button class="replaceReference" type="button" :disabled="disabled || opening" :aria-label="`替换${referenceLabel(attachment, index)}`" @click="openMenu($event, { role: 'reference', category: attachment.referenceCategory || 'character' }, attachment)"><icon-refresh :size="22" /></button></el-tooltip>
-        <el-tooltip v-if="attachment.origin || attachment.assetPath" :content="attachment.origin ? '编辑来源' : '外部上传素材没有生成来源'" :showArrow="false"><button class="editReference" type="button" :disabled="disabled || opening || !attachment.origin" aria-label="编辑参考素材来源" @click="emit('edit', attachment)"><icon-pencil :size="18" /></button></el-tooltip>
+        <el-tooltip v-if="attachment.origin || attachment.assetPath" :content="attachment.origin ? '编辑来源' : '外部上传素材没有生成来源'" :showArrow="false"><button class="editReference" type="button" :disabled="disabled || opening || !attachment.origin" aria-label="编辑参考素材来源" @click="emit('edit', attachment)"><icon-pencil :size="22" /></button></el-tooltip>
         <button class="removeReference" type="button" :disabled="disabled || opening" :aria-label="`移除${referenceLabel(attachment, index)}`" title="移除图片" @click="remove(attachment)"><icon-x :size="14" /></button>
         <button v-if="index === referenceImages.length - 1" class="addNextReference" type="button" :disabled="disabled || opening" aria-label="继续添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="22" /></button>
       </div>
@@ -125,9 +125,7 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; for (const task of
 </script>
 <style scoped lang="scss">
 .simpleReferenceSlots {
-  .referenceCard .editReference { position: absolute; right: 7px; top: 22px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px; background: #18151dd9; color: #f2edf9; opacity: 0; cursor: pointer; &:disabled { cursor: not-allowed; opacity: .4; } }
   .referenceCard.editableReference .replaceReference { inset: auto; left: 7px; top: 22px; margin: 0; width: 26px; height: 26px; }
-  .referenceCard:hover .editReference, .referenceCard:focus-within .editReference { opacity: 1; }
   .frameSlot .editFrame { position: absolute; right: 2px; top: 2px; display: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; color: white; background: #18151dd9; cursor: pointer; }
   .frameSlot:hover .editFrame, .frameSlot:focus-within .editFrame { display: grid; place-items: center; }
   .materialTaskEntry { flex: none; align-self: center; display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; padding: 4px; border: 0; border-radius: 50%; background: transparent; cursor: pointer; &:hover { filter: brightness(1.15); } &:focus-visible { outline: 2px solid #ab8aff; outline-offset: -1px; } }
@@ -137,11 +135,12 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; for (const task of
   .slotCard { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 72px; height: 72px; border: 0; border-radius: 12px; background: #2d343a; color: var(--el-text-color-primary); cursor: pointer; font-size: 12px; &:disabled { opacity: .5; cursor: default; } &:hover { background: var(--el-fill-color); } }
   .referenceCard { position: relative; width: 72px; height: 72px; :deep(.thumbnailItem), :deep(.thumbnailImage), :deep(.thumbnailButton) { width: 72px; height: 72px; } :deep(.thumbnailImage) { border: 0; border-radius: 12px; }
     .referenceLabel { position: absolute; inset: auto 0 0; height: 33.333%; display: flex; align-items: center; justify-content: center; background: rgba(82,86,90,.85); color: white; font-size: 11px; border-radius: 0 0 12px 12px; pointer-events: none; }
-    .replaceReference, .removeReference { display: none; position: absolute; border: 0; padding: 0; color: white; cursor: pointer; background: rgba(54,58,62,.9); }
+    .replaceReference, .editReference, .removeReference { display: none; position: absolute; border: 0; padding: 0; color: white; cursor: pointer; background: rgba(54,58,62,.9); }
     .replaceReference { inset: 0; margin: auto; width: 28px; height: 28px; border-radius: 7px; }
+    .editReference { right: 7px; top: 22px; width: 26px; height: 26px; border-radius: 7px; &:disabled { cursor: not-allowed; } }
     .removeReference { top: -7px; right: -7px; width: 22px; height: 22px; border-radius: 50%; align-items: center; justify-content: center; }
     .addNextReference { position: absolute; bottom: -6px; right: -8px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--el-border-color); border-radius: 50%; color: white; background: #50555a; cursor: pointer; }
-    &:hover, &:focus-within { .replaceReference, .removeReference { display: flex; align-items: center; justify-content: center; } }
+    &:hover, &:focus-within { .replaceReference, .editReference, .removeReference { display: flex; align-items: center; justify-content: center; } }
     &.expandedReference { margin-right: 82px; .addNextReference { left: calc(100% + 10px); bottom: 0; right: auto; width: 72px; height: 72px; border-radius: 12px; svg { width: 30px; height: 30px; } } }
   }
   .frameSlot { position: relative; width: 72px; .replaceFrame { display: none; position: absolute; inset: 0; margin: auto; z-index: 2; width: 28px; height: 28px; border: 0; border-radius: 7px; padding: 0; color: white; background: rgba(54,58,62,.9); cursor: pointer; } &:hover, &:focus-within { .replaceFrame { display: flex; align-items: center; justify-content: center; } } :deep(.thumbnailItem), :deep(.thumbnailImage), :deep(.thumbnailButton) { width: 72px; height: 72px; } .frameLabel { position: absolute; inset: auto 0 0; width: 100%; height: 24px; border: 0; border-radius: 0 0 10px 10px; background: rgba(82,86,90,.85); color: white; cursor: pointer; } }
