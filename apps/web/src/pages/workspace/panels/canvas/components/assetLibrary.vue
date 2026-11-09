@@ -28,6 +28,7 @@
             <el-image v-else-if="mediaKind(data) === 'image'" class="assetThumbnail" :src="assetUrl(data.path)" fit="cover" loading="lazy" draggable="false" @click.stop="openPreview(data)">
               <template #error><icon-photo :size="18" /></template>
             </el-image>
+            <button v-else-if="mediaKind(data) === 'video'" class="assetThumbnail videoThumbnail" type="button" :aria-label="'预览 ' + data.name" @click.stop="openPreview(data)"><video :src="assetUrl(data.path)" muted playsinline preload="metadata" aria-hidden="true" @loadedmetadata="showVideoCover" /><icon-video :size="14" /></button>
             <span v-else class="fileIcon">
               <icon-music v-if="mediaKind(data) === 'audio'" :size="18" />
               <icon-video v-else-if="mediaKind(data) === 'video'" :size="18" />
@@ -116,6 +117,10 @@ const previewError = ref("");
 let loadRequest = 0;
 onBeforeUnmount(() => { loadRequest++; });
 
+function showVideoCover(event: Event) {
+  const video = event.target as HTMLVideoElement;
+  if (Number.isFinite(video.duration) && video.duration > 0) video.currentTime = Math.min(0.1, video.duration / 2);
+}
 function assetUrl(path: string) {
   if (browserWorkspaceMode) return assetUrls.value[path] || "";
   return `/api/assets/read?path=${encodeURIComponent(path)}`;
@@ -336,6 +341,10 @@ defineExpose({ openSave });
     box-sizing: border-box;
   }
 
+  .videoThumbnail { position: relative; display: block; flex-shrink: 0; padding: 0; border: 0; overflow: hidden; background: var(--el-fill-color); color: white; cursor: pointer;
+    video { width: 100%; height: 100%; object-fit: cover; }
+    svg { position: absolute; right: 2px; bottom: 2px; filter: drop-shadow(0 1px 2px #000); }
+  }
   .libraryToolbar {
     display: flex;
     align-items: center;

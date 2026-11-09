@@ -22,6 +22,7 @@ const router = createRouter({
       path: "/canvas",
       redirect: "/workspace",
     },
+    { path: "/source", component: () => import("@/pages/sourceEditor/index.vue") },
     {
       path: "/workspace",
       component: () => import("@/pages/workspace/index.vue"),

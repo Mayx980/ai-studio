@@ -56,7 +56,11 @@ const props = defineProps<{
 }>();
 const openWorkspaceSettings = inject<(() => void) | undefined>("openWorkspaceSettings", undefined);
 const workspaceStore = useWorkspaceStore();
-const sidebarCollapsed = ref(false);
+const sourceEditor = window.frameElement?.getAttribute("data-source-editor") === "true";
+const sidebarCollapsed = ref(sourceEditor && window.innerWidth < 700);
+function adaptSourceSidebar() { if (window.innerWidth < 700) sidebarCollapsed.value = true; }
+if (sourceEditor) window.addEventListener("resize", adaptSourceSidebar);
+onBeforeUnmount(() => window.removeEventListener("resize", adaptSourceSidebar));
 const workspaceName = computed(() => workspaceStore.project?.name || "未命名工作区");
 const projectNameDraft = ref("");
 watch([() => workspaceStore.project?.directory, workspaceName], () => {

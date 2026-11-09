@@ -10,6 +10,7 @@ import { useWorkspaceStore } from "./workspace";
 
 type SourceEdit = { directory: string; sessionFile: string; prompt: string; attachments: AgentAttachment[]; index: number; name: string; origin: GenerationOrigin; startedAt: number; parameters?: Record<string, unknown>; modelSelection?: Record<string, string>; result?: GenerationRecord & { directory: string } };
 export const sourceEdit = shallowRef<SourceEdit>();
+export const sourceEditorMinimized = ref(false);
 export const sourceEditBusy = ref(false), sourceEditError = ref("");
 const storageKey = "afxen.sourceEdit";
 let storageReadable = true;
@@ -39,7 +40,11 @@ export function restoreSourceEdit() {
 export async function startSourceEdit(item: Omit<SourceEdit, "startedAt" | "name">) {
   if (sourceEditBusy.value) return;
   if (!storageReadable) throw new Error("已有编辑返回信息无法恢复，请保留浏览器数据后处理");
-  if (sourceEdit.value) throw new Error("请先应用当前编辑结果，或返回原对话");
+  if (sourceEdit.value) {
+    const context = sourceEdit.value;
+    if (context.directory === item.directory && context.sessionFile === item.sessionFile && context.index === item.index && sameOrigin(context.origin, item.origin)) { sourceEditorMinimized.value = false; return; }
+    throw new Error("请先应用当前编辑结果，或返回原对话");
+  }
   if (!Number.isInteger(item.index) || !item.attachments[item.index]) throw new Error("原参考素材已移除，请重新选择");
   if (!readGenerationOrigin(item.origin)) throw new Error("缺少可验证的素材来源");
   sourceEditBusy.value = true; sourceEditError.value = "";
@@ -53,6 +58,7 @@ export async function startSourceEdit(item: Omit<SourceEdit, "startedAt" | "name
       const { file, ...saved } = attachment;
       attachments.push({ ...saved, path });
     }
+    sourceEditorMinimized.value = false;
     sourceEdit.value = { ...item, attachments, name: attachments[item.index]!.name, startedAt: Date.now(), parameters: Object.fromEntries(browserParameterKeys.map(key => [key, browserConfig[key]])), modelSelection: { ...browserModelSelection } };
     save();
   } catch (error) { sourceEdit.value = undefined; save(); throw error; }

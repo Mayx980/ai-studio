@@ -56,16 +56,23 @@ export async function validateGenerationOrigin(value: GenerationOrigin) {
   }
   return origin;
 }
-export async function openGenerationOrigin(value: GenerationOrigin) {
+export function generationOriginQuery(origin: GenerationOrigin) {
+  return { returnSection: "assets", sourceType: origin.type, sourceDirectory: origin.directory, source: origin.type === "canvas" ? origin.nodeId : origin.sessionFile, ...(origin.type === "canvas" ? { canvasPath: origin.canvasPath } : {}) };
+}
+export function sourceWorkspaceUrl(origin: GenerationOrigin) {
+  return `${window.location.pathname}#/workspace?${new URLSearchParams(generationOriginQuery(origin))}`;
+}
+export async function openGenerationOrigin(value: GenerationOrigin, embedded = false) {
   const origin = await validateGenerationOrigin(value);
+  const { default: router } = await import("@/router");
+  if (!embedded) { await router.push({ path: "/source", query: generationOriginQuery(origin) }); return; }
   const { useWorkspaceStore } = await import("@/stores/workspace");
   const workspace = useWorkspaceStore();
   await workspace.openProject(origin.directory);
   workspace.creationMode = origin.type === "canvas" ? "professional" : "simple";
   if (origin.type === "canvas") workspace.pendingCanvasEntry = { directory: origin.directory, canvasPath: origin.canvasPath, nodeId: origin.nodeId };
   else workspace.pendingAgentSession = { directory: origin.directory, file: origin.sessionFile };
-  const { default: router } = await import("@/router");
-  await router.push({ path: "/workspace", query: { returnSection: "assets", sourceType: origin.type, sourceDirectory: origin.directory, source: origin.type === "canvas" ? origin.nodeId : origin.sessionFile, ...(origin.type === "canvas" ? { canvasPath: origin.canvasPath } : {}) } });
+  await router.push({ path: "/workspace", query: generationOriginQuery(origin) });
 }
 export async function clearGenerationOriginRoute() {
   const { default: router } = await import("@/router");

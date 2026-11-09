@@ -1,5 +1,5 @@
 <template>
-  <main class="workspacePage" :class="{ simpleWorkspace: workspaceStore.creationMode === 'simple' }" :style="{ '--agentWidth': `${agentVisible ? agentWidth : 0}px` }">
+  <main class="workspacePage" :class="{ simpleWorkspace: workspaceStore.creationMode === 'simple', sourceWorkspace }" :style="{ '--agentWidth': `${agentVisible ? agentWidth : 0}px` }">
     <canvasPanel
       :key="workspaceStore.project?.directory"
       v-model:selectedTool="selectedTool"
@@ -195,10 +195,23 @@ async function applyAssistantTemplate(value: TemplateApplication) {
   finally { applyingAssistantTemplate = false; }
 }
 const sourceRoute = useRoute();
+const sourceWorkspace = window.frameElement?.getAttribute("data-source-editor") === "true";
+let sourceResizeTimer: ReturnType<typeof setTimeout> | undefined;
+function fitSourceAfterResize() {
+  clearTimeout(sourceResizeTimer);
+  sourceResizeTimer = setTimeout(() => {
+    const id = sourceRoute.query.source;
+    if (sourceRoute.query.sourceType !== "canvas" || typeof id !== "string" || !canvasPanelRef.value?.canvasReady) return;
+    void Promise.resolve(canvasPanelRef.value.focusTutorialNode(id)).catch(error => ElMessage.error(error instanceof Error ? error.message : "来源画布适配失败"));
+  }, 120);
+}
+if (sourceWorkspace) window.addEventListener("resize", fitSourceAfterResize);
+watch(() => [canvasPanelRef.value?.canvasReady, sourceRoute.query.source, sourceRoute.query.sourceType], () => { if (sourceWorkspace) fitSourceAfterResize(); });
+onScopeDispose(() => { clearTimeout(sourceResizeTimer); window.removeEventListener("resize", fitSourceAfterResize); });
 onMounted(async () => {
   const { sourceType, sourceDirectory, source, canvasPath } = sourceRoute.query;
   if (typeof sourceDirectory === "string" && typeof source === "string" && (sourceType === "conversation" || sourceType === "canvas" && typeof canvasPath === "string")) {
-    try { await openGenerationOrigin(sourceType === "conversation" ? { type: "conversation", directory: sourceDirectory, sessionFile: source } : { type: "canvas", directory: sourceDirectory, canvasPath: canvasPath as string, nodeId: source }); }
+    try { await openGenerationOrigin(sourceType === "conversation" ? { type: "conversation", directory: sourceDirectory, sessionFile: source } : { type: "canvas", directory: sourceDirectory, canvasPath: canvasPath as string, nodeId: source }, true); }
     catch (error) { ElMessage.error(error instanceof Error ? error.message : "生成来源无法恢复"); }
     return;
   }
@@ -675,4 +688,13 @@ function saveDocumentNode(directory: string, canvasPath: string, nodeId: string,
 </style>
 
 <style scoped lang="scss">
+.workspacePage.sourceWorkspace { overflow: hidden;
+  .canvasToolDock { width: calc(100% - 24px);
+    .bottomTools { width: 100%; min-width: 0; flex-wrap: wrap; justify-content: center;
+      .toolMenu { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+      .agentButton { position: static; flex: none; transform: none; margin: 0; }
+    }
+  }
+  .canvasToolExtras { max-width: 100%; flex-wrap: wrap; justify-content: center; }
+}
 </style>

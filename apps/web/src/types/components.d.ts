@@ -153,6 +153,7 @@ declare module 'vue' {
     SimpleReferenceSlots: typeof import('./../components/simpleReferenceSlots.vue')['default']
     SingleAgentDialog: typeof import('./../components/singleAgentDialog.vue')['default']
     SkillMenu: typeof import('./../components/agent/skillMenu.vue')['default']
+    SourceEditorViewport: typeof import('./../components/sourceEditorViewport.vue')['default']
     SourceEditReturn: typeof import('./../components/sourceEditReturn.vue')['default']
     StudioSidebar: typeof import('./../components/studioSidebar.vue')['default']
     TemplateMedia: typeof import('./../components/templateMedia.vue')['default']

@@ -1,9 +1,11 @@
 <template>
   <teleport to="body">
     <el-alert v-if="sourceEditError && !sourceEdit" class="sourceEditRecoveryError" :title="sourceEditError" type="error" :closable="false" />
+    <button v-if="sourceEdit && !sourceEditorMinimized" class="sourceEditorMask" type="button" aria-label="收起来源编辑弹窗" :disabled="sourceEditBusy" @click="sourceEditorMinimized = true" />
     <template v-for="url in sourceWindows" :key="url">
       <transition name="sourceDrawer" appear>
-        <section v-show="sourceEdit && sourceUrl === url" class="sourceEditorWindow" :class="{ canvasSource: url.includes('sourceType=canvas') }" role="dialog" aria-label="编辑素材来源">
+        <section v-show="sourceEdit && !sourceEditorMinimized && sourceUrl === url" class="sourceEditorWindow" :class="{ canvasSource: url.includes('sourceType=canvas'), resizing: resizingUrl === url }" :style="sourceStyle(url)" role="dialog" aria-modal="true" aria-label="编辑素材来源">
+          <button v-for="handle in resizeHandles" :key="handle.edge" type="button" class="sourceResize" :class="handle.edge" :aria-label="`拖动${handle.label}调整来源编辑窗口大小`" @pointerdown="startResize($event, url, handle.edge)" @pointermove="resizeWindow" @pointerup="stopResize" @pointercancel="stopResize" @lostpointercapture="stopResize" @keydown="resizeWithKeyboard($event, url, handle.edge)" />
           <header class="sourceEditorHeader">
             <div><strong :title="sourceEdit?.name">{{ sourceEdit?.name }}</strong><small>{{ sourceEdit?.origin.type === 'canvas' ? '编辑来源画布' : '编辑来源对话' }}</small></div>
             <div class="sourceEditorActions">
@@ -12,7 +14,7 @@
             </div>
           </header>
           <p v-if="sourceEditError" class="sourceEditorError" role="alert">{{ sourceEditError }}</p>
-          <iframe :src="url" data-source-editor="true" title="素材来源编辑工作区" @load="bindSourceWindow" />
+          <sourceEditorViewport :src="url" />
         </section>
       </transition>
     </template>
@@ -21,37 +23,85 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { IconX, IconCheck } from "@tabler/icons-vue";
-import { browserConfig, browserModelSelection, additionalBrowserModels, type BrowserModelConnection } from "@/stores/browserGeneration";
-import { sourceEdit, sourceEditBusy, sourceEditError, restoreSourceEdit, returnFromSourceEdit, receiveSourceResult } from "@/stores/sourceEditing";
+import sourceEditorViewport from "@/components/sourceEditorViewport.vue";
+import { sourceWorkspaceUrl } from "@/lib/generationOrigin";
+import { sourceEdit, sourceEditBusy, sourceEditError, restoreSourceEdit, returnFromSourceEdit, sourceEditorMinimized } from "@/stores/sourceEditing";
 if (window.parent === window) restoreSourceEdit();
 const sourceUrl = computed(() => {
   const origin = sourceEdit.value?.origin;
   if (!origin) return "";
-  const query = new URLSearchParams({ returnSection: "assets", sourceType: origin.type, sourceDirectory: origin.directory, source: origin.type === "canvas" ? origin.nodeId : origin.sessionFile });
-  if (origin.type === "canvas") query.set("canvasPath", origin.canvasPath);
-  return `${window.location.pathname}#/workspace?${query}`;
+  return sourceWorkspaceUrl(origin);
 });
 const sourceWindows = ref<string[]>([]);
 watch(sourceUrl, url => { if (url && !sourceWindows.value.includes(url)) sourceWindows.value.push(url); }, { immediate: true });
-const boundWindows = new Set<Window>();
-function syncSourceModels(sourceWindow: Window) {
-  const connection: BrowserModelConnection = {
-    enabled: browserConfig.enabled, endpoint: browserConfig.endpoint, keys: { ...browserConfig.keys },
-    models: additionalBrowserModels.map(model => ({ ...model })), selection: { ...browserModelSelection },
-  };
-  sourceWindow.dispatchEvent(new CustomEvent("afxen:source-models", { detail: connection }));
+type WindowBounds = { left: number; top: number; width: number; height: number };
+const viewport = ref({ width: window.innerWidth, height: window.innerHeight });
+const preferredBounds = ref<Record<string, WindowBounds>>({});
+const resizingUrl = ref("");
+const resizeHandles = [
+  { edge: "left", label: "左边缘" }, { edge: "right", label: "右边缘" }, { edge: "top", label: "上边缘" }, { edge: "bottom", label: "下边缘" },
+  { edge: "topLeft", label: "左上角" }, { edge: "topRight", label: "右上角" }, { edge: "bottomLeft", label: "左下角" }, { edge: "bottomRight", label: "右下角" },
+];
+function sourceBounds(url: string): WindowBounds {
+  const preferred = preferredBounds.value[url];
+  const margin = viewport.value.width <= 700 ? 8 : 12;
+  const availableWidth = Math.max(1, viewport.value.width - margin * 2), availableHeight = Math.max(1, viewport.value.height - margin * 2);
+  const width = Math.min(availableWidth, Math.max(Math.min(320, availableWidth), preferred?.width ?? Math.min(url.includes("sourceType=canvas") ? 1100 : 500, availableWidth)));
+  const height = Math.min(availableHeight, Math.max(Math.min(360, availableHeight), preferred?.height ?? availableHeight));
+  return { left: Math.max(margin, Math.min(preferred?.left ?? viewport.value.width - margin - width, viewport.value.width - margin - width)), top: Math.max(margin, Math.min(preferred?.top ?? margin, viewport.value.height - margin - height)), width, height };
 }
-watch(() => [browserConfig.enabled, browserConfig.endpoint, browserConfig.keys, additionalBrowserModels, browserModelSelection], () => {
-  for (const sourceWindow of boundWindows) syncSourceModels(sourceWindow);
-}, { deep: true });
-function bindSourceWindow(event: Event) {
-  const sourceWindow = (event.target as HTMLIFrameElement).contentWindow;
-  if (sourceWindow) { sourceWindow.addEventListener("afxen:generation-recorded", receiveSourceResult); boundWindows.add(sourceWindow); syncSourceModels(sourceWindow); }
+function sourceStyle(url: string) { return Object.fromEntries(Object.entries(sourceBounds(url)).map(([key, value]) => [key, `${value}px`])); }
+let resizePointer: { id: number; x: number; y: number; url: string; edge: string; bounds: WindowBounds; element: HTMLElement } | undefined;
+function applyResize(url: string, bounds: WindowBounds, edge: string, dx: number, dy: number) {
+  const margin = viewport.value.width <= 700 ? 8 : 12;
+  const minWidth = Math.min(320, viewport.value.width - margin * 2), minHeight = Math.min(360, viewport.value.height - margin * 2);
+  const right = bounds.left + bounds.width, bottom = bounds.top + bounds.height;
+  const left = edge.toLowerCase().includes("left") ? Math.max(margin, Math.min(bounds.left + dx, right - minWidth)) : bounds.left;
+  const top = edge.toLowerCase().includes("top") ? Math.max(margin, Math.min(bounds.top + dy, bottom - minHeight)) : bounds.top;
+  const width = edge.toLowerCase().includes("right") ? Math.max(minWidth, Math.min(bounds.width + dx, viewport.value.width - margin - left)) : right - left;
+  const height = edge.toLowerCase().includes("bottom") ? Math.max(minHeight, Math.min(bounds.height + dy, viewport.value.height - margin - top)) : bottom - top;
+  preferredBounds.value[url] = { left, top, width, height };
 }
-onBeforeUnmount(() => { for (const sourceWindow of boundWindows) sourceWindow.removeEventListener("afxen:generation-recorded", receiveSourceResult); });
+function startResize(event: PointerEvent, url: string, edge: string) {
+  if (event.button !== 0 || resizePointer) return;
+  const element = event.currentTarget as HTMLElement;
+  element.setPointerCapture(event.pointerId);
+  resizingUrl.value = url;
+  resizePointer = { url, id: event.pointerId, x: event.clientX, y: event.clientY, edge, bounds: sourceBounds(url), element };
+  event.preventDefault();
+}
+function resizeWindow(event: PointerEvent) {
+  if (resizePointer?.id === event.pointerId) applyResize(resizePointer.url, resizePointer.bounds, resizePointer.edge, event.clientX - resizePointer.x, event.clientY - resizePointer.y);
+}
+function stopResize() {
+  const previous = resizePointer; resizePointer = undefined; resizingUrl.value = "";
+  if (previous?.element.hasPointerCapture(previous.id)) previous.element.releasePointerCapture(previous.id);
+}
+function resizeWithKeyboard(event: KeyboardEvent, url: string, edge: string) {
+  if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+  event.preventDefault();
+  applyResize(url, sourceBounds(url), edge, event.key === "ArrowLeft" ? -16 : event.key === "ArrowRight" ? 16 : 0, event.key === "ArrowUp" ? -16 : event.key === "ArrowDown" ? 16 : 0);
+}
+function updateViewport() { stopResize(); viewport.value = { width: window.innerWidth, height: window.innerHeight }; }
+window.addEventListener("resize", updateViewport);
+watch([sourceEdit, sourceEditorMinimized], ([context, minimized]) => { if (!context || minimized) stopResize(); });
+onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updateViewport); });
+
 </script>
 <style scoped lang="scss">
+.sourceEditorMask { position: fixed; z-index: 1908; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; background: #0007; cursor: default; }
 .sourceEditorWindow { position: fixed; z-index: 1909; top: 12px; right: 12px; bottom: 12px; width: min(500px, calc(100vw - 24px)); display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; border: 1px solid #494052; border-radius: 18px; background: #1c1b21; box-shadow: -12px 12px 48px #0006;
+  &.resizing :deep(iframe) { pointer-events: none; }
+  .sourceResize { position: absolute; z-index: 5; border: 0; padding: 0; margin: 0; background: transparent; touch-action: none;
+    &.left, &.right { top: 12px; bottom: 12px; width: 7px; cursor: ew-resize; }
+    &.left { left: 0; } &.right { right: 0; }
+    &.top, &.bottom { left: 12px; right: 12px; height: 7px; cursor: ns-resize; }
+    &.top { top: 0; } &.bottom { bottom: 0; }
+    &.topLeft, &.topRight, &.bottomLeft, &.bottomRight { width: 12px; height: 12px; }
+    &.topLeft { top: 0; left: 0; cursor: nwse-resize; } &.topRight { top: 0; right: 0; cursor: nesw-resize; }
+    &.bottomLeft { bottom: 0; left: 0; cursor: nesw-resize; } &.bottomRight { bottom: 0; right: 0; cursor: nwse-resize; }
+    &:hover, &:focus-visible { background: #9573df44; } &:focus-visible { outline: 1px solid #a28ae9; outline-offset: -1px; }
+  }
   &.canvasSource { width: min(1100px, calc(100vw - 24px)); }
   .sourceEditorHeader { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #ffffff0c;
     > div:first-child { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
