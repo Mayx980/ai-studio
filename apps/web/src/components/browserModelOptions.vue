@@ -1,5 +1,5 @@
 <template>
-  <el-popover v-if="browserConfig.enabled || browserWorkspaceMode" v-model:visible="parametersVisible" trigger="click" :triggerKeys="[]" :hideAfter="0" placement="bottom-start" :fallbackPlacements="['top-start', 'bottom-end', 'top-end']" :width="760" :showArrow="false" :popperOptions="{ modifiers: [{ name: 'preventOverflow', options: { padding: 12, altAxis: true, tether: false } }] }" popperClass="generationParameters" :popperStyle="{ maxHeight: 'calc(100dvh - 24px)', maxWidth: 'calc(100vw - 24px)', overflowY: 'auto', boxSizing: 'border-box', background: '#1e1e27f5', border: '1px solid #454151', borderRadius: '14px', padding: '20px', boxShadow: '0 14px 48px #0006', backdropFilter: 'blur(18px)' }">
+  <el-popover v-if="browserConfig.enabled || browserWorkspaceMode" v-model:visible="parametersVisible" trigger="click" :triggerKeys="[]" :hideAfter="0" placement="bottom-start" :fallbackPlacements="['top-start', 'bottom-end', 'top-end']" :width="420" :showArrow="false" :popperOptions="{ modifiers: [{ name: 'preventOverflow', options: { padding: 12, altAxis: true, tether: false } }] }" popperClass="generationParameters" :popperStyle="{ maxHeight: 'calc(100dvh - 24px)', maxWidth: 'calc(100vw - 24px)', overflowY: 'auto', boxSizing: 'border-box', background: '#1e1e27f5', border: '1px solid #454151', borderRadius: '14px', padding: '20px', boxShadow: '0 14px 48px #0006', backdropFilter: 'blur(18px)' }">
     <template #reference>
       <span class="parameterTrigger">
         <el-button class="modelParametersButton" plain :disabled="disabled || generationBusy" aria-label="模型 · 参数" :aria-expanded="parametersVisible" :title="parameterSummary">
@@ -10,13 +10,16 @@
     <el-form class="parameterForm" labelPosition="top" :disabled="disabled || generationBusy" @keydown.esc.stop="parametersVisible = false">
       <div class="parameterHeader"><span>模型与生成参数</span><small>{{ kindLabels[kind] }}生成</small></div>
       <el-form-item v-if="workspace.creationMode === 'professional' && !fixedKind" label="参数类型"><el-select :teleported="false" v-model="parameterKind" aria-label="参数类型"><el-option v-for="(label, value) in kindLabels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
-      <div class="parameterGrid" :class="{ textParameters: kind === 'audio' || kind === 'text' }">
+      <div class="parameterStack">
         <el-form-item label="模型"><el-select :teleported="false" v-model="selectedModelId" placeholder="选择已接入模型" :noDataText="`未接入${kindLabels[kind]}模型，请在 API 配置中添加对应类型`" aria-label="生成模型"><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.id" /></el-select></el-form-item>
         <template v-if="kind === 'image' || kind === 'video'">
-          <el-form-item label="比例"><el-select :teleported="false" v-model="browserConfig.ratio" :disabled="!selectedModelId" aria-label="生成比例"><el-option v-for="item in ratios" :key="item" :label="item" :value="item" /></el-select></el-form-item>
-          <el-form-item label="时长"><el-select :teleported="false" v-model="videoDuration" :disabled="kind !== 'video' || !selectedModelId || !videoDurations.length" :placeholder="kind === 'image' ? '不适用' : '选择时长'" aria-label="视频生成时长"><el-option v-for="item in videoDurations" :key="item" :label="`${item}s`" :value="item" /></el-select></el-form-item>
-          <el-form-item label="清晰度"><el-select :teleported="false" v-model="resolution" :disabled="!selectedModelId" aria-label="生成清晰度"><el-option v-for="item in resolutions" :key="item" :label="item.toLowerCase()" :value="item" /></el-select></el-form-item>
-          <el-form-item label="生成数量"><el-select :teleported="false" v-model="generationCount" :disabled="kind === 'video' || !selectedModelId" aria-label="生成数量"><el-option v-for="item in kind === 'image' ? 6 : 1" :key="item" :label="String(item)" :value="item" /></el-select></el-form-item>
+          <el-form-item label="清晰度"><div class="segmentedOptions" role="group" aria-label="生成清晰度"><button v-for="item in resolutions" :key="item" type="button" :disabled="controlsDisabled" :aria-pressed="resolution === item" @click="resolution = item">{{ item.toLowerCase() }}</button></div></el-form-item>
+          <el-form-item v-if="kind === 'video'" label="生成时长"><div class="durationControls">
+            <el-slider v-model="durationPosition" :min="0" :max="Math.max(1, videoDurations.length - 1)" :step="1" :marks="durationMarks" :formatValueText="value => `${videoDurations[value] ?? 0} 秒`" :showTooltip="false" :disabled="controlsDisabled || videoDurations.length < 2" aria-label="视频生成时长" />
+            <el-input-number v-model="durationValue" :min="videoDurations[0] ?? 1" :max="videoDurations.at(-1) ?? 1" :precision="0" controlsPosition="right" :disabled="controlsDisabled || !videoDurations.length" aria-label="视频时长秒数" :title="`支持时长：${videoDurations.join('、')} 秒`"><template #suffix>s</template></el-input-number>
+          </div></el-form-item>
+          <el-form-item label="比例"><div class="segmentedOptions ratioSegments" role="group" aria-label="生成比例"><button v-for="item in ratios" :key="item" type="button" :disabled="controlsDisabled" :aria-pressed="browserConfig.ratio === item" @click="browserConfig.ratio = item"><span class="ratioIcon" :style="ratioStyle(item)" aria-hidden="true" /><span>{{ item }}</span></button></div></el-form-item>
+          <el-form-item label="生成数量"><div class="segmentedOptions" role="group" aria-label="生成数量"><button v-for="item in kind === 'image' ? 6 : 1" :key="item" type="button" :disabled="controlsDisabled || kind === 'video'" :aria-pressed="generationCount === item" @click="generationCount = item">{{ item }}</button></div></el-form-item>
         </template>
       </div>
       <div v-if="kind === 'image' || kind === 'video'" class="parameterDetails"><small>{{ kind === 'video' ? '当前视频接口每次生成 1 条视频' : `实际图片尺寸 ${browserConfig.imageSize.replace('*', ' × ')}` }}</small><label v-if="kind === 'video' && videoCapability?.audio === 'optional'">生成音频<el-switch v-model="browserConfig.generateAudio" aria-label="生成音频" /></label></div>
@@ -26,6 +29,7 @@
 </template>
 
 <script setup lang="ts">
+import { ElSlider, ElInputNumber } from "element-plus";
 import { IconAdjustmentsHorizontal, IconChevronDown } from "@tabler/icons-vue";
 import { imageClaritySizes, imageDimensions } from "@toonflow/node-shared/generationDefaults";
 import { useWorkspaceStore } from "@/stores/workspace";
@@ -45,6 +49,27 @@ const selectedModel = computed(() => models.value.find(model => model.id === sel
 const videoCapability = computed(() => kind.value === "video" ? browserModels.video.models.find(model => model.id === selectedModel.value?.modelId) ?? browserModels.video.models[0] : undefined);
 const videoDuration = computed({ get: () => kind.value === "video" ? Number(browserConfig.duration) || 5 : undefined, set: value => { if (value !== undefined && kind.value === "video") browserConfig.duration = String(value); } });
 const videoDurations = computed(() => [...new Set(videoCapability.value?.durationResolutionMap.flatMap(item => item.duration) ?? [])].sort((a, b) => a - b));
+const controlsDisabled = computed(() => props.disabled || generationBusy.value || !selectedModelId.value);
+const durationPosition = computed({
+  get: () => Math.max(0, videoDurations.value.indexOf(videoDuration.value!)),
+  set: value => { const duration = videoDurations.value[value]; if (duration !== undefined) videoDuration.value = duration; },
+});
+const durationMarks = computed(() => Object.fromEntries(videoDurations.value.map((value, index) => [index, String(value)])));
+const durationValue = computed({
+  get: () => videoDuration.value ?? 5,
+  set: (value: number | undefined) => {
+    if (value === undefined || !videoDurations.value.length) return;
+    // ACT: 加减跨过不支持的秒数到相邻档位；其他输入吸附最近档位，不扩展模型能力。
+    const current = videoDuration.value ?? 5;
+    const adjacent = value === current + 1 ? videoDurations.value.find(duration => duration > current)
+      : value === current - 1 ? [...videoDurations.value].reverse().find(duration => duration < current) : undefined;
+    videoDuration.value = adjacent ?? videoDurations.value.reduce((nearest, duration) => Math.abs(duration - value) < Math.abs(nearest - value) ? duration : nearest);
+  },
+});
+function ratioStyle(value: string) {
+  const [width = 1, height = 1] = value.split(":").map(Number);
+  return { width: `${20 * Math.min(width / height, 1)}px`, height: `${20 * Math.min(height / width, 1)}px` };
+}
 const ratios = computed(() => Object.keys(imageDimensions));
 const resolutions = computed(() => kind.value === "image" ? Object.keys(imageClaritySizes) : [...new Set(videoCapability.value?.durationResolutionMap.filter(item => item.duration.includes(videoDuration.value!)).flatMap(item => item.resolution) ?? [])]);
 const resolution = computed({ get: () => kind.value === "image" ? browserConfig.imageResolution : browserConfig.resolution, set: value => { if (kind.value === "image") { browserConfig.imageResolution = value; browserConfig.imageSize = imageClaritySizes[value]?.[browserConfig.ratio] ?? browserConfig.imageSize; } else browserConfig.resolution = value; } });
@@ -66,9 +91,19 @@ watch(() => props.disabled || generationBusy.value, value => { if (value) parame
 }
 .parameterForm {
   .parameterHeader { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; color: #eeebf5; font-size: 13px; small { color: #aaa4b8; font-size: 11px; } }
-  .parameterGrid { display: grid; grid-template-columns: minmax(180px, 1.6fr) repeat(4, minmax(90px, 1fr)); gap: 12px; &.textParameters { grid-template-columns: 1fr; } .el-form-item { min-width: 0; margin: 0; :deep(.el-form-item__label) { color: #c9c4d5; font-size: 12px; } :deep(.el-select__wrapper) { min-height: 36px; border-radius: 9px; background: #26252e; box-shadow: inset 0 0 0 1px #45414e; } :deep(.el-select__selected-item) { color: #e4dfed; font-size: 12px; } } }
-  .parameterDetails { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; color: #aaa4b8; font-size: 11px; label { display: flex; align-items: center; gap: 10px; } }
-  @media (max-width: 720px) { .parameterGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); .el-form-item:first-child { grid-column: 1 / -1; } } }
+  .parameterStack { display: flex; flex-direction: column; gap: 20px;
+    .el-form-item { min-width: 0; margin: 0; :deep(.el-form-item__label) { margin-bottom: 10px; color: #bdb8ca; font-size: 13px; } :deep(.el-form-item__content) { width: 100%; } :deep(.el-select) { width: 100%; } :deep(.el-select__wrapper) { min-height: 38px; border-radius: 10px; background: #292831; box-shadow: inset 0 0 0 1px #45414e; } :deep(.el-select__selected-item) { color: #e4dfed; font-size: 12px; } }
+    .segmentedOptions { display: flex; width: 100%; padding: 3px; gap: 3px; border-radius: 11px; background: #28272f;
+      button { display: flex; flex: 1; min-width: 0; align-items: center; justify-content: center; gap: 7px; height: 38px; padding: 5px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: #aaa6b5; font: inherit; font-size: 13px; cursor: pointer; transition: background 180ms, color 180ms, border-color 180ms; &[aria-pressed="true"] { background: #44414f; border-color: #76648e; color: #f2edf9; } &:hover:enabled { background: #393440; color: #e8def7; } &:focus-visible { outline: 2px solid #a28ae9; outline-offset: -2px; } &:disabled { cursor: not-allowed; opacity: .55; } }
+    }
+    .ratioSegments button { flex-direction: column; height: 62px; gap: 8px; font-size: 12px; .ratioIcon { display: block; box-sizing: border-box; border: 2px solid currentColor; border-radius: 3px; flex: none; } }
+    .durationControls { display: flex; align-items: flex-start; gap: 20px; width: 100%; padding-bottom: 12px;
+      .el-slider { flex: 1; min-width: 0; margin: 0 6px; --el-slider-main-bg-color: #a48cdb; --el-slider-runway-bg-color: #37343e; --el-slider-button-size: 14px; --el-slider-height: 7px; :deep(.el-slider__marks-text) { font-size: 10px; color: #96909f; margin-top: 10px; } }
+      .el-input-number { width: 90px; flex: none; --el-input-bg-color: #292831; :deep(.el-input__wrapper) { border-radius: 10px; } }
+    }
+  }
+  .parameterDetails { display: flex; flex-direction: column; align-items: stretch; gap: 14px; margin-top: 18px; color: #aaa4b8; font-size: 11px; label { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid #ffffff0d; color: #bdb8ca; font-size: 12px; } }
+
 }
 </style>
 
