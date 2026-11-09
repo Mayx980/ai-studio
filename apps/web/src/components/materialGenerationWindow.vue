@@ -2,7 +2,7 @@
   <transition name="materialWindow">
     <section v-show="!workspace.minimized" class="materialGenerationWindow" :style="windowStyle" :aria-label="`独立生成对话 · ${workspace.label}`">
       <button v-for="handle in resizeHandles" :key="handle.edge" type="button" class="windowResize" :class="handle.edge" :aria-label="`拖动${handle.label}调整窗口大小`" @pointerdown="startResize($event, handle.edge)" @pointermove="resizeWindow" @pointerup="stopResize" @pointercancel="stopResize" @lostpointercapture="stopResize" @keydown="resizeWithKeyboard($event, handle.edge)" />
-      <header><div><strong>{{ workspace.label }}</strong><small role="status">{{ materialStatusLabel(workspace) }}</small></div><div class="windowActions"><el-tooltip content="新建生成对话" :showArrow="false"><el-button text aria-label="新建生成对话" :disabled="!workspace.request" @click="newWorkspace"><icon-message-plus :size="18" /></el-button></el-tooltip><el-tooltip content="收起生成窗口" :showArrow="false"><el-button text aria-label="收起生成窗口" @click="minimizeMaterialWorkspace(workspace)"><icon-layout-sidebar-right-collapse :size="18" /></el-button></el-tooltip></div></header>
+      <header><div><strong>{{ workspace.label }}</strong><small role="status">{{ materialStatusLabel(workspace) }}</small></div><div class="windowActions"><el-tooltip content="新建生成对话" :showArrow="false"><el-button text aria-label="新建生成对话" :disabled="!workspace.request" @click="newWorkspace"><icon-message-plus :size="18" /></el-button></el-tooltip><el-tooltip content="收起生成窗口" :showArrow="false"><el-button text aria-label="收起生成窗口" @click="minimizeMaterialWorkspace(workspace)"><icon-layout-sidebar-right-collapse :size="18" /></el-button></el-tooltip><el-tooltip content="结束对话，保留记录；已提交的任务继续运行" :showArrow="false"><el-button text aria-label="结束对话" @click="endMaterialWorkspace(workspace)"><icon-x :size="18" /></el-button></el-tooltip></div></header>
       <el-alert v-if="workspace.error" :title="workspace.error" type="warning" :closable="false" />
       <el-alert v-if="loadError" :title="loadError" type="error" :closable="false"><el-button text @click="loadSession">重新打开</el-button></el-alert>
       <p v-if="loading" role="status">正在打开独立生成对话…</p>
@@ -12,11 +12,11 @@
 </template>
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
-import { IconLayoutSidebarRightCollapse, IconMessagePlus } from "@tabler/icons-vue";
+import { IconLayoutSidebarRightCollapse, IconMessagePlus, IconX } from "@tabler/icons-vue";
 import conversation from "@/components/agent/conversation.vue";
 import { createBrowserConversation, readBrowserConversation } from "@/components/agent/browserConversations";
 import type { AgentConversation, AgentAttachment } from "@/components/agent/types";
-import { createMaterialWorkspace, materialStatusLabel, minimizeMaterialWorkspace, saveMaterialWorkspaces, type MaterialWorkspace, type MaterialTaskStatus } from "@/stores/materialEditor";
+import { createMaterialWorkspace, endMaterialWorkspace, materialStatusLabel, minimizeMaterialWorkspace, saveMaterialWorkspaces, type MaterialWorkspace, type MaterialTaskStatus } from "@/stores/materialEditor";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { browserConfig, restoreBrowserResults } from "@/stores/browserGeneration";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
