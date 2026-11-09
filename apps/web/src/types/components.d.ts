@@ -125,6 +125,7 @@ declare module 'vue' {
     LanguageModel: typeof import('./../components/settings/panels/languageModel/index.vue')['default']
     LanguageSelect: typeof import('./../components/languageSelect.vue')['default']
     MarkdownImage: typeof import('./../components/markdownImage.vue')['default']
+    MaterialGenerationWindow: typeof import('./../components/materialGenerationWindow.vue')['default']
     Mcp: typeof import('./../components/settings/panels/mcp/index.vue')['default']
     MediaModel: typeof import('./../components/settings/panels/mediaModel/index.vue')['default']
     MentionContent: typeof import('./../components/agent/mentionContent.vue')['default']

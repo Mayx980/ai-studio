@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { materialEditorState } from "@/stores/materialEditor";
+import { materialEditorState, materialWorkspaces } from "@/stores/materialEditor";
 import { ElMessage } from "element-plus";
 import { useWorkspaceStore } from "@/stores/workspace";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
@@ -38,7 +38,7 @@ let resolveChoice: ((value?: Choice) => void) | undefined;
 let target: string | undefined;
 let requestId = 0;
 function open(nodeId?: string, initialScope = "local") {
-  if (materialEditorState.value) { ElMessage.warning("请先完成或关闭自定义素材对话"); return Promise.resolve<Choice | undefined>(undefined); }
+  for (const task of materialWorkspaces.value) if (task.request?.owner === materialOwner) task.request = undefined;
   finish(); customOpen.value = false; if (uploadInput.value) uploadInput.value.value = ""; target = nodeId; scope.value = initialScope; visible.value = true;
   const result = new Promise<Choice | undefined>(resolve => { resolveChoice = resolve; });
   if (initialScope === "local") { visible.value = false; customOpen.value = true; void Promise.resolve().then(() => uploadInput.value?.click()); }
@@ -52,7 +52,7 @@ function openCustom() {
   materialEditorState.value = { owner: materialOwner, source: "canvas", directory: props.directory, target: { role: "reference" }, label: "节点参考图", apply: file => finish({ files: [file], sources: [] }) };
 }
 watch(materialEditorState, (value, previous) => { if (previous?.owner === materialOwner && value?.owner !== materialOwner) { customOpen.value = false; finish(); } }, { flush: "sync" });
-onBeforeUnmount(() => { if (materialEditorState.value?.owner === materialOwner) materialEditorState.value = undefined; finish(); });
+onBeforeUnmount(() => { for (const task of materialWorkspaces.value) if (task.request?.owner === materialOwner) task.request = undefined; if (materialEditorState.value?.owner === materialOwner) materialEditorState.value = undefined; finish(); });
 function upload(event: Event) { const files = Array.from((event.target as HTMLInputElement).files ?? []); if (files.length) finish({ files, sources: [] }); }
 function collect(nodes: ReturnType<typeof props.nodes>, directory: string, prefix = "") {
   return nodes.flatMap(node => node.id === target && directory === props.directory ? [] : Object.entries(node.data?.outputs ?? {}).flatMap(([handle, output]) => isNodeOutput(output) && ["STRING", "IMAGE", "VIDEO", "AUDIO", "FILE"].includes(output.dataType) ? [{ key: `${prefix}/${node.id}/${handle}`, directory, source: node.id, sourceHandle: handle, label: `${prefix ? `${prefix} · ` : ""}${node.data.label || node.id} · ${handle.startsWith("row:") && output.dataType === "STRING" ? output.value.split("\n")[0] : handle}`, output }] : []));

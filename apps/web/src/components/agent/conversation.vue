@@ -92,6 +92,7 @@
         <small>图片、视频、文档或代码文件</small>
       </div>
       <div v-if="editingId" class="editingBanner"><span>编辑消息</span><el-button text size="small" :disabled="busy" @click="cancelEdit">取消</el-button></div>
+      <el-button v-if="props.materialEditor" class="materialUpload" text size="small" :disabled="locked" aria-label="上传参考素材" @click="attachmentInput?.click()"><icon-paperclip :size="16" />上传参考素材</el-button>
       <div
         class="senderResizeHandle"
         role="separator"
@@ -116,9 +117,9 @@
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
       <div class="senderActions" :class="{ simpleToolbar: props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple') }">
-        <simpleGenerationTools v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" controls="tabs" :imageOnly="props.materialEditor && !!props.materialRole" :disabled="locked" />
+        <simpleGenerationTools v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" controls="tabs" :imageOnly="props.materialEditor && !!props.materialRole && props.materialRole !== 'reference'" :disabled="locked" />
         <div v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" ref="referenceTabsTarget" class="referenceTabsTarget" />
-        <browserModelOptions :disabled="locked" :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor && props.materialRole ? 'image' : undefined" :prompt="draftPrompt"><template #afterModel><simpleGenerationTools v-if="props.materialEditor || workspaceStore.creationMode === 'simple'" controls="style" :disabled="locked" /></template></browserModelOptions><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
+        <browserModelOptions :disabled="locked" :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor && props.materialRole && props.materialRole !== 'reference' ? 'image' : undefined" :prompt="draftPrompt"><template #afterModel><simpleGenerationTools v-if="props.materialEditor || workspaceStore.creationMode === 'simple'" controls="style" :disabled="locked" /></template></browserModelOptions><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <el-button v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" class="quickMention" text :disabled="locked || !directory" aria-label="提及参考素材" title="提及参考素材" @mousedown.prevent @click="mentionMenuRef?.openMenu()">@</el-button>
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
         <referencePicker v-if="!props.creationModes" :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
@@ -185,10 +186,9 @@ import {
 import { ElMessage, ElMessageBox } from "element-plus";
 import { getReadableFileExtension, getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import brandLogo from "@/components/brandLogo.vue";
-import { browserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, inferGenerationKind, browserResultFile, type ModelKind, type BrowserConversationImport } from "@/stores/browserGeneration";
+import { browserConfig as defaultBrowserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, inferGenerationKind, browserResultFile, type ModelKind, type BrowserConversationImport } from "@/stores/browserGeneration";
 import professionalCreation from "./professionalCreation.vue";
 import simpleReferenceSlots from "@/components/simpleReferenceSlots.vue";
-import { materialEditorState } from "@/stores/materialEditor";
 import simpleGenerationTools from "@/components/simpleGenerationTools.vue";
 import browserModelOptions from "@/components/browserModelOptions.vue";
 import browserModelResults from "@/components/browserModelResults.vue";
@@ -221,11 +221,13 @@ import "tdesign-vue-next/es/style/index.css";
 import "@tdesign-vue-next/chat/es/style/index.css";
 import "x-sender/lib/XSender.css";
 
-const props = defineProps<{ active: boolean; initialSession: AgentConversation | null; sessionFile?: string; disabled: boolean; creationModes?: boolean; materialEditor?: boolean; materialDirectory?: string; materialLabel?: string; materialRole?: "firstFrame" | "reference" | "middleFrame" | "lastFrame" }>();
-const emit = defineEmits<{ session: [file: string]; sent: [prompt: string]; event: [event: AgentEvent]; applyMaterial: [file: File]; materialBusy: [value: boolean] }>();
+const browserConfig = inject("generationConfig", defaultBrowserConfig);
+const generationModelSelection = inject("generationModelSelection", undefined as typeof import("@/stores/browserGeneration").browserModelSelection | undefined);
+const props = defineProps<{ active: boolean; initialSession: AgentConversation | null; sessionFile?: string; disabled: boolean; creationModes?: boolean; materialEditor?: boolean; materialDirectory?: string; materialLabel?: string; initialDraft?: { prompt: string; attachments: AgentAttachment[] }; materialRole?: "firstFrame" | "reference" | "middleFrame" | "lastFrame" }>();
+const emit = defineEmits<{ session: [file: string]; sent: [prompt: string]; event: [event: AgentEvent]; applyMaterial: [file: File]; materialBusy: [value: boolean]; draft: [value: { prompt: string; attachments: AgentAttachment[] }]; generationState: [value: { status: "queued" | "generating" | "completed" | "failed"; error?: string; taskId?: string; vendorTaskId?: string; resultIds?: string[] }] }>();
 const workspaceStore = useWorkspaceStore();
 const directory = props.materialDirectory ?? workspaceStore.project?.directory;
-const draftAttachments = ref<AgentAttachment[]>([]);
+const draftAttachments = ref<AgentAttachment[]>(props.initialDraft?.attachments.map(item => ({ ...item })) ?? []);
 const referenceMode = ref<"reference" | "frames">("reference");
 const referenceTabsTarget = ref<HTMLElement>();
 const activeDraftAttachments = computed(() => !props.creationModes || props.materialEditor || workspaceStore.creationMode !== "simple" ? draftAttachments.value : draftAttachments.value.filter(item => !item.referenceRole || (referenceMode.value === "reference" ? item.referenceRole === "reference" : item.referenceRole !== "reference")));
@@ -234,7 +236,8 @@ function removeVisibleAttachment(index: number) { const item = unassignedAttachm
 function restoreVisibleAttachment(index: number) { void restoreTextAttachment(draftAttachments.value.indexOf(unassignedAttachments.value[index]!)); }
 const materialResultBusy = ref(false);
 function setMaterialBusy(value: boolean) { if (props.materialEditor) { materialResultBusy.value = value; emit("materialBusy", value); } }
-const draftPrompt = ref("");
+const draftPrompt = ref(props.initialDraft?.prompt ?? "");
+watch([draftPrompt, draftAttachments], () => { if (props.materialEditor) emit("draft", { prompt: draftPrompt.value, attachments: [...draftAttachments.value] }); }, { deep: true });
 const attachmentInput = ref<HTMLInputElement>();
 const draggingAttachments = ref(false);
 let attachmentDragDepth = 0;
@@ -283,11 +286,12 @@ const browserSubmitting = ref(false);
 const professionalBusy = ref(false);
 const professionalStopToken = ref(0);
 let browserCancelled = false;
-const sending = computed(() => busy.value || browserSubmitting.value || professionalBusy.value || (props.creationModes && generationBusy.value));
+let ownsBrowserGeneration = false;
+const sending = computed(() => busy.value || browserSubmitting.value || professionalBusy.value);
 const compacting = ref(false);
 const deletingId = ref<string>();
 const restoringAttachment = ref(false);
-const locked = computed(() => props.disabled || materialResultBusy.value || (!props.materialEditor && !!materialEditorState.value) || sending.value || deletingId.value !== undefined || restoringAttachment.value);
+const locked = computed(() => props.disabled || materialResultBusy.value || sending.value || deletingId.value !== undefined || restoringAttachment.value);
 const editingId = ref<string>();
 const draftMentions = ref<AgentMention[]>([]);
 const draftMentionTargets = shallowRef<{ key: symbol; element: HTMLElement; mention: AgentMention }[]>([]);
@@ -519,7 +523,7 @@ let browserSessionFile = props.sessionFile;
 watch(() => props.sessionFile, file => { if (file) browserSessionFile = file; });
 async function persistBrowserMessages() {
   const save = browserSaveQueue.catch(() => {}).then(async () => {
-    if (!browserWorkspaceMode || !directory) return;
+    if ((!browserWorkspaceMode && !props.materialEditor) || !directory) return;
     if (!browserSessionFile) {
       const session = await createBrowserConversation(directory);
       browserSessionFile = session.file;
@@ -602,16 +606,21 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
     if (pending?.creationChoice) pending.creationChoice.resolved = true;
     sessionMode.value ??= workspaceStore.creationMode;
     const professional = !props.materialEditor && sessionMode.value === "professional";
-    const kind = props.materialEditor && props.materialRole ? "image" : choice?.kind ?? (professional ? explicitGenerationKind(prompt) : props.materialEditor ? explicitGenerationKind(prompt) ?? inferGenerationKind(prompt) : inferGenerationKind(prompt));
+    const kind = props.materialEditor && props.materialRole && props.materialRole !== "reference" ? "image" : choice?.kind ?? (professional ? explicitGenerationKind(prompt) : props.materialEditor ? browserConfig.outputKind : inferGenerationKind(prompt));
     if (props.materialEditor && kind !== "image" && kind !== "video") { ElMessage.warning("自定义素材对话用于生成或编辑图片、视频，请选择图片或视频产物"); return; }
+    browserConfig.kind = kind ?? "image";
     browserCancelled = false;
     browserSubmitting.value = true;
+    const generationConfig = { ...browserConfig, keys: { ...browserConfig.keys } };
+    const generationSelection = generationModelSelection ? { ...generationModelSelection } : undefined;
+    const taskId = crypto.randomUUID();
+    if (props.materialEditor) emit("generationState", { status: "queued", taskId });
     let reply: AgentMessage | undefined;
     try {
       const files = await Promise.all(attachments.map(async item => item.file ?? new File([await useWorkspaceFiles(directory).read(item.path)], item.name, { type: item.mimeType })));
-      if (browserCancelled) return;
+      if (browserCancelled) throw new Error("已取消等待生成，输入和素材已保留");
       const userId = crypto.randomUUID();
-      if (browserWorkspaceMode && directory) {
+      if ((browserWorkspaceMode || props.materialEditor) && directory) {
         const filesStore = useWorkspaceFiles(directory);
         for (const item of attachments) if (item.file && !item.path) item.path = await uploadNodeFile(filesStore, userId, item.file);
       }
@@ -630,25 +639,27 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       }
       const outputKind = kind ?? "image";
       if (!browserConfig.enabled) throw new Error("请先在设置 → API 配置中启用模型联调并输入 Key");
-      if (!configuredBrowserModels(outputKind).length) throw new Error("请先在设置 → API 配置中输入当前模型的 Key");
+      if (!configuredBrowserModels(outputKind, browserConfig).length) throw new Error("请先在设置 → API 配置中输入当前模型的 Key");
       if ((outputKind === "text" || outputKind === "audio") && files.some(file => !file.type.startsWith("text/") && file.type !== "application/json")) throw new Error("当前文字／音频适配器只支持文字输入，请移除引用素材后重试");
       if ((outputKind === "image" || outputKind === "video") && files.some(file => !file.type.startsWith("image/") && !file.type.startsWith("video/") && !file.type.startsWith("text/") && file.type !== "application/json")) throw new Error("当前图片／视频适配器仅支持图片、视频或文字参考，素材已保留，请调整引用后重试");
       const isStoryboard = choice?.script ?? /分镜/.test(prompt);
         if (browserCancelled) throw new Error("已停止发送；已创建的画布节点保留供修改");
-      const previousIds = new Set(generationResults.value.map(item => item.id));
+      let previousIds = new Set(generationResults.value.map(item => item.id));
       const textReferences = await Promise.all(files.filter(file => file.type.startsWith("text/") || file.type === "application/json").map(async file => { const text = await file.text(); if (text.length > 100000) throw new Error("文字引用最多支持 100000 字符，请缩小内容"); return `${file.name}：\n${text}`; }));
       const referenceDescriptions = attachments.filter(item => item.mimeType.startsWith("image/")).flatMap((item, index) => item.referenceRole === "reference" && item.referenceCategory ? [`图${index + 1}为${({ character: "角色", scene: "场景", prop: "道具", other: "其他" })[item.referenceCategory]}参考（${item.referenceName || "分类参考图"}），保持对应主体特征。`] : []);
       const generationPrompt = isStoryboard ? `${prompt}\n${scriptGenerationInstruction}` : !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
-      const success = await generateInBrowser([generationPrompt, ...referenceDescriptions, ...textReferences].join("\n\n"), files.filter(file => /^(image|video)\//.test(file.type)), directory, outputKind, browserConfig.style, attachments.filter(item => /^(image|video)\//.test(item.mimeType)).map(item => item.referenceRole));
+      const success = await generateInBrowser([generationPrompt, ...referenceDescriptions, ...textReferences].join("\n\n"), files.filter(file => /^(image|video)\//.test(file.type)), directory, outputKind, browserConfig.style, attachments.filter(item => /^(image|video)\//.test(item.mimeType)).map(item => item.referenceRole), { config: generationConfig, modelSelection: generationSelection, queue: true, cancelled: () => browserCancelled, onStart: () => { previousIds = new Set(generationResults.value.map(item => item.id)); ownsBrowserGeneration = true; if (props.materialEditor) emit("generationState", { status: "generating", taskId }); }, onTask: vendorTaskId => { if (props.materialEditor) emit("generationState", { status: "generating", taskId, vendorTaskId }); } });
       const results = generationResults.value.filter(item => !previousIds.has(item.id) && item.directory === directory);
       reply.browserResultIds = results.filter(item => item.kind !== "text").map(item => item.id);
       if (props.materialEditor && success && (outputKind === "image" || outputKind === "video")) { browserConfig.outputKind = outputKind; browserConfig.outputChosen = true; }
       const text = results.filter(item => item.kind === "text").map(item => item.text).join("\n\n");
       if (text) { reply.content = text; reply.parts = [{ id: crypto.randomUUID(), type: "text", content: text }]; }
       if (success && directory && props.creationModes && !props.materialEditor) workspaceStore.completeSimpleProject(directory, prompt);
+      if (props.materialEditor && success) emit("generationState", { status: "completed", taskId, resultIds: reply.browserResultIds });
       if (!success) throw new Error(browserCancelled ? "已停止发送，输入已保留。" : generationError.value);
     } catch (error) {
       const message = error instanceof Error ? error.message : "生成失败，输入已保留";
+      if (props.materialEditor) emit("generationState", { status: "failed", taskId, error: message });
       if (reply) reply.error = message;
       else ElMessage.error(message);
       await sender?.reset({ clearHistory: false, chatNode: templatePromptModel(prompt) });
@@ -658,6 +669,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       try { await persistBrowserMessages(); }
       catch (error) { ElMessage.error(error instanceof Error ? error.message : "浏览器对话保存失败"); }
       browserSubmitting.value = false;
+      ownsBrowserGeneration = false;
     }
     return;
   }
@@ -672,7 +684,7 @@ function referenceGeneratedFile(file: File) {
 function stopGeneration() {
   professionalStopToken.value++;
   browserCancelled = true;
-  if (props.creationModes && generationBusy.value) stopBrowserGeneration();
+  if (props.creationModes && generationBusy.value && ownsBrowserGeneration) stopBrowserGeneration();
   else stopMessage();
 }
 
@@ -1083,6 +1095,7 @@ watch(senderElement, (element, _previous, onCleanup) => {
     keyboardWrapFun: event => event.key === "Enter" && event.shiftKey && !event.isComposing,
   });
   sender = instance;
+  if (props.initialDraft?.prompt) void instance.reset({ clearHistory: false, chatNode: templatePromptModel(props.initialDraft.prompt) });
   if (!props.active || locked.value) instance.disable();
   instance.bus.on("agentConversation", xSender.EventSet.EVENT_COMMON_SEND, () => void submitMessage());
   instance.bus.on("agentConversation", xSender.EventSet.EVENT_COMMON_CHANGE, () => {
@@ -1143,7 +1156,7 @@ watch(senderElement, (element, _previous, onCleanup) => {
   });
 });
 
-watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMessage && props.active && !locked.value && !!senderElement.value && (workspaceStore.pendingAgentMessage?.send === false || (props.creationModes && browserConfig.enabled) || !!createCanvasContext?.()), async ready => {
+watch(() => !props.materialEditor && !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMessage && props.active && !locked.value && !!senderElement.value && (workspaceStore.pendingAgentMessage?.send === false || (props.creationModes && browserConfig.enabled) || !!createCanvasContext?.()), async ready => {
   const message = workspaceStore.pendingAgentMessage;
   const instance = sender;
   if (!ready || !message || !instance || message.directory !== directory) return;
@@ -1373,6 +1386,7 @@ watch(() => !props.initialSession?.parentFile && !!workspaceStore.pendingAgentMe
   }
 
   .messageInput {
+    .materialUpload { margin: 6px 8px 0; color: #d2c6e7; :deep(> span) { gap: 6px; } }
     --chat-text: var(--el-text-color-primary);
     --chat-text-placeholder: var(--el-text-color-placeholder);
     --chat-rect-padding: 12px;

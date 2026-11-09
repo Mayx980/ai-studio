@@ -35,8 +35,10 @@ import { IconClock, IconLayersSubtract } from "@tabler/icons-vue";
 import { imageClaritySizes, imageDimensions } from "@toonflow/node-shared/generationDefaults";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
-import { computed, ref, watch } from "vue";
-import { browserConfig, browserModels, browserModelSelection, configuredBrowserModels, generationBusy, inferGenerationKind, type ModelKind } from "@/stores/browserGeneration";
+import { computed, inject, ref, watch } from "vue";
+import { browserConfig as defaultBrowserConfig, browserModels, browserModelSelection as defaultBrowserModelSelection, configuredBrowserModels, generationBusy, inferGenerationKind, type ModelKind } from "@/stores/browserGeneration";
+const browserConfig = inject("generationConfig", defaultBrowserConfig);
+const browserModelSelection = inject("generationModelSelection", defaultBrowserModelSelection);
 const props = withDefaults(defineProps<{ belowInput?: boolean; prompt?: string; fixedKind?: ModelKind; disabled?: boolean }>(), { prompt: "" });
 const parametersVisible = ref(false), durationVisible = ref(false);
 const popoverOptions = { modifiers: [{ name: "preventOverflow", options: { padding: 12, altAxis: true, tether: false } }] };
@@ -44,8 +46,8 @@ const popoverStyle = { maxHeight: "calc(100dvh - 24px)", maxWidth: "calc(100vw -
 const workspace = useWorkspaceStore();
 const parameterKind = ref<ModelKind>("text");
 const kindLabels = { text: "文字", image: "图片", video: "视频", audio: "音频" };
-const kind = computed(() => props.fixedKind ?? (generationBusy.value ? browserConfig.kind : workspace.creationMode === "professional" ? parameterKind.value : inferGenerationKind(props.prompt)));
-const models = computed(() => configuredBrowserModels(kind.value));
+const kind = computed(() => props.fixedKind ?? (generationBusy.value ? browserConfig.kind : browserConfig !== defaultBrowserConfig ? browserConfig.outputKind : workspace.creationMode === "professional" ? parameterKind.value : inferGenerationKind(props.prompt)));
+const models = computed(() => configuredBrowserModels(kind.value, browserConfig));
 const selectedModelId = computed({ get: () => models.value.find(model => model.id === browserModelSelection[kind.value])?.id ?? models.value[0]?.id ?? "", set: value => { browserModelSelection[kind.value] = value; } });
 const selectedModel = computed(() => models.value.find(model => model.id === selectedModelId.value));
 // ACT: 已接入的自定义模型沿用对应供应商适配器协议；不根据显示名称猜测新能力。

@@ -5,7 +5,7 @@ import { imageClaritySizes, defaultRatio, defaultVideoResolution } from "@toonfl
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import imageModel from "@/lib/browserModels/imageModel";
 import videoModel from "@/lib/browserModels/videoModel";
 import audioModel from "@/lib/browserModels/audioModel";
@@ -19,11 +19,11 @@ export const browserModels = { image: imageModel, video: videoModel, audio: audi
 export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: defaultRatio, imageSize: imageClaritySizes["480P"]![defaultRatio]!, imageResolution: "480P", count: 1, style: "", outputKind: "image" as "image" | "video", outputChosen: false, generateAudio: true, duration: "", resolution: defaultVideoResolution });
 export const additionalBrowserModels = reactive<{ id: string; kind: ModelKind; label: string; modelId: string; endpoint: string; apiKey: string }[]>([]);
 export const browserModelSelection = reactive<Record<ModelKind, string>>({ image: "", video: "", audio: "", text: "" });
-export function configuredBrowserModels(kind: ModelKind) {
-  if (!browserConfig.enabled) return [];
+export function configuredBrowserModels(kind: ModelKind, config = browserConfig) {
+  if (!config.enabled) return [];
   const adapter = browserModels[kind];
   return [
-    ...adapter.models.map(model => ({ id: adapter.id, kind, label: model.label, modelId: model.id, endpoint: browserConfig.endpoint, apiKey: browserConfig.keys[kind] })),
+    ...adapter.models.map(model => ({ id: adapter.id, kind, label: model.label, modelId: model.id, endpoint: config.endpoint, apiKey: config.keys[kind] })),
     ...additionalBrowserModels.filter(model => model.kind === kind),
   ].filter(model => model.apiKey.trim() && model.modelId.trim() && model.label.trim());
 }
@@ -100,16 +100,20 @@ export function inferGenerationKind(prompt: string): ModelKind {
   return browserConfig.outputChosen ? browserConfig.outputKind : kind ?? browserConfig.outputKind;
 }
 
-export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "", referenceRoles?: ("firstFrame" | "reference" | "middleFrame" | "lastFrame" | undefined)[]) {
+export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "", referenceRoles?: ("firstFrame" | "reference" | "middleFrame" | "lastFrame" | undefined)[], options?: { config: typeof browserConfig; modelSelection?: typeof browserModelSelection; queue?: boolean; cancelled?: () => boolean; onStart?: () => void; onTask?: (id: string) => void }) {
+  while (options?.queue && generationBusy.value) await new Promise<void>(resolve => { const stop = watch(generationBusy, busy => { if (!busy) { stop(); resolve(); } }); });
+  if (options?.cancelled?.()) { generationError.value = "已取消等待生成"; return false; }
+  const config = options?.config ?? browserConfig;
+  const modelSelection = options?.modelSelection ?? browserModelSelection;
   if (generationBusy.value) return false;
-  if (!browserConfig.enabled) { generationError.value = "请先在设置 → API 配置中启用模型联调"; return false; }
+  if (!config.enabled) { generationError.value = "请先在设置 → API 配置中启用模型联调"; return false; }
   const kind: ModelKind = requestedKind ?? inferGenerationKind(prompt);
-  browserConfig.kind = kind;
-  const chosen = configuredBrowserModels(kind).find(model => model.id === browserModelSelection[kind]) ?? configuredBrowserModels(kind)[0];
-  const { ratio, duration, resolution, imageSize, count, generateAudio } = browserConfig;
+  config.kind = kind;
+  const chosen = configuredBrowserModels(kind, config).find(model => model.id === modelSelection[kind]) ?? configuredBrowserModels(kind, config)[0];
+  const { ratio, duration, resolution, imageSize, count, generateAudio } = config;
   if (!Number.isInteger(count) || count < 1 || count > 6) { generationError.value = "图片生成数量须为 1–6 张"; return false; }
   if (kind === "image" && generationStyles[style]) prompt += `\n图片风格要求：${style}。${generationStyles[style]}保留用户指定的主体、产品特征与构图要求，不额外添加文字或水印。`;
-  const endpoint = chosen?.endpoint || browserConfig.endpoint;
+  const endpoint = chosen?.endpoint || config.endpoint;
   const apiKey = chosen?.apiKey.trim() ?? "";
   generationError.value = "";
   if (!apiKey || !prompt.trim()) { generationError.value = "请填写提示词，并在设置 → API 配置中输入当前模型的 Key。"; return false; }
@@ -142,6 +146,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   controller = new AbortController();
   const signal = controller.signal;
   generationBusy.value = true;
+  options?.onStart?.();
   try {
     if (kind === "text") {
       const { text } = await generateBrowserText({ providerId: chosen!.id, modelId: chosen!.modelId, prompt, signal });
@@ -151,7 +156,16 @@ export async function generateInBrowser(prompt: string, references: File[], dire
     }
     const media = await Promise.all(references.map(async file => ({ type: "binary" as const, data: new Uint8Array(await file.arrayBuffer()), mimeType: file.type, name: file.name })));
     const images = media.filter(item => item.mimeType.startsWith("image/")), videos = media.filter(item => item.mimeType.startsWith("video/"));
-    const tool = { fetch: studioFetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" };
+    const generationFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await studioFetch(input, init);
+      if (options?.onTask && init?.method?.toUpperCase() === "POST" && response.ok && response.headers.get("content-type")?.includes("json")) {
+        const payload = await response.clone().json();
+        const id = payload?.output?.task_id;
+        if (typeof id === "string" && id.length <= 512) options.onTask(id);
+      }
+      return response;
+    }) as typeof fetch;
+    const tool = { fetch: generationFetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" };
     const context = { config: { apiKey, endpoint }, signal, tool };
     const settings: GenerationSettings = { providerId: chosen!.id, modelId: chosen!.modelId, label: chosen!.label, ratio, imageSize, n: count, style, duration: Number(duration) || 5, resolution, generateAudio, mode: firstFrameIndex !== undefined ? "singleImage" : references.length ? "reference" : "text" };
     const assets = kind === "audio" ? await audioModel.generateAudio.call(context, { model: chosen!.modelId, prompt }) : kind === "image" ? await imageModel.generateImage.call(context, { model: chosen!.modelId, prompt, images, ...(ratio ? { ratio } : {}), size: imageSize, n: count })

@@ -2,16 +2,17 @@
   <div class="simpleGenerationTools">
     <div v-if="controls !== 'style'" class="outputTabs" role="tablist" aria-label="创作类型" @keydown.right.prevent="moveOutput($event, 1)" @keydown.left.prevent="moveOutput($event, -1)"><button type="button" role="tab" :disabled="disabled" :tabindex="browserConfig.outputKind === 'image' ? 0 : -1" :aria-selected="browserConfig.outputKind === 'image'" @click="selectOutput('image')"><icon-photo :size="16" />图片生成</button><button v-if="!imageOnly" type="button" role="tab" :disabled="disabled" :tabindex="browserConfig.outputKind === 'video' ? 0 : -1" :aria-selected="browserConfig.outputKind === 'video'" @click="selectOutput('video')"><icon-movie :size="16" />视频生成</button></div>
     <el-popover v-if="controls !== 'tabs' && browserConfig.outputKind === 'image'" trigger="click" placement="top" :width="180" :hideAfter="0" :disabled="disabled">
-      <template #reference><el-button class="styleSelect" :class="{ selected: !!browserConfig.style }" plain :disabled="disabled || browserConfig.outputKind !== 'image'" :title="browserConfig.outputKind === 'video' ? '当前仅图片生成支持风格预设' : '选择图片风格'" aria-label="选择风格"><icon-palette :size="16" />{{ browserConfig.style || '风格' }}</el-button></template>
+      <template #reference><el-button class="styleSelect" :class="{ selected: !!browserConfig.style }" plain :disabled="disabled" title="选择图片风格" aria-label="选择风格"><icon-palette :size="16" />{{ browserConfig.style || '风格' }}</el-button></template>
       <div class="styleList" role="listbox" aria-label="视觉风格"><button type="button" role="option" :aria-selected="!browserConfig.style" @click="browserConfig.style = ''">不指定风格</button><button v-for="(style, index) in styles" :key="style" type="button" role="option" :aria-selected="browserConfig.style === style" @click="browserConfig.style = browserConfig.style === style ? '' : style"><span class="styleSwatch" :style="{ background: `hsl(${index * 37 % 360} 24% 62%)` }" />{{ style }}</button></div>
     </el-popover>
   </div>
 </template>
 <script setup lang="ts">
 import { IconPalette, IconPhoto, IconMovie } from "@tabler/icons-vue";
-import { onMounted } from "vue";
+import { inject, onMounted } from "vue";
 import { generationStyles } from "@/lib/generationStyles";
-import { browserConfig } from "@/stores/browserGeneration";
+import { browserConfig as defaultBrowserConfig } from "@/stores/browserGeneration";
+const browserConfig = inject("generationConfig", defaultBrowserConfig);
 const props = withDefaults(defineProps<{ imageOnly?: boolean; disabled?: boolean; controls?: "all" | "tabs" | "style" }>(), { controls: "all" });
 const styles = Object.keys(generationStyles);
 onMounted(() => { browserConfig.outputChosen = true; });

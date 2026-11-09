@@ -1,14 +1,14 @@
 <template>
   <teleport to="body">
-    <aside v-show="visible && materialEditorState?.source !== 'canvas'" id="agentPanel" class="agentSidebar" :class="{ expanded, navigationCollapsed, historyExpanded: conversationHistoryOpen, materialSplit: !!materialEditorState }" :style="panelStyle" :inert="!!materialEditorState" aria-label="智能助手对话侧栏">
-      <studioSidebar v-if="expanded && !materialEditorState" activeSection="agent" :disabled="sidebarOpening" @navigate="navigate" @newAgent="newAgent" @openProject="openRecent" @openSettings="emit('openSettings')" />
-      <agentHistorySidebar v-if="expanded && !materialEditorState && conversationHistoryOpen" />
+    <aside v-show="visible" id="agentPanel" class="agentSidebar" :class="{ expanded, navigationCollapsed, historyExpanded: conversationHistoryOpen }" :style="panelStyle" aria-label="智能助手对话侧栏">
+      <studioSidebar v-if="expanded" activeSection="agent" :disabled="sidebarOpening" @navigate="navigate" @newAgent="newAgent" @openProject="openRecent" @openSettings="emit('openSettings')" />
+      <agentHistorySidebar v-if="expanded && conversationHistoryOpen" />
       <div v-if="!expanded" class="resizeHandle" role="separator" aria-label="调整对话侧栏宽度" aria-orientation="vertical" :aria-valuemin="minimumWidth" :aria-valuemax="maximumWidth" :aria-valuenow="width" tabindex="0" @pointerdown="startResize" @pointermove="resize" @pointerup="stopResize" @pointercancel="stopResize" @lostpointercapture="stopResize" @keydown.left.prevent="preferredWidth = width + 16" @keydown.right.prevent="preferredWidth = width - 16" />
-      <el-tooltip v-if="!expanded && !materialEditorState" content="关闭" placement="left" :showArrow="false"><el-button class="closeAgent" text circle aria-label="关闭侧边栏" @click="visible = false"><icon-x :size="18" /></el-button></el-tooltip>
+      <el-tooltip v-if="!expanded" content="关闭" placement="left" :showArrow="false"><el-button class="closeAgent" text circle aria-label="关闭侧边栏" @click="visible = false"><icon-x :size="18" /></el-button></el-tooltip>
       <div ref="assistantContent" class="assistantContent">
-        <header v-if="expanded && !materialEditorState" class="assistantHeader"><el-button text :disabled="sidebarOpening || generationBusy" @click="newChat"><icon-message-plus :size="18" />新聊天</el-button><el-button text :aria-expanded="conversationHistoryOpen" @click="conversationHistoryOpen = !conversationHistoryOpen"><icon-history :size="18" />历史对话</el-button></header>
+        <header v-if="expanded" class="assistantHeader"><el-button text :disabled="sidebarOpening || generationBusy" @click="newChat"><icon-message-plus :size="18" />新聊天</el-button><el-button text :aria-expanded="conversationHistoryOpen" @click="conversationHistoryOpen = !conversationHistoryOpen"><icon-history :size="18" />历史对话</el-button></header>
         <agent v-model="visible" creationModes :closable="!expanded"><template #menuActions><el-button v-if="expanded" class="enterCanvasButton" text :icon="IconVector" aria-label="进入画布" @click="emit('enterCanvas')">进入画布</el-button></template></agent>
-        <creativeCases v-if="expanded && !materialEditorState" class="assistantTemplates" @apply="applyCase" />
+        <creativeCases v-if="expanded" class="assistantTemplates" @apply="applyCase" />
       </div>
     </aside>
   </teleport>
@@ -19,7 +19,6 @@ import { IconVector } from "@tabler/icons-vue";
 import agentHistorySidebar from "@/components/agentHistorySidebar.vue";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { navigationCollapsed, conversationHistoryOpen } from "@/stores/navigation";
-import { materialEditorState } from "@/stores/materialEditor";
 import studioSidebar from "@/components/studioSidebar.vue";
 import creativeCases from "@/components/creativeCases.vue";
 import type { TemplateApplication } from "@/lib/creationTemplates";
@@ -52,7 +51,7 @@ const viewportWidth = ref(window.innerWidth), viewportHeight = ref(window.innerH
 const minimumWidth = computed(() => Math.min(320, viewportWidth.value));
 const maximumWidth = computed(() => Math.min(760, viewportWidth.value));
 const width = computed(() => Math.max(minimumWidth.value, Math.min(preferredWidth.value, maximumWidth.value)));
-const panelStyle = computed(() => materialEditorState.value ? { left: "0px", top: "0px", width: viewportWidth.value <= 700 ? "100vw" : "50vw", height: viewportWidth.value <= 700 ? "50dvh" : "100dvh" } : props.expanded ? { left: "0px", top: "0px", width: "100vw", height: "100dvh" } : { right: "0px", top: "0px", width: `${width.value}px`, height: "100dvh" });
+const panelStyle = computed(() => props.expanded ? { left: "0px", top: "0px", width: "100vw", height: "100dvh" } : { right: "0px", top: "0px", width: `${width.value}px`, height: "100dvh" });
 let pointer: { id: number; x: number; width: number; element: HTMLElement } | undefined;
 function startResize(event: PointerEvent) { if (event.button !== 0) return; const element = event.currentTarget as HTMLElement; element.setPointerCapture(event.pointerId); pointer = { id: event.pointerId, x: event.clientX, width: width.value, element }; event.preventDefault(); }
 function resize(event: PointerEvent) { if (pointer?.id === event.pointerId) preferredWidth.value = pointer.width + pointer.x - event.clientX; }

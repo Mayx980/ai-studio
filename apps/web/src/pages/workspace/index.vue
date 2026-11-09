@@ -1,14 +1,14 @@
 <template>
-  <main class="workspacePage" :class="{ simpleWorkspace: workspaceStore.creationMode === 'simple' && !canvasMaterialSplit, materialSplit: !!materialEditorState && (workspaceStore.creationMode === 'professional' || canvasMaterialSplit) }" :style="{ '--agentWidth': `${agentVisible ? agentWidth : 0}px` }">
+  <main class="workspacePage" :class="{ simpleWorkspace: workspaceStore.creationMode === 'simple' }" :style="{ '--agentWidth': `${agentVisible ? agentWidth : 0}px` }">
     <canvasPanel
       :key="workspaceStore.project?.directory"
       v-model:selectedTool="selectedTool"
       ref="canvasPanelRef"
       class="canvasPanel"
-      :class="{ backgroundPanel: activePanel !== 'canvas' || (workspaceStore.creationMode === 'simple' && !canvasMaterialSplit) }"
-      :inert="activePanel !== 'canvas' || (workspaceStore.creationMode === 'simple' && !canvasMaterialSplit) || tutorialPreparing"
-      :aria-hidden="activePanel !== 'canvas' || (workspaceStore.creationMode === 'simple' && !canvasMaterialSplit)"
-      :active="activePanel === 'canvas' && (workspaceStore.creationMode === 'professional' || canvasMaterialSplit)"
+      :class="{ backgroundPanel: activePanel !== 'canvas' || (workspaceStore.creationMode === 'simple') }"
+      :inert="activePanel !== 'canvas' || (workspaceStore.creationMode === 'simple') || tutorialPreparing"
+      :aria-hidden="activePanel !== 'canvas' || (workspaceStore.creationMode === 'simple')"
+      :active="activePanel === 'canvas' && (workspaceStore.creationMode === 'professional')"
       :settingsVisible="settingsVisible" />
     <keep-alive :max="1">
       <documentPanel
@@ -25,7 +25,7 @@
         :fileAction="performFileAction"
         :saveNode="saveDocumentNode" />
     </keep-alive>
-    <div v-show="workspaceStore.creationMode === 'professional' || canvasMaterialSplit" class="canvasToolDock">
+    <div v-show="workspaceStore.creationMode === 'professional'" class="canvasToolDock">
       <div class="bottomTools">
         <el-card v-if="activePanel === 'canvas'" class="toolMenu" shadow="never" :bodyStyle="{ padding: '3px 6px' }">
           <div class="toolMenuContent" role="toolbar" aria-label="画布工具">
@@ -70,7 +70,6 @@
 </template>
 
 <script setup lang="ts">
-import { materialEditorState } from "@/stores/materialEditor";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { generateBrowserText, browserNodeAi } from "@/lib/browserNodeAi";
 import { browserConfig, browserResultFile, resolveBrowserModel, additionalBrowserModels, type ProfessionalCanvas, type BeginBrowserWorkflow, type BrowserConversationImport } from "@/stores/browserGeneration";
@@ -107,7 +106,6 @@ const activePanel = ref<"canvas" | "document">("canvas");
 const selectedTool = ref<"move" | "hand">("move");
 onMounted(() => anonymousData.track("workspace.canvas"));
 const workspaceStore = useWorkspaceStore();
-const canvasMaterialSplit = computed(() => materialEditorState.value?.source === "canvas");
 const agentVisible = ref(workspaceStore.creationMode === "simple");
 watch(() => workspaceStore.creationMode, mode => { agentVisible.value = mode === "simple"; });
 const agentWidth = ref(0);
@@ -660,6 +658,4 @@ function saveDocumentNode(directory: string, canvasPath: string, nodeId: string,
 </style>
 
 <style scoped lang="scss">
-.workspacePage.materialSplit { .canvasPanel { width: 50%; } .canvasToolDock { left: 25%; } }
-@media(max-width:700px) { .workspacePage.materialSplit { .canvasPanel { width: 100%; height: 50dvh; } .canvasToolDock { left: 50%; bottom: calc(50dvh + 12px); } } }
 </style>
