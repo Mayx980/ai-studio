@@ -6,7 +6,7 @@
         <div class="referenceTabs" role="tablist" aria-label="参考素材类型"><button v-for="tab in tabs" :key="tab.value" type="button" role="tab" :aria-selected="mode === tab.value" :disabled="disabled || opening" @click="mode = tab.value; modeVisible = false">{{ tab.label }}</button></div>
       </el-popover>
     </teleport>
-    <button v-for="task in materialWorkspaces.filter(item => !item.ended && item.directory === directory)" :key="task.id" class="materialTaskEntry" :class="task.status" type="button" @click="task.request = { owner, directory: task.directory, label: task.label, target: task.target, apply: file => applyFiles([file], task.target) }; openMaterialWorkspace(task)"><generationTaskRing v-if="task.status === 'queued' || task.status === 'generating'" :size="26" /><span>{{ task.label }} · {{ materialStatusLabel(task) }}</span></button>
+    <el-tooltip v-for="task in materialWorkspaces.filter(item => !item.ended && item.directory === directory)" :key="task.id" content="点击可查看任务" :showArrow="false"><button class="materialTaskEntry" type="button" :aria-label="`${task.label} · ${materialStatusLabel(task)}，点击可查看任务`" @click="task.request = { owner, directory: task.directory, label: task.label, target: task.target, apply: file => applyFiles([file], task.target) }; openMaterialWorkspace(task)"><generationTaskRing :size="40" :status="task.status" :kind="task.config.outputKind" /></button></el-tooltip>
     <input ref="fileInput" type="file" :accept="target.role === 'firstFrame' || target.role === 'lastFrame' ? 'image/*' : 'image/*,video/*'" :multiple="['reference', 'middleFrame'].includes(target.role) && !replacing" hidden :disabled="disabled || opening" @change="selectFiles" />
     <div v-if="mode === 'reference'" class="referenceDeck" aria-label="参考图片">
       <button v-if="!referenceImages.length" class="slotCard" type="button" :disabled="disabled || opening" aria-label="添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="28" /></button>
@@ -120,7 +120,7 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; for (const task of
 </script>
 <style scoped lang="scss">
 .simpleReferenceSlots {
-  .materialTaskEntry { flex: none; align-self: center; display: flex; align-items: center; gap: 6px; max-width: 220px; padding: 10px 12px; border: 1px solid #4e435f; border-radius: 12px; background: #26232e; color: #d9ccec; cursor: pointer; font-size: 12px; span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } &.completed { color: #82d9b1; } &.failed { color: #f0b17b; } }
+  .materialTaskEntry { flex: none; align-self: center; display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; padding: 4px; border: 0; border-radius: 50%; background: transparent; cursor: pointer; &:hover { filter: brightness(1.15); } &:focus-visible { outline: 2px solid #ab8aff; outline-offset: -1px; } }
   display: flex; justify-content: flex-start; align-items: flex-start; gap: 12px; padding: 8px 12px 14px; min-width: 0;
 
   .referenceDeck, .frameDeck { display: flex; justify-content: flex-start; align-items: flex-start; gap: 10px; min-width: 0; flex-wrap: wrap; padding: 4px 10px 8px 0; }
