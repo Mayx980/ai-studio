@@ -28,10 +28,10 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     proxy: mode === "scenario" ? undefined : {
-      "/mcp": { target: mode === "studio" ? "http://127.0.0.1:3107" : "http://127.0.0.1:3000", changeOrigin: false },
-      "/a2a": { target: mode === "studio" ? "http://127.0.0.1:3107" : "http://127.0.0.1:3000", changeOrigin: false },
+      "/mcp": { target: "http://127.0.0.1:3000", changeOrigin: false },
+      "/a2a": { target: "http://127.0.0.1:3000", changeOrigin: false },
       "/api": {
-        target: mode === "studio" ? "http://127.0.0.1:3107" : "http://127.0.0.1:3000",
+        target: "http://127.0.0.1:3000",
         changeOrigin: false,
         configure(proxy) {
           proxy.on("proxyReq", (request, incoming) => {

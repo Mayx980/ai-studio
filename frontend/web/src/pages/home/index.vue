@@ -33,9 +33,8 @@
   </el-container>
 </template>
 <script setup lang="ts">
-import { isStudioError } from "@/ports";
+import { studio, isStudioError } from "@/ports";
 import { locale } from "@toonflow/i18n/vue";
-import axios from "axios";
 import { openTutorialProject } from "@/lib/canvasTutorial";
 import { ensureExampleProject } from "@/lib/exampleProjects";
 import { computed, onMounted, ref, watch } from "vue";
@@ -198,7 +197,7 @@ async function renameHistory(item: ConversationHistory) {
   try {
     const name = result.value.trim();
     if (browserWorkspaceMode) await renameBrowserConversation(item.directory, item.file, name);
-    else await axios.patch("/api/agent/rename", { directory: item.directory, sessionFile: item.file, name }, { headers: { "x-toonflow-workspace": "1" } });
+    else await studio.renameConversation({ directory: item.directory, sessionFile: item.file, name }, { headers: { "x-toonflow-workspace": "1" } });
     item.name = name;
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "重命名对话失败"); }
   finally { historyLoading.value = false; }
@@ -219,7 +218,7 @@ watch(() => [homeSection.value, examplesReady.value], async ([section, ready]) =
   historyError.value = "";
   try {
     const lists = await Promise.all([...workspaceStore.projectList, ...workspaceStore.draftProjects].filter(project => project.historyArchived).map(async project => {
-      const items = browserWorkspaceMode ? await listBrowserConversations(project.directory) : (await axios.get<{ data: AgentHistory[] }>("/api/agent/list", { params: { directory: project.directory }, headers: { "x-toonflow-workspace": "1" } })).data.data;
+      const items = browserWorkspaceMode ? await listBrowserConversations(project.directory) : (await studio.listConversations<{ data: AgentHistory[] }>({ params: { directory: project.directory }, headers: { "x-toonflow-workspace": "1" } })).data.data;
       return items.map(item => ({ ...item, directory: project.directory, projectName: project.name }));
     }));
     conversationHistory.value = lists.flat().sort((a, b) => b.modified.localeCompare(a.modified));

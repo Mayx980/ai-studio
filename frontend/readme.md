@@ -10,4 +10,8 @@
 
 页面、状态和共享交互组件通过 Port 消费能力；HTTP、事件流和生产组件加载放在 Web 的 `src/adapters/production/`。插件通过宿主注入的公开 Port 复用交互，不自行连网。场景 Provider 直接返回合成展示数据，不能导入生产适配层。
 
+已合入的 AFXEN 浏览器原型通过 `src/ports/prototype.ts` 接入：生产适配层保留 IndexedDB 文件、页面内存 Key、原型账号和原厂商协议；Scenario 使用自己的宿主，不读取浏览器项目或账号，不调用供应商。模型能力描述位于 `src/lib/browserModelDefinitions.ts`，协议实现只在生产适配层，页面不直接装配请求。
+
+该原型尚未完成 #7 已确认的共享实例服务端版。现有 Server API 和浏览器原型目前是不同的数据来源；不要据此宣称跨浏览器共享、凭据服务端持久化或生产账号权限已经实现。
+
 开发、构建及现有类型检查命令以[源码手册](../docs/sourceDevelopment.md)和各包 `package.json` 为准。遵守[项目规范](../AGENTS.md)，不新增测试、自检或 CI 自动测试入口。迁移不代表 Issue #7 的创作业务已经实现。

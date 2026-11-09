@@ -1,3 +1,4 @@
+import { browserModelDefinitions } from "@/lib/browserModelDefinitions";
 
 
 export default {
@@ -14,17 +15,7 @@ export default {
       props: { type: "password", showPassword: true, autocomplete: "off" },
     },
   ],
-  models: [
-    {
-      id: "wan3Video",
-      label: "万相 3.0 视频生成",
-      type: "video",
-      mode: ["text", "singleImage", ["imageReference:10", "videoReference:5"]],
-      audio: "optional",
-      durationResolutionMap: [{ duration: [2, 3, 5, 10, 15, 20, 30], resolution: ["480P", "720P", "1080P"] }],
-    },
-  ],
-
+  models: browserModelDefinitions.video.models,
   async generateVideo(this: any, request: any): Promise<any[]> {
     const apiKey = String(this.config?.apiKey ?? "").trim();
     if (!apiKey) throw new Error("请先在 AFXEN 供应商配置中填写阿里云百炼 API Key。");

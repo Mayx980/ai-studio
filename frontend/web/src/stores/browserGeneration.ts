@@ -6,15 +6,12 @@ import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { computed, reactive, ref } from "vue";
-import imageModel from "@/lib/browserModels/imageModel";
-import videoModel from "@/lib/browserModels/videoModel";
-import audioModel from "@/lib/browserModels/audioModel";
-import { studioFetch } from "@/lib/studioFetch";
+import { prototype } from "@/ports/prototype";
+import { browserModelDefinitions } from "@/lib/browserModelDefinitions";
 import { generateBrowserText } from "@/lib/browserNodeAi";
-import textModel from "@/lib/browserModels/textModel";
 
 export type ModelKind = "image" | "video" | "audio" | "text";
-export const browserModels = { image: imageModel, video: videoModel, audio: audioModel, text: textModel };
+export const browserModels = browserModelDefinitions;
 // ACT: 原型直接使用供应商协议；Key 不进入持久化 Store 或服务端配置。
 export const browserConfig = reactive({ enabled: false, kind: "image" as ModelKind, keys: { image: "", video: "", audio: "", text: "" }, endpoint: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", ratio: defaultRatio, imageSize: imageClaritySizes["480P"]![defaultRatio]!, imageResolution: "480P", count: 1, style: "", outputKind: "image" as "image" | "video", outputChosen: false, generateAudio: true, duration: "", resolution: defaultVideoResolution });
 export const additionalBrowserModels = reactive<{ id: string; kind: ModelKind; label: string; modelId: string; endpoint: string; apiKey: string }[]>([]);
@@ -71,9 +68,9 @@ async function saveBrowserResults(directory: string, signal?: AbortSignal) {
   const files = useWorkspaceFiles(directory);
   for (const item of generationResults.value.filter(item => item.directory === directory && !item.path && item.kind !== "text")) {
     if (!item.file) {
-      const response = await studioFetch(item.url!, { signal });
-      if (!response.ok) throw new Error(`素材已生成，但下载保存失败（HTTP ${response.status}），请保留页面重试`);
-      const blob = await response.blob();
+      let blob: Blob;
+      try { blob = await prototype.readMedia(item.url!, signal); }
+      catch (error) { throw new Error(`素材已生成，但下载保存失败，请保留页面重试：${error instanceof Error ? error.message : "读取失败"}`); }
       const mimeType = blob.type.startsWith(`${item.kind}/`) ? blob.type : `${item.kind}/${item.kind === "video" ? "mp4" : item.kind === "audio" ? "mpeg" : "png"}`;
       item.file = new File([blob], `生成素材.${mimeType.split("/")[1]}`, { type: mimeType });
     }
@@ -150,12 +147,8 @@ export async function generateInBrowser(prompt: string, references: File[], dire
       return true;
     }
     const media = await Promise.all(references.map(async file => ({ type: "binary" as const, data: new Uint8Array(await file.arrayBuffer()), mimeType: file.type, name: file.name })));
-    const images = media.filter(item => item.mimeType.startsWith("image/")), videos = media.filter(item => item.mimeType.startsWith("video/"));
-    const tool = { fetch: studioFetch, errorMessage: (value: unknown) => value && typeof value === "object" && "message" in value ? String(value.message) : "接口返回错误" };
-    const context = { config: { apiKey, endpoint }, signal, tool };
     const settings: GenerationSettings = { providerId: chosen!.id, modelId: chosen!.modelId, label: chosen!.label, ratio, imageSize, n: count, style, duration: Number(duration) || 5, resolution, generateAudio, mode: firstFrameIndex !== undefined ? "singleImage" : references.length ? "reference" : "text" };
-    const assets = kind === "audio" ? await audioModel.generateAudio.call(context, { model: chosen!.modelId, prompt }) : kind === "image" ? await imageModel.generateImage.call(context, { model: chosen!.modelId, prompt, images, ...(ratio ? { ratio } : {}), size: imageSize, n: count })
-      : await videoModel.generateVideo.call(context, { generateAudio, model: chosen!.modelId, prompt, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: media[firstFrameIndex!] } : { mode: images.length || videos.length ? ["imageReference:10", "videoReference:5"] : "text", images, videos }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
+    const assets = await prototype.generateMedia({ kind, modelId: chosen!.modelId, prompt, config: { apiKey, endpoint }, references: media, ratio, imageSize, count, generateAudio, duration, resolution, firstFrameIndex, signal });
     signal.throwIfAborted();
     if (!assets.length) throw new Error("模型未返回生成素材");
     for (const asset of assets) {
@@ -185,9 +178,7 @@ async function readBrowserResultFile(item: BrowserGenerationResult) {
   if (item.kind === "text") return new File([item.text || ""], "生成文字.md", { type: "text/markdown" });
   let file = item.file;
   if (!file) {
-    const response = await studioFetch(item.url!);
-    if (!response.ok) throw new Error(`读取模型结果失败（HTTP ${response.status}）`);
-    const blob = await response.blob();
+    const blob = await prototype.readMedia(item.url!);
     if (!blob.size || (blob.type && !blob.type.startsWith(`${item.kind}/`) && blob.type !== "application/octet-stream")) throw new Error("结果地址没有返回有效素材，请检查供应商的结果地址和有效期");
     file = new File([blob], `生成结果.${item.kind === "video" ? "mp4" : item.kind === "audio" ? "mp3" : "png"}`, { type: (blob.type.startsWith(`${item.kind}/`) ? blob.type : "") || `${item.kind}/${item.kind === "video" ? "mp4" : item.kind === "audio" ? "mpeg" : "png"}` });
   }

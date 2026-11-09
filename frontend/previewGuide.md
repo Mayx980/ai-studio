@@ -6,7 +6,7 @@
 python3 frontend/preview/start.py
 ```
 
-入口读取当前分支、origin 和 Project Facts，启动全部 UI entity，输出动态 loopback URL。Web 以 `node --run=scenario` 启动原 Vite 工程；默认 `empty` 场景。以输出地址追加 `?scenario=loading`、`?scenario=error`、`?scenario=permission` 或 `?scenario=formValidation` 后打开首页，点击“选择工作目录”查看目录选择器状态；`formValidation` 场景选择合成目录后新建目录并输入非法名称，使用原页面的输入校验。场景数据只在内存中，不读真实工作区、密钥或供应商。
+入口读取当前分支、origin 和 Project Facts，启动全部 UI entity，输出动态 loopback URL。Web 以 `node --run=scenario` 启动原 Vite 工程；默认 `empty` 场景。以输出地址追加 `?scenario=loading`、`?scenario=error`、`?scenario=permission` 或 `?scenario=formValidation` 后打开首页，在“我的项目”点击“导入项目”查看目录选择器状态；`formValidation` 场景选择合成目录后新建目录并输入非法名称，使用原页面的输入校验。场景数据只在内存中，不读真实工作区、浏览器项目、密钥或供应商，也不要求原型登录。
 
 Ctrl+C 回收本次进程组。停止后可执行 `python3 frontend/preview/clean.py`，仅清理本工作区的运行记录，保留 Bun 依赖与下载缓存。运行结果位于 Git 忽略的 `runtime/`，绑定实际 source SHA、输入和健康回读；它不证明全部 UI 交互已验证。
 

@@ -41,7 +41,7 @@ import { ElMessageBox } from "element-plus";
 import { modelIcon } from "@toonflow/model-icons";
 import { languageProviders } from "@toonflow/providers";
 import { browserConfig, browserModels, additionalBrowserModels, clearBrowserKeys, type ModelKind } from "@/stores/browserGeneration";
-import { studioFetch } from "@/lib/studioFetch";
+import { prototype } from "@/ports/prototype";
 
 type Vendor = { id: string; label: string; icon: string; endpoint: string; hosts: string[]; kinds: ModelKind[]; docs: string; description: string };
 const deepSeek = languageProviders.find(provider => provider.id === "deepSeek")!;
@@ -117,11 +117,8 @@ async function fetchModels() {
     const base = url.pathname === "/" && form.value.vendorId === "aliyun" ? `${endpoint}/compatible-mode/v1` : endpoint;
     controller?.abort(); const request = new AbortController(); controller = request; fetching.value = true;
     try {
-      const response = await studioFetch(`${base}/models`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.any([request.signal, AbortSignal.timeout(30000)]) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(`获取模型失败（HTTP ${response.status}）：${String(result.error?.message || result.message || "请检查 Key 和模型权限").replaceAll(key, "[Key]")}`);
-      if (!Array.isArray(result.data) || result.data.length > 2000 || result.data.some((item: unknown) => !item || typeof item !== "object" || !("id" in item) || typeof item.id !== "string" || !item.id.trim() || item.id.length > 200)) throw new Error("厂商未返回有效模型列表，请手动填写模型 ID");
-      if (!request.signal.aborted) { modelOptions.value = [...new Map([...presetModels(form.value.vendorId), ...result.data.map((item: { id: string }) => ({ kind: "text" as const, modelId: item.id }))].map(item => [`${item.kind}:${item.modelId}`, item])).values()]; }
+      const data = await prototype.loadModels(base, key, AbortSignal.any([request.signal, AbortSignal.timeout(30000)]));
+      if (!request.signal.aborted) { modelOptions.value = [...new Map([...presetModels(form.value.vendorId), ...data.map((item: { id: string }) => ({ kind: "text" as const, modelId: item.id }))].map(item => [`${item.kind}:${item.modelId}`, item])).values()]; }
     } finally { if (controller === request) fetching.value = false; }
   } catch (reason) {
     if (visible.value && form.value === draft && !(reason instanceof DOMException && reason.name === "AbortError")) {

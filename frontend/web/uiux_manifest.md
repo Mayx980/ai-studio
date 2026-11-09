@@ -2,7 +2,7 @@
 
 ## 端
 
-本次登记既有 `web` entity，复用 [PRD](../../requirements/prd.md)描述的浏览器入口；不新分配产品端 ID，也不宣称已实现 AFXEN 创作页面。原生端共享同一 Web 页面工程。
+本次登记既有 `web` entity，复用 [PRD](../../requirements/prd.md)描述的浏览器入口；不新分配产品端 ID。AFXEN 创作原型已合入该页面工程，服务端业务增量尚未完成。原生端共享同一 Web 页面工程。
 
 ## 通用约束
 
@@ -17,7 +17,9 @@
 
 生产和 Scenario 共用 `src/bootstrap.ts`、路由、页面和组件；入口由 Vite mode 在构建时选择。页面及状态只消费 `src/ports/`，生产 HTTP/流适配位于 `src/adapters/production/`。Scenario Provider 直接提供内存展示数据，不导入生产适配层、HTTP 客户端或真实服务配置。
 
-基础场景 `empty`、`loading`、`error`、`permission`、`formValidation` 的进入方式见[Preview](../previewGuide.md)。当前覆盖首页与目录选择器的接入链路；分页、真实模型生成、媒体处理、支付及完整业务页面场景尚未覆盖，不能以预览启动当作这些能力验收。
+浏览器原型宿主由 `src/ports/prototype.ts` 声明，生产组装保留原型文件与模型协议，隔离组装拒绝浏览器项目、演示登录与真实生成操作。模型描述为公共纯数据；不以原型接入当作共享服务端业务完成。
+
+基础场景 `empty`、`loading`、`error`、`permission`、`formValidation` 的进入方式见[Preview](../previewGuide.md)。当前覆盖首页及“我的项目 → 导入项目”的目录选择器接入链路；分页、真实模型生成、媒体处理、支付及完整业务页面场景尚未覆盖，不能以预览启动当作这些能力验收。
 
 ## 待确认问题
 

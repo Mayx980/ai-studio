@@ -8,7 +8,7 @@
 
 可以先讨论目标和问题；讨论本身不授权修改。需要本地试验时明确要求快速修改；需要正式交付时，用 `wf-prod-intake` 提供目标和范围，确认完整候选后建立 Issue。已有清晰普通 Issue 时，用 `wf-prod-implement` 绑定该 Issue。集中交付多个来源时分别使用 `wf-prod-intake-batch` 与 `wf-prod-implement-batch`。
 
-初次上游引入已由 Issue #6 完成；当前工程升级由 `wf-prod-onboard` 在原 [Issue #7](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7) / `issue/7` 分支承载。工程阶段不吸收设计分支或宣称产品功能完成。
+初次上游引入已由 Issue #6 完成；当前工程升级由 `wf-prod-onboard` 在原 [Issue #7](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7) / `issue/7` 分支承载。人工已在远端合入设计原型，本次恢复保留该历史并修正其接入缺口；工程接入不宣称共享服务端产品功能完成。
 
 ## 工作区与验证
 

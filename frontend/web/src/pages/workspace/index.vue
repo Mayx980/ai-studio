@@ -79,7 +79,6 @@ import { generateBrowserText, browserNodeAi } from "@/lib/browserNodeAi";
 import { browserConfig, browserResultFile, resolveBrowserModel, additionalBrowserModels, type ProfessionalCanvas, type BeginBrowserWorkflow, type BrowserConversationImport } from "@/stores/browserGeneration";
 import { computed, defineAsyncComponent, nextTick, onMounted, onScopeDispose, provide, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
-import axios from "axios";
 import { ElMessage, ElMessageBox } from "element-plus";
 import shortcutHelp from "@/components/shortcutHelp.vue";
 import settings from "@/components/settings/index.vue";

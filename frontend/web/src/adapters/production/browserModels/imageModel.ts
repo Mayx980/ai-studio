@@ -1,4 +1,4 @@
-import { imageDimensions, imageClaritySizes } from "@toonflow/node-shared/generationDefaults";
+import { browserModelDefinitions } from "@/lib/browserModelDefinitions";
 type MediaInput = { type: "url"; url: string } | { type: "base64"; data: string; mimeType?: string } | { type: "binary"; data: Uint8Array; mimeType?: string };
 type MediaAsset = { mediaType: string; type: string; url?: string; data?: string; mimeType?: string };
 type ImageRequest = { model: string; prompt: string; images?: MediaInput[]; mask?: unknown; quality?: unknown; outputFormat?: string; n?: number; ratio?: string; size?: string; other?: Record<string, unknown> };
@@ -14,7 +14,7 @@ export default {
     { type: "input", field: "apiKey", title: "百炼 API Key", value: "", props: { type: "password", showPassword: true, autocomplete: "off" } },
     { type: "input", field: "endpoint", title: "业务空间接口地址", value: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com", props: { type: "text", autocomplete: "off", placeholder: "https://llm-d7hnbcsabhzqr44p.cn-beijing.maas.aliyuncs.com" } },
   ],
-  models: [{ id: "qwen-image-3.0-pro", label: "千问图像生成 3.0 Pro", type: "image", mode: ["text", "singleImage", "multiReference"], imageRatios: ["1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16", "21:9", "9:21", "2:1", "4:1"], imageSizes: [...new Set([...Object.values(imageDimensions).flat(), ...Object.values(imageClaritySizes).flatMap(value => Object.values(value))]), "1K", "2K", "auto"] }],
+  models: browserModelDefinitions.image.models,
   async generateImage(this: Context, request: ImageRequest): Promise<MediaAsset[]> {
     this.signal?.throwIfAborted();
     const apiKey = this.config.apiKey?.trim();

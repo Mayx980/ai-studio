@@ -590,4 +590,4 @@ Copyright © 2026 北京爱阿科技有限公司
 
 ## AFXEN 创作原型
 
-Issue #7 的浏览器创作预览见 [创作原型设计](frontend/web/designs/creationExperience.md)。真实供应商调用需要用户在浏览器内输入 Key；设计原型不代表生产交付。
+Issue #7 的浏览器创作原型已合入当前 Web 工程，见 [创作原型设计](frontend/web/designs/creationExperience.md)。项目和素材仍保存在当前站点浏览器中，真实供应商调用需要用户在页面输入 Key；演示账号不提供服务端权限。共享工作区服务端版仍待实施，设计合入和工程接入不代表产品交付。运行前提与原型中转入口见[源码手册](docs/sourceDevelopment.md)。

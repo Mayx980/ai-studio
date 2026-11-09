@@ -1,3 +1,4 @@
+import { browserModelDefinitions } from "@/lib/browserModelDefinitions";
 type AudioRequest = {
   model: string;
   audios?: unknown[]; images?: unknown[]; voice?: string;
@@ -39,34 +40,7 @@ export default {
       props: { type: "password", showPassword: true, autocomplete: "off" },
     },
   ],
-  models: [
-    {
-      id: "seed-audio-1.0",
-      label: "Seed Audio 1.0",
-      type: "audio",
-      audio: true,
-      languages: [
-        "中文",
-        "英文",
-        "日语",
-        "韩语",
-        "墨西哥-西班牙语",
-        "西班牙语",
-        "德语",
-        "法语",
-        "巴西-葡萄牙语",
-        "泰语",
-        "越南语",
-        "马来语",
-        "菲律宾语",
-        "意大利语",
-        "俄语",
-        "荷兰语",
-        "波兰语",
-        "土耳其语",
-      ],
-    },
-  ],
+  models: browserModelDefinitions.audio.models,
   async generateAudio(this: Context, request: AudioRequest): Promise<MediaAsset[]> {
     this.signal?.throwIfAborted();
     const apiKey = this.config.apiKey?.trim();

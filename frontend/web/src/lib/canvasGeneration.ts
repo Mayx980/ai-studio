@@ -1,3 +1,4 @@
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { nextTick } from "vue";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import type { NodeOutputs } from "@toonflow/nodes-scaffold/values";
@@ -29,7 +30,7 @@ export function captureGenerationCanvas(directory: string, path: string, settle:
       if (!node) return;
       node.data = { ...node.data, outputs: { ...node.data?.outputs, ...outputs } };
       try { await files.writeTextSnapshot(path, JSON.stringify(canvas), snapshot); }
-      catch (error) { if ((error as { code?: string }).code !== "ESTALE" || attempt === 2) throw error; continue; }
+      catch (error) { if (getWorkspaceFailure(error).code !== "ESTALE" || attempt === 2) throw error; continue; }
       await flushLive();
       return;
     }
