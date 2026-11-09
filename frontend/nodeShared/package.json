@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./imageViewer": "./src/components/imageViewer.vue",
     "./promptInput": "./src/components/promptInput.vue",
     "./referenceItem": "./src/components/referenceItem.vue",
     "./mediaHistory": "./src/components/mediaHistory.vue",
@@ -11,7 +12,8 @@
     "./showNodeError": "./src/showNodeError.ts",
     "./useNodeReferences": "./src/useNodeReferences.ts",
     "./useNodeGeneration": "./src/useNodeGeneration.ts",
-    "./groupNodeModels": "./src/groupNodeModels.ts"
+    "./groupNodeModels": "./src/groupNodeModels.ts",
+    "./generationDefaults": "./src/generationDefaults.ts"
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit"

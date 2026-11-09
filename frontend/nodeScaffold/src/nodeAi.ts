@@ -1,4 +1,4 @@
-import { onScopeDispose } from "vue";
+import { inject, onScopeDispose } from "vue";
 import { runAgentLoop, type AgentTool, type AgentToolResult } from "@earendil-works/pi-agent-core";
 import { createAssistantMessageEventStream, type AssistantMessage, type Context, type Message, type Model } from "@earendil-works/pi-ai";
 import type { MediaGenerationRequest, MediaModel } from "@toonflow/tools-scaffold/runtime";
@@ -17,6 +17,7 @@ export type NodeMediaModel = Omit<MediaModel, "mode"> & {
   mode?: (string | string[])[];
 };
 export type NodeImageRequest = {
+  n?: number;
   directory: string;
   providerId: string;
   modelId: string;
@@ -80,6 +81,17 @@ function nodeAiPort() {
   if (!port) throw new Error("节点生成宿主尚未配置");
   return port;
 }
+
+export type NodeAiAdapter = {
+  continueOnUnmount?: boolean;
+  enabled(): boolean;
+  getModels(signal?: AbortSignal): Promise<NodeAiModel[]>;
+  getMediaModels(signal?: AbortSignal): Promise<NodeMediaModel[]>;
+  generateImage(input: NodeImageRequest, signal?: AbortSignal): Promise<NodeImageResult[]>;
+  generateVideo(input: NodeVideoRequest, signal?: AbortSignal): Promise<NodeVideoResult[]>;
+  generateAudio(input: NodeAudioRequest, signal?: AbortSignal): Promise<NodeAudioResult[]>;
+  generate(input: NodeAiRequest): Promise<NodeAiResult>;
+};
 
 // ACT: 独立 UMD 各有模块作用域，共用宿主缓存；模型设置保存后失效，不按节点重复请求。
 const modelCacheKey = Symbol.for("toonflow.nodeModels");
@@ -171,19 +183,23 @@ async function requestModel(input: NodeAiRequest, context: Context, model: Model
 }
 
 export function useNodeAi() {
+  const adapter = inject<NodeAiAdapter | undefined>("nodeAi", undefined);
   const controller = new AbortController();
   onScopeDispose(() => controller.abort());
   const requestSignal = (signal?: AbortSignal) => signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
 
   async function getModels(signal?: AbortSignal) {
+    if (adapter) return adapter.enabled() ? adapter.getModels(requestSignal(signal)) : [];
     return readModels<NodeAiModel>("language", requestSignal(signal));
   }
 
   async function getMediaModels(signal?: AbortSignal) {
+    if (adapter) return adapter.enabled() ? adapter.getMediaModels(requestSignal(signal)) : [];
     return readModels<NodeMediaModel>("media", requestSignal(signal));
   }
 
   async function getMediaPrice(input: NodeMediaPriceRequest, signal?: AbortSignal): Promise<NodeMediaPrice | null> {
+    if (adapter) return null;
     const waitingSignal = requestSignal(signal);
     waitingSignal.throwIfAborted();
     const now = Date.now();
@@ -250,18 +266,22 @@ export function useNodeAi() {
   }
 
   function generateImage(input: NodeImageRequest, signal?: AbortSignal) {
+    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateImage(input, adapter.continueOnUnmount ? signal : requestSignal(signal)); }
     return generateMedia("image", input, signal);
   }
 
   function generateVideo(input: NodeVideoRequest, signal?: AbortSignal) {
+    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateVideo(input, adapter.continueOnUnmount ? signal : requestSignal(signal)); }
     return generateMedia("video", input, signal);
   }
 
   function generateAudio(input: NodeAudioRequest, signal?: AbortSignal) {
+    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generateAudio(input, adapter.continueOnUnmount ? signal : requestSignal(signal)); }
     return generateMedia("audio", input, signal);
   }
 
   async function generate(input: NodeAiRequest): Promise<NodeAiResult> {
+    if (adapter) { if (!adapter.enabled()) throw new Error("请先接入并启用可用模型"); return adapter.generate({ ...input, signal: adapter.continueOnUnmount ? input.signal : requestSignal(input.signal) }); }
     const signal = requestSignal(input.signal);
     const callSignal = input.tools?.length ? AbortSignal.any([signal, AbortSignal.timeout(600000)]) : signal;
     const { providerId, modelId, prompt, systemPrompt, onEvent } = input;

@@ -1,14 +1,14 @@
 <template>
-  <main class="workspacePage" :style="{ '--agentWidth': `${agentVisible ? agentWidth : 0}px` }">
+  <main class="workspacePage" :class="{ simpleWorkspace: workspaceStore.creationMode === 'simple' && !canvasMaterialSplit, materialSplit: !!materialEditorState && (workspaceStore.creationMode === 'professional' || canvasMaterialSplit) }" :style="{ '--agentWidth': `${agentVisible ? agentWidth : 0}px` }">
     <canvasPanel
       :key="workspaceStore.project?.directory"
       v-model:selectedTool="selectedTool"
       ref="canvasPanelRef"
       class="canvasPanel"
-      :class="{ backgroundPanel: activePanel !== 'canvas' }"
-      :inert="activePanel !== 'canvas'"
-      :aria-hidden="activePanel !== 'canvas'"
-      :active="activePanel === 'canvas'"
+      :class="{ backgroundPanel: activePanel !== 'canvas' || (workspaceStore.creationMode === 'simple' && !canvasMaterialSplit) }"
+      :inert="activePanel !== 'canvas' || (workspaceStore.creationMode === 'simple' && !canvasMaterialSplit) || tutorialPreparing"
+      :aria-hidden="activePanel !== 'canvas' || (workspaceStore.creationMode === 'simple' && !canvasMaterialSplit)"
+      :active="activePanel === 'canvas' && (workspaceStore.creationMode === 'professional' || canvasMaterialSplit)"
       :settingsVisible="settingsVisible" />
     <keep-alive :max="1">
       <documentPanel
@@ -25,19 +25,11 @@
         :fileAction="performFileAction"
         :saveNode="saveDocumentNode" />
     </keep-alive>
-    <workspaceMenu class="workspaceMenu" @openSettings="settingsVisible = true" />
-    <div class="workspaceTools">
-      <el-segmented :modelValue="activePanel" class="panelSwitcher" :options="panelOptions" size="small" aria-label="切换面板" @change="switchPanel">
-        <template #default="{ item }">
-          <span class="panelOption">
-            <component :is="item.icon" :size="14" aria-hidden="true" />
-            {{ item.label }}
-          </span>
-        </template>
-      </el-segmented>
+    <div v-show="workspaceStore.creationMode === 'professional' || canvasMaterialSplit" class="canvasToolDock">
       <div class="bottomTools">
         <el-card v-if="activePanel === 'canvas'" class="toolMenu" shadow="never" :bodyStyle="{ padding: '3px 6px' }">
           <div class="toolMenuContent" role="toolbar" aria-label="画布工具">
+            <div id="canvasToolExtras" class="canvasToolExtras" />
             <el-tooltip content="添加节点" placement="top" :showArrow="false" :hideAfter="0" :enterable="false" :triggerKeys="[]">
               <el-button class="toolButton addNodeButton" :disabled="!canvasPanelRef?.canvasReady || settingsVisible" aria-label="添加节点" aria-haspopup="menu" @click="canvasPanelRef?.addNodeAtPointer()">
                 <icon-plus :size="18" aria-hidden="true" />
@@ -54,93 +46,62 @@
                 <component :is="selectedTool === 'move' ? IconPointer : IconHandStop" :size="18" aria-hidden="true" />
               </el-button>
             </el-tooltip>
-            <el-tooltip :showArrow="false" content="帮助" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]" :disabled="helpVisible">
-              <span class="toolTrigger">
-                <el-popover v-model:visible="helpVisible" trigger="click" placement="top-end" :width="196">
-                  <template #reference>
-                    <el-button class="toolButton" text aria-label="帮助">
-                      <icon-help :size="18" />
-                    </el-button>
-                  </template>
-                  <div class="helpMenu">
-                    <el-button
-                      class="helpAction"
-                      tag="a"
-                      text
-                      :icon="IconBook"
-                      href="https://qcn7xdsqgc4z.feishu.cn/docx/RXFqdgR2Xo0dXZxGfd0cZCGgnwf"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      @click="helpVisible = false">
-                      使用教程
-                    </el-button>
-                    <el-button
-                      class="helpAction"
-                      tag="a"
-                      text
-                      :icon="IconBug"
-                      href="https://docs.qq.com/smartsheet/form/EmvmQBrmlPmr%2Fss_vsqk2v%2FvhiGzE?tab=ss_vsqk2v"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="Toonflow 需求/BUG反馈表"
-                      @click="helpVisible = false">
-                      汇报 BUG
-                    </el-button>
-                    <el-button class="helpAction" text :icon="IconBrandWechat" @click="showContact('community')">加入交流群</el-button>
-                    <el-button class="helpAction" text :icon="IconBriefcase" @click="showContact('business')">商务合作</el-button>
-                  </div>
-                </el-popover>
-              </span>
-            </el-tooltip>
+            <el-tooltip content="快捷键说明" placement="top" :showArrow="false"><el-button class="toolButton" text aria-label="快捷键说明" @click="shortcutsVisible = true"><icon-help :size="18" /></el-button></el-tooltip>
+            <el-tooltip content="引导流程" placement="top" :showArrow="false"><el-button class="toolButton" text aria-label="引导流程" :disabled="tutorialPreparing || tutorialOpening || !canvasPanelRef?.canvasReady || settingsVisible" @click="startTutorial"><icon-school :size="18" /></el-button></el-tooltip>
           </div>
         </el-card>
-        <el-tooltip v-if="!agentVisible" content="Toonflow Agent" placement="top" :showArrow="false" :hideAfter="0">
+        <el-tooltip v-if="!agentVisible" content="AFXEN Agent" placement="top" :showArrow="false" :hideAfter="0">
           <el-button
             class="agentButton"
             :class="{ standalone: activePanel !== 'canvas' }"
             :aria-expanded="agentVisible"
-            aria-label="Toonflow Agent"
+            aria-label="AFXEN Agent"
             aria-controls="agentPanel"
             @click="agentVisible = !agentVisible"></el-button>
         </el-tooltip>
       </div>
     </div>
-    <floatingAgent v-model="agentVisible" @resize="agentWidth = $event" />
+    <floatingAgent @openSettings="settingsVisible = true" @applyTemplate="applyAssistantTemplate" @enterCanvas="enterCanvas" v-model="agentVisible" :expanded="workspaceStore.creationMode === 'simple'" @resize="agentWidth = $event" />
     <settings v-model="settingsVisible" />
-    <el-dialog v-model="contactVisible" :title="contactInfo.title" width="min(360px, calc(100vw - 32px))" alignCenter appendToBody>
-      <div class="contactContent">
-        <q-r-code
-          :value="contactInfo.url"
-          :size="192"
-          type="svg"
-          color="#000000"
-          bgColor="#ffffff"
-          borderless
-          role="img"
-          :aria-label="`${contactInfo.title}二维码`" />
-        <p class="contactTip">{{ contactInfo.tip }}</p>
-      </div>
-    </el-dialog>
+    <shortcutHelp v-model="shortcutsVisible" />
+    <canvasTutorial v-if="tutorialNodeId && workspaceStore.creationMode === 'professional'" :nodeId="tutorialNodeId" :kind="tutorialKind" :steps="tutorialSteps" :focusNode="id => canvasPanelRef?.focusTutorialNode(id)" @complete="finishTutorial" />
+
   </main>
 </template>
 
 <script setup lang="ts">
 import { isStudioError } from "@/ports";
 
+import { IconVector, IconFileText, IconPointer, IconHandStop, IconPlus, IconHelp, IconBook, IconBug, IconBrandWechat, IconBriefcase } from "@tabler/icons-vue";
+import { materialEditorState } from "@/stores/materialEditor";
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { generateBrowserText, browserNodeAi } from "@/lib/browserNodeAi";
+import { browserConfig, browserResultFile, resolveBrowserModel, additionalBrowserModels, type ProfessionalCanvas, type BeginBrowserWorkflow, type BrowserConversationImport } from "@/stores/browserGeneration";
 import { computed, defineAsyncComponent, nextTick, onMounted, onScopeDispose, provide, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
-import { IconVector, IconFileText, IconPointer, IconHandStop, IconPlus, IconHelp, IconBook, IconBug, IconBrandWechat, IconBriefcase } from "@tabler/icons-vue";
+import axios from "axios";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { QRCode } from "tdesign-vue-next";
+import shortcutHelp from "@/components/shortcutHelp.vue";
 import settings from "@/components/settings/index.vue";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { registerWorkspaceControl, waitForControlValue } from "@/lib/mcpControl";
 import anonymousData from "@/lib/anonymousData";
-import { useProviderBalances } from "@/lib/providerBilling";
 import canvasPanel from "./panels/canvas/canvasHost.vue";
 import type { DocumentNodeOptions } from "./panels/canvas/canvasFiles";
-import workspaceMenu from "./components/workspaceMenu.vue";
 import floatingAgent from "./components/floatingAgent.vue";
+import { openTutorialProject, type CanvasTutorialStep } from "@/lib/canvasTutorial";
+import canvasTutorial from "@/components/canvasTutorial.vue";
+import { applyTemplateParameters, type TemplateApplication } from "@/lib/creationTemplates";
+
+provide("nodeAi", browserNodeAi);
+provide("optimizeNodePrompt", async (prompt: string, kind: "image" | "video" | "audio", signal: AbortSignal) => {
+  const model = resolveBrowserModel("text");
+  const result = await generateBrowserText({ providerId: model.id, modelId: model.modelId, prompt,
+    systemPrompt: `优化用于${({ image: "图片", video: "视频", audio: "音频" })[kind]}生成的提示词。保持用户意图、人物、场景、时长和全部引用标记（例如 {{ref 1}}）原样，改善表达和必要细节。只输出优化后的提示词，不要解释，不要编造引用或生成结果。`, signal });
+  return result.text;
+});
+
+watch(() => [browserConfig.enabled, browserConfig.endpoint, ...Object.values(browserConfig.keys), JSON.stringify(additionalBrowserModels)], () => { window.dispatchEvent(new Event("toonflow:provider-config-changed")); });
 
 const documentPanel = defineAsyncComponent(() => import("./panels/document/index.vue"));
 
@@ -148,37 +109,52 @@ const activePanel = ref<"canvas" | "document">("canvas");
 const selectedTool = ref<"move" | "hand">("move");
 onMounted(() => anonymousData.track("workspace.canvas"));
 const workspaceStore = useWorkspaceStore();
-useProviderBalances();
-const panelOptions = [
-  { label: "画布", value: "canvas", icon: IconVector },
-  { label: "文档", value: "document", icon: IconFileText },
-];
-const agentVisible = ref(true);
+const canvasMaterialSplit = computed(() => materialEditorState.value?.source === "canvas");
+const agentVisible = ref(workspaceStore.creationMode === "simple");
+watch(() => workspaceStore.creationMode, mode => { agentVisible.value = mode === "simple"; });
 const agentWidth = ref(0);
 const settingsVisible = ref(false);
-const helpVisible = ref(false);
-const contactVisible = ref(false);
-const contactType = ref<"community" | "business">("community");
-const contacts = {
-  community: {
-    title: "加入交流群",
-    url: "https://work.weixin.qq.com/u/vc36adcc89845edcbe?v=5.0.3.63936&bb=85b8d228e8",
-    tip: "Toonflow 是为爱发电的开源项目。欢迎文明交流、友善反馈；回复可能需要一些时间，请避免责问或命令式沟通，感谢你的理解与尊重。",
-  },
-  business: {
-    title: "商务合作",
-    url: "https://work.weixin.qq.com/u/vc0f54596c5837d05a?v=5.0.8.70675",
-    tip: "此联系方式仅用于商务合作接洽，不提供问题答疑。使用问题欢迎在交流群交流，需求与 BUG 可通过反馈表提交。感谢理解。",
-  },
-};
-const contactInfo = computed(() => contacts[contactType.value]);
-
-function showContact(type: "community" | "business") {
-  contactType.value = type;
-  helpVisible.value = false;
-  contactVisible.value = true;
-}
+provide("openWorkspaceSettings", () => { settingsVisible.value = true; });
 const canvasPanelRef = ref<InstanceType<typeof canvasPanel>>();
+const tutorialNodeId = ref("");
+const tutorialKind = ref<"image" | "video" | "canvas">("canvas");
+const tutorialSteps = ref<CanvasTutorialStep[]>([]);
+const tutorialPreparing = ref(false), tutorialOpening = ref(false), canvasEntryPreparing = ref(false);
+let dismissedTutorialDirectory = "";
+let tutorialPreparation: Promise<boolean> | undefined;
+function openTutorial(panel: InstanceType<typeof canvasPanel>) {
+  if (tutorialNodeId.value) return Promise.resolve(true);
+  tutorialPreparation ??= (async () => {
+    tutorialPreparing.value = true;
+    const directory = workspaceStore.project?.directory;
+    try {
+      const tutorial = await panel.prepareTutorial();
+      if (!tutorial || directory !== workspaceStore.project?.directory) return false;
+      agentVisible.value = false;
+      tutorialKind.value = workspaceStore.project?.tutorialEntry ?? tutorial.kind;
+      tutorialSteps.value = tutorial.steps;
+      tutorialNodeId.value = tutorial.nodeId;
+      if (tutorialKind.value === "canvas") workspaceStore.canvasTutorialVersion = 1;
+      return true;
+    } finally { tutorialPreparing.value = false; tutorialPreparation = undefined; }
+  })();
+  return tutorialPreparation;
+}
+function finishTutorial() { dismissedTutorialDirectory = workspaceStore.project?.directory ?? ""; tutorialNodeId.value = ""; }
+async function startTutorial() {
+  if (!canvasPanelRef.value || tutorialPreparing.value || tutorialOpening.value) return;
+  tutorialOpening.value = true;
+  dismissedTutorialDirectory = "";
+  try {
+    const kind = workspaceStore.project?.tutorialEntry ?? "canvas";
+    await flushSave();
+    tutorialNodeId.value = "";
+    await openTutorialProject(kind);
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "教学引导打开失败"); }
+  finally { tutorialOpening.value = false; }
+}
+watch(() => workspaceStore.project?.directory, () => { tutorialNodeId.value = ""; });
+const shortcutsVisible = ref(false);
 const documentPanelCache = shallowRef<{ directory: string; instance: InstanceType<typeof documentPanel> }>();
 const documentPanelRef = computed(() => documentPanelCache.value?.directory === workspaceStore.project?.directory ? documentPanelCache.value?.instance : undefined);
 watch(() => workspaceStore.project?.directory, () => { documentPanelCache.value = undefined; }, { flush: "sync" });
@@ -187,7 +163,137 @@ function setDocumentPanel(value: Element | ComponentPublicInstance | null) {
   // KeepAlive 失活会清空模板 ref，保留同一工作区实例以协调后台文档保存和文件操作。
   if (value && directory) documentPanelCache.value = { directory, instance: value as InstanceType<typeof documentPanel> };
 }
+let startingProject = false;
+async function startNewProject(mode: "simple" | "professional") {
+  if (startingProject) return;
+  startingProject = true;
+  try {
+    await flushSave();
+    const project = await workspaceStore.createProject("未命名项目", mode);
+    workspaceStore.creationMode = mode;
+    if (mode === "professional") workspaceStore.pendingCanvasEntry = { directory: project.directory };
+    agentVisible.value = mode === "simple";
+  } finally { startingProject = false; }
+}
+provide("startNewProject", startNewProject);
+provide("openSidebarProject", async (directory: string, mode?: "simple") => {
+  await flushSave();
+  await workspaceStore.openProject(directory);
+  if (mode === "simple") { workspaceStore.creationMode = "simple"; agentVisible.value = true; }
+  else await workspaceStore.restoreProjectEntry();
+});
+let applyingAssistantTemplate = false;
+async function applyAssistantTemplate(value: TemplateApplication) {
+  if (startingProject || applyingAssistantTemplate) return;
+  applyingAssistantTemplate = true;
+  try {
+    await startNewProject("simple");
+    const directory = workspaceStore.project?.directory;
+    if (!directory) throw new Error("项目创建失败");
+    applyTemplateParameters(value.template);
+    workspaceStore.pendingAgentMessage = { directory, prompt: value.prompt, attachments: value.references.map(file => ({ file, name: file.name, path: "", mimeType: file.type })), model: "", reasoningEffort: "", send: false };
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "模板应用失败"); }
+  finally { applyingAssistantTemplate = false; }
+}
+onMounted(() => { if (browserWorkspaceMode && !workspaceStore.project) void startNewProject("professional").catch(error => ElMessage.error(error.message)); });
+watch(() => workspaceStore.pendingCanvasEntry, async entry => {
+  if (!entry || entry.directory !== workspaceStore.project?.directory) return;
+  workspaceStore.pendingCanvasEntry = null;
+  canvasEntryPreparing.value = true;
+  try {
+    workspaceStore.creationMode = "professional";
+    activePanel.value = "canvas";
+    await nextTick();
+    const panel = canvasPanelRef.value;
+    if (!panel) throw new Error("画布正在初始化，请稍后重试");
+    await panel.waitUntilReady();
+    if (entry.directory !== workspaceStore.project?.directory) return;
+    if (entry.files?.length) {
+      await panel.importBrowserResult(entry.files, entry.directory);
+      agentVisible.value = false;
+      return;
+    }
+    if (entry.nodeType) {
+      tutorialKind.value = entry.nodeType === "remote-imageGenerationNode" ? "image" : entry.nodeType === "remote-videoGenerationNode" ? "video" : "canvas";
+      const teaching = entry.tutorial && tutorialKind.value !== "canvas" ? tutorialKind.value : undefined;
+      await panel.createInitialNode(entry.nodeType, teaching);
+    }
+    agentVisible.value = false;
+    if (entry.tutorial && await openTutorial(panel)) {
+      if (workspaceStore.project) workspaceStore.project.tutorial = true;
+      if (!workspaceStore.tutorialVisited.includes(tutorialKind.value)) workspaceStore.tutorialVisited.push(tutorialKind.value);
+    }
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "画布打开失败，项目已保留"); }
+  finally { canvasEntryPreparing.value = false; }
+}, { immediate: true, flush: "post" });
+watch(() => [canvasPanelRef.value?.canvasReady, workspaceStore.project?.directory, workspaceStore.creationMode, activePanel.value], async () => {
+  const panel = canvasPanelRef.value, project = workspaceStore.project;
+  if (!panel?.canvasReady || !project?.tutorial || workspaceStore.creationMode !== "professional" || activePanel.value !== "canvas" || canvasEntryPreparing.value || tutorialOpening.value || tutorialNodeId.value || dismissedTutorialDirectory === project.directory) return;
+  try { await openTutorial(panel); }
+  catch (error) { ElMessage.error(error instanceof Error ? error.message : "教学引导打开失败，请点击底部引导流程重试"); }
+}, { immediate: true, flush: "post" });
+async function enterCanvas() {
+  try {
+    workspaceStore.creationMode = "professional";
+    activePanel.value = "canvas";
+    await nextTick();
+    if (!canvasPanelRef.value) throw new Error("画布正在初始化，请稍后重试");
+    await canvasPanelRef.value.waitUntilReady();
+    agentVisible.value = false;
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "无法进入画布"); }
+}
+provide("importConversationTurn", async (turn: BrowserConversationImport) => {
+  if (workspaceStore.project?.directory !== turn.directory) throw new Error("项目已切换，请返回原对话重试");
+  tutorialNodeId.value = "";
+  workspaceStore.creationMode = "professional"; activePanel.value = "canvas";
+  await nextTick();
+  const panel = canvasPanelRef.value;
+  if (!panel) throw new Error("画布尚未就绪");
+  await panel.waitUntilReady();
+  await panel.importConversationTurn(turn);
+  agentVisible.value = false;
+});
+provide("importBrowserResult", async (file: File, directory: string, script = false) => {
+  if (!canvasPanelRef.value) throw new Error("画布尚未就绪");
+  workspaceStore.creationMode = "professional";
+  activePanel.value = "canvas";
+  await nextTick();
+  await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+  await canvasPanelRef.value.waitUntilReady();
+  await canvasPanelRef.value.importBrowserResult(file, directory, script);
+  agentVisible.value = false;
+});
+provide("beginBrowserWorkflow", (async (...args) => {
+  if (args[4] !== false) workspaceStore.creationMode = "professional";
+  activePanel.value = "canvas";
+  await nextTick();
+  const panel = canvasPanelRef.value;
+  if (!panel) throw new Error("画布正在初始化，请稍后重试");
+  return panel.beginBrowserWorkflow(...args);
+}) as BeginBrowserWorkflow);
 provide("canvas", () => canvasPanelRef.value?.getCanvasContext());
+provide("professionalCanvas", {
+  async focus(directory, node) {
+    await focusDocumentNode(directory, node.canvasPath, node.nodeId);
+  },
+  async read(directory: string, node: { canvasPath: string; nodeId: string }) {
+    if (!canvasPanelRef.value) throw new Error("画布尚未就绪");
+    await canvasPanelRef.value.waitUntilReady();
+    const document = await canvasPanelRef.value.readDocumentNode(directory, node.canvasPath, node.nodeId);
+    return document.outputs.find(output => output.id === "text")?.text ?? "";
+  },
+  async mount(directory: string, node: { canvasPath: string; nodeId: string }, target: HTMLElement) {
+    if (!canvasPanelRef.value) throw new Error("画布尚未就绪");
+    await canvasPanelRef.value.waitUntilReady();
+    return canvasPanelRef.value.mountDocumentNode(directory, node.canvasPath, node.nodeId, target);
+  },
+  async apply(directory, result, sources, label, model, prompt) {
+    if (!canvasPanelRef.value || directory !== workspaceStore.project?.directory) throw new Error("工作区已切换，生成结果保留在原对话");
+    const file = await browserResultFile(result);
+    await canvasPanelRef.value.waitUntilReady();
+    return canvasPanelRef.value.importBrowserResult(file, directory, false, { resultId: result.id, label, model, prompt, sources });
+  },
+} satisfies ProfessionalCanvas);
 provide("mentionCanvas", () => canvasPanelRef.value?.mentionSource);
 provide("activateCanvasPanel", () => switchPanel("canvas"));
 provide("performWorkspaceFileAction", (directory: string, action: "copy" | "rename" | "move" | "delete", path: string, target?: string, entryType: "canvas" | "directory" = "canvas") =>
@@ -357,56 +463,17 @@ function saveDocumentNode(directory: string, canvasPath: string, nodeId: string,
     }
   }
 
-  .workspaceMenu {
+  .canvasToolDock {
     position: absolute;
-    top: 15px;
-    left: 15px;
+    bottom: 15px;
+    left: calc((100% - var(--agentWidth, 0px)) / 2);
+    transform: translateX(-50%);
     z-index: 5;
-  }
-
-  .workspaceTools {
-    position: absolute;
-    inset: 0;
-    width: calc(100% - var(--agentWidth, 0px));
-    container: workspaceTools / inline-size;
-    pointer-events: none;
-
-    .panelSwitcher {
-      --el-border-radius-base: 999px;
-      --el-segmented-bg-color: var(--el-bg-color-overlay);
-      --el-segmented-item-selected-color: var(--el-color-primary);
-      --el-segmented-item-selected-bg-color: var(--el-color-primary-light-9);
-      position: absolute;
-      top: 15px;
-      left: 50%;
-      z-index: 5;
-      min-height: 32px;
-      padding: 3px;
-      border: 1px solid var(--el-border-color-light);
-      box-shadow: var(--el-box-shadow-lighter);
-      font-size: 12px;
-      transform: translateX(-50%);
-      pointer-events: auto;
-
-      .panelOption {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 5px;
-        padding: 0 3px;
-        line-height: 24px;
-      }
-    }
-
     .bottomTools {
-      position: absolute;
-      bottom: 15px;
-      left: 50%;
       z-index: 5;
       display: flex;
       align-items: center;
       gap: 8px;
-      transform: translateX(-50%);
       pointer-events: auto;
 
       .toolMenu {
@@ -584,28 +651,17 @@ function saveDocumentNode(directory: string, canvasPath: string, nodeId: string,
     background-position: 98% 60%, 0 0, 0 0;
   }
 }
-.helpMenu {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+</style>
 
-  .helpAction {
-    justify-content: flex-start;
-    margin-left: 0;
-  }
-}
+<style scoped lang="scss">
+.canvasToolExtras { display: flex; align-items: center; } .canvasToolDock { max-width: calc(100% - 24px); .toolMenuContent { flex-wrap: wrap; justify-content: center; } }
+</style>
 
-.contactContent {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
+<style scoped lang="scss">
+@media (max-width: 640px) { .canvasToolDock { left: 50%; width: calc(100% - 24px); .bottomTools { flex-wrap: wrap; justify-content: center; .toolMenu { max-width: 100%; flex-shrink: 1; } } } }
+</style>
 
-  .contactTip {
-    margin: 0;
-    color: var(--el-text-color-secondary);
-    font-size: 12px;
-    line-height: 1.7;
-  }
-}
+<style scoped lang="scss">
+.workspacePage.materialSplit { .canvasPanel { width: 50%; } .canvasToolDock { left: 25%; } }
+@media(max-width:700px) { .workspacePage.materialSplit { .canvasPanel { width: 100%; height: 50dvh; } .canvasToolDock { left: 50%; bottom: calc(50dvh + 12px); } } }
 </style>

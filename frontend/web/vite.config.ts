@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "@toonflow/file";
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import components from "unplugin-vue-components/vite";
@@ -7,17 +8,30 @@ import desktopConfig from "../../electrobun.config.ts";
 import postcssConfig from "../../postcss.config.ts";
 import { i18nPlugin } from "@toonflow/i18n/vite";
 
+import studioRelay from "./studioRelay";
+
+// ACT: 内置节点按包的公开导出解析，不依赖另一台机器是否已重建 workspace 链接。
+const builtinNodeAliases = ["nodes/textNode", "nodes/imageGenerationNode", "nodes/videoGenerationNode", "nodes/audioGenerationNode", "nodes/imageNode", "nodes/videoNode", "nodes/audioNode", "nodeShared"].flatMap(name => {
+  const packageRoot = new URL(`../${name}/`, import.meta.url);
+  const packageInfo = JSON.parse(readFileSync(new URL("package.json", packageRoot), "utf8"));
+  return Object.entries(packageInfo.exports as Record<string, string>).map(([path, target]) => ({
+    find: `${packageInfo.name}/${path.slice(2)}`,
+    replacement: fileURLToPath(new URL(target, packageRoot)),
+  }));
+});
+
 export default defineConfig(({ mode }) => ({
   css: { postcss: postcssConfig },
   define: {
+    "import.meta.env.VITE_STUDIO_RELAY": mode === "studio",
     "import.meta.env.appVersion": JSON.stringify(desktopConfig.app.version),
   },
   server: {
     proxy: mode === "scenario" ? undefined : {
-      "/mcp": { target: "http://127.0.0.1:3000", changeOrigin: false },
-      "/a2a": { target: "http://127.0.0.1:3000", changeOrigin: false },
+      "/mcp": { target: mode === "studio" ? "http://127.0.0.1:3107" : "http://127.0.0.1:3000", changeOrigin: false },
+      "/a2a": { target: mode === "studio" ? "http://127.0.0.1:3107" : "http://127.0.0.1:3000", changeOrigin: false },
       "/api": {
-        target: "http://127.0.0.1:3000",
+        target: mode === "studio" ? "http://127.0.0.1:3107" : "http://127.0.0.1:3000",
         changeOrigin: false,
         configure(proxy) {
           proxy.on("proxyReq", (request, incoming) => {
@@ -29,6 +43,7 @@ export default defineConfig(({ mode }) => ({
   },
   resolve: {
     alias: [
+      ...builtinNodeAliases,
       { find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) },
       { find: /^shiki$/, replacement: fileURLToPath(new URL("./src/lib/shiki.ts", import.meta.url)) },
     ],
@@ -45,6 +60,7 @@ export default defineConfig(({ mode }) => ({
         handler: html => mode === "scenario" ? html.replace("/src/composition/production.ts", "/src/composition/scenario.ts") : html,
       },
     },
+    ...(mode === "studio" ? [studioRelay()] : []),
     i18nPlugin(),
     vue(),
     components({

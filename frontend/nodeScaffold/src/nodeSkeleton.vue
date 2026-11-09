@@ -1,8 +1,9 @@
 <template>
   <div v-if="documentTarget" class="nodeDocumentPlaceholder" :style="canvasSize" aria-hidden="true" />
   <teleport :to="documentTarget ?? 'body'" :disabled="!documentTarget">
-  <div ref="skeletonElement" v-bind="$attrs" class="nodeSkeleton" :class="{ documentNode: documentTarget }" @wheel.capture="zoomCanvas" @dblclick.stop="focusNode" @contextmenu="documentTarget && openMenu($event)">
+  <div ref="skeletonElement" v-bind="$attrs" class="nodeSkeleton" :class="{ documentNode: documentTarget, readOnlyNode: readOnly }" @beforeinput.capture="preventReadOnlyInput" @paste.capture="preventReadOnlyInput" @drop.capture="preventReadOnlyInput" @click.capture="preventReadOnlyControl" @keydown.capture="preventReadOnlyControl" @wheel.capture="zoomCanvas" @dblclick.stop="focusNode" @contextmenu="documentTarget && openMenu($event)">
     <el-dropdown
+      v-if="!readOnly"
       ref="menu"
       trigger="contextmenu"
       virtualTriggering
@@ -14,7 +15,7 @@
       @command="handleCommand">
       <template #dropdown>
         <el-dropdown-menu>
-          <el-dropdown-item v-if="assetOutputs.length && saveNodeToAssets" command="saveAsset" :icon="IconFolderPlus">保存到素材库</el-dropdown-item>
+          <el-dropdown-item v-if="assetOutputs.length && saveNodeToAssets" command="saveAsset" :icon="IconFolderPlus">保存到个人资产</el-dropdown-item>
           <el-dropdown-item :divided="!!(assetOutputs.length && saveNodeToAssets)" command="copy" :icon="IconCopy">复制节点</el-dropdown-item>
           <el-dropdown-item command="duplicate" :icon="IconCopyPlus">创建副本</el-dropdown-item>
           <el-dropdown-item command="delete" :icon="IconTrash">删除节点</el-dropdown-item>
@@ -25,7 +26,7 @@
       </template>
     </el-dropdown>
     <div
-      v-if="documentTarget || (topVisible && slotsVisible)"
+      v-if="!readOnly && !documentContentOnly && (documentTarget || (topVisible && slotsVisible))"
       class="floatingSlot topSlot nodrag nopan nowheel"
       :style="{ width: typeof topWidth === 'number' ? `${topWidth}px` : topWidth }"
       @pointerdown.stop
@@ -39,9 +40,9 @@
             :icon="IconFolderPlus"
             :disabled="!assetOutputs.length || !saveNodeToAssets"
             text
-            title="添加到素材库"
-            aria-label="添加到素材库"
-            @click.stop="handleCommand('saveAsset')">添加到素材库</el-button>
+            title="添加到个人资产"
+            aria-label="添加到个人资产"
+            @click.stop="handleCommand('saveAsset')">添加到个人资产</el-button>
           <slot name="topActions" />
           <el-divider direction="vertical" />
           <slot name="topRightActions" />
@@ -70,7 +71,7 @@
       </slot>
     </div>
     <div
-      v-if="$slots.bottom && (documentTarget || (bottomVisible && slotsVisible))"
+      v-if="!documentContentOnly && $slots.bottom && (documentTarget || (bottomVisible && slotsVisible))"
       class="floatingSlot bottomSlot nodrag nopan nowheel"
       :style="{ width: typeof bottomWidth === 'number' ? `${bottomWidth}px` : bottomWidth }"
       @pointerdown.stop
@@ -99,12 +100,12 @@
         v-else
         class="labelText"
         tabindex="0"
-        :title="`${label}（双击编辑名称）`"
+        :title="readOnly ? label : `${label}（双击编辑名称）`"
         @dblclick.stop="editLabel"
         @keydown.enter.stop.prevent="editLabel">
         {{ label }}
       </span>
-      <div class="nodeActions nodrag nopan" @pointerdown.stop @mousedown.stop @dblclick.stop>
+      <div v-if="!readOnly" class="nodeActions nodrag nopan" @pointerdown.stop @mousedown.stop @dblclick.stop>
         <el-button
           :icon="IconRefresh"
           :loading="loading || reloading"
@@ -116,7 +117,7 @@
         <el-button :icon="IconTrash" text title="移除节点" aria-label="移除节点" @click.stop="deleteNode" :loading="deleting" />
       </div>
     </div>
-    <div class="cardContainer">
+    <div class="cardContainer" :style="{ '--connectionReach': `${(64 / 3) / viewport.zoom}px` }">
       <el-card
         class="contentCard"
         :class="{ selected: node.selected }"
@@ -142,7 +143,7 @@
             linking: localStartHandle?.id === item.id && localStartHandle.type === group.type,
           }"
           :type="group.type"
-          :connectable="!loading"
+          :connectable="!readOnly && !loading"
           :position="group.position"
           :isValidConnection="validateConnection"
           :data-connection-status="getHandleStatus(item)"
@@ -152,7 +153,7 @@
           @pointermove="moveHandle"
           @pointerleave="resetHandle"
           @pointercancel="resetHandle">
-          <component :is="isHandleConnected(item) ? IconCircleDot : IconCircleDashed" class="handleIcon" :size="18" aria-hidden="true" />
+          <component :is="isHandleConnected(item) ? IconCircleDot : IconCirclePlus" class="handleIcon" :size="18" aria-hidden="true" />
         </handle>
       </template>
     </div>
@@ -174,7 +175,7 @@ import {
   IconDownload,
   IconMaximize,
   IconBox,
-  IconCircleDashed,
+  IconCirclePlus,
   IconCircleDot,
   IconLoader2,
 } from "@tabler/icons-vue";
@@ -192,6 +193,12 @@ const topVisible = defineModel<boolean>("topVisible", { default: false });
 const bottomVisible = defineModel<boolean>("bottomVisible", { default: false });
 const emit = defineEmits<{ fullscreen: [] }>();
 const downloading = ref(false);
+const readOnly = inject("readOnlyCanvas", false);
+function preventReadOnlyInput(event: Event) { if (readOnly) { event.preventDefault(); event.stopPropagation(); } }
+function preventReadOnlyControl(event: MouseEvent | KeyboardEvent) {
+  const target = event.target instanceof Element ? event.target : undefined;
+  if (readOnly && target?.closest("button, .el-select, input:not([readonly]), [role=combobox]") && !target.closest(".videoPlayer, .audioContent")) { event.preventDefault(); event.stopPropagation(); }
+}
 const props = withDefaults(
   defineProps<
     NodeData & {
@@ -203,6 +210,7 @@ const props = withDefaults(
       downloadUrl?: string;
       downloadName?: string;
       fullscreenVisible?: boolean;
+      hiddenHandles?: string[];
     }
   >(),
   {
@@ -211,19 +219,22 @@ const props = withDefaults(
     outputs: () => ({}),
     previewReady: true,
     fullscreenVisible: true,
+    hiddenHandles: () => [],
     topWidth: "20vw",
     bottomWidth: "20vw",
   }
 );
 const handleGroups = computed(() => [
-  { type: "target" as const, position: Position.Left, items: props.handles.filter((item) => item.type === "target") },
-  { type: "source" as const, position: Position.Right, items: props.handles.filter((item) => item.type === "source") },
+  { type: "target" as const, position: Position.Left, items: props.handles.filter((item) => item.type === "target" && !props.hiddenHandles.includes(item.id)) },
+  { type: "source" as const, position: Position.Right, items: props.handles.filter((item) => item.type === "source" && !props.hiddenHandles.includes(item.id)) },
 ]);
 const cardHeight = computed(() => Math.max(100, ...handleGroups.value.map((group) => (group.items.length + 1) * 44)));
 const { id: nodeId, node } = useNode();
 const documentContext = inject<NodeDocumentContext | undefined>("nodeDocument", undefined);
 const documentTarget = computed(() => documentContext?.targets.get(nodeId));
+const documentContentOnly = computed(() => documentTarget.value?.dataset.nodeContentOnly === "true");
 const skeletonElement = ref<HTMLElement>();
+watch(() => node.selected, async selected => { if (readOnly && selected) { await nextTick(); await focusNode(); } });
 const canvasSize = shallowRef<{ width: string; height: string }>();
 let documentLease: symbol | undefined;
 function mountDocument(target: HTMLElement) {
@@ -305,9 +316,10 @@ const connectedHandles = computed<Set<string>>((previous) => {
   return previous?.size === connected.size && [...connected].every((key) => previous.has(key)) ? previous : connected;
 });
 
-async function focusNode(event: MouseEvent) {
+async function focusNode(event?: MouseEvent) {
   if (documentTarget.value) return;
-  const element = event.currentTarget as HTMLElement;
+  const element = (event?.currentTarget as HTMLElement | undefined) ?? skeletonElement.value;
+  if (!element) return;
   await nextTick();
   const flowElement = vueFlowRef.value;
   if (!flowElement || !element.isConnected) return;
@@ -387,6 +399,7 @@ async function reloadNode() {
 }
 
 async function openMenu(event: MouseEvent | TouchEvent) {
+  if (readOnly) return;
   event.preventDefault();
   if (documentTarget.value) event.stopPropagation();
   menu.value?.handleClose();
@@ -426,6 +439,7 @@ const assetOutputs = computed(() =>
 );
 
 async function handleCommand(command: string) {
+  if (readOnly) return;
   if (command === "saveAsset") saveNodeToAssets?.(props.label, assetOutputs.value);
   if (command === "clipboard" && copyNodeToClipboard && !copyingToClipboard.value) {
     copyingToClipboard.value = true;
@@ -482,6 +496,7 @@ async function handleCommand(command: string) {
 }
 
 async function editLabel() {
+  if (readOnly) return;
   labelDraft.value = props.label;
   editingLabel.value = true;
   await nextTick();
@@ -578,6 +593,7 @@ watch(
   text-align: left;
 
   &.documentNode {
+    .cardContainer::before { display: none; }
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -689,6 +705,8 @@ watch(
 
   .cardContainer {
     position: relative;
+    isolation: isolate;
+    &::before { content: ""; position: absolute; inset: calc(-1 * var(--connectionReach)); z-index: -1; border-radius: 16px; }
 
     .contentCard.selected {
       border-color: color-mix(in srgb, var(--el-color-primary) 50%, var(--el-border-color-light));
@@ -777,4 +795,8 @@ watch(
     transform: rotate(360deg);
   }
 }
+</style>
+
+<style scoped lang="scss">
+.readOnlyNode { :deep(.sendButton), :deep(.promptActions), :deep(.promptTools), :deep(.removeButton), :deep(.editButton), :deep(.expandScript), :deep(.scriptSaveStatus) { display: none !important; } :deep(.promptFooter .el-select), :deep(.promptFooter button) { pointer-events: none; } }
 </style>

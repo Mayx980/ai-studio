@@ -15,7 +15,6 @@
       <el-button :icon="IconScissors" text :disabled="!outputFile || generating || deleting || uploading || actions?.processing" @click.stop="actions?.open('trim')">截取片段</el-button>
       <mediaHistory mediaType="video" :current="outputFile" :disabled="generating || deleting || uploading" @select="outputs.video = { dataType: 'VIDEO', value: $event }" />
       <el-button :icon="IconTransfer" :loading="uploading" :disabled="generating || deleting" text title="替换视频" aria-label="替换视频" @click.stop="fileInput?.click()">替换视频</el-button>
-      <input ref="fileInput" type="file" accept="video/*" hidden aria-label="选择替换视频" :disabled="generating || deleting || uploading" @change="replaceOutput" />
     </template>
     <template #topRightActions>
       <el-dropdown trigger="click" placement="bottom-end" :disabled="!player?.ready || player?.capturing || generating || deleting || uploading" @command="player?.captureFrame($event)">
@@ -29,6 +28,7 @@
         </template>
       </el-dropdown>
     </template>
+    <input ref="fileInput" type="file" accept="video/*" hidden aria-label="选择替换视频" :disabled="generating || deleting || uploading" @change="replaceOutput" />
     <div v-loading="generating || uploading" class="videoContent nopan" :aria-busy="generating || uploading">
       <videoPlayer
         v-if="previewUrl"
@@ -36,21 +36,19 @@
         :src="previewUrl"
         label="生成视频"
         @loadedmetadata="resizeVideo" />
-      <div v-else class="videoEmpty" role="img" aria-label="暂无生成视频">
-        <icon-camera-ai :size="48" stroke="1.25" aria-hidden="true" />
-      </div>
+      <el-button v-else class="videoEmpty" text aria-label="上传视频" @click.stop="fileInput?.click()">上传视频</el-button>
     </div>
     <template #bottom>
       <el-card class="promptCard" shadow="never" :bodyStyle="{ padding: '14px 16px 12px' }">
-        <referenceItem
-          v-if="refList.length"
-          v-model="refList"
-          @preview="setReferencePreview"
-          @remove="removeReference" />
+
         <div v-if="frameMode" class="referenceHint">
           {{ selectedMode === "startFrameOptional" ? "仅一张图片时作为尾帧；两张图片按顺序作为首帧、尾帧" : "图片引用按顺序作为首帧、尾帧" }}
         </div>
-        <promptInput v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable />
+        <promptInput :disabled="generating || deleting || uploading" optimizeKind="video" :actionsTarget="promptActions" v-model="data.promptModel" v-model:text="data.prompt" :references="referenceMentions" expandable><template #references><referenceItem
+          v-if="refList.length"
+          v-model="refList"
+          @preview="setReferencePreview"
+          @remove="removeReference" /></template></promptInput>
         <div class="promptFooter">
           <el-select
             v-model="data.model"
@@ -64,6 +62,7 @@
             placement="top-start"
             @visible-change="(visible) => visible && loadModels().catch((error) => showNodeError(error, '模型读取失败'))">
             <template #prefix><icon-sparkles :size="17" /></template>
+            <el-option v-if="data.model && !selectedModel" :value="data.model" :label="data.modelLabel || '未接入模型'" disabled />
             <el-option-group v-for="provider in modelGroups" :key="provider.id" :label="provider.label">
               <el-option
                 v-for="item in provider.models"
@@ -76,20 +75,22 @@
             v-model:duration="data.duration"
             v-model:resolution="data.resolution"
             v-model:ratio="data.ratio"
-            v-model:mode="data.mode"
             v-model:generateAudio="data.generateAudio"
             :ratios="ratioOptions"
             :model="selectedModel"
             :disabled="generating || deleting || !selectedModel" />
-          <div class="generationActions">
             <mediaPrice v-if="generationInput" :input="{ ...generationInput, mediaType: 'video' }" :supported="selectedModel?.supportsPrice === true" />
+          <div ref="promptActions" class="promptActions" />
+          <div class="generationActions">
+            <el-tooltip :content="generating ? '停止生成' : '生成'" placement="top">
             <el-button
               class="sendButton"
               :icon="generating ? IconPlayerStop : IconArrowUp"
               :disabled="deleting || uploading || (!generating && (!generationPrompt || !selectedModel))"
               :title="generating ? '停止生成' : '生成视频'"
               :aria-label="generating ? '停止生成' : '生成视频'"
-              @click="generating ? generationController?.abort() : startGeneration().catch((error) => showNodeError(error, '视频生成失败'))" />
+              @click="generating ? generationState.cancel() : startGeneration().catch((error) => showNodeError(error, '视频生成失败'))" />
+            </el-tooltip>
           </div>
         </div>
       </el-card>
@@ -100,7 +101,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onScopeDispose, ref, watch } from "vue";
-import { ElButton, ElCard, ElSelect, ElOption, ElOptionGroup, ElLoading, ElDropdown, ElDropdownMenu, ElDropdownItem } from "element-plus";
+import { ElTooltip, ElButton, ElCard, ElSelect, ElOption, ElOptionGroup, ElLoading, ElDropdown, ElDropdownMenu, ElDropdownItem } from "element-plus";
 import { IconCameraAi, IconSparkles, IconArrowUp, IconPlayerStop, IconTransfer, IconMusic, IconLayersSubtract, IconScissors, IconPhotoScan, IconPlayerSkipBack, IconPlayerSkipForward } from "@tabler/icons-vue";
 import { nodeSkeleton, nodeTools, useNode, z, type NodeMediaModel, type NodeVideoRequest, type NodeHandle } from "@toonflow/nodes-scaffold/runtime";
 import { groupNodeModels } from "@toonflow/node-shared/groupNodeModels";
@@ -125,18 +126,20 @@ defineOptions({
 });
 const vLoading = ElLoading.directive;
 const { id, node, nodeProps, nodeEvent, outputs, files, ai, updateNodeInternals } = useNode({
-  label: "视频生成",
+  label: "视频",
 });
 type PromptModel = NonNullable<InstanceType<typeof promptInput>["$props"]["modelValue"]>;
-const data = computed(() => node.data as { prompt: string; promptModel: PromptModel; model: string; duration?: number; resolution: string; ratio: string; mode: string; generateAudio: boolean });
+const data = computed(() => node.data as { prompt: string; promptModel: PromptModel; model: string; modelLabel?: string; duration?: number; resolution: string; ratio: string; mode: string; generateAudio: boolean });
 data.value.prompt ??= "";
 data.value.promptModel ??= [];
 data.value.model ??= "";
-data.value.resolution ??= "";
+data.value.duration ??= 5;
+data.value.resolution ??= "480P";
 data.value.mode ??= "";
 data.value.generateAudio ??= true;
 data.value.ratio ??= "9:16";
 const { refList, referenceMentions, setReferencePreview, removeReference } = useNodeReferences();
+const promptActions = ref<HTMLElement>();
 const models = ref<NodeMediaModel[]>([]);
 const modelsLoading = ref(false);
 const uploading = ref(false);
@@ -155,7 +158,7 @@ let modelsRequest: Promise<void> | undefined;
 const ratioOptions = ["16:9", "9:16", "1:1", "4:3", "3:4"];
 const selectedModel = computed(() => models.value.find((item) => JSON.stringify([item.providerId, item.modelId]) === data.value.model));
 const selectedMode = computed(() => selectedModel.value?.mode?.find((item) => JSON.stringify(item) === data.value.mode) as NodeVideoRequest["mode"]);
-const frameMode = computed(() => ["startEndRequired", "endFrameOptional", "startFrameOptional"].includes(String(selectedMode.value)));
+const frameMode = computed(() => ["singleImage", "startEndRequired", "endFrameOptional", "startFrameOptional"].includes(String(selectedMode.value)));
 const mediaCounts = computed(() => ({
   image: refList.value.filter((item) => item.dataType === "IMAGE").length,
   video: refList.value.filter((item) => item.dataType === "VIDEO").length,
@@ -201,7 +204,7 @@ watch([selectedModel, () => data.value.duration], ([choice]) => {
   const durations = getDurations(choice);
   if (!durations.includes(data.value.duration!)) data.value.duration = durations[0];
   const resolutions = getResolutions(choice, data.value.duration);
-  if (!resolutions.includes(data.value.resolution)) data.value.resolution = resolutions[0] ?? "";
+  if (!resolutions.includes(data.value.resolution)) data.value.resolution = resolutions.includes("480P") ? "480P" : resolutions[0] ?? "";
   if (!ratioOptions.includes(data.value.ratio)) data.value.ratio = "9:16";
   if (choice.audio !== "optional") data.value.generateAudio = choice.audio === true;
 }, { flush: "sync" });
@@ -250,7 +253,7 @@ onScopeDispose(() => {
   disposed = true;
   window.removeEventListener("toonflow:plugin-installed", refreshProviderModels);
   window.removeEventListener("toonflow:provider-config-changed", refreshProviderModels);
-  generationController?.abort();
+  if (!generationState.background) generationController?.abort();
 });
 
 async function refreshProviderModels(event: Event) {
@@ -318,7 +321,7 @@ async function startGeneration() {
   const workspace = files.getWorkspaceFiles();
   const controller = new AbortController();
   generationController = controller;
-  // ACT: 工具立即返回，任务由节点持有，停止或卸载时取消。
+  // ACT: 工具立即返回，浏览器任务独立于节点视图，显式停止或删除时取消。
   generation = generationState.run(() => workspace
     .list()
     .then(({ directory }) => {
@@ -343,9 +346,9 @@ nodeEvent.on("save", (reason) => {
 nodeEvent.on("delete", async () => {
   if (uploading.value) throw new Error("视频正在替换，请稍后删除节点");
   deleting.value = true;
-  generationController?.abort();
+  generationState.cancel();
   try {
-    await generation;
+    await generationState.wait();
     await files.removeNodeFiles();
   } finally {
     deleting.value = false;
@@ -481,6 +484,7 @@ nodeTools.register({
   }
 
   .promptFooter {
+    .promptActions { display: flex; align-items: center; flex: none; margin-left: auto; }
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -502,21 +506,29 @@ nodeTools.register({
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-left: auto;
+      margin-left: 0;
 
       .sendButton {
         width: 32px;
         height: 32px;
         margin-left: 0;
         padding: 0;
-        --el-button-bg-color: var(--el-text-color-primary);
+        --el-button-bg-color: var(--el-color-primary);
         --el-button-border-color: transparent;
-        --el-button-text-color: var(--el-bg-color);
-        --el-button-hover-bg-color: var(--el-text-color-regular);
+        --el-button-text-color: #fff;
+        --el-button-hover-bg-color: var(--el-color-primary-light-3);
         --el-button-hover-border-color: transparent;
-        --el-button-hover-text-color: var(--el-bg-color);
+        --el-button-hover-text-color: #fff;
+        --el-button-disabled-bg-color: var(--el-color-primary);
+        --el-button-disabled-border-color: transparent;
+        --el-button-disabled-text-color: #fff;
+        &.is-disabled { opacity: .45; }
       }
     }
   }
 }
+</style>
+
+<style scoped lang="scss">
+.promptCard { .promptFooter { justify-content: flex-start; gap: 4px; flex-wrap: wrap; .modelSelect { flex: none; width: 180px; } .promptActions { margin-left: auto; } } }
 </style>

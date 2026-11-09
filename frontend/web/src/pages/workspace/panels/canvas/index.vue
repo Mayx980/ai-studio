@@ -15,6 +15,7 @@
     @pointerleave="pointerPosition = undefined"
     @dragover="dragFilesOver"
     @drop="dropFiles">
+    <nodeReferences v-if="project?.directory" ref="nodeReferencesRef" :directory="project.directory" :nodes="() => flow.getNodes.value" />
     <vue-flow
       :id="runtimeKey"
       :only-render-visible-elements="false"
@@ -64,12 +65,14 @@
       <background :gap="16" pattern-color="var(--el-border-color)" />
       <canvasEmpty
         v-if="active && !settingsVisible && project?.directory && canvasReady && !flow.getNodes.value.length"
-        :availableNodes="availableNodes"
+        :availableNodes="creationNodes"
         @create="createEmptyNode" />
       <canvasMenu ref="canvasMenuRef" v-model:canvasId="canvasId" :directory="project?.directory" :initialCanvasId="initialCanvasId" :activateCanvas="activateCanvas" :flushSave="flushCanvases ?? flushCanvasSave">
-        <assetLibrary ref="assetLibraryRef" v-model="assetsVisible" :directory="project?.directory" />
+        <template #actions><div class="sidebarHeader"><el-button text :aria-expanded="sidebarOpen && !assetsVisible" :type="sidebarOpen && !assetsVisible ? 'primary' : 'default'" @click="toggleSidebar(false)">显示层级</el-button><el-button text :aria-expanded="sidebarOpen && assetsVisible" :type="sidebarOpen && assetsVisible ? 'primary' : 'default'" @click="toggleSidebar(true)">个人资产</el-button></div></template>
+        <div v-show="sidebarOpen && props.active" class="sidebarContent"><canvasLayers v-if="!assetsVisible" :directory="project?.directory" /><assetLibrary ref="assetLibraryRef" v-model="assetsVisible" :directory="project?.directory" /></div>
       </canvasMenu>
-      <canvasControls
+      <canvasControls :active="props.active"
+        :canUndo="canUndo" :canRedo="canRedo" :undo="() => changeHistory('undo')" :redo="() => changeHistory('redo')"
         ref="canvasControlsRef"
         v-model:assetsVisible="assetsVisible"
         v-model:snapEnabled="snapEnabled"
@@ -81,13 +84,13 @@
       <nodeMenu
         :key="JSON.stringify(['nodeMenu', project?.directory, canvasId])"
         ref="nodeMenuRef"
-        :remoteNodes="availableNodes"
+        :remoteNodes="creationNodes"
         :pasteNode="pasteClipboardNode"
         :uploadFiles="canvasId && project?.directory ? selectFiles : undefined"
         :canUndo="canUndo"
         :canRedo="canRedo"
         :selectionBusy="selectionToolbarRef?.busy"
-        :batchHistory="canvasHistory.batch"
+        :batchHistory="batchCanvasEdit"
         @duplicateSelection="selectionToolbarRef?.operate('duplicate')"
         @history="canvasHistory.commit"
         @undo="changeHistory('undo')"
@@ -123,6 +126,9 @@
 <script setup lang="ts">
 import { studio, isStudioError } from "@/ports";
 
+import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
+import { browserConfig, resolveBrowserModel, generationResults, browserResultFile, configuredBrowserModels, type BrowserConversationImport, type BeginBrowserWorkflow } from "@/stores/browserGeneration";
+import { browserNodeAi, browserNodeDefaults } from "@/lib/browserNodeAi";
 import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, onScopeDispose, provide, ref, shallowReactive, shallowRef, watch } from "vue";
 import { debounce } from "lodash-es";
 import { ElMessage } from "element-plus";
@@ -163,12 +169,15 @@ import remoteNode from "./components/remoteNode.vue";
 import canvasMenu from "./components/canvasMenu.vue";
 import canvasControls from "./components/canvasControls.vue";
 import canvasEmpty from "./components/canvasEmpty.vue";
+import nodeReferences from "./components/nodeReferences.vue";
+import canvasLayers from "./components/canvasLayers.vue";
 import assetLibrary from "./components/assetLibrary.vue";
 import groupNode from "./components/groupNode.vue";
 import selectionToolbar from "./components/selectionToolbar.vue";
 import nodeSearch from "./components/nodeSearch.vue";
 import { finishGroupDrag, getSelectionTree } from "./selectionNodes";
-import type { NodeOutput } from "@toonflow/nodes-scaffold/values";
+import { validateConnection } from "@toonflow/nodes-scaffold/connection";
+import { isNodeOutput, type NodeOutput } from "@toonflow/nodes-scaffold/values";
 import type { NodeConnectionFeedback, NodeHandle } from "@toonflow/nodes-scaffold/connection";
 import { useNodeEvent } from "@toonflow/nodes-scaffold/nodeEvent";
 import type { NodeDocumentContext, NodeDocumentState } from "@toonflow/nodes-scaffold/nodeDocument";
@@ -176,9 +185,13 @@ import { useNodeToolsContext } from "@toonflow/nodes-scaffold/nodeTools";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { generalSettings } from "@/stores/settings";
 import { getShortcutBindings, shortcutLabel, shortcutMatches, shortcutPressed } from "@/lib/canvasShortcuts";
+import { waitForControlValue } from "@/lib/mcpControl";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { captureGenerationCanvas, registerGenerationCanvas } from "@/lib/canvasGeneration";
 import anonymousData from "@/lib/anonymousData";
 import { createClipboardMediaFile, dropCanvasFiles, getClipboardMediaFiles, importCanvasFiles, isCanvasFileDrag } from "./canvasDrop";
+import { createCanvasTutorialSteps, loadSingleNodeTutorialReferences, singleImageTutorialPrompt, singleVideoTutorialPrompt } from "@/lib/canvasTutorial";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 import "@vue-flow/minimap/dist/style.css";
@@ -209,6 +222,7 @@ const nodeLoads = shallowReactive(new Map<string, Promise<void>>());
 const nodeReloads = new Set<string>();
 const nodeErrors = ref<Record<string, string>>({});
 const availableNodes = computed(() => nodeOptions.value.filter(node => nodeTypes.value[node.type] && !nodeErrors.value[node.type]));
+const creationNodes = computed(() => [...availableNodes.value.filter(node => !["image", "video", "audio"].some(kind => node.type === `remote-${kind}Node` && availableNodes.value.some(item => item.type === `remote-${kind}GenerationNode`))).map(node => ({ ...node, label: node.label.replace(/^(图片|视频|音频)生成$/, "$1") })), ...(availableNodes.value.some(node => node.type === "remote-textNode") ? [{ type: "scriptNode", label: "脚本" }] : [])]);
 const nodeListLoading = ref(true);
 const remoteNodeTypes = computed(() => [
   ...new Set((flowData.value as { type?: string }[]).map((item) => item.type).filter((type): type is string => !!type?.startsWith("remote-"))),
@@ -228,9 +242,15 @@ let gestureScale: number | undefined;
 let copyingNodes = false;
 const showEdges = ref(true);
 const assetsVisible = ref(false);
+const sidebarOpen = ref(true);
+function toggleSidebar(showAssets: boolean) {
+  sidebarOpen.value = !sidebarOpen.value || assetsVisible.value !== showAssets;
+  assetsVisible.value = sidebarOpen.value && showAssets;
+}
 const assetLibraryRef = ref<InstanceType<typeof assetLibrary>>();
 const edgeDisconnect = ref<{ id: string; x: number; y: number }>();
 const flow = useVueFlow(props.runtimeKey);
+provide("nodeAi", browserNodeAi);
 const nodeDocument: NodeDocumentContext = { targets: shallowReactive(new Map()), mounts: new Map(), states: shallowReactive(new Map()) };
 const canvasDirty = ref(false);
 const canvasSaveError = ref("");
@@ -271,6 +291,16 @@ provide("copyNodeToClipboard", async (node: Parameters<typeof copyNodeToClipboar
   await copyNodeToClipboard(node, directory);
 });
 provide("retainNodeFiles", true);
+provide("backgroundNodeGeneration", () => {
+  const directory = project.value?.directory, path = canvasId.value;
+  if (!browserWorkspaceMode || !directory || !path) return;
+  return captureGenerationCanvas(directory, path, async () => { saveCanvas.flush(); await saving; await flushing; });
+});
+watch(() => [project.value?.directory, canvasId.value], ([directory, path], _previous, cleanup) => {
+  if (!directory || !path) return;
+  const release = registerGenerationCanvas(JSON.stringify([directory, path]), async () => { await waitUntilReady(); await flushCanvasSave(); });
+  cleanup(release);
+}, { immediate: true, flush: "sync" });
 provide("selectionConnection", shallowRef<NodeConnectionFeedback>());
 provide("saveNodeToAssets", (label: string, outputs: { label: string; output: NodeOutput }[]) => assetLibraryRef.value?.openSave(label, outputs));
 let canvasController = new AbortController();
@@ -288,9 +318,202 @@ const createCanvasContext = useCanvasTools({
 function getCanvasContext() {
   return canvasId.value || canvasMenuRef.value?.initialized ? createCanvasContext(canvasId.value, canvasController.signal, workspaceController.signal) : undefined;
 }
-const canvasReady = computed(() => !!canvasId.value && !nodeListLoading.value && nodeLoads.size === 0);
+const canvasReady = computed(() => canvasHistory.ready.value && !!flow.vueFlowRef.value && !nodeListLoading.value && nodeLoads.size === 0);
+async function waitUntilReady() {
+  const directory = project.value?.directory;
+  if (!directory) throw new Error("请先打开项目");
+  const signal = AbortSignal.any([workspaceController.signal, AbortSignal.timeout(30000)]);
+  const state = await waitForControlValue(() => canvasMenuRef.value?.loadError || (canvasReady.value ? true : undefined), signal);
+  if (typeof state === "string") throw new Error(state);
+  if (directory !== project.value?.directory) throw new Error("项目已切换，请重新操作");
+}
+async function batchCanvasEdit<T>(action: () => Promise<T>) {
+  const id = canvasId.value;
+  const signal = canvasController.signal;
+  await waitUntilReady();
+  signal.throwIfAborted();
+  if (id !== canvasId.value) throw new Error("画布已切换，请重新选择节点");
+  return canvasHistory.batch(action);
+}
 provide("canvas", getCanvasContext);
-defineExpose({ canvasId, canvasReady, getCanvasContext, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
+async function fitCreationNodes(ids: string[]) {
+  const element = flow.vueFlowRef.value;
+  if (!element) return;
+  const bounds = element.getBoundingClientRect();
+  const agentWidth = Number.parseFloat(getComputedStyle(element).getPropertyValue("--agentWidth")) || 0;
+  const nodes = ids.flatMap(id => flow.findNode(id) ?? []);
+  if (!nodes.length) return;
+  await flow.setViewport(vueFlowRuntime.getTransformForBounds(vueFlowRuntime.getRectOfNodes(nodes), Math.max(240, bounds.width - agentWidth), bounds.height, flow.minZoom.value, 1, 0.25));
+}
+async function importBrowserResult(file: File | File[], directory: string, script = false, application?: { resultId: string; label: string; model?: string; prompt?: string; sources: { canvasPath: string; nodeId: string }[] }) {
+  if (directory !== project.value?.directory || !canvasReady.value) throw new Error("工作区已切换或画布尚未就绪，请重新操作");
+  const resultPath = generationResults.value.find(result => result.file === file && result.directory === directory)?.path;
+  const existing = flow.getNodes.value.find(node => (application && node.data.browserResultId === application.resultId) || (resultPath && Object.values(node.data.outputs ?? {}).some(output => isNodeOutput(output) && output.value && typeof output.value === "object" && "url" in output.value && output.value.url === resultPath)));
+  if (existing) { flow.removeSelectedElements(); flow.addSelectedNodes([existing]); await fitCreationNodes([existing.id]); await flushCanvasSave(); return { canvasPath: canvasId.value, nodeId: existing.id }; }
+  if (application?.sources.some(source => source.canvasPath !== canvasId.value || !flow.findNode(source.nodeId))) throw new Error("前序画布或节点已变化，请回到原画布后应用；生成结果已保留");
+  const position = pastePosition();
+  if (!position) throw new Error("画布尚未就绪");
+  const signal = canvasController.signal;
+  const ids = await canvasHistory.batch(() => importCanvasFiles(Array.isArray(file) ? file : [file], position, { directory, availableNodes: availableNodes.value, signal, flow, throwOnError: true, script }));
+  signal.throwIfAborted();
+  if (!ids.length) throw new Error("素材节点未能创建，请重试");
+  if (application) {
+    const target = flow.findNode(ids[0]!)!;
+    flow.updateNodeData(target.id, { browserResultId: application.resultId, label: application.label, model: application.model, prompt: application.prompt, promptModel: (application.prompt || "").split("\n").map(text => [{ type: "Write", text }]) });
+    for (const source of application.sources) {
+      const sourceNode = flow.findNode(source.nodeId)!;
+      const handle = sourceNode.data.handles?.find((handle: NodeHandle) => handle.type === "source" && !handle.id.startsWith("row:"));
+      if (handle) addEdges({ id: crypto.randomUUID(), source: source.nodeId, sourceHandle: handle.id, target: target.id, targetHandle: "in" });
+    }
+  }
+  // ACT: 新节点插件需要异步挂载并测量；只有 nextTick 时 fitView 会因尺寸为零直接跳过。
+  await new Promise<void>((resolve, reject) => {
+    const ready = () => ids.every(id => { const node = flow.findNode(id); return node && node.dimensions.width > 0 && node.dimensions.height > 0; });
+    const finish = (error?: Error) => {
+      stop();
+      clearTimeout(timeout);
+      signal.removeEventListener("abort", abort);
+      if (error) reject(error); else resolve();
+    };
+    const abort = () => finish(new Error("工作区已切换，停止定位素材节点"));
+    const stop = watch(ready, value => { if (value) finish(); }, { flush: "post" });
+    const timeout = setTimeout(() => finish(new Error("素材节点已创建，但显示尚未就绪，请在层级中定位节点")), 10000);
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) abort(); else if (ready()) finish();
+  });
+  flow.removeSelectedElements();
+  flow.addSelectedNodes(ids.map(id => flow.findNode(id)!));
+  await fitCreationNodes(ids);
+  signal.throwIfAborted();
+  await flushCanvasSave();
+  return { canvasPath: canvasId.value, nodeId: ids[0]! };
+}
+async function importConversationTurn(turn: BrowserConversationImport) {
+  await waitUntilReady();
+  const directory = project.value?.directory;
+  if (!directory || directory !== turn.directory || !turn.results.length || turn.results.some(result => result.directory !== directory || !["image", "video"].includes(result.kind))) throw new Error("对话结果与当前项目不匹配，请返回原对话重试");
+  const existing = flow.getNodes.value.filter(node => node.data.conversationTurnId === turn.id);
+  if (existing.length) { await fitCreationNodes(existing.map(node => node.id)); return; }
+  const signal = canvasController.signal, position = pastePosition();
+  if (!position) throw new Error("画布尚未就绪");
+  const outputFiles = await Promise.all(turn.results.map(browserResultFile));
+  if (outputFiles.some((file, index) => !file.size || !file.type.startsWith(`${turn.results[index]!.kind}/`)) || turn.references.some(reference => !reference.file.size || !/^(image|video)\//.test(reference.file.type))) throw new Error("对话素材的媒体类型不匹配，原文件已保留");
+  const defaults = turn.results.map(result => {
+    const data = browserNodeDefaults(result.kind, result.settings);
+    if (!result.settings && result.model) {
+      const match = configuredBrowserModels(result.kind).find(model => model.label === result.model || model.modelId === result.model);
+      if (match) { data.model = JSON.stringify([match.id, match.modelId]); data.modelLabel = match.label; }
+    }
+    return data;
+  });
+  const prompts = [...new Set(turn.results.map(result => result.prompt?.trim()).filter((prompt): prompt is string => !!prompt && prompt !== turn.request.trim()))];
+  const inputText = [turn.request.trim() && `用户要求：\n${turn.request.trim()}`, ...prompts.map(prompt => `生成提示词：\n${prompt}`)].filter(Boolean).join("\n\n");
+  const inputFiles = [new File([inputText], "用户要求与提示词.md", { type: "text/markdown" }), ...turn.references.map(reference => reference.file)];
+  const created: string[] = [];
+  try {
+    await canvasHistory.batch(async () => {
+      await importCanvasFiles([...inputFiles, ...outputFiles], position, { directory, availableNodes: availableNodes.value, signal, throwOnError: true, flow: {
+        screenToFlowCoordinate: flow.screenToFlowCoordinate,
+        addNodes(nodes) { const incoming = typeof nodes === "function" ? nodes(flow.getNodes.value) : nodes; const list = Array.isArray(incoming) ? incoming : [incoming]; created.push(...list.map(node => node.id)); return flow.addNodes(list); },
+      } });
+      signal.throwIfAborted();
+      const sources = created.slice(0, inputFiles.length), targets = created.slice(inputFiles.length);
+      if (targets.length !== turn.results.length) throw new Error("部分对话素材未能创建节点，请重试");
+      sources.forEach((id, index) => flow.updateNodeData(id, { ...(index ? browserNodeDefaults(turn.references[index - 1]!.file.type.startsWith("video/") ? "video" : "image") : {}), conversationTurnId: turn.id, label: index ? turn.references[index - 1]!.label : "用户要求与提示词", referenceRole: index ? turn.references[index - 1]!.role : undefined }));
+      targets.forEach((id, index) => flow.updateNodeData(id, { ...defaults[index], conversationTurnId: turn.id, browserResultId: turn.results[index]!.id, label: turn.results[index]!.kind === "image" ? "生成图片" : "生成视频", prompt: "", promptModel: [] }));
+      await nextTick();
+      await waitForControlValue(() => created.every(id => {
+        const node = flow.findNode(id);
+        if (!node || !node.dimensions.width || !node.dimensions.height) return false;
+        const element = canvasElement.value?.querySelector(`[data-id="${CSS.escape(id)}"]`);
+        if (node.type === "remote-imageGenerationNode") { const image = element?.querySelector<HTMLImageElement>(".imageContent img"); return !!image?.complete && image.naturalWidth > 0; }
+        if (node.type === "remote-videoGenerationNode") { const video = element?.querySelector<HTMLVideoElement>("video"); return !!video && video.readyState >= 1; }
+        return true;
+      }) ? true : undefined, AbortSignal.any([signal, AbortSignal.timeout(30000)]));
+      await nextTick();
+      let inputY = position.y;
+      let width = 0;
+      for (const id of sources) { const node = flow.findNode(id)!; flow.updateNode(id, { position: { x: position.x, y: inputY } }); inputY += node.dimensions.height + 96; width = Math.max(width, node.dimensions.width); }
+      let outputY = position.y + Math.max(0, (inputY - position.y - targets.reduce((height, id) => height + flow.findNode(id)!.dimensions.height + 96, 0)) / 2);
+      for (const id of targets) {
+        const target = flow.findNode(id)!;
+        flow.updateNode(id, { position: { x: position.x + width + 240, y: outputY } }); outputY += target.dimensions.height + 96;
+        for (const [index, source] of sources.entries()) {
+          const connection = { source, sourceHandle: index ? turn.references[index - 1]!.file.type.startsWith("video/") ? "video" : "image" : "text", target: id, targetHandle: "in" };
+          if (!validateConnection(connection, { sourceNode: flow.findNode(source)!, targetNode: target, nodes: flow.getNodes.value, edges: flow.getEdges.value })) throw new Error("节点引用类型不匹配，已保留原对话素材");
+          addEdges({ id: crypto.randomUUID(), ...connection });
+        }
+      }
+      await nextTick();
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      targets.forEach((id, index) => flow.updateNodeData(id, defaults[index]!));
+      flow.removeSelectedElements();
+      await fitCreationNodes(created);
+      signal.throwIfAborted();
+      await flushCanvasSave();
+    });
+    if (turn.results.some(result => !result.settings)) ElMessage.warning("历史结果未记录完整参数，已使用当前简单模式参数");
+  } catch (error) {
+    flow.removeNodes(created);
+    await nextTick();
+    const cleanup = await Promise.allSettled(created.map(id => useWorkspaceFiles(directory).remove(`assets/${id}`, true).catch(error => { if (error.code !== "ENOENT") throw error; })));
+    if (!signal.aborted) await flushCanvasSave();
+    if (cleanup.some(item => item.status === "rejected")) throw new Error("节点创建失败，部分导入副本未能清理；原对话素材已保留，请勿重复导入");
+    throw error;
+  }
+}
+
+const beginBrowserWorkflow: BeginBrowserWorkflow = async (prompt, kind, references, script, _visible, sources = []) => {
+  await waitUntilReady();
+  const directory = project.value?.directory;
+  const position = pastePosition();
+  if (!directory || !position) throw new Error("画布尚未就绪");
+  const canvas = canvasId.value;
+  if (sources.some(source => source.canvasPath !== canvas || !flow.findNode(source.nodeId))) throw new Error("前序节点所在画布已切换或节点已删除，请回到原画布继续");
+  const signal = canvasController.signal;
+  const type = kind === "text" ? "remote-textNode" : `remote-${kind}GenerationNode`;
+  if (!availableNodes.value.some(node => node.type === type)) throw new Error("请先安装并启用对应节点");
+  const targetId = crypto.randomUUID();
+  const ids = await canvasHistory.batch(async () => {
+    const sourceIds = await importCanvasFiles([new File([prompt], "创作要求.md", { type: "text/markdown" }), ...references], position, { directory, availableNodes: availableNodes.value, signal, flow, throwOnError: true });
+    const provider = resolveBrowserModel(kind);
+    addNodes({ id: targetId, type, position: { x: position.x + 640, y: position.y }, data: {
+      label: script ? "脚本" : ({ text: "方案／文字", image: "图片", video: "视频", audio: "音频" })[kind],
+      contentKind: script ? "script" : undefined, prompt, promptModel: prompt.split("\n").map(text => [{ type: "Write", text }]), model: JSON.stringify([provider.id, provider.modelId]),
+      ...(browserConfig.ratio ? { ratio: browserConfig.ratio } : {}), ...(browserConfig.resolution ? (kind === "image" ? { size: browserConfig.resolution } : { resolution: browserConfig.resolution }) : {}),
+      ...(browserConfig.duration ? { duration: Number(browserConfig.duration) } : {}), ...(kind === "video" ? { generateAudio: browserConfig.generateAudio } : {}),
+    } });
+    sourceIds.forEach((id, index) => flow.updateNode(id, { position: { x: position.x, y: position.y + index * 360 } }));
+    addEdges(sourceIds.map((id, index) => ({ id: crypto.randomUUID(), source: id, sourceHandle: index === 0 ? "text" : references[index - 1]?.type.startsWith("image/") ? "image" : references[index - 1]?.type.startsWith("video/") ? "video" : references[index - 1]?.type.startsWith("audio/") ? "audio" : "text", target: targetId, targetHandle: "in" })));
+    addEdges(sources.map(source => { const node = flow.findNode(source.nodeId)!; const handle = Object.keys(node.data.outputs ?? {}).find(key => !key.startsWith("row:")) || "text"; return { id: crypto.randomUUID(), source: source.nodeId, sourceHandle: handle, target: targetId, targetHandle: "in" }; }));
+    return [...sourceIds, targetId];
+  });
+  await flushCanvasSave();
+  await nextTick();
+  await waitForControlValue(() => ids.every(id => { const node = flow.findNode(id); return node && node.dimensions.width > 0 && node.dimensions.height > 0; }) ? true : undefined, AbortSignal.any([signal, AbortSignal.timeout(10000)]));
+  await fitCreationNodes(ids);
+  const node = flow.findNode(targetId)!;
+  const configuration = () => JSON.stringify([node.data.prompt, node.data.model, node.data.ratio, node.data.size, node.data.resolution, node.data.duration, node.data.outputs, flow.getEdges.value.filter(edge => edge.target === targetId).map(edge => [edge.id, edge.source, edge.sourceHandle, edge.targetHandle, flow.findNode(edge.source)?.data.outputs])]);
+  const initialConfiguration = configuration();
+  return { node: { canvasPath: canvas, nodeId: targetId }, async complete(results) {
+    signal.throwIfAborted();
+    if (project.value?.directory !== directory || canvasId.value !== canvas || !flow.findNode(targetId)) throw new Error("画布或节点已变化，生成结果保留在对话中，请手动加入画布");
+    if (configuration() !== initialConfiguration) throw new Error("节点内容、配置或连线已修改，生成结果保留在对话中，请确认后手动加入画布");
+    const result = results[0];
+    if (!result) throw new Error("模型未返回结果，创作节点已保留");
+    if (kind === "text") {
+      await saveDocumentNode(directory, canvas, targetId, "text", result.text || "");
+    } else {
+      const file = result.file;
+      const path = result.path || (file ? await uploadNodeFile(useWorkspaceFiles(directory), targetId, file) : undefined);
+      if (!path) throw new Error("生成素材尚未保存，请从对话中重试加入画布");
+      flow.updateNodeData(targetId, { outputs: { [kind]: { dataType: kind.toUpperCase(), value: { url: path, mimeType: file?.type || `${kind}/${kind === "image" ? "png" : kind === "video" ? "mp4" : "mpeg"}` } } } });
+    }
+    await flushCanvasSave();
+  } };
+};
+
+defineExpose({ beginBrowserWorkflow, waitUntilReady, importBrowserResult, canvasId, canvasReady, getCanvasContext, importConversationTurn, prepareTutorial, focusTutorialNode, createInitialNode, addNodeAtPointer, readDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, prepareCanvasDelete, flushSave: flushCanvasSave, cancelSave: cancelCanvasSave,
   getCanvases: (signal?: AbortSignal) => {
     if (!canvasMenuRef.value) throw new Error("画布菜单尚未就绪");
     return canvasMenuRef.value.getCanvases(signal);
@@ -496,35 +719,104 @@ async function dropFiles(event: DragEvent) {
   }
 }
 
-function selectFiles(position: { x: number; y: number }) {
-  const directory = project.value?.directory;
-  if (!props.active || props.settingsVisible || !canvasId.value || !directory) return;
-  const context = { directory, availableNodes: availableNodes.value, signal: canvasController.signal, flow };
-  const input = document.createElement("input");
-  input.type = "file";
-  input.multiple = true;
-  input.onchange = async () => {
-    const files = Array.from(input.files ?? []);
-    if (!files.length || context.signal.aborted) return;
-    try {
-      await canvasHistory.batch(() => importCanvasFiles(files, position, context));
-    } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : "文件导入失败");
-    }
-  };
-  input.click();
+const nodeReferencesRef = ref<InstanceType<typeof nodeReferences>>();
+async function pickNodeReferences(target?: string, position = pastePosition(), scope = "local") {
+  if (!position || !project.value?.directory || !canvasReady.value) return;
+  const directory = project.value.directory;
+  const canvas = canvasId.value;
+  const signal = canvasController.signal;
+  const choice = await nodeReferencesRef.value?.open(target, scope);
+  if (!choice) return;
+  try {
+    signal.throwIfAborted();
+    if (directory !== project.value?.directory || canvas !== canvasId.value) throw new Error("画布已切换，请重新引用");
+    await canvasHistory.batch(async () => {
+      const ids = await importCanvasFiles(choice.files, { x: position.x - (target ? 500 : 0), y: position.y }, { directory, availableNodes: availableNodes.value, signal, flow, throwOnError: true });
+      await nextTick();
+      await waitForControlValue(() => ids.every(id => flow.findNode(id)?.data.handles?.length) ? true : undefined, AbortSignal.any([signal, AbortSignal.timeout(10000)]));
+      const sources = [...choice.sources, ...ids.flatMap(id => Object.keys(flow.findNode(id)?.data.outputs ?? {}).slice(0, 1).map(sourceHandle => ({ source: id, sourceHandle })))];
+      if (target) for (const source of sources) {
+        const connection = { ...source, target, targetHandle: "in" };
+        const sourceNode = flow.findNode(source.source), targetNode = flow.findNode(target);
+        if (!sourceNode || !targetNode || !validateConnection(connection, { sourceNode, targetNode, nodes: flow.getNodes.value, edges: flow.getEdges.value })) throw new Error("该节点不支持此引用类型；已上传素材保留在画布");
+        if (flow.getEdges.value.some(edge => edge.source === source.source && edge.sourceHandle === source.sourceHandle && edge.target === target && edge.targetHandle === "in")) continue;
+        const reachesSource = (id: string, visited = new Set<string>()): boolean => id === source.source || (!visited.has(id) && (visited.add(id), flow.getEdges.value.filter(edge => edge.source === id).some(edge => reachesSource(edge.target, visited))));
+        if (reachesSource(target)) throw new Error("该引用会形成循环，未添加连线");
+        addEdges({ id: crypto.randomUUID(), ...connection });
+      }
+    });
+    await flushCanvasSave();
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "引用失败"); }
 }
+provide("pickNodeReferences", (target: string, scope = "personal") => pickNodeReferences(target, pastePosition(), scope));
+function selectFiles(position: { x: number; y: number }) { void pickNodeReferences(undefined, position); }
 
 function openNodeMenu(event: MouseEvent) {
+  if (!props.active || props.settingsVisible || !canvasReady.value) return;
   if (event.target instanceof Element && event.target.classList.contains("vue-flow__pane")) nodeMenuRef.value?.openMenu(event, true);
 }
 
 function createEmptyNode(type: string) {
-  if (!props.active || props.settingsVisible || !project.value?.directory || !canvasReady.value || flow.getNodes.value.length) return;
+  if (flow.getNodes.value.length) return;
+  void createInitialNode(type).catch(error => ElMessage.error(error instanceof Error ? error.message : "节点创建失败"));
+}
+async function prepareTutorial() {
+  await waitUntilReady();
+  if (!props.active || props.settingsVisible || !flow.getNodes.value.length) return;
+  const steps = createCanvasTutorialSteps(flow.getNodes.value, flow.getEdges.value);
+  await flow.fitView({ padding: .2 });
+  const single = flow.getNodes.value.find(node => ["singleImage", "singleVideo"].includes(node.data?.canvasTutorial));
+  return { nodeId: single?.id ?? flow.getNodes.value[0]!.id, steps, kind: single?.data.canvasTutorial === "singleImage" ? "image" as const : single ? "video" as const : "canvas" as const };
+}
+async function focusTutorialNode(id: string) {
+  if (!id) { flow.removeSelectedElements(); await flow.fitView({ padding: .2 }); return; }
+  const node = flow.findNode(id);
+  if (!node || !props.active) return;
+  flow.removeSelectedElements(); flow.addSelectedNodes([node]);
+  await nextTick();
+  const bounds = canvasElement.value!.getBoundingClientRect();
+  const width = Math.max(node.dimensions.width, 780), height = node.dimensions.height + 400;
+  await flow.setViewport(vueFlowRuntime.getTransformForBounds({ x: node.computedPosition.x + (node.dimensions.width - width) / 2, y: node.computedPosition.y - 60, width, height }, bounds.width, bounds.height, flow.minZoom.value, 0.9, 0.12));
+}
+async function createInitialNode(type: string, tutorial?: "image" | "video") {
+  await waitUntilReady();
+  if (!props.active || props.settingsVisible || !creationNodes.value.some(item => item.type === type)) throw new Error("该节点尚未启用或画布不可编辑");
   const rect = canvasElement.value?.getBoundingClientRect();
-  if (!rect) return;
+  if (!rect || !nodeMenuRef.value) throw new Error("画布正在初始化，请稍后重试");
+  const directory = project.value?.directory;
+  if (!directory) throw new Error("请先打开项目");
+  const references = tutorial ? await loadSingleNodeTutorialReferences(tutorial, canvasController.signal) : [];
+  canvasController.signal.throwIfAborted();
+  const ids = new Set(flow.getNodes.value.map(node => node.id));
   const center = screenToFlowCoordinate({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-  void nodeMenuRef.value?.addNode(type, { x: center.x - 200, y: center.y - 160 });
+  await nodeMenuRef.value.addNode(type, { x: center.x - 200, y: center.y - 160 });
+  const node = flow.getNodes.value.find(item => !ids.has(item.id));
+  if (!node) throw new Error("节点创建失败，项目已保留，可在画布重试");
+  await nextTick();
+  await waitUntilReady();
+  await waitForControlValue(() => node.dimensions.width > 0 && node.dimensions.height > 0 ? true : undefined, AbortSignal.any([canvasController.signal, AbortSignal.timeout(10000)]));
+  if (tutorial) {
+    const files = useWorkspaceFiles(directory), uploaded: string[] = [];
+    try {
+      const localReferences = [];
+      for (const [index, file] of references.entries()) {
+        canvasController.signal.throwIfAborted();
+        const path = await uploadNodeFile(files, node.id, file); uploaded.push(path);
+        localReferences.push({ source: "local", sourceHandle: `local:${crypto.randomUUID()}`, name: `图${index + 1}`, dataType: "IMAGE", value: { url: path, mimeType: file.type } });
+      }
+      canvasController.signal.throwIfAborted();
+      const prompt = tutorial === "image" ? singleImageTutorialPrompt : singleVideoTutorialPrompt;
+      flow.updateNodeData(node.id, { canvasTutorial: `single${tutorial === "image" ? "Image" : "Video"}`, prompt, promptModel: [[{ type: "Write", text: prompt }]], localReferences, referenceOrder: { in: localReferences.map(item => encodeURIComponent(JSON.stringify([item.source, item.sourceHandle]))) } });
+    } catch (error) {
+      const cleanup = await Promise.allSettled(uploaded.map(path => files.remove(path)));
+      if (cleanup.some(result => result.status === "rejected")) throw new Error(`教学准备失败，部分参考图片未能清理：${error instanceof Error ? error.message : "保存失败"}`);
+      throw error;
+    }
+  }
+  flow.removeSelectedElements(); flow.addSelectedNodes([node]);
+  await fitCreationNodes([node.id]);
+  await flushCanvasSave();
+  return node.id;
 }
 
 function addNodeAtPointer() {
@@ -1023,6 +1315,11 @@ function refreshInstalled(event: WindowEventMap["toonflow:plugin-installed"]) {
 }
 
 const refreshNodeConfig = () => { void loadRemoteNodes(); };
+watch(() => props.settingsVisible, (visible, previous) => {
+  if (visible || !previous) return;
+  for (const name of ["textNode", "imageGenerationNode", "videoGenerationNode", "audioGenerationNode"]) nodeReloads.add(name);
+  void loadRemoteNodes();
+});
 
 onMounted(() => {
   // 在捕获阶段同步修饰键，避免节点编辑器截断 keydown/keyup 后缩放状态丢失或卡住。
@@ -1201,6 +1498,9 @@ const defaultEdgeOptions = markRaw({
     visibility: hidden !important;
   }
 
+  :deep(.vue-flow__edge:hover .vue-flow__edge-path) { stroke: var(--el-color-primary); stroke-width: 2; stroke-dasharray: 12 6; animation: edgeHoverFlow 700ms linear infinite; }
+  @media (prefers-reduced-motion: reduce) { :deep(.vue-flow__edge:hover .vue-flow__edge-path) { animation: none; } }
+
   :deep(.vue-flow__edge.edgeActive .vue-flow__edge-path) {
     stroke: var(--canvasEdgeColor);
   }
@@ -1228,4 +1528,21 @@ const defaultEdgeOptions = markRaw({
   padding: 0;
   transform: translate(-50%, -50%);
 }
+</style>
+
+<style scoped lang="scss">
+.sidebarHeader { display: flex; align-items: center; gap: 4px; flex-basis: 100%; padding: 10px 0 8px; border-top: 1px solid var(--el-border-color-light); margin-top: 6px; .el-button { margin: 0; height: 28px; border-radius: 10px; font-size: 12px; &[aria-expanded="true"] { background: var(--el-fill-color); color: var(--el-text-color-primary); } } }
+.sidebarContent { width: 100%; max-height: calc(100dvh - 280px); overflow: auto; padding: 10px; border: 1px solid var(--el-border-color); border-top: 0; border-radius: 0 0 16px 16px; background: var(--el-bg-color); box-shadow: var(--el-box-shadow-light); :deep(.assetLibrary) { width: 100%; max-height: none; border: 0; box-shadow: none; background: transparent; .el-card__body { padding: 0 !important; } .assetFilters { gap: 6px; margin: 8px 0; .el-select { width: 50%; } } .el-tree-node__content { min-height: 42px; } .assetThumbnail, .fileIcon { width: 32px; height: 32px; border-radius: 8px; } } }
+</style>
+
+<style scoped lang="scss">
+.sidebarContent { max-height: none; min-height: 100%; border: 0; border-radius: 0; box-shadow: none; }
+</style>
+
+<style scoped lang="scss">
+.canvas { background: var(--el-bg-color-page); :deep(.vue-flow) { background: var(--el-bg-color-page); } }
+</style>
+
+<style scoped lang="scss">
+@keyframes edgeHoverFlow { to { stroke-dashoffset: -18; } }
 </style>

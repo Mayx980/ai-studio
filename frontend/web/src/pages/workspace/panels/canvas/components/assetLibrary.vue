@@ -1,12 +1,27 @@
 <template>
-  <el-card v-if="visible" class="assetLibrary" shadow="never" :bodyStyle="{ padding: '8px' }" role="region" aria-label="素材库" @dblclick.stop>
+  <component :is="page ? 'section' : ElCard" v-if="visible" class="assetLibrary" :class="{ selectable, assetPage: page }" v-bind="page ? {} : { shadow: 'never', bodyStyle: { padding: '8px' } }" role="region" aria-label="个人资产" @dblclick.stop>
     <div class="libraryToolbar">
       <el-input v-model="searchQuery" class="searchInput" :prefixIcon="IconSearch" placeholder="搜索素材" aria-label="搜索素材" clearable @keydown.esc.stop="searchQuery = ''" />
-      <el-button class="toolbarButton" text :icon="IconFolderPlus" title="新建文件夹" aria-label="新建文件夹" :disabled="newFolderParent !== undefined" @click="startFolder" />
-      <el-button class="toolbarButton" text :icon="IconX" title="关闭素材库" aria-label="关闭素材库" @click="visible = false" />
+      <el-button v-if="!page" class="toolbarButton" text :icon="IconFolderPlus" title="新建文件夹" aria-label="新建文件夹" :disabled="newFolderParent !== undefined" @click="startFolder" />
     </div>
-    <el-scrollbar class="libraryScroll" maxHeight="min(440px, calc(100dvh - 198px))">
-      <el-tree ref="assetTree" class="assetTree" :data="displayEntries" nodeKey="path" :props="{ label: 'name' }" :icon="IconChevronRight" :currentNodeKey="folder === '.' ? undefined : folder" :filterNodeMethod="filterEntry" defaultExpandAll highlightCurrent emptyText="" @nodeClick="selectFolder">
+    <div class="assetFilters">
+      <el-select v-model="mediaFilter" aria-label="素材类别"><el-option label="全部素材" value="all" /><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="音频" value="audio" /></el-select>
+      <el-select v-model="tagFilter" aria-label="按标签分类" clearable :valueOnClear="'all'" :emptyValues="[undefined, null]" placeholder="全部标签"><el-option label="全部标签" value="all" /><el-option v-for="item in assetCategories" :key="item" :label="item" :value="item" /></el-select>
+    </div>
+    <el-scrollbar class="libraryScroll" :maxHeight="page ? undefined : 'min(440px, calc(100dvh - 198px))'">
+      <div v-if="page" class="assetGrid">
+        <article v-for="item in pageAssets" :key="item.path" class="assetCard">
+          <button class="assetCover" type="button" :aria-label="'预览 ' + item.name" @click="openPreview(item)">
+            <el-image v-if="mediaKind(item) === 'image'" :src="assetUrl(item.path)" fit="cover" loading="lazy" :alt="item.name"><template #error><icon-photo :size="32" /></template></el-image>
+            <video v-else-if="mediaKind(item) === 'video'" :src="assetUrl(item.path)" muted playsinline preload="metadata" aria-hidden="true" />
+            <icon-music v-else :size="44" aria-hidden="true" />
+            <span class="mediaLabel">{{ mediaKind(item) === 'image' ? '图片' : mediaKind(item) === 'video' ? '视频' : '音频' }}</span>
+          </button>
+          <div class="assetInfo"><h3 :title="item.name">{{ item.name }}</h3><el-button text :icon="IconDots" :aria-label="'更多 ' + item.name" @click="openItemMenu($event, item)" /></div>
+          <el-select :modelValue="tagsFor(item)" multiple collapseTags :aria-label="item.name + ' 标签'" placeholder="标签" @update:modelValue="value => assetTags[item.path] = value"><el-option v-for="tag in assetCategories" :key="tag" :label="tag" :value="tag" /></el-select>
+        </article>
+      </div>
+      <el-tree v-else ref="assetTree" class="assetTree" :data="displayEntries" nodeKey="path" :props="{ label: 'name' }" :icon="IconChevronRight" :currentNodeKey="folder === '.' ? undefined : folder" :filterNodeMethod="filterEntry" defaultExpandAll highlightCurrent emptyText="暂无符合条件的素材" @nodeClick="selectFolder">
         <template #default="{ data, node }">
           <div class="assetEntry" :title="data.name" :draggable="data.type === 'file'" @dragstart.stop="startAssetDrag($event, data)" @dblclick.stop="openPreview(data)" @contextmenu="openItemMenu($event, data)">
             <span v-if="data.type === 'directory'" class="fileIcon"><component :is="node.expanded && !node.isLeaf ? IconFolderOpen : IconFolder" :size="18" aria-hidden="true" /></span>
@@ -20,6 +35,8 @@
             </span>
             <el-input v-if="data.draft" ref="folderInput" v-model="newFolderName" class="folderNameInput" size="small" aria-label="文件夹名称" :disabled="folderSaving" @click.stop @keydown.stop @keydown.enter.prevent="saveFolder" @keydown.esc.prevent="cancelFolder" @blur="saveFolder" />
             <span v-else class="assetName">{{ data.name }}</span>
+            <el-button v-if="selectable && mediaKind(data)" text type="primary" :disabled="selecting" :aria-label="'引用 ' + data.name" @click.stop="selectAsset(data)">引用</el-button>
+            <el-popover v-if="mediaKind(data) && !selectable" trigger="click" :width="290"><template #reference><el-button text size="small" @click.stop>标签</el-button></template><el-checkbox-group :modelValue="tagsFor(data)" @update:modelValue="value => assetTags[data.path] = value.map(String)"><el-checkbox-button v-for="item in assetCategories" :key="item" :value="item">{{ item }}</el-checkbox-button></el-checkbox-group></el-popover>
             <el-button v-if="mediaKind(data)" class="moreButton" text :icon="IconEye" :aria-label="'预览 ' + data.name" title="预览（也可双击素材）" @click.stop="openPreview(data)" />
             <el-button v-if="!data.draft" class="moreButton" text :icon="IconDots" :aria-label="'更多 ' + data.name" title="更多" @click.stop="openItemMenu($event, data)" />
           </div>
@@ -34,7 +51,7 @@
       <el-alert v-if="previewError" :title="previewError" type="error" :closable="false" showIcon />
       <audio v-else :key="previewAsset.url" :src="previewAsset.url" :aria-label="previewAsset.name" controls preload="metadata" @error="previewError = '音频无法播放，文件可能已损坏或当前浏览器不支持其编码。'" />
     </div>
-  </el-card>
+  </component>
 
   <assetMenu v-if="visible" ref="assetMenuRef" :entries="entries" @changed="refreshAssets" />
 
@@ -47,48 +64,20 @@
     </div>
   </el-dialog>
 
-  <el-dialog v-model="saveVisible" title="保存到素材库" width="460px" alignCenter appendToBody :closeOnClickModal="false" @opened="assetNameInput?.select()">
-    <el-form class="saveForm" labelPosition="top" @submit.prevent="saveAsset">
-      <el-form-item label="素材名称">
-        <el-input ref="assetNameInput" v-model="assetName" aria-label="素材名称" placeholder="输入完整文件名" :disabled="saving" @keydown.enter.prevent="saveAsset" />
-      </el-form-item>
-      <el-form-item v-if="outputs.length > 1" label="节点输出">
-        <el-select v-model="selectedOutput" aria-label="节点输出" :disabled="saving">
-          <el-option v-for="(item, index) in outputs" :key="index" :label="item.label" :value="index" />
-        </el-select>
-      </el-form-item>
-      <div class="saveLocation">
-        <div class="locationHeader">
-          <span>保存位置</span>
-          <el-button text :icon="IconFolderPlus" :disabled="saving || saveFolderName !== undefined" @click="startSaveFolder">新建文件夹</el-button>
-        </div>
-        <div class="locationPath" :title="saveLocationLabel">{{ saveLocationLabel }}</div>
-        <el-scrollbar class="saveFolderScroll" maxHeight="220px">
-          <el-tree class="saveFolderTree" :data="folders" nodeKey="path" :props="{ label: 'name' }" :icon="IconChevronRight" :currentNodeKey="saveDirectory" :expandOnClickNode="false" defaultExpandAll highlightCurrent @nodeClick="(entry: AssetEntry) => { if (!saving && saveFolderName === undefined) saveDirectory = entry.path; }">
-            <template #default="{ data, node }">
-              <span class="saveFolderEntry"><component :is="node.expanded && !node.isLeaf ? IconFolderOpen : IconFolder" :size="18" aria-hidden="true" /><span>{{ data.name }}</span></span>
-            </template>
-          </el-tree>
-        </el-scrollbar>
-        <div v-if="saveFolderName !== undefined" class="createFolderRow">
-          <el-input ref="saveFolderInput" v-model="saveFolderName" aria-label="新文件夹名称" :disabled="folderSaving" @keydown.enter.prevent="createFolder" @keydown.esc.stop="saveFolderName = undefined" />
-          <el-button :loading="folderSaving" :disabled="!saveFolderName.trim()" @click="createFolder">创建</el-button>
-          <el-button text :disabled="folderSaving" @click="saveFolderName = undefined">取消</el-button>
-        </div>
-      </div>
-    </el-form>
-    <template #footer>
-      <el-button :disabled="saving" @click="saveVisible = false">取消</el-button>
-      <el-button type="primary" :loading="saving" :disabled="!assetName.trim() || /[\\/]/.test(assetName) || saveFolderName !== undefined" @click="saveAsset">保存</el-button>
-    </template>
-  </el-dialog>
+  <saveAssetDialog ref="saveDialog" @saved="loadEntries().catch(showError)" />
 </template>
 
 <script setup lang="ts">
 import { studio, isStudioError } from "@/ports";
 
+import saveAssetDialog, { type AssetSaveSource } from "@/components/saveAssetDialog.vue";
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { browserAssetFiles, browserAssetMimeType, listBrowserAssets } from "@/lib/browserAssets";
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
-import { ElMessage, ElTree, type InputInstance, type TreeNodeData } from "element-plus";
+import axios from "axios";
+import { storeToRefs } from "pinia";
+import { useAssetStore } from "@/stores/assets";
+import { ElCard, ElMessage, ElTree, type InputInstance, type TreeNodeData } from "element-plus";
 import { IconChevronRight, IconDots, IconEye, IconFile, IconFolder, IconFolderOpen, IconFolderPlus, IconMusic, IconPhoto, IconSearch, IconVideo, IconX } from "@tabler/icons-vue";
 import type { NodeOutput } from "@toonflow/nodes-scaffold/values";
 import { startAssetDrag } from "../canvasDrop";
@@ -98,18 +87,24 @@ import assetMenu from "./assetMenu.vue";
 type AssetEntry = { name: string; path: string; type: "file" | "directory"; children?: AssetEntry[]; draft?: boolean };
 type AssetOutput = { label: string; output: NodeOutput };
 
-const props = defineProps<{ directory?: string }>();
+const props = defineProps<{ directory?: string; selectable?: boolean; page?: boolean }>();
+const emit = defineEmits<{ select: [file: File] }>();
+const { tags: assetTags } = storeToRefs(useAssetStore());
+const mediaFilter = ref("all");
+const tagFilter = ref("all");
+const selecting = ref(false);
+const assetUrls = ref<Record<string, string>>({});
+const assetReleases: (() => void)[] = [];
+onBeforeUnmount(() => { for (const release of assetReleases) release(); });
+async function selectAsset(entry: AssetEntry) {
+  if (selecting.value) return;
+  selecting.value = true;
+  try { const data = browserWorkspaceMode ? new Blob([await browserAssetFiles().read(entry.path)], { type: browserAssetMimeType(entry.path) }) : (await studio.readAsset<Blob>({ params: { path: entry.path }, responseType: "blob" })).data; emit("select", new File([data], entry.name, { type: data.type && data.type !== "application/octet-stream" ? data.type : mediaKind(entry) === "image" ? `image/${/\.jpe?g$/i.test(entry.name) ? "jpeg" : entry.name.split(".").pop()}` : mediaKind(entry) === "audio" ? "audio/mpeg" : "video/mp4" })); } catch (error) { showError(error); } finally { selecting.value = false; }
+}
 const visible = defineModel<boolean>({ default: false });
-const saveVisible = ref(false);
-const saving = ref(false);
+const assetCategories = ["角色", "场景", "物品", "风格", "音效"];
 const entries = ref<AssetEntry[]>([]);
 const folder = ref(".");
-const assetName = ref("");
-const assetNameInput = ref<InputInstance>();
-const saveDirectory = ref(".");
-const saveFolderName = ref<string>();
-const saveFolderInput = ref<InputInstance>();
-const saveLocationLabel = computed(() => saveDirectory.value === "." ? "素材库" : `素材库 / ${saveDirectory.value.split("/").join(" / ")}`);
 const searchQuery = ref("");
 const assetTree = ref<InstanceType<typeof ElTree>>();
 const folderInput = ref<InputInstance>();
@@ -123,8 +118,11 @@ let loadRequest = 0;
 onBeforeUnmount(() => { loadRequest++; });
 
 function assetUrl(path: string) {
+  if (browserWorkspaceMode) return assetUrls.value[path] || "";
   return studio.assetMediaSource(path);
 }
+
+function tagsFor(entry: AssetEntry) { return assetTags.value[entry.path] ?? entry.path.split("/").filter(part => assetCategories.includes(part)); }
 
 function mediaKind(entry: AssetEntry) {
   if (entry.type !== "file" || entry.draft) return;
@@ -150,6 +148,21 @@ function openItemMenu(event: MouseEvent, entry: AssetEntry) {
 }
 
 async function refreshAssets(path?: string, target?: string) {
+  if (path) {
+    for (const key of Object.keys(assetTags.value)) {
+      if (key !== path && !key.startsWith(path + "/")) continue;
+      if (target) assetTags.value[target + key.slice(path.length)] = assetTags.value[key]!;
+      delete assetTags.value[key];
+    }
+  }
+  if (path) {
+    const metadata = useAssetStore().metadata;
+    for (const key of Object.keys(metadata)) {
+      if (key !== path && !key.startsWith(path + "/")) continue;
+      if (target) metadata[target + key.slice(path.length)] = metadata[key]!;
+      delete metadata[key];
+    }
+  }
   if (path && (folder.value === path || folder.value.startsWith(path + "/"))) {
     folder.value = target ? target + folder.value.slice(path.length) : ".";
   }
@@ -161,14 +174,31 @@ const displayEntries = computed(() => {
     if (newFolderParent.value === parent) children.push({ name: "新建文件夹", path: `${parent}/:newFolder`, type: "directory", draft: true });
     return children;
   }
-  return newFolderParent.value === undefined ? entries.value : withDraft(entries.value, ".");
+  function filter(items: AssetEntry[]): AssetEntry[] {
+    return items.flatMap(item => {
+      if (item.type === "directory") {
+        const children = filter(item.children ?? []);
+        return children.length || (mediaFilter.value === "all" && tagFilter.value === "all") ? [{ ...item, children }] : [];
+      }
+      const tags = tagsFor(item);
+      return mediaKind(item) && (mediaFilter.value === "all" || mediaKind(item) === mediaFilter.value) && (tagFilter.value === "all" || tags.includes(tagFilter.value)) ? [item] : [];
+    });
+  }
+  const filtered = filter(entries.value);
+  return newFolderParent.value === undefined ? filtered : withDraft(filtered, ".");
+});
+
+const pageAssets = computed(() => {
+  function flatten(items: AssetEntry[]): AssetEntry[] { return items.flatMap(item => item.type === "directory" ? flatten(item.children ?? []) : [item]); }
+  const query = searchQuery.value.trim().toLocaleLowerCase();
+  return flatten(displayEntries.value).filter(item => item.path.toLocaleLowerCase().includes(query));
 });
 
 function filterEntry(query: string, entry: TreeNodeData) {
   return !!entry.draft || entry.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
 }
 
-watch(searchQuery, query => assetTree.value?.filter(query));
+watch([searchQuery, displayEntries], async () => { await nextTick(); assetTree.value?.filter(searchQuery.value); });
 
 async function startFolder() {
   searchQuery.value = "";
@@ -204,25 +234,32 @@ async function saveFolder() {
   }
 }
 
-const outputs = ref<AssetOutput[]>([]);
-const selectedOutput = ref(0);
-let sourceDirectory: string | undefined;
-const folders = computed(() => directoryEntries(entries.value));
-const extension = computed(() => {
-  const output = outputs.value[selectedOutput.value]?.output;
-  if (!output) return "";
-  if (typeof output.value !== "object") return output.dataType === "STRING" ? ".txt" : ".json";
-  return output.value.url.match(/\.[^./\\]+$/)?.[0] ?? "";
-});
-
-function directoryEntries(items: AssetEntry[]): AssetEntry[] {
-  return items.filter(item => item.type === "directory").map(item => ({ ...item, children: directoryEntries(item.children ?? []) }));
-}
+const saveDialog = ref<InstanceType<typeof saveAssetDialog>>();
 
 async function loadEntries() {
   const request = ++loadRequest;
   try {
-    const { data } = await studio.listAssets<{ data: { entries: AssetEntry[] } }>();
+    const data = browserWorkspaceMode ? { data: { entries: await listBrowserAssets() } } : (await studio.listAssets<{ data: { entries: AssetEntry[] } }>()).data;
+    if (browserWorkspaceMode) {
+      const releases: (() => void)[] = [];
+      const urls: Record<string, string> = {};
+      const loadUrls = async (items: AssetEntry[]) => {
+        for (const item of items) {
+          if (item.type === "directory") await loadUrls(item.children ?? []);
+          else {
+            const preview = browserAssetFiles().acquireUrl(item.path, browserAssetMimeType(item.path));
+            urls[item.path] = await preview.url;
+            releases.push(preview.release);
+          }
+        }
+      };
+      try { await loadUrls(data.data.entries); }
+      catch (error) { for (const release of releases) release(); throw error; }
+      if (request !== loadRequest) { for (const release of releases) release(); return; }
+      for (const release of assetReleases.splice(0)) release();
+      assetReleases.push(...releases);
+      assetUrls.value = urls;
+    }
     if (request !== loadRequest) return;
     entries.value = data.data.entries;
     await nextTick();
@@ -242,7 +279,7 @@ watch(visible, opened => {
     cancelFolder();
     previewAsset.value = undefined;
   }
-});
+}, { immediate: true });
 
 function selectFolder(entry: AssetEntry) {
   if (entry.draft) return;
@@ -250,76 +287,46 @@ function selectFolder(entry: AssetEntry) {
   folder.value = folder.value === path ? "." : path;
 }
 
-async function startSaveFolder() {
-  saveFolderName.value = "新建文件夹";
-  await nextTick();
-  saveFolderInput.value?.select();
-}
-
-async function createFolder() {
-  const name = saveFolderName.value?.trim();
-  if (!name || folderSaving.value) return;
-  folderSaving.value = true;
-  try {
-    const path = await createAssetFolder(saveDirectory.value, name);
-    await loadEntries();
-    saveDirectory.value = path;
-    saveFolderName.value = undefined;
-  } catch (error) {
-    showError(error);
-  } finally {
-    folderSaving.value = false;
-  }
-}
-
 async function createAssetFolder(parent: string, name: string) {
   if (/[\\/]/.test(name)) throw new Error("文件夹名称不能包含斜杠");
   const path = parent === "." ? name : `${parent}/${name}`;
-  await studio.createAssetFolder({ path });
+  if (browserWorkspaceMode) await browserAssetFiles().mkdir(path);
+  else await studio.createAssetFolder({ path });
   return path;
 }
 
 async function openSave(label: string, items: AssetOutput[]) {
-  outputs.value = items;
-  selectedOutput.value = 0;
-  assetName.value = label.endsWith(extension.value) ? label : `${label}${extension.value}`;
-  saveDirectory.value = folder.value;
-  saveFolderName.value = undefined;
-  sourceDirectory = props.directory;
-  saveVisible.value = true;
+  const directory = props.directory;
+  if (!directory) return;
   try {
-    await loadEntries();
-  } catch (error) {
-    showError(error);
-  }
-}
-
-async function saveAsset() {
-  const output = outputs.value[selectedOutput.value]?.output;
-  const name = assetName.value.trim();
-  if (!output || !name || /[\\/]/.test(name) || saving.value || saveFolderName.value !== undefined) return;
-  const path = saveDirectory.value === "." ? name : `${saveDirectory.value}/${name}`;
-  saving.value = true;
-  try {
-    const content = typeof output.value === "object"
-      ? await useWorkspaceFiles(() => sourceDirectory).read(output.value.url)
-      : new Blob([String(output.value)]);
-    await studio.saveAsset(content, { params: { path }, headers: { "Content-Type": "application/octet-stream" } });
-    saveVisible.value = false;
-    ElMessage.success("已保存到素材库");
-    await loadEntries();
-  } catch (error) {
-    showError(error);
-  } finally {
-    saving.value = false;
-  }
+    const sources: AssetSaveSource[] = [];
+    for (const { output } of items) {
+      if (!["IMAGE", "VIDEO", "AUDIO"].includes(output.dataType) || !output.value || typeof output.value !== "object" || typeof output.value.url !== "string") continue;
+      const extension = output.value.url.match(/\.[^./\\]+$/)?.[0] ?? "";
+      const name = label.endsWith(extension) ? label : label + extension;
+      sources.push({ file: new File([await useWorkspaceFiles(directory).read(output.value.url)], name, { type: output.value.mimeType }), metadata: { source: "画布素材" } });
+    }
+    if (!sources.length) { ElMessage.info("个人资产仅支持图片、视频和音频。"); return; }
+    await saveDialog.value?.open(sources);
+  } catch (error) { showError(error); }
 }
 
 defineExpose({ openSave });
 </script>
 
 <style lang="scss" scoped>
+
 .assetLibrary {
+  &.selectable { width: 100%; }
+  &.assetPage { width: 100%; max-height: none; background: transparent; .libraryScroll { max-height: none; } .libraryToolbar { max-width: 560px; } }
+  .assetGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 22px; padding: 8px 0 24px;
+    .assetCard { min-width: 0; padding: 12px; border: 1px solid var(--el-border-color-light); border-radius: 16px; background: var(--el-bg-color-overlay);
+      .assetCover { position: relative; display: grid; place-items: center; width: 100%; height: 180px; padding: 0; overflow: hidden; border: 0; border-radius: 10px; background: var(--el-fill-color-light); color: var(--el-text-color-secondary); cursor: pointer;
+        .el-image, video { width: 100%; height: 100%; object-fit: cover; } .mediaLabel { position: absolute; bottom: 8px; left: 8px; padding: 3px 7px; border-radius: 6px; color: white; background: #0008; font-size: 12px; }
+      }
+      .assetInfo { display: flex; align-items: center; gap: 8px; margin: 10px 0; h3 { flex: 1; min-width: 0; margin: 0; font-size: 14px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } }
+    }
+  }
   width: min(320px, calc(100vw - 30px));
   max-height: calc(100dvh - 140px);
 
@@ -353,6 +360,8 @@ defineExpose({ openSave });
     }
   }
 
+  .assetFilters { display: flex; gap: 8px; margin: 12px 0; .el-select { width: 160px; } }
+  .tagHint { font-size: 12px; color: var(--el-text-color-secondary); }
   .libraryScroll {
     min-height: 0;
     max-height: 440px;
@@ -447,56 +456,5 @@ defineExpose({ openSave });
 
 }
 
-.saveForm {
-  .saveLocation {
-    .locationHeader {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: var(--el-font-size-base);
-      color: var(--el-text-color-regular);
-    }
-
-    .locationPath {
-      margin: 4px 0 10px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-size: var(--el-font-size-small);
-      color: var(--el-text-color-secondary);
-    }
-
-    .saveFolderScroll {
-      height: auto;
-      max-height: 220px;
-    }
-
-    .saveFolderTree {
-      :deep(.el-tree-node__content) {
-        height: 36px;
-        border-radius: var(--el-border-radius-base);
-      }
-
-      .saveFolderEntry {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 0;
-
-        svg { flex-shrink: 0; color: var(--el-text-color-secondary); }
-        span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      }
-    }
-
-    .createFolderRow {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 10px;
-
-      .el-input { flex: 1; min-width: 0; }
-      .el-button { margin: 0; }
-    }
-  }
-}
+.saveForm { margin-top: 16px; }
 </style>

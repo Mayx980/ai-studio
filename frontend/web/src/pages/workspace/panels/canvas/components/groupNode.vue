@@ -14,11 +14,11 @@
       @keydown.enter="confirmLabel"
       @keydown.esc.prevent="editingLabel = false"
       @blur="saveLabel" />
-    <span v-else class="groupLabel" tabindex="0" :title="`${data.label || '分组'}（双击编辑名称）`" @dblclick.stop="editLabel" @keydown.enter.stop.prevent="editLabel">
+    <span v-else class="groupLabel" tabindex="0" :title="readOnly ? data.label : `${data.label || '分组'}（双击编辑名称）`" @dblclick.stop="editLabel" @keydown.enter.stop.prevent="editLabel">
       {{ data.label || "分组" }}
     </span>
     <button
-      v-for="corner in resizeCorners"
+      v-for="corner in readOnly ? [] : resizeCorners"
       :key="corner.name"
       class="resizeCorner nodrag nopan"
       :class="corner.name"
@@ -41,6 +41,7 @@ import { useVueFlow, type GraphNode, type NodeProps } from "@vue-flow/core";
 import { ElMessage } from "element-plus";
 
 const props = defineProps<NodeProps>();
+const readOnly = inject("readOnlyCanvas", false);
 const flow = useVueFlow();
 const batchHistory = inject<((action: () => Promise<void>) => Promise<void>) | undefined>("batchCanvasHistory", undefined);
 const editingLabel = ref(false);
@@ -66,6 +67,7 @@ const resize = shallowRef<{
 }>();
 
 async function editLabel() {
+  if (readOnly) return;
   labelDraft.value = props.data.label || "分组";
   editingLabel.value = true;
   await nextTick();

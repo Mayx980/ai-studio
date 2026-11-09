@@ -70,9 +70,11 @@ watch(() => props.aspectRatio, value => {
 });
 watch(() => [props.source?.url, props.source?.mimeType], () => generationController?.abort(), { flush: "sync" });
 onMounted(refreshModels);
+window.addEventListener("toonflow:provider-config-changed", refreshModels);
+onScopeDispose(() => window.removeEventListener("toonflow:provider-config-changed", refreshModels));
 onScopeDispose(() => { disposed = true; generationController?.abort(); });
 
-async function refreshModels() {
+async function refreshModels(_event?: Event) {
   if (modelsLoading.value || busy.value) return;
   modelsLoading.value = true;
   try {
@@ -87,7 +89,7 @@ async function refreshModels() {
       inheritModelConfig = false;
     }
     models.value = result.filter(item => item.type === "image");
-    if (!props.settings.model) {
+    if (!selectedModel.value) {
       const choice = models.value[0];
       props.settings.model = choice ? JSON.stringify([choice.providerId, choice.modelId]) : "";
     }

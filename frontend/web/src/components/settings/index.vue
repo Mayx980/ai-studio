@@ -38,32 +38,22 @@
 <script setup lang="ts">
 import { defineAsyncComponent, shallowRef } from "vue";
 import { hasDesktopUpdate } from "@/stores/desktopUpdate";
-import { isMobile } from "@/lib/platform";
 import {
   IconPalette,
+  IconKey,
   IconSettings,
-  IconPhotoVideo,
   IconBuildingStore,
   IconInfoCircle,
   IconCode,
   IconShieldLock,
   IconPlugConnected,
   IconUserCog,
-  IconSubtitlesAi,
-  IconDevices,
 } from "@tabler/icons-vue";
 
 const settingsPanels = [
-  { id: "ui", label: "界面设置", icon: IconPalette, component: defineAsyncComponent(() => import("./panels/ui.vue")) },
+  { id: "ui", label: "外观", icon: IconPalette, component: defineAsyncComponent(() => import("./panels/ui.vue")) },
+  { id: "api", label: "API 配置", icon: IconKey, component: defineAsyncComponent(() => import("@/components/browserApiSettings.vue")) },
   { id: "general", label: "常规配置", icon: IconSettings, component: defineAsyncComponent(() => import("./panels/general/index.vue")) },
-  {
-    id: "languageModel",
-    label: "文本模型",
-    icon: IconSubtitlesAi,
-    groupLabel: "模型",
-    component: defineAsyncComponent(() => import("./panels/languageModel/index.vue")),
-  },
-  { id: "mediaModel", label: "媒体模型", icon: IconPhotoVideo, component: defineAsyncComponent(() => import("./panels/mediaModel/index.vue")) },
   {
     id: "pluginMarket",
     label: "插件市场",
@@ -72,9 +62,6 @@ const settingsPanels = [
     component: defineAsyncComponent(() => import("./panels/pluginMarket/index.vue")),
   },
   { id: "mcp", label: "MCP", icon: IconPlugConnected, groupLabel: "通讯", component: defineAsyncComponent(() => import("./panels/mcp/index.vue")) },
-  ...(!isMobile
-    ? [{ id: "deviceLink", label: "设备互联", icon: IconDevices, component: defineAsyncComponent(() => import("./panels/deviceLink.vue")) }]
-    : []),
   {
     id: "personalization",
     label: "个性化",

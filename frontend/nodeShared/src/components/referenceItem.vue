@@ -1,6 +1,7 @@
 <template>
   <vue-draggable
     v-model="items"
+    :disabled="readOnly"
     class="referenceList"
     aria-label="输入引用"
     :animation="180"
@@ -23,14 +24,17 @@
 </template>
 
 <script setup lang="ts">
+import { inject } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
 import type { NodeInputValue } from "@toonflow/nodes-scaffold/values";
 import referenceCard from "./referenceCard.vue";
 
+const readOnly = inject("readOnlyCanvas", false);
 const items = defineModel<NodeInputValue[]>({ required: true });
 const emit = defineEmits<{ remove: [item: NodeInputValue]; preview: [item: NodeInputValue, url: string] }>();
 
 function moveReference(from: number, index: number) {
+  if (readOnly) return;
   const item = items.value[from];
   if (!item || from === index || index < 0 || index >= items.value.length) return;
   const next = [...items.value];

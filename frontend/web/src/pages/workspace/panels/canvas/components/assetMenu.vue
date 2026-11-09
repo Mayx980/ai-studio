@@ -26,6 +26,8 @@
 <script setup lang="ts">
 import { studio, isStudioError } from "@/ports";
 
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { browserAssetFiles } from "@/lib/browserAssets";
 import { translate } from "@toonflow/i18n/vue";
 import { computed, nextTick, ref, shallowRef } from "vue";
 import saveFile from "@/lib/saveFile";
@@ -48,7 +50,7 @@ const moveFolders = computed(() => {
       ...flatten(item.children ?? []),
     ]);
   }
-  return [{ label: translate("素材库根目录"), path: "." }, ...flatten(props.entries)];
+  return [{ label: translate("个人资产根目录"), path: "." }, ...flatten(props.entries)];
 });
 
 function destinationDisabled(path: string) {
@@ -80,7 +82,8 @@ function showError(error: unknown) {
 async function relocate(entry: AssetEntry, target: string) {
   busy.value = true;
   try {
-    await studio.renameAsset({ path: entry.path, target });
+    if (browserWorkspaceMode) await browserAssetFiles().rename(entry.path, target);
+    else await studio.renameAsset({ path: entry.path, target });
     emit("changed", entry.path, target);
   } finally {
     busy.value = false;
@@ -101,7 +104,7 @@ async function createMoveFolder() {
   const entry = activeEntry.value!;
   closeMenu();
   try {
-    const { value } = await ElMessageBox.prompt("新文件夹将创建在素材库根目录", "新建文件夹", {
+    const { value } = await ElMessageBox.prompt("新文件夹将创建在个人资产根目录", "新建文件夹", {
       inputValue: "新建文件夹",
       inputPattern: /^[^\\/]+$/,
       inputValidator: value => !!value?.trim() || "请输入文件夹名称",
@@ -110,7 +113,8 @@ async function createMoveFolder() {
       cancelButtonText: "取消",
     });
     const name = value.trim();
-    await studio.createAssetFolder({ path: name });
+    if (browserWorkspaceMode) await browserAssetFiles().mkdir(name);
+    else await studio.createAssetFolder({ path: name });
     await relocate(entry, name + "/" + entry.name);
   } catch (error) {
     showError(error);
@@ -128,7 +132,7 @@ async function handleCommand(command: string) {
   closeMenu();
   try {
     if (command === "download") {
-      await saveFile(() => studio.readAsset<Blob>({ params: { path: entry.path, download: true }, responseType: "blob" }).then(({ data }) => data), entry.name);
+      await saveFile(() => browserWorkspaceMode ? browserAssetFiles().read(entry.path).then(data => new Blob([data])) : studio.readAsset<Blob>({ params: { path: entry.path, download: true }, responseType: "blob" }).then(({ data }) => data), entry.name);
     }
     if (command === "rename") {
       const { value } = await ElMessageBox.prompt("名称", "重命名", {
@@ -145,7 +149,8 @@ async function handleCommand(command: string) {
       await ElMessageBox.confirm("确定删除“" + entry.name + "”？", "删除素材", { type: "warning", confirmButtonText: "删除", cancelButtonText: "取消" });
       busy.value = true;
       try {
-        await studio.removeAsset({ data: { path: entry.path } });
+        if (browserWorkspaceMode) await browserAssetFiles().remove(entry.path);
+        else await studio.removeAsset({ data: { path: entry.path } });
         emit("changed", entry.path);
       } finally {
         busy.value = false;

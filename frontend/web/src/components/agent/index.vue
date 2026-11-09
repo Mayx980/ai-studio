@@ -1,8 +1,10 @@
 <template>
   <section v-show="visible" class="agent">
-    <agentMenu
+    <agentMenu v-if="!props.creationModes"
       :key="conversationKey"
       :name="name"
+      :hideName="props.creationModes"
+      :closable="props.closable"
       :history="history"
       :sessionFile="sessionFile"
       :parentFile="selectedConversation?.parentFile"
@@ -27,6 +29,7 @@
       :initialSession="item.session"
       :sessionFile="item.file"
       :disabled="loading || !initialized"
+      :creationModes="props.creationModes"
       @session="setSessionFile(item, $event)"
       @event="receiveAgentEvent"
       @sent="updateConversationName(item, $event)" />
@@ -36,7 +39,10 @@
 <script setup lang="ts">
 import { studio, isStudioError } from "@/ports";
 
-import { computed, onBeforeUnmount, ref, watch, type ComponentPublicInstance } from "vue";
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { createBrowserConversation, readBrowserConversation, listBrowserConversations, renameBrowserConversation, removeBrowserConversation } from "./browserConversations";
+import { restoreBrowserResults } from "@/stores/browserGeneration";
+import { computed, inject, onBeforeUnmount, ref, watch, type ComponentPublicInstance } from "vue";
 import { translate } from "@toonflow/i18n/vue";
 import { ElMessage } from "element-plus";
 import { useWorkspaceStore } from "@/stores/workspace";
@@ -46,6 +52,7 @@ import type { AgentEvent, AgentSubAgent } from "@toonflow/server/agent/types";
 import agentMenu from "./menu.vue";
 import conversation from "./conversation.vue";
 
+const props = withDefaults(defineProps<{ closable?: boolean; creationModes?: boolean }>(), { closable: true, creationModes: false });
 const visible = defineModel<boolean>({ default: false });
 type OpenConversation = { key: number; name: string; file?: string; parentFile?: string; subAgents: AgentSubAgent[]; session: AgentConversation | null };
 // ACT: 会话实例保留到工作区关闭，让切换后的回复继续接收流式内容。
@@ -146,16 +153,23 @@ function setSessionFile(item: OpenConversation, file: string) {
   }
 }
 
+const startNewProject = inject<((mode: "simple" | "professional") => Promise<void>) | undefined>("startNewProject", undefined);
 async function newConversation() {
   if (loading.value || historyLoading.value) return;
+  if (props.creationModes && browserWorkspaceMode) {
+    try {
+      if (startNewProject) await startNewProject("simple");
+      else { await workspaceStore.createProject("未命名项目", "simple"); }
+    } catch (error) { ElMessage.error(error instanceof Error ? error.message : "新建对话失败"); }
+    return;
+  }
   const directory = workspaceStore.project?.directory;
   if (!directory) return ElMessage.warning("请先打开项目");
+  if (props.creationModes) workspaceStore.creationMode = "simple";
   const currentRequest = ++requestId;
   loading.value = true;
   try {
-    const { data } = await studio.createConversation<{ code: number; data: AgentConversation; message?: string }>({
-      directory,
-    }, { headers: { "x-toonflow-workspace": "1" } });
+    const data = browserWorkspaceMode ? { code: 200, data: await createBrowserConversation(directory), message: "" } : (await studio.createConversation<{ code: number; data: AgentConversation; message?: string }>({ directory }, { headers: { "x-toonflow-workspace": "1" } })).data;
     if (data.code !== 200) throw new Error(data.message || "新建对话失败");
     if (currentRequest !== requestId) return;
     const session = data.data;
@@ -172,6 +186,7 @@ async function newConversation() {
 }
 
 async function readConversation(directory: string, file: string) {
+  if (browserWorkspaceMode) return readBrowserConversation(directory, file);
   const { data } = await studio.openConversation<{ code: number; data: AgentConversation; message?: string }>({
     params: { directory, sessionFile: file }, headers: { "x-toonflow-workspace": "1" },
   });
@@ -186,16 +201,18 @@ async function loadHistory(openLatest = false) {
   historyLoading.value = true;
   loading.value = openLatest;
   try {
-    const { data } = await studio.listConversations<{ code: number; data: AgentHistory[]; message?: string }>({
-      params: { directory }, headers: { "x-toonflow-workspace": "1" },
-    });
+    if (browserWorkspaceMode) await restoreBrowserResults(directory);
+    const data = browserWorkspaceMode ? { code: 200, data: await listBrowserConversations(directory), message: "" } : (await studio.listConversations<{ code: number; data: AgentHistory[]; message?: string }>({ params: { directory }, headers: { "x-toonflow-workspace": "1" } })).data;
     if (data.code !== 200) throw new Error(data.message || "读取历史对话失败");
     if (currentRequest !== requestId) return;
     history.value = data.data;
     // 首条回复结束前会话可能尚未落盘，仍允许从历史菜单切回。
     for (const item of conversations.value) if (item.file) setSessionFile(item, item.file);
     if (openLatest) {
-      const session = !workspaceStore.pendingAgentMessage && data.data[0] ? await readConversation(directory, data.data[0].file) : null;
+      const requested = workspaceStore.pendingAgentSession;
+      const file = requested?.directory === directory ? requested.file : !workspaceStore.pendingAgentMessage ? data.data[0]?.file : undefined;
+      const session = file ? await readConversation(directory, file) : browserWorkspaceMode ? await createBrowserConversation(directory) : null;
+      if (requested?.directory === directory) workspaceStore.pendingAgentSession = null;
       if (currentRequest !== requestId) return;
       showConversation(session);
       initialized.value = true;
@@ -242,9 +259,7 @@ async function renameConversation(file: string, value: string) {
   const currentRequest = ++requestId;
   loading.value = true;
   try {
-    const { data } = await studio.renameConversation<{ code: number; data: { name: string }; message?: string }>({
-      directory, sessionFile: file, name: nextName,
-    }, { headers: { "x-toonflow-workspace": "1" } });
+    const data = browserWorkspaceMode ? { code: 200, data: await renameBrowserConversation(directory, file, nextName), message: "" } : (await studio.renameConversation<{ code: number; data: { name: string }; message?: string }>({ directory, sessionFile: file, name: nextName }, { headers: { "x-toonflow-workspace": "1" } })).data;
     if (data.code !== 200) throw new Error(data.message || "重命名对话失败");
     if (currentRequest !== requestId) return;
     if (item) item.name = data.data.name;
@@ -262,11 +277,12 @@ async function renameConversation(file: string, value: string) {
 async function removeConversation(file: string) {
   const directory = workspaceStore.project?.directory;
   if (!directory || loading.value || historyLoading.value || history.value.length <= 1 || !history.value.some(item => item.file === file)) return;
-  if (!/^[\w-]+\.jsonl$/.test(file)) return ElMessage.error("对话文件名无效");
+  if (!(browserWorkspaceMode ? /^[\w-]+\.json$/ : /^[\w-]+\.jsonl$/).test(file)) return ElMessage.error("对话文件名无效");
   const currentRequest = ++requestId;
   loading.value = true;
   try {
-    await useWorkspaceFiles(directory).remove(`.agent/sessions/${file}`);
+    if (browserWorkspaceMode) await removeBrowserConversation(directory, file);
+    else await useWorkspaceFiles(directory).remove(`.agent/sessions/${file}`);
     if (currentRequest !== requestId) return;
     history.value = history.value.filter(item => item.file !== file);
     if (file === sessionFile.value) {
@@ -295,6 +311,7 @@ watch(() => workspaceStore.project?.directory, directory => {
   showConversation(null);
   if (visible.value && directory) void loadHistory(true);
 }, { immediate: true });
+watch(() => workspaceStore.pendingAgentSession, requested => { if (requested && requested.directory === workspaceStore.project?.directory && initialized.value) { void selectConversation(requested.file); workspaceStore.pendingAgentSession = null; } });
 watch(visible, active => {
   if (active && !initialized.value) void loadHistory(true);
 });

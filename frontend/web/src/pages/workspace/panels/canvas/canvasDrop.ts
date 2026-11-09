@@ -1,4 +1,6 @@
 import { studio, isStudioError } from "@/ports";
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { browserAssetFiles } from "@/lib/browserAssets";
 import { ElMessage } from "element-plus";
 import type { useVueFlow } from "@vue-flow/core";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
@@ -65,6 +67,8 @@ export function isCanvasFileDrag(event: DragEvent) {
 
 type CanvasFileContext = {
   directory: string;
+  throwOnError?: boolean;
+  script?: boolean;
   availableNodes: { type: string }[];
   signal: AbortSignal;
   flow: Pick<ReturnType<typeof useVueFlow>, "addNodes" | "screenToFlowCoordinate">;
@@ -80,7 +84,9 @@ export async function dropCanvasFiles(event: DragEvent, context: CanvasFileConte
   try {
     signal.throwIfAborted();
     if (path) {
-      const { data } = await studio.readAsset<Blob>({ params: { path }, responseType: "blob", signal });
+      const data = browserWorkspaceMode
+        ? new Blob([await browserAssetFiles().read(path)], { type: fileMimeTypes[path.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream" })
+        : (await studio.readAsset<Blob>({ params: { path }, responseType: "blob", signal })).data;
       droppedFiles = [new File([data], path.split("/").pop()!, { type: data.type })];
     }
     await importCanvasFiles(droppedFiles, position, context);
@@ -92,6 +98,7 @@ export async function dropCanvasFiles(event: DragEvent, context: CanvasFileConte
 export async function importCanvasFiles(droppedFiles: File[], position: { x: number; y: number }, context: CanvasFileContext) {
   const { signal, flow, availableNodes } = context;
   const files = useWorkspaceFiles(context.directory);
+  const createdIds: string[] = [];
   for (const [index, file] of droppedFiles.entries()) {
     if (signal.aborted) break;
     const id = crypto.randomUUID();
@@ -103,7 +110,7 @@ export async function importCanvasFiles(droppedFiles: File[], position: { x: num
       const kind = mimeType.startsWith("image/") ? "image" : mimeType.startsWith("audio/") ? "audio" : mimeType.startsWith("video/") ? "video"
         : mimeType.startsWith("text/") || /^application\/(json|xml|javascript|x-ndjson)$/.test(mimeType) ? "text" : undefined;
       if (!kind) throw new Error(`${file.name}：该文件类型暂不支持导入画布`);
-      const type = `remote-${kind}Node`;
+      const type = kind !== "text" && availableNodes.some(node => node.type === `remote-${kind}GenerationNode`) ? `remote-${kind}GenerationNode` : `remote-${kind}Node`;
       if (!availableNodes.some(node => node.type === type)) throw new Error(`${file.name}：请先安装并启用对应的基础节点`);
       let output: NodeOutput | undefined;
       let textSnapshot: string | undefined;
@@ -115,12 +122,15 @@ export async function importCanvasFiles(droppedFiles: File[], position: { x: num
       }
       signal.throwIfAborted();
       flow.addNodes({ id, type, position: { x: position.x + index * 32, y: position.y + index * 32 },
-        data: kind === "text" ? { label: file.name, textSnapshot } : { label: file.name, outputs: { [kind]: output } } });
+        data: kind === "text" ? { label: file.name, textSnapshot, ...(context.script ? { contentKind: "script" } : {}) } : { label: file.name, outputs: { [kind]: output } } });
+      createdIds.push(id);
     } catch (error) {
       if (copiedPath) await files.remove(copiedPath).catch(showError);
+      if (context.throwOnError) throw error;
       if (!signal.aborted) showError(error);
     }
   }
+  return createdIds;
 }
 
 function showError(error: unknown) {

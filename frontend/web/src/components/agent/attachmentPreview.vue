@@ -5,31 +5,30 @@
         <icon-file-text :size="18" />
         <span>{{ attachment.name }}</span>
       </button>
-      <el-button v-if="restorable" class="restoreAttachment" text size="small" :disabled="disabled" @click="emit('restore')">还原到输入框</el-button>
     </template>
     <el-image
       v-else-if="attachment.mimeType.startsWith('image/')"
-      ref="imageRef"
       class="thumbnailImage"
       :src="thumbnailUrl"
-      :previewSrcList="thumbnailUrl ? [thumbnailUrl] : []"
-      previewTeleported
       fit="cover"
       :alt="attachment.name"
       :title="attachment.name"
       tabindex="0"
       role="button"
       :aria-label="`预览 ${attachment.name}`"
-      @keydown.enter.prevent="imageRef?.showPreview()"
-      @keydown.space.prevent="imageRef?.showPreview()">
+      @click="imagePreviewVisible = true"
+      @keydown.enter.prevent="imagePreviewVisible = true"
+      @keydown.space.prevent="imagePreviewVisible = true">
       <template #error><icon-photo :size="20" /></template>
     </el-image>
     <button v-else-if="attachment.mimeType.startsWith('video/')" class="thumbnailButton" type="button" :title="attachment.name" :aria-label="`预览 ${attachment.name}`" :disabled="!thumbnailUrl" @click="videoPreviewVisible = true">
-      <video v-if="thumbnailUrl" :src="thumbnailUrl" preload="metadata" muted playsinline aria-hidden="true" />
+      <video v-if="thumbnailUrl" :src="thumbnailUrl" preload="metadata" muted playsinline aria-hidden="true" @loadedmetadata="showVideoCover" />
       <icon-video class="videoIcon" :size="16" />
     </button>
     <div v-else class="fileAttachmentCard" :title="attachment.name"><icon-file-text :size="18" /><span>{{ attachment.name }}</span></div>
+    <el-tooltip v-if="restorable" content="还原到输入框" placement="bottom"><el-button class="restoreAttachment" text circle size="small" :disabled="disabled" aria-label="还原到输入框" @click="emit('restore')"><icon-arrow-back-up :size="14" /></el-button></el-tooltip>
     <el-button v-if="removable" class="removeAttachment" circle :disabled="disabled" :aria-label="`移除 ${attachment.name}`" title="移除附件" @click="emit('remove')"><icon-x :size="10" /></el-button>
+    <imageViewer v-if="imagePreviewVisible && thumbnailUrl" :urlList="[thumbnailUrl]" @close="imagePreviewVisible = false" />
     <el-dialog v-model="videoPreviewVisible" :title="attachment.name" width="min(800px, 90vw)" alignCenter appendToBody destroyOnClose>
       <video v-if="videoPreviewVisible" class="videoPreview" :src="thumbnailUrl" controls playsinline preload="metadata" />
     </el-dialog>
@@ -42,8 +41,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import type { ImageInstance } from "element-plus";
-import { IconFileText, IconPhoto, IconVideo, IconX } from "@tabler/icons-vue";
+import imageViewer from "@toonflow/node-shared/imageViewer";
+import { IconFileText, IconPhoto, IconVideo, IconX, IconArrowBackUp } from "@tabler/icons-vue";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import type { AgentAttachment } from "./types";
 import { readTextAttachment } from "./textAttachments";
@@ -56,12 +55,16 @@ const textPreviewVisible = ref(false);
 const textContent = ref("");
 const textLoading = ref(false);
 const textError = ref("");
-const imageRef = ref<ImageInstance>();
+const imagePreviewVisible = ref(false);
 const videoPreviewVisible = ref(false);
 const thumbnailUrl = ref("");
+function showVideoCover(event: Event) {
+  const video = event.target as HTMLVideoElement;
+  if (video.duration > 0) video.currentTime = Math.min(0.1, video.duration / 2);
+}
 
 watch(() => [props.directory, props.attachment.file, props.attachment.path, props.attachment.mimeType] as const, async ([directory, file, path, mimeType], _previous, onCleanup) => {
-  videoPreviewVisible.value = false;
+  videoPreviewVisible.value = false; imagePreviewVisible.value = false;
   thumbnailUrl.value = "";
   if (!/^(image|video)\//.test(mimeType)) return;
   let cancelled = false;
@@ -108,6 +111,8 @@ watch([textPreviewVisible, () => props.attachment, () => props.directory], async
   flex-shrink: 0;
   width: 38px;
   height: 38px;
+  &:has(.restoreAttachment) { margin-bottom: 26px; }
+  .restoreAttachment { position: absolute; top: calc(100% + 2px); left: 0; margin: 0; width: 24px; height: 22px; }
 
   &.fileAttachment {
     display: flex;
@@ -139,7 +144,6 @@ watch([textPreviewVisible, () => props.attachment, () => props.directory], async
       span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     }
 
-    .restoreAttachment { height: 20px; margin: 2px 0 0 24px; padding: 0; font-size: 11px; }
   }
 
   .thumbnailButton,

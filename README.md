@@ -587,3 +587,7 @@ Copyright © 2026 北京爱阿科技有限公司
 [来源与接入边界](governance/upstream.md) · [使用 wf-prod 开发](governance/development.md)。
 
 [产品需求与验收场景](requirements/readme.md)记录当前创作工作台的产品边界；实现与验证进度见 [Issue #7 实施计划](.wf-prod/plans/issue-7/plan.md)。
+
+## AFXEN 创作原型
+
+Issue #7 的浏览器创作预览见 [创作原型设计](frontend/web/designs/creationExperience.md)。真实供应商调用需要用户在浏览器内输入 Key；设计原型不代表生产交付。

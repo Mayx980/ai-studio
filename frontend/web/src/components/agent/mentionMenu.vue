@@ -1,12 +1,12 @@
 <template>
   <div v-click-outside:[clickOutsideExclude]="closeMenu" class="mentionMenu" @keydown.capture="handleKeydown">
-    <el-button class="mentionButton" text circle :disabled="disabled" :aria-expanded="visible" :aria-controls="listId" aria-label="提及节点输出或素材" title="提及节点输出或素材" @mousedown.prevent @click="visible ? closeMenu() : openMenu()"><icon-at :size="16" /></el-button>
+    <el-button v-if="!hideTrigger" class="mentionButton" text circle :disabled="disabled" :aria-expanded="visible" :aria-controls="listId" aria-label="提及节点输出或素材" title="提及节点输出或素材" @mousedown.prevent @click="visible ? closeMenu() : openMenu()"><icon-at :size="16" /></el-button>
     <teleport to="body">
       <div v-if="visible" ref="popupElement" class="mentionMenu mentionOverlay" :style="popupStyle" @keydown.capture="handleKeydown">
         <el-card class="mentionPopup" shadow="always" :bodyStyle="{ padding: '0' }" :style="{ maxHeight: `${popupHeight}px` }">
           <div class="mentionHeader"><strong>提及输出与素材</strong><el-button text circle size="small" aria-label="关闭提及" @click="closeMenu"><icon-x :size="14" /></el-button></div>
           <div class="mentionScopes" aria-label="提及来源">
-            <button v-for="item in scopes" :key="item.id" type="button" :class="{ selected: scope === item.id }" :aria-pressed="scope === item.id" @click="changeScope(item.id)">{{ item.name }}</button>
+            <button v-for="item in visibleScopes" :key="item.id" type="button" :class="{ selected: scope === item.id }" :aria-pressed="scope === item.id" @click="changeScope(item.id)">{{ item.name }}</button>
           </div>
           <div v-if="selectedNode || selectedCanvas || assetPath" class="mentionBreadcrumb">
             <el-button text circle size="small" aria-label="返回上一级" @click="goBack"><icon-chevron-left :size="15" /></el-button>
@@ -16,11 +16,11 @@
           <el-scrollbar ref="listScrollbar" class="mentionScroll" :maxHeight="`${Math.max(90, popupHeight - (selectedNode || selectedCanvas || assetPath ? 218 : 188))}px`">
             <div :id="listId" class="mentionList" role="listbox" aria-label="可提及内容" :aria-busy="loading || selecting" :aria-multiselectable="!!selectedNode">
               <div v-if="loading && !rows.length" class="mentionStatus" role="status">正在加载…</div>
-              <div v-else-if="loadError" class="mentionStatus" role="alert"><span>{{ loadError }}</span><el-button text type="primary" size="small" @click="loadList()">重试</el-button></div>
+              <div v-else-if="loadError && !rows.length" class="mentionStatus" role="alert"><span>{{ loadError }}</span><el-button text type="primary" size="small" @click="loadList()">重试</el-button></div>
               <div v-else-if="!rows.length" class="mentionStatus" role="status">{{ emptyText }}</div>
               <div class="mentionRows" :style="{ height: `${listVirtualizer.getTotalSize()}px` }">
                 <button v-for="{ row, index, start } in visibleRows" :id="`${listId}-${index}`" :key="`${row.kind}-${row.id}`" class="mentionItem" :style="{ transform: `translateY(${start}px)` }" :class="{ active: index === activeIndex, unavailable: !row.available, checked: row.kind === 'output' && selectedOutputs.includes(row.id) }" type="button" role="option" :aria-selected="row.kind === 'output' ? selectedOutputs.includes(row.id) : index === activeIndex" :aria-disabled="!row.available || selecting" :aria-posinset="index + 1" :aria-setsize="rows.length" :title="row.name" @mouseenter="activeIndex = index" @mousedown.prevent @click="chooseRow(row)">
-                  <mentionThumbnail :thumbnail="row.thumbnail" :directory="directory" :globalAsset="row.kind === 'file'"><component :is="row.kind === 'canvas' ? IconVector : row.kind === 'directory' ? IconFolder : row.dataType === 'image' || row.dataType === 'mask' ? IconPhoto : row.dataType === 'video' ? IconVideo : row.dataType === 'audio' ? IconMusic : row.dataType ? IconFileText : IconBox" :size="18" /></mentionThumbnail>
+                  <attachmentPreview v-if="row.kind === 'attachment' && attachments?.[Number(row.id)]" class="uploadedThumbnail" :attachment="attachments[Number(row.id)]!" :directory="directory" /><mentionThumbnail v-else :thumbnail="row.thumbnail" :directory="directory" :globalAsset="row.kind === 'file'"><component :is="row.kind === 'canvas' ? IconVector : row.kind === 'directory' ? IconFolder : row.dataType === 'image' || row.dataType === 'mask' ? IconPhoto : row.dataType === 'video' ? IconVideo : row.dataType === 'audio' ? IconMusic : row.dataType ? IconFileText : IconBox" :size="18" /></mentionThumbnail>
                   <span class="mentionContent"><span class="mentionName">{{ row.name }}</span><span v-if="row.description" class="mentionDescription">{{ row.description }}</span></span>
                   <span v-if="!row.available" class="mentionState">{{ row.kind === 'file' ? '不支持' : '暂无输出' }}</span>
                   <span v-else-if="row.kind === 'output'" class="mentionCheck" :class="{ selected: selectedOutputs.includes(row.id) }"><icon-check v-if="selectedOutputs.includes(row.id)" :size="12" /></span>
@@ -45,20 +45,24 @@ import { computed, nextTick, onBeforeUnmount, ref, useId, watch, type CSSPropert
 import { ClickOutside as vClickOutside, type ScrollbarInstance } from "element-plus";
 import { useVirtualizer } from "@tanstack/vue-virtual";
 import { IconAt, IconBox, IconCheck, IconChevronLeft, IconChevronRight, IconFileText, IconFolder, IconVector, IconVideo, IconMusic, IconPhoto, IconSearch, IconX } from "@tabler/icons-vue";
+import type { AgentAttachment } from "./types";
 import type { AgentMention } from "@toonflow/server/agent/types";
 import { mentionAssetType } from "@toonflow/server/agent/mentionSources";
 import { useMentionSources, type MentionAsset, type MentionNode, type MentionOutput } from "./mentionSources";
+import attachmentPreview from "./attachmentPreview.vue";
 import mentionThumbnail from "./mentionThumbnail.vue";
 
-const props = defineProps<{ directory?: string; active: boolean; disabled: boolean; query?: string; editor?: HTMLElement; currentCanvasId?: string }>();
-const emit = defineEmits<{ select: [mentions: AgentMention[]]; dismiss: []; open: [] }>();
+const props = defineProps<{ currentOnly?: boolean; attachments?: AgentAttachment[]; hideTrigger?: boolean; directory?: string; active: boolean; disabled: boolean; query?: string; editor?: HTMLElement; currentCanvasId?: string }>();
+const emit = defineEmits<{ select: [mentions: AgentMention[]]; dismiss: []; open: []; selectAttachment: [attachment: AgentAttachment] }>();
 const sources = useMentionSources(() => props.directory);
 const listId = useId();
 const scopes = [{ id: "current", get name() { return translate("当前画布"); } }, { id: "other", get name() { return translate("其他画布"); } }, { id: "assets", get name() { return translate("全局素材"); } }] as const;
+const visibleScopes = computed(() => props.currentOnly ? scopes.filter(item => item.id === "current") : scopes);
 type MentionScope = typeof scopes[number]["id"];
-type MentionRow = { id: string; name: string; kind: "canvas" | "node" | "output" | "file" | "directory"; available: boolean; description: string; dataType?: string; thumbnail?: { url: string; mimeType: string }; outputCount: number };
+type MentionRow = { id: string; name: string; kind: "canvas" | "node" | "output" | "file" | "directory" | "attachment"; available: boolean; description: string; dataType?: string; thumbnail?: { url: string; mimeType: string }; outputCount: number };
 const typeLabels: Record<string, string> = { STRING: "文本", INT: "整数", FLOAT: "数字", BOOLEAN: "布尔值", IMAGE: "图片", MASK: "遮罩", VIDEO: "视频", AUDIO: "音频", FILE: "文件" };
 const scope = ref<MentionScope>("current");
+watch(() => props.currentOnly, value => { if (value) changeScope("current"); }, { flush: "post" });
 const buttonVisible = ref(false);
 const visible = computed(() => props.active && !props.disabled && (buttonVisible.value || props.query !== undefined));
 const search = ref(props.query ?? "");
@@ -92,7 +96,11 @@ const rows = computed<MentionRow[]>(() => {
   if (scope.value === "assets") return assets.value.map(item => ({ ...item, id: item.path, kind: item.type, available: item.type === "directory" || !!item.dataType, dataType: item.dataType?.toLocaleLowerCase(),
     thumbnail: ["IMAGE", "MASK", "VIDEO"].includes(item.dataType ?? "") ? { url: item.path, mimeType: mentionAssetType(item.path).mimeType } : undefined,
     description: item.type === "directory" ? translate("文件夹") : typeLabels[item.dataType ?? ""] ?? translate("文件"), outputCount: 0 }));
-  return nodes.value.map(item => ({ ...item, kind: "node", dataType: item.dataType?.toLocaleLowerCase(), description: typeLabels[item.dataType ?? ""] ?? translate("节点"), outputCount: item.outputCount }));
+  const uploaded: MentionRow[] = (props.attachments ?? []).flatMap((attachment, index) => {
+    const name = attachment.referenceName || attachment.name;
+    return `${name} ${attachment.name}`.toLocaleLowerCase().includes(searchText.value) ? [{ id: String(index), name, kind: "attachment", available: true, description: "输入框素材", dataType: attachment.mimeType.split("/")[0], outputCount: 1 }] : [];
+  });
+  return [...uploaded, ...nodes.value.map(item => ({ ...item, kind: "node" as const, dataType: item.dataType?.toLocaleLowerCase(), description: typeLabels[item.dataType ?? ""] ?? translate("节点"), outputCount: item.outputCount }))];
 });
 const listVirtualizer = useVirtualizer<HTMLDivElement, HTMLButtonElement>(computed(() => ({
   count: rows.value.length,
@@ -188,6 +196,7 @@ function loadMore() {
 async function chooseRow(row: MentionRow) {
   if (!row.available || selecting.value) return;
   selectionError.value = "";
+  if (row.kind === "attachment") { const attachment = props.attachments?.[Number(row.id)]; if (attachment) { emit("selectAttachment", attachment); closeMenu(); } return; }
   if (row.kind === "canvas") {
     selectedCanvas.value = { id: row.id, name: row.name };
     search.value = "";
@@ -316,6 +325,7 @@ watch([visible, () => props.editor], ([open, editor], _previous, onCleanup) => {
     window.removeEventListener("scroll", updatePopupPosition, true);
   });
 }, { flush: "post" });
+watch(visible, (value, previous) => { if (value && !previous && props.attachments?.length) changeScope("current"); });
 watch([visible, scope, canvasId, selectedNode, assetPath, () => props.directory], () => {
   clearTimeout(searchTimer);
   requestController?.abort();
@@ -490,4 +500,8 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
     .mentionError { padding: 0 10px 8px; color: var(--el-color-danger); font-size: 12px; overflow-wrap: anywhere; }
   }
 }
+</style>
+
+<style scoped lang="scss">
+.uploadedThumbnail { flex: none; width: 36px; height: 36px; :deep(.thumbnailImage), :deep(.thumbnailButton) { width: 36px; height: 36px; } }
 </style>

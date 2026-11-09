@@ -2,7 +2,7 @@
   <header class="agentMenu">
     <el-button v-if="parentFile" class="backButton" text circle :icon="IconArrowLeft" aria-label="返回父 Agent" title="返回父 Agent" @click="emit('back')" />
     <el-input
-      v-if="editingName && !parentFile"
+      v-if="editingName && !parentFile && !hideName"
       ref="nameInput"
       v-model="nameDraft"
       class="conversationName"
@@ -12,8 +12,8 @@
       @keydown.enter="saveName"
       @keydown.esc.prevent="editingName = false"
       @blur="saveName" />
-    <span v-else class="conversationName">
-      <span class="conversationTitle" :class="{ readOnly: parentFile }" :title="name" :tabindex="sessionFile && !parentFile ? 0 : -1" @dblclick="editName" @keydown.enter.prevent="editName">{{ name }}</span>
+    <span v-else-if="!hideName" class="conversationName">
+      <span class="conversationTitle" :class="{ readOnly: parentFile }" :title="name" :tabindex="sessionFile && !parentFile ? 0 : -1" @click="editName" @keydown.enter.prevent="editName">{{ name }}</span>
     </span>
     <div class="menuActions">
       <el-popover v-if="subAgents?.length" v-model:visible="subAgentsVisible" trigger="click" placement="bottom-end" :width="340" :showArrow="false" :popperStyle="{ maxWidth: 'calc(100vw - 24px)' }">
@@ -47,7 +47,7 @@
       <el-button v-if="!parentFile" text circle aria-label="新建对话" title="新建对话" @click="emit('newChat')"><icon-message-plus :size="16" /></el-button>
       <el-popover v-if="!parentFile" v-model:visible="historyVisible" trigger="click" placement="bottom-end" :width="280" :showArrow="false" @show="emit('history')">
         <template #reference>
-          <el-button text circle :loading="loading" :icon="IconHistory" :aria-expanded="historyVisible" aria-label="历史对话" title="历史对话" />
+          <el-button class="historyTrigger" text :loading="loading" :icon="IconHistory" :aria-expanded="historyVisible" aria-label="历史对话">历史对话</el-button>
         </template>
         <div class="historyList" role="group" aria-label="历史对话">
           <p v-if="!history.length" class="historyTips" role="status">{{ loading ? "正在加载对话…" : "暂无历史对话，点击“新建对话”开始。" }}</p>
@@ -77,7 +77,7 @@
       </el-popover>
       <el-button text circle :loading="configLoading" :icon="IconAdjustmentsHorizontal" aria-label="媒体生成控制" title="媒体生成控制" @click="openMediaConfig" />
       <slot name="actions" />
-      <el-button text circle aria-label="关闭对话" title="关闭" @click="emit('close')"><icon-x :size="16" /></el-button>
+      <el-button v-if="closable !== false" text circle aria-label="关闭对话" title="关闭" @click="emit('close')"><icon-x :size="16" /></el-button>
     </div>
   </header>
   <pluginConfigDialog v-if="mediaTool" v-model="configVisible" :plugin="mediaTool" :canManage="canManageTools" />
@@ -100,6 +100,8 @@ import {
 } from "@tabler/icons-vue";
 
 const props = defineProps<{
+  closable?: boolean;
+  hideName?: boolean;
   name: string;
   history: AgentHistory[];
   sessionFile?: string;
@@ -186,6 +188,7 @@ async function renameHistory(item: AgentHistory) {
 <style lang="scss" scoped>
 .agentMenu {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
@@ -203,7 +206,7 @@ async function renameHistory(item: AgentHistory) {
   }
 
   .conversationName {
-    flex: 1;
+    flex: 1 1 120px;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -220,7 +223,10 @@ async function renameHistory(item: AgentHistory) {
 
   .menuActions {
     display: flex;
-    flex-shrink: 0;
+    flex-wrap: wrap;
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: 100%;
     gap: 4px;
 
     .subAgentTrigger {
@@ -246,12 +252,15 @@ async function renameHistory(item: AgentHistory) {
     }
 
     :deep(.el-button) {
+      flex-shrink: 0;
       width: 28px;
       height: 28px;
       margin: 0;
       padding: 0;
       color: var(--el-text-color-secondary);
       .el-icon { font-size: 16px; }
+      &.historyTrigger { width: auto; padding: 0 6px; }
+      &.enterCanvasButton { width: auto; padding: 0 8px; flex-shrink: 0; white-space: nowrap; }
     }
   }
 }
@@ -415,4 +424,8 @@ async function renameHistory(item: AgentHistory) {
     }
   }
 }
+</style>
+
+<style scoped lang="scss">
+.agentMenu { flex-wrap: wrap; gap: 6px; .conversationName { min-width: 80px; flex: 1; } .menuActions { flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; } }
 </style>

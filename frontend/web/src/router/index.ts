@@ -1,8 +1,10 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 import { useHelloStore } from "@/stores/hello";
+import { currentAccount } from "@/stores/prototypeAccount";
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
+    { path: "/login", component: () => import("@/pages/login/index.vue") },
     {
       path: "/",
       redirect: "/hello",
@@ -26,4 +28,5 @@ const router = createRouter({
     },
   ],
 });
+router.beforeEach(to => to.path !== "/login" && !currentAccount.value ? { path: "/login", replace: true } : true);
 export default router;

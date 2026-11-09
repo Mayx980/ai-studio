@@ -46,14 +46,14 @@
       </div>
 
       <footer class="pageFooter">
-        <p>© {{ new Date().getFullYear() }} Toonflow · 保留所有权利。</p>
+        <p>© {{ new Date().getFullYear() }} AFXEN · 保留所有权利。</p>
       </footer>
     </section>
     <div class="artPanel" aria-hidden="true">
       <bg class="artBg" />
       <div class="artBrand">
-        <span class="artLogo" v-html="logoSvg" />
-        <span class="artName">Toonflow</span>
+        <brandLogo compact />
+        <span class="artName">AFXEN</span>
       </div>
     </div>
     <mobileConnect v-model="mobileConnectVisible" />
@@ -74,7 +74,7 @@ import { customProviders, saveSettings } from "@/stores/settings";
 import type { MediaProvider } from "@/components/settings/panels/mediaModel/types";
 import { useHelloStore } from "@/stores/hello";
 import anonymousData from "@/lib/anonymousData";
-import logoSvg from "@toonflow/assets/logo.svg?raw";
+import brandLogo from "@/components/brandLogo.vue";
 import bg from "./bg.vue";
 import languageSelect from "@/components/languageSelect.vue";
 import { deviceHubEnabled, mobileConnection, mobileConnectionLabel } from "@/lib/mobile";
@@ -401,22 +401,6 @@ onBeforeUnmount(() => {
       align-items: center;
       gap: 12px;
       color: #fff;
-
-      .artLogo {
-        width: 44px;
-        height: 44px;
-        line-height: 0;
-
-        :deep(svg) {
-          display: block;
-          width: 100%;
-          height: 100%;
-        }
-
-        :deep(path) {
-          fill: #fff;
-        }
-      }
 
       .artName {
         font-size: 30px;

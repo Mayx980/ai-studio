@@ -497,3 +497,8 @@ const apiKey = computed(() => String(config.value.apiKey ?? ""));
 - 独立子包提供依赖管理边界，不提供页面样式隔离；全局 CSS、reset 或依赖 `app.use()` 全局安装的库需要单独适配。节点自有样式优先使用 `<style scoped>`。
 
 宿主文件操作失败时提供稳定的 `reasonCode`、`status` 和 Error.message；节点通过公开 `getWorkspaceFailure(error)` 读取 `{ code, status, message }`，不读取 HTTP 客户端错误。正常同名和缺失分别识别 EEXIST、ENOENT，冲突仍传播；错误对象不在 UMD 间依赖类实例身份。
+
+
+## 只读画布宿主
+
+宿主可提供 `readOnlyCanvas: true`。节点骨架会隐藏修改、删除和顶部编辑工具，禁止改名与连接，保留画布内只读输入和媒体播放；节点引用与文字插件同步遵循只读状态。宿主仍须提供只读的 `workspaceFiles` 并禁用 `nodeAi`，不能仅依赖隐藏按钮保护项目。创作过程预览读取现有项目快照，不接入原项目保存循环，拖拽与缩放只保留在当前查看状态。

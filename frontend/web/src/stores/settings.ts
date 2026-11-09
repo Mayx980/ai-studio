@@ -1,4 +1,6 @@
 import { studio } from "@/ports";
+import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import axios from "axios";
 import { normalizeLocale } from "@toonflow/i18n";
 import { computed, nextTick, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
@@ -15,6 +17,7 @@ let applyingSettings = false;
 
 export const settingsStorage = {
   getItem(key: string) {
+    if (browserWorkspaceMode && localStorage.getItem(key) !== null) return localStorage.getItem(key);
     const stores = settings.value.stores as Record<string, unknown> | undefined;
     if (stores && Object.hasOwn(stores, key)) return JSON.stringify(stores[key]);
     // ACT: 只迁移当前来源可读取的旧缓存，保留原值；不同端口的 localStorage 不能互读。
@@ -23,17 +26,18 @@ export const settingsStorage = {
     return value;
   },
   setItem(key: string, value: string) {
+    if (browserWorkspaceMode) { localStorage.setItem(key, value); return; }
     settings.value.stores = { ...(settings.value.stores as Record<string, unknown> | undefined), [key]: JSON.parse(value) };
   },
 };
 
-export const defaultUiSettings = { theme: "light", language: "system", primaryColor: "#409eff", fontScale: 100, mobileScale: 75, radius: 8, startupAnimation: true };
+export const defaultUiSettings = { theme: "dark", language: "system", primaryColor: "#409eff", fontScale: 100, mobileScale: 75, radius: 8, startupAnimation: true };
 export const uiSettings = computed(() => {
   const raw = settings.value.ui;
   const ui = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
   return {
     language: normalizeLocale(ui.language) ?? "system" as const,
-    theme: ui.theme === "dark" || ui.theme === "system" ? ui.theme : "light",
+    theme: ui.theme === "dark" || ui.theme === "system" || ui.theme === "light" ? ui.theme : defaultUiSettings.theme,
     primaryColor: typeof ui.primaryColor === "string" && /^#[\da-f]{6}$/i.test(ui.primaryColor) ? ui.primaryColor : defaultUiSettings.primaryColor,
     fontScale: typeof ui.fontScale === "number" && Number.isFinite(ui.fontScale) ? Math.min(125, Math.max(85, ui.fontScale)) : defaultUiSettings.fontScale,
     mobileScale: typeof ui.mobileScale === "number" && Number.isFinite(ui.mobileScale) ? Math.min(100, Math.max(50, ui.mobileScale)) : defaultUiSettings.mobileScale,
@@ -105,7 +109,22 @@ export async function loadSettings() {
   if (data.code !== 200 || !data.data || typeof data.data !== "object" || Array.isArray(data.data)) {
     throw new Error("读取设置失败");
   }
-  settings.value = data.data;
+  let preferences: Record<string, unknown> = {};
+  if (browserWorkspaceMode) {
+    try {
+      const stored = JSON.parse(localStorage.getItem("aiStudio.preferences") ?? "{}");
+      if (stored && typeof stored === "object" && !Array.isArray(stored)) {
+        preferences = Object.fromEntries(["ui", "general", "privacy"].filter(key => stored[key] && typeof stored[key] === "object" && !Array.isArray(stored[key])).map(key => [key, stored[key]]));
+      }
+    } catch { throw new Error("浏览器外观设置损坏，请清除此项设置后重试；项目数据未改动"); }
+  }
+  settings.value = { ...data.data, ...preferences };
+  const ui = settings.value.ui && typeof settings.value.ui === "object" && !Array.isArray(settings.value.ui) ? settings.value.ui as Record<string, unknown> : {};
+  if (browserWorkspaceMode && ui.themePreset !== "black") {
+    // ACT: 本轮将已有原型切为黑色一次，后续手动选择浅色／跟随系统仍然保留。
+    settings.value = { ...settings.value, ui: { ...ui, theme: "dark", themePreset: "black" } };
+    await saveSettings();
+  }
   // 等初始化引发的监听执行完，再允许自动保存。
   await nextTick();
   settingsReady = true;
@@ -116,6 +135,12 @@ export function saveSettings(update?: (current: Record<string, unknown>) => Reco
   const saving = saveQueue.then(async () => {
     const patch = update?.(settings.value);
     if (update && !patch) return false;
+    if (browserWorkspaceMode) {
+      if (patch) settings.value = { ...settings.value, ...patch };
+      const preferences = Object.fromEntries(["ui", "general", "privacy"].filter(key => settings.value[key] !== undefined).map(key => [key, settings.value[key]]));
+      localStorage.setItem("aiStudio.preferences", JSON.stringify(preferences));
+      return true;
+    }
     const requestedNodeMenu = JSON.stringify(((patch?.general ?? settings.value.general) as { nodeMenu?: unknown } | undefined)?.nodeMenu);
     const { data } = await studio.saveApplicationSettings<{ code: number; data: { customProviders?: CustomProvider[]; mediaProvider?: { id: string }; modelRefreshErrors?: string[]; nodeMenu?: StoredNodeMenuItem[] | null } | null }>({ settings: { ...settings.value, ...patch } }, { headers: { "x-toonflow-workspace": "1" } });
     if (data.code !== 200) throw new Error("保存设置失败");

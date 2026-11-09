@@ -16,6 +16,7 @@ export function useCanvasHistory(flow: ReturnType<typeof useVueFlow>, binding: (
   const edgeRuntimeFields = new Set(["data", "selected", "sourceNode", "targetNode", "sourceX", "sourceY", "targetX", "targetY", "events", "initialized"]);
   let revision = 0;
   let dragging = false;
+  const ready = computed(() => !!binding() && !applying.value);
   const canUndo = computed(() => !!binding() && !applying.value && !grouping.value && cursor.value > 0);
   const canRedo = computed(() => !!binding() && !applying.value && !grouping.value && cursor.value < snapshots.value.length - 1);
 
@@ -125,14 +126,14 @@ export function useCanvasHistory(flow: ReturnType<typeof useVueFlow>, binding: (
     if (canRedo.value) await restore(cursor.value + 1);
   }
 
-  async function batch(action: () => Promise<void>) {
+  async function batch<T>(action: () => Promise<T>) {
     if (!binding() || applying.value) throw new Error("画布尚未就绪");
     record.cancel();
     commit();
     const currentRevision = revision;
     grouping.value++;
     try {
-      await action();
+      return await action();
     } finally {
       await nextTick();
       if (currentRevision === revision) {
@@ -176,5 +177,5 @@ export function useCanvasHistory(flow: ReturnType<typeof useVueFlow>, binding: (
   onScopeDispose(() => { revision++; record.cancel(); });
 
   const getRetainedNodes = () => [...nodeReferences.values(), ...flow.getNodes.value];
-  return { canUndo, canRedo, record, commit, undo, redo, batch, getRetainedNodes };
+  return { ready, canUndo, canRedo, record, commit, undo, redo, batch, getRetainedNodes };
 }

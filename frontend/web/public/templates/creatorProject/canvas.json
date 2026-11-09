@@ -1,0 +1,84 @@
+{
+  "toonflowCanvas": true,
+  "nodes": [
+    {
+      "id": "creativeRequest",
+      "type": "remote-textNode",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "创作要求",
+        "textPath": "assets/creativeRequest/content.md"
+      }
+    },
+    {
+      "id": "referenceFrame",
+      "type": "remote-imageGenerationNode",
+      "position": {
+        "x": 0,
+        "y": 350
+      },
+      "data": {
+        "label": "视频参考画面",
+        "outputs": {
+          "image": {
+            "dataType": "IMAGE",
+            "value": {
+              "url": "assets/reference.png",
+              "mimeType": "image/png"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "creatorVideo",
+      "type": "remote-videoGenerationNode",
+      "position": {
+        "x": 650,
+        "y": 160
+      },
+      "data": {
+        "label": "达人开箱逛买",
+        "prompt": "",
+        "ratio": "9:16",
+        "resolution": "720P",
+        "duration": 15,
+        "mode": "[\"imageReference:10\",\"videoReference:5\"]",
+        "generateAudio": true,
+        "outputs": {
+          "video": {
+            "dataType": "VIDEO",
+            "value": {
+              "url": "assets/creatorRecommendation.mp4",
+              "mimeType": "video/mp4"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "requestToVideo",
+      "source": "creativeRequest",
+      "sourceHandle": "text",
+      "target": "creatorVideo",
+      "targetHandle": "in"
+    },
+    {
+      "id": "referenceToVideo",
+      "source": "referenceFrame",
+      "sourceHandle": "image",
+      "target": "creatorVideo",
+      "targetHandle": "in"
+    }
+  ],
+  "viewport": {
+    "x": 40,
+    "y": 60,
+    "zoom": 0.8
+  }
+}

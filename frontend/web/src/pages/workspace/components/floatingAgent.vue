@@ -1,262 +1,79 @@
 <template>
   <teleport to="body">
-    <aside
-      v-show="visible"
-      id="agentPanel"
-      class="floatingAgent"
-      :class="{ docked, dragging: interaction?.mode === 'move' }"
-      :style="panelStyle"
-      aria-label="AI 对话"
-      @pointerdown="startMenuMove"
-      @pointermove="moveInteraction"
-      @pointerup="stopInteraction"
-      @pointercancel="stopInteraction"
-      @lostpointercapture="stopInteraction">
-      <div
-        v-for="handle in resizeHandles"
-        :key="handle.edge"
-        class="resizeHandle"
-        :class="handle.edge"
-        role="separator"
-        :aria-label="handle.label"
-        :aria-orientation="handle.edge === 'bottom' ? 'horizontal' : 'vertical'"
-        :aria-valuemin="Math.min(handle.edge === 'bottom' ? 240 : 320, resizeLimit(handle.edge))"
-        :aria-valuemax="resizeLimit(handle.edge)"
-        :aria-valuenow="handle.edge === 'bottom' ? height : width"
-        tabindex="0"
-        @pointerdown.stop="startInteraction($event, handle.edge)"
-        @keydown="resizeWithKeyboard($event, handle.edge)" />
-      <agent v-model="visible">
-        <template #menuActions>
-          <el-button
-            text
-            circle
-            :aria-label="docked ? '切换为悬浮' : '停靠到右侧'"
-            :title="docked ? '切换为悬浮' : '停靠到右侧'"
-            @click="docked = !docked">
-            <icon-app-window-bottom-right v-if="docked" :size="17" aria-hidden="true" />
-            <icon-layout-sidebar-right v-else :size="17" aria-hidden="true" />
-          </el-button>
-        </template>
-      </agent>
+    <aside v-show="visible && materialEditorState?.source !== 'canvas'" id="agentPanel" class="agentSidebar" :class="{ expanded, navigationCollapsed, historyExpanded: conversationHistoryOpen, materialSplit: !!materialEditorState }" :style="panelStyle" :inert="!!materialEditorState" aria-label="智能助手对话侧栏">
+      <studioSidebar v-if="expanded && !materialEditorState" activeSection="agent" :disabled="sidebarOpening" @navigate="navigate" @newAgent="newAgent" @openProject="openRecent" @openSettings="emit('openSettings')" />
+      <agentHistorySidebar v-if="expanded && !materialEditorState && conversationHistoryOpen" />
+      <div v-if="!expanded" class="resizeHandle" role="separator" aria-label="调整对话侧栏宽度" aria-orientation="vertical" :aria-valuemin="minimumWidth" :aria-valuemax="maximumWidth" :aria-valuenow="width" tabindex="0" @pointerdown="startResize" @pointermove="resize" @pointerup="stopResize" @pointercancel="stopResize" @lostpointercapture="stopResize" @keydown.left.prevent="preferredWidth = width + 16" @keydown.right.prevent="preferredWidth = width - 16" />
+      <el-tooltip v-if="!expanded && !materialEditorState" content="关闭" placement="left" :showArrow="false"><el-button class="closeAgent" text circle aria-label="关闭侧边栏" @click="visible = false"><icon-x :size="18" /></el-button></el-tooltip>
+      <div ref="assistantContent" class="assistantContent">
+        <header v-if="expanded && !materialEditorState" class="assistantHeader"><el-button text :disabled="sidebarOpening || generationBusy" @click="newChat"><icon-message-plus :size="18" />新聊天</el-button><el-button text :aria-expanded="conversationHistoryOpen" @click="conversationHistoryOpen = !conversationHistoryOpen"><icon-history :size="18" />历史对话</el-button></header>
+        <agent v-model="visible" creationModes :closable="!expanded"><template #menuActions><el-button v-if="expanded" class="enterCanvasButton" text :icon="IconVector" aria-label="进入画布" @click="emit('enterCanvas')">进入画布</el-button></template></agent>
+        <creativeCases v-if="expanded && !materialEditorState" class="assistantTemplates" @apply="applyCase" />
+      </div>
     </aside>
   </teleport>
 </template>
-
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, shallowRef, watch } from "vue";
-import { IconLayoutSidebarRight, IconAppWindowBottomRight } from "@tabler/icons-vue";
+import { computed, inject, onBeforeUnmount, ref, watch } from "vue";
+import { IconVector } from "@tabler/icons-vue";
+import agentHistorySidebar from "@/components/agentHistorySidebar.vue";
+import { useWorkspaceStore } from "@/stores/workspace";
+import { navigationCollapsed, conversationHistoryOpen } from "@/stores/navigation";
+import { materialEditorState } from "@/stores/materialEditor";
+import studioSidebar from "@/components/studioSidebar.vue";
+import creativeCases from "@/components/creativeCases.vue";
+import type { TemplateApplication } from "@/lib/creationTemplates";
+import type { Project } from "@/stores/workspace";
+import { ElMessage } from "element-plus";
+import { useRouter } from "vue-router";
 import agent from "@/components/agent/index.vue";
-
+import { generationBusy } from "@/stores/browserGeneration";
+const router = useRouter();
+function navigate(section: string) { if (section === "history") { conversationHistoryOpen.value = !conversationHistoryOpen.value; return; } void router.push({ path: "/home", query: { section } }); }
+const props = defineProps<{ expanded?: boolean }>();
 const visible = defineModel<boolean>({ default: false });
-const emit = defineEmits<{ resize: [width: number] }>();
-const docked = ref(false);
-const viewport = reactive({ width: window.innerWidth, height: window.innerHeight });
-const gap = computed(() => Math.min(15, viewport.width / 2, viewport.height / 2));
-const maxWidth = computed(() => Math.max(0, docked.value ? viewport.width * 0.45 : viewport.width - gap.value * 2));
-const preferredWidth = ref(420);
-const width = computed(() => Math.min(preferredWidth.value, maxWidth.value));
-const preferredHeight = ref<number>();
-const height = computed(() =>
-  docked.value ? viewport.height : Math.min(preferredHeight.value ?? viewport.height * 0.8, viewport.height - gap.value * 2)
-);
-const resizeHandles = computed(
-  () =>
-    [
-      { edge: "left", label: "从左侧调整对话宽度" },
-      ...(docked.value
-        ? []
-        : [
-            { edge: "right", label: "从右侧调整对话宽度" },
-            { edge: "bottom", label: "从下方调整对话高度" },
-          ]),
-    ] as { edge: ResizeEdge; label: string }[]
-);
-const right = ref(15);
-const bottom = ref(15);
-const left = computed(() => Math.max(gap.value, Math.min(viewport.width - width.value - right.value, viewport.width - gap.value - width.value)));
-const top = computed(() => Math.max(gap.value, Math.min(viewport.height - height.value - bottom.value, viewport.height - gap.value - height.value)));
-const panelStyle = computed(() => ({
-  left: `${docked.value ? viewport.width - width.value : left.value}px`,
-  top: `${docked.value ? 0 : top.value}px`,
-  width: `${width.value}px`,
-  height: `${height.value}px`,
-}));
-const interaction = shallowRef<{
-  mode: "move" | ResizeEdge;
-  pointerId: number;
-  element: HTMLElement;
-  x: number;
-  y: number;
-  left: number;
-  top: number;
-  right: number;
-  width: number;
-  height: number;
-}>();
-type ResizeEdge = "left" | "right" | "bottom";
-
-function movePanel(x: number, y: number) {
-  right.value = viewport.width - width.value - Math.max(gap.value, Math.min(x, viewport.width - gap.value - width.value));
-  bottom.value = viewport.height - height.value - Math.max(gap.value, Math.min(y, viewport.height - gap.value - height.value));
+const emit = defineEmits<{ resize: [width: number]; enterCanvas: []; openSettings: []; applyTemplate: [value: TemplateApplication] }>();
+const startNewProject = inject<((mode: "simple" | "professional") => Promise<void>) | undefined>("startNewProject", undefined);
+const openSidebarProject = inject<((directory: string) => Promise<void>) | undefined>("openSidebarProject", undefined);
+const sidebarOpening = ref(false);
+const assistantContent = ref<HTMLElement>();
+function applyCase(value: TemplateApplication) { emit("applyTemplate", value); assistantContent.value?.scrollTo({ top: 0 }); }
+async function sidebarAction(action: () => Promise<void>) {
+  if (sidebarOpening.value) return;
+  sidebarOpening.value = true;
+  try { await action(); assistantContent.value?.scrollTo({ top: 0 }); }
+  catch (error) { ElMessage.error(error instanceof Error ? error.message : "项目打开失败"); }
+  finally { sidebarOpening.value = false; }
 }
-
-function resizeAnchor(edge: ResizeEdge) {
-  if (docked.value) return viewport.width;
-  return edge === "left" ? left.value + width.value : edge === "right" ? left.value : top.value;
-}
-
-function resizeLimit(edge: ResizeEdge, anchor = resizeAnchor(edge)) {
-  if (edge === "left") return Math.min(maxWidth.value, anchor - (docked.value ? 0 : gap.value));
-  return Math.max(0, (edge === "right" ? viewport.width : viewport.height) - gap.value - anchor);
-}
-
-function resizePanel(edge: ResizeEdge, value: number, anchor = resizeAnchor(edge)) {
-  const x = left.value;
-  const y = top.value;
-  const limit = resizeLimit(edge, anchor);
-  const size = Math.min(limit, Math.max(Math.min(edge === "bottom" ? 240 : 320, limit), value));
-  if (edge === "bottom") preferredHeight.value = size;
-  else preferredWidth.value = size;
-  if (!docked.value) movePanel(edge === "left" ? anchor - width.value : edge === "right" ? anchor : x, edge === "bottom" ? anchor : y);
-}
-
-function resizeWithKeyboard(event: KeyboardEvent, edge: ResizeEdge) {
-  const keys = edge === "bottom" ? ["ArrowUp", "ArrowDown"] : ["ArrowLeft", "ArrowRight"];
-  const direction = keys.indexOf(event.key);
-  if (direction < 0) return;
-  event.preventDefault();
-  const delta = (direction === 0 ? -16 : 16) * (edge === "left" ? -1 : 1);
-  resizePanel(edge, (edge === "bottom" ? height.value : width.value) + delta);
-}
-
-function startMenuMove(event: PointerEvent) {
-  const target = event.target as HTMLElement;
-  if (!target.closest(".agentMenu") || target.closest("button, input, textarea, select, a, [contenteditable], .el-input, .conversationTitle")) return;
-  startInteraction(event, "move");
-}
-
-function startInteraction(event: PointerEvent, mode: "move" | ResizeEdge) {
-  if (event.button !== 0 || interaction.value || (docked.value && mode !== "left")) return;
-  event.preventDefault();
-  const element = event.currentTarget as HTMLElement;
-  element.setPointerCapture(event.pointerId);
-  interaction.value = {
-    mode,
-    pointerId: event.pointerId,
-    element,
-    x: event.clientX,
-    y: event.clientY,
-    left: left.value,
-    top: top.value,
-    right: docked.value ? viewport.width : left.value + width.value,
-    width: width.value,
-    height: height.value,
-  };
-}
-
-function moveInteraction(event: PointerEvent) {
-  const current = interaction.value;
-  if (!current || current.pointerId !== event.pointerId) return;
-  if (current.mode === "move") movePanel(current.left + event.clientX - current.x, current.top + event.clientY - current.y);
-  else if (current.mode === "left") resizePanel("left", current.width + current.x - event.clientX, current.right);
-  else if (current.mode === "right") resizePanel("right", current.width + event.clientX - current.x, current.left);
-  else resizePanel("bottom", current.height + event.clientY - current.y, current.top);
-}
-
-function stopInteraction(event?: PointerEvent) {
-  const current = interaction.value;
-  if (event && current?.pointerId !== event.pointerId) return;
-  interaction.value = undefined;
-  if (current?.element.hasPointerCapture(current.pointerId)) current.element.releasePointerCapture(current.pointerId);
-  if (current?.element === document.activeElement) current.element.blur();
-}
-
-function resizeViewport() {
-  stopInteraction();
-  viewport.width = window.innerWidth;
-  viewport.height = window.innerHeight;
-}
-
-watch([visible, docked], () => stopInteraction());
-watch(
-  () => (visible.value && docked.value ? width.value : 0),
-  (value) => emit("resize", value),
-  { immediate: true }
-);
-window.addEventListener("resize", resizeViewport);
-onBeforeUnmount(() => {
-  stopInteraction();
-  window.removeEventListener("resize", resizeViewport);
-});
+function newChat() { if (generationBusy.value || !startNewProject) return; return sidebarAction(async () => { await startNewProject("simple"); }); }
+function newAgent() { return sidebarAction(async () => { await useWorkspaceStore().resumeSimpleConversation(); }); }
+function openRecent(project: Project) { return sidebarAction(async () => { if (!openSidebarProject) throw new Error("工作区尚未就绪"); await openSidebarProject(project.directory); }); }
+const viewportWidth = ref(window.innerWidth), viewportHeight = ref(window.innerHeight), preferredWidth = ref(440);
+const minimumWidth = computed(() => Math.min(320, viewportWidth.value));
+const maximumWidth = computed(() => Math.min(760, viewportWidth.value));
+const width = computed(() => Math.max(minimumWidth.value, Math.min(preferredWidth.value, maximumWidth.value)));
+const panelStyle = computed(() => materialEditorState.value ? { left: "0px", top: "0px", width: viewportWidth.value <= 700 ? "100vw" : "50vw", height: viewportWidth.value <= 700 ? "50dvh" : "100dvh" } : props.expanded ? { left: "0px", top: "0px", width: "100vw", height: "100dvh" } : { right: "0px", top: "0px", width: `${width.value}px`, height: "100dvh" });
+let pointer: { id: number; x: number; width: number; element: HTMLElement } | undefined;
+function startResize(event: PointerEvent) { if (event.button !== 0) return; const element = event.currentTarget as HTMLElement; element.setPointerCapture(event.pointerId); pointer = { id: event.pointerId, x: event.clientX, width: width.value, element }; event.preventDefault(); }
+function resize(event: PointerEvent) { if (pointer?.id === event.pointerId) preferredWidth.value = pointer.width + pointer.x - event.clientX; }
+function stopResize() { const previous = pointer; pointer = undefined; if (previous?.element.hasPointerCapture(previous.id)) previous.element.releasePointerCapture(previous.id); }
+function updateViewport() { stopResize(); viewportWidth.value = window.innerWidth; viewportHeight.value = window.innerHeight; }
+watch(() => visible.value && !props.expanded ? width.value : 0, value => emit("resize", value), { immediate: true });
+window.addEventListener("resize", updateViewport);
+onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updateViewport); });
 </script>
+<style scoped lang="scss">
+.agentSidebar { position: fixed; z-index: 1001; box-sizing: border-box; max-width: 100vw; border-left: 1px solid var(--el-border-color); background: var(--el-bg-color); :deep(.agent) { border-radius: 0; } &:not(.expanded):not(.materialSplit) { padding-top: 44px; } .closeAgent { position: absolute; z-index: 3; top: 8px; right: 8px; } &.expanded { border: 0; background: transparent; } &.materialSplit { z-index: 1901; background: var(--el-bg-color); border: 0; border-radius: 0; overflow: hidden; } .resizeHandle { position: absolute; z-index: 2; top: 0; left: -4px; width: 8px; height: 100%; cursor: ew-resize; touch-action: none; &:focus-visible { background: var(--el-color-primary-light-5); } } }
+</style>
 
 <style scoped lang="scss">
-.floatingAgent {
-  position: fixed;
-  z-index: 1001;
-  box-sizing: border-box;
-  max-width: 100vw;
-  max-height: 100dvh;
-  border: 1px solid var(--el-border-color-light);
-  border-radius: var(--ui-radius-large, 12px);
-  background: color-mix(in srgb, var(--el-bg-color-overlay) 70%, transparent);
-  backdrop-filter: blur(6px);
-  box-shadow: var(--el-box-shadow-light);
-
-  &.docked {
-    border-width: 0 0 0 1px;
-    border-radius: 0;
-    background: var(--el-bg-color-overlay);
-    box-shadow: none;
-  }
-
-  :deep(.agent) {
-    border-radius: inherit;
-  }
-  &:not(.docked) :deep(.agentMenu) {
-    cursor: grab;
-    touch-action: none;
-  }
-
-  &.dragging {
-    user-select: none;
-    :deep(.agentMenu) {
-      cursor: grabbing;
-    }
-  }
-
-  .resizeHandle {
-    position: absolute;
-    z-index: 1;
-    touch-action: none;
-
-    &.left,
-    &.right {
-      top: 0;
-      bottom: 5px;
-      width: 5px;
-      cursor: ew-resize;
-    }
-
-    &.left {
-      left: 0;
-    }
-    &.right {
-      right: 0;
-    }
-    &.bottom {
-      right: 0;
-      bottom: 0;
-      left: 0;
-      height: 5px;
-      cursor: ns-resize;
-    }
-
-    &:hover,
-    &:focus-visible {
-      background: var(--el-color-primary-light-5);
-    }
-  }
+.assistantContent { height: 100%; min-width: 0; .assistantHeader { display: flex; justify-content: flex-end; align-items: center; gap: 8px; min-height: 36px; .el-button { gap: 6px; } } }
+.agentSidebar.expanded:not(.materialSplit) { background: #090909; padding: 24px 24px 24px 244px; isolation: isolate;
+  &::before { content: ""; position: absolute; top: 0; left: calc(220px + (100% - 220px) / 2); transform: translateX(-50%); width: min(1000px, calc(100% - 220px)); height: 440px; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 45% 0%, #2c8f7840, transparent 48%), radial-gradient(ellipse at 56% 0%, #397ac14d, transparent 52%), radial-gradient(ellipse at 50% -10%, #a34c8c30, transparent 50%); }
+  .assistantContent { overflow-y: auto; scrollbar-width: none; &::-webkit-scrollbar { display: none; } padding: 0 0 24px; :deep(.agent) { max-width: 1080px; height: calc((100dvh - 48px) * .6); min-height: 440px; margin: auto; &:has(.emptyConversation) { height: auto; min-height: calc((100dvh - 48px) * .6); overflow: visible; } } .assistantTemplates { max-width: 1080px; margin: 30px auto; } }
+  &.navigationCollapsed { padding-left: 92px; &::before { left: calc(68px + (100% - 68px) / 2); width: min(1000px, calc(100% - 68px)); } }
+  &.historyExpanded { padding-right: 324px; }
+  @media(max-width:700px) { &.historyExpanded { padding-right: min(260px, 42vw); :deep(.agentHistorySidebar) { width: min(248px, 40vw); } } padding: 16px 8px 12px 80px; &::before { left: calc(68px + (100% - 68px) / 2); width: calc(100% - 68px); height: 340px; } .assistantContent :deep(.agent) { min-height: 440px; } }
 }
+@media(max-width:700px) { .agentSidebar:not(.expanded):not(.materialSplit) { padding-top: 64px; } }
 </style>

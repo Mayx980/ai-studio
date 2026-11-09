@@ -1,6 +1,9 @@
 import type { AgentToolCall, AgentStats, AgentContext, AgentSubAgent, AgentMention } from "@toonflow/server/agent/types";
+import type { ProfessionalCreation } from "./professionalCreation";
 
-export type AgentAttachment = { name: string; path: string; mimeType: string; file?: File };
+export type ReferenceRole = "firstFrame" | "reference" | "middleFrame" | "lastFrame";
+export type ReferenceCategory = "character" | "scene" | "prop" | "other";
+export type AgentAttachment = { name: string; path: string; mimeType: string; file?: File; referenceRole?: ReferenceRole; referenceCategory?: ReferenceCategory; referenceName?: string };
 
 export type AgentMessagePart =
   | { id: string; type: "text"; content: string }
@@ -17,6 +20,9 @@ export type AgentMessage = {
   mentions?: AgentMention[];
   parts?: AgentMessagePart[];
   streaming?: boolean;
+  browserResultIds?: string[];
+  creationChoice?: { prompt: string; needsDetails?: boolean; resolved?: boolean };
+  professional?: ProfessionalCreation;
   error?: string;
   report?: { file: string; name: string };
 };
@@ -24,6 +30,7 @@ export type AgentMessage = {
 export type AgentHistory = { file: string; name: string; modified: string; messageCount: number };
 
 export type AgentConversation = {
+  creationMode?: "simple" | "professional";
   file: string;
   name: string;
   messages: AgentMessage[];

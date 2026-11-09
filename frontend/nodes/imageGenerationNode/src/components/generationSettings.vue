@@ -3,19 +3,19 @@
     <template #reference>
       <el-button class="settingsButton" text size="small" :disabled="disabled" :aria-expanded="settingsVisible" aria-label="图片生成设置">
         <span class="ratioShape" :style="ratioStyle(ratio)" aria-hidden="true" />
-        <span>{{ ratio }} · {{ size }} · 1张</span>
+        <span>{{ ratio }} · {{ sizeLabel(size) }} · {{ count }}张</span>
         <component :is="settingsVisible ? IconChevronDown : IconChevronUp" :size="14" aria-hidden="true" />
       </el-button>
     </template>
     <div class="generationSettings nodrag nopan nowheel" @pointerdown.stop @mousedown.stop @dblclick.stop @keydown.stop @wheel.stop>
-      <div class="sectionLabel">分辨率</div>
+      <div class="sectionLabel">图片尺寸</div>
       <el-radio-group v-model="size" class="sizeOptions" :disabled="disabled" aria-label="图片分辨率">
-        <el-radio-button v-for="item in sizes" :key="item" :value="item">{{ item }}</el-radio-button>
+        <el-radio-button v-for="item in visibleSizes" :key="item" :value="item">{{ sizeLabel(item) }}</el-radio-button>
       </el-radio-group>
       <div class="sectionLabel">比例</div>
       <div class="ratioOptions" role="group" aria-label="图片比例">
         <el-button
-          v-for="item in ratios"
+          v-for="item in visibleRatios"
           :key="item"
           class="ratioButton"
           :disabled="disabled"
@@ -28,20 +28,30 @@
           </span>
         </el-button>
       </div>
+      <div class="sectionLabel">生成数量</div><el-radio-group v-model="count" :disabled="disabled" aria-label="图片生成数量"><el-radio-button v-for="item in 6" :key="item" :value="item">{{ item }}</el-radio-button></el-radio-group>
     </div>
   </el-popover>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref, watch } from "vue";
+import { imageDimensions, imageClaritySizes } from "@toonflow/node-shared/generationDefaults";
 import { ElButton, ElPopover, ElRadioGroup, ElRadioButton } from "element-plus";
 import { IconChevronDown, IconChevronUp } from "@tabler/icons-vue";
 
-defineProps<{ sizes: string[]; ratios: string[]; disabled?: boolean }>();
+const props = defineProps<{ sizes: string[]; ratios: string[]; disabled?: boolean }>();
 const settingsVisible = ref(false);
+const count = defineModel<number>("count", { default: 1 });
 const size = defineModel<string>("size", { required: true });
 const ratio = defineModel<string>("ratio", { required: true });
 
+const visibleSizes = computed(() => {
+  const sizes = Object.values(imageClaritySizes).flatMap(value => value[ratio.value] && props.sizes.includes(value[ratio.value]!) ? [value[ratio.value]!] : []);
+  return sizes.length ? sizes : imageDimensions[ratio.value] ?? props.sizes;
+});
+function sizeLabel(value: string) { return Object.entries(imageClaritySizes).find(([, sizes]) => sizes[ratio.value] === value)?.[0].toLowerCase() ?? value; }
+const visibleRatios = computed(() => Object.keys(imageDimensions).filter(value => props.ratios.includes(value)));
+watch(ratio, (_, previous) => { const clarity = Object.values(imageClaritySizes).find(value => value[previous] === size.value); const mapped = clarity?.[ratio.value]; if (mapped && visibleSizes.value.includes(mapped)) size.value = mapped; else if (!visibleSizes.value.includes(size.value)) size.value = visibleSizes.value[0]!; });
 function ratioStyle(value: string) {
   const [width = 1, height = 1] = value.split(":").map(Number);
   return { width: `${16 * Math.min(width / height, 1)}px`, height: `${16 * Math.min(height / width, 1)}px` };

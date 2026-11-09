@@ -20,6 +20,7 @@
 </template>
 
 <script setup lang="ts">
+import type { BeginBrowserWorkflow } from "@/stores/browserGeneration";
 import { computed, nextTick, onScopeDispose, provide, shallowReactive, shallowRef, ref, watch, type ComponentPublicInstance } from "vue";
 import type { CanvasContext } from "@toonflow/tool-canvas/runtime";
 import { waitForControlValue } from "@/lib/mcpControl";
@@ -403,7 +404,46 @@ const mentionSource: MentionCanvasSource = {
   },
 };
 
-defineExpose({ canvasId, canvasReady, canvasListReady, getCanvasContext, readDocumentNode, readDocumentNodes, focusDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, resolveDocumentNodeFile, performFileAction, flushSave, cancelSave,
+defineExpose({
+  beginBrowserWorkflow: (async (...args) => {
+    const panel = await waitForControlValue(() => activeInstance.value, lifetime.signal);
+    return panel.beginBrowserWorkflow(...args);
+  }) as BeginBrowserWorkflow,
+  waitUntilReady: async () => {
+    const panel = await waitForControlValue(() => activeInstance.value, AbortSignal.any([lifetime.signal, AbortSignal.timeout(30000)]));
+    await panel.waitUntilReady();
+  },
+  importConversationTurn: async (turn: Parameters<CanvasInstance["importConversationTurn"]>[0]) => {
+    const panel = activeInstance.value;
+    if (!panel) throw new Error("画布尚未就绪");
+    return panel.importConversationTurn(turn);
+  },
+  importBrowserResult: async (...args: Parameters<CanvasInstance["importBrowserResult"]>) => {
+    const panel = activeInstance.value;
+    if (!panel) throw new Error("画布尚未就绪");
+    return panel.importBrowserResult(...args);
+  },
+  canvasId, canvasReady, canvasListReady, getCanvasContext, readDocumentNode, readDocumentNodes, focusDocumentNode, saveDocumentNode, mountDocumentNode, observeDocumentNode, resolveDocumentNodeFile, performFileAction, flushSave, cancelSave,
+  createInitialNode: async (type: string, tutorial?: "image" | "video") => {
+    const panel = activeInstance.value;
+    if (!panel) throw new Error("画布尚未就绪");
+    return panel.createInitialNode(type, tutorial);
+  },
+  prepareTutorial: async () => {
+    let panel = activeInstance.value;
+    if (!panel) throw new Error("画布尚未就绪");
+    if (!panel.getMentionNodes().some(node => !["group", "canvasGroup"].includes(node.type ?? ""))) {
+      const directory = workspaceStore.project?.directory;
+      if (!directory) throw new Error("请先打开项目");
+      const canvas = (await readCanvasFiles(useWorkspaceFiles(directory))).find(canvas => canvas.data.nodes.some(node => !["group", "canvasGroup"].includes(node.type ?? "")));
+      if (!canvas) throw new Error("教学引导项目中没有可讲解的节点，原项目未修改");
+      await activateCanvas(canvas.id);
+      panel = activeInstance.value;
+      if (!panel) throw new Error("教学画布尚未就绪");
+    }
+    return panel.prepareTutorial();
+  },
+  focusTutorialNode: (id: string) => activeInstance.value?.focusTutorialNode(id),
   addNodeAtPointer: () => activeInstance.value?.addNodeAtPointer(),
   mentionSource,
   get saveBusy() { return fileActionBusy || [...instances.values()].some(panel => panel.saveBusy); },

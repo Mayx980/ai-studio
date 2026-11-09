@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "vite --host",
+    "dev:studio": "vite --mode studio --host 127.0.0.1 --port 5173 --strictPort",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "vue-tsc",
@@ -69,7 +70,15 @@
     "@toonflow/tool-client": "workspace:*",
     "@toonflow/tool-browser-ui": "workspace:*",
     "eventsource-parser": "3.1.1",
-    "@toonflow/tool-ask-user-ui": "workspace:*"
+    "@toonflow/tool-ask-user-ui": "workspace:*",
+    "@toonflow/node-text": "workspace:*",
+    "@toonflow/node-image-generation": "workspace:*",
+    "@toonflow/node-video-generation": "workspace:*",
+    "@toonflow/node-audio-generation": "workspace:*",
+    "@toonflow/node-image": "workspace:*",
+    "@toonflow/node-video": "workspace:*",
+    "@toonflow/node-audio": "workspace:*",
+    "@toonflow/node-shared": "workspace:*"
   },
   "devDependencies": {
     "@types/lodash-es": "^4.17.12",

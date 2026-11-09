@@ -1,7 +1,8 @@
 <template>
   <div class="workspaceMenu">
-    <el-card shadow="never" :bodyStyle="{ padding: '3px 6px' }">
       <div class="menuContent">
+
+        <el-button v-if="workspaceStore.creationMode === 'professional'" class="toolButton" text :icon="IconMessages" aria-label="返回对话" title="返回对话" @click="workspaceStore.creationMode = 'simple'" />
         <el-button class="toolButton" text aria-label="退出项目" title="退出项目" @click="exitVisible = true">
           <icon-logout :size="18" aria-hidden="true" />
         </el-button>
@@ -11,9 +12,9 @@
           </el-badge>
         </el-button>
       </div>
-    </el-card>
+
     <el-dialog v-model="exitVisible" title="退出项目" width="360px" alignCenter appendToBody>
-      <span>是否退出当前项目并返回首页？</span>
+      <span>是否退出当前项目并返回原页面？</span>
       <template #footer>
         <el-button @click="exitVisible = false">取消</el-button>
         <el-button type="primary" :loading="leaving" @click="exitProject">退出项目</el-button>
@@ -24,12 +25,15 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { useRouter } from "vue-router";
-import { IconLogout, IconSettings } from "@tabler/icons-vue";
+import { useRouter, useRoute } from "vue-router";
+import { useWorkspaceStore } from "@/stores/workspace";
+import { IconMessages, IconLogout, IconSettings } from "@tabler/icons-vue";
 import { hasDesktopUpdate } from "@/stores/desktopUpdate";
 
 const emit = defineEmits<{ openSettings: [] }>();
 const router = useRouter();
+const route = useRoute();
+const workspaceStore = useWorkspaceStore();
 const exitVisible = ref(false);
 const leaving = ref(false);
 
@@ -37,7 +41,7 @@ async function exitProject() {
   if (leaving.value) return;
   leaving.value = true;
   try {
-    await router.push("/home");
+    await router.push({ path: "/home", query: { section: ["create", "history", "assets", "projects"].includes(String(route.query.returnSection)) ? String(route.query.returnSection) : "create" } });
   } finally {
     leaving.value = false;
   }

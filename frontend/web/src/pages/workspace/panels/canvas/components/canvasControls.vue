@@ -1,26 +1,9 @@
 <template>
-  <mini-map
-    v-if="showMap"
-    class="canvasMiniMap"
-    position="bottom-left"
-    :pannable="true"
-    :zoomable="true"
-    node-color="var(--el-fill-color-dark)"
-    mask-color="var(--el-mask-color-extra-light)" />
-  <panel class="canvasControlsPanel" position="bottom-left">
-    <el-card class="canvasControlsCard" shadow="never" :bodyStyle="{ padding: '3px 6px' }">
+  <teleport v-if="active" to="#canvasToolExtras" defer>
       <div class="canvasControls">
-        <el-tooltip :showArrow="false" :content="assetsVisible ? '关闭素材库' : '打开素材库'" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]">
-          <el-button
-            class="toolButton"
-            text
-            :type="assetsVisible ? 'primary' : 'default'"
-            :aria-pressed="assetsVisible"
-            aria-label="素材库"
-            @click="assetsVisible = !assetsVisible">
-            <icon-folders :size="18" />
-          </el-button>
-        </el-tooltip>
+        <el-button text :disabled="!canUndo" aria-label="撤销" title="撤销" @click="undo"><icon-arrow-back-up :size="18" /></el-button>
+        <el-button text :disabled="!canRedo" aria-label="重做" title="重做" @click="redo"><icon-arrow-forward-up :size="18" /></el-button>
+
         <!-- trigger 用 contextmenu 是为了让整理按钮只由 arrangeNodes 控制显隐，同时仍保留点击外部自动关闭 -->
         <el-tooltip :showArrow="false" content="整理画布" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]" :disabled="undoPopoverVisible">
           <span class="toolTrigger">
@@ -36,28 +19,8 @@
             </el-popover>
           </span>
         </el-tooltip>
-        <el-tooltip :showArrow="false" :content="showMap ? '隐藏地图' : '显示地图'" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]">
-          <el-button
-            class="toolButton"
-            text
-            :type="showMap ? 'primary' : 'default'"
-            :aria-pressed="showMap"
-            aria-label="显示或隐藏地图"
-            @click="showMap = !showMap">
-            <icon-map :size="18" />
-          </el-button>
-        </el-tooltip>
-        <el-tooltip :showArrow="false" :content="snapEnabled ? '关闭网格吸附' : '开启网格吸附'" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]">
-          <el-button
-            class="toolButton"
-            text
-            :type="snapEnabled ? 'primary' : 'default'"
-            :aria-pressed="snapEnabled"
-            aria-label="网格吸附"
-            @click="snapEnabled = !snapEnabled">
-            <icon-magnet :size="18" />
-          </el-button>
-        </el-tooltip>
+
+
         <el-tooltip :showArrow="false" :content="showEdges ? '隐藏连线' : '显示连线'" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]">
           <el-button
             class="toolButton"
@@ -70,60 +33,28 @@
           </el-button>
         </el-tooltip>
         <el-tooltip :showArrow="false" content="适应视图" placement="top" :hideAfter="0" :enterable="false" :triggerKeys="[]">
-          <el-button class="toolButton" text aria-label="适应视图" @click="fitView()">
+          <el-button class="toolButton" text aria-label="适应视图" @click="fitView({ maxZoom: 1 })">
             <icon-focus-centered :size="18" />
           </el-button>
         </el-tooltip>
-        <el-tooltip :showArrow="false"
-          content="缩放菜单（滚轮调整缩放）"
-          placement="top"
-          :hideAfter="0"
-          :enterable="false"
-          :triggerKeys="[]"
-          :disabled="zoomMenuVisible">
-          <span class="toolTrigger">
-            <el-popover v-model:visible="zoomMenuVisible" trigger="click" placement="top-start" :width="216">
-              <template #reference>
-                <el-button
-                  class="toolButton"
-                  text
-                  aria-label="缩放菜单"
-                  @wheel.stop.prevent="$event.deltaY && applyZoom(Math.min(800, Math.max(20, zoomPercent - Math.sign($event.deltaY))))">
-                  {{ zoomPercent }}%
-                </el-button>
-              </template>
-              <div class="zoomMenu">
-                <el-input-number
-                  class="zoomInput"
-                  :model-value="zoomPercent"
-                  :min="20"
-                  :max="800"
-                  :controls="false"
-                  aria-label="缩放百分比"
-                  @change="applyZoom">
-                  <template #suffix>%</template>
-                </el-input-number>
-                <el-button class="zoomAction" text @click="zoomIn()">放大</el-button>
-                <el-button class="zoomAction" text @click="zoomOut()">缩小</el-button>
-                <el-button class="zoomAction" text @click="fitView()">适合屏幕</el-button>
-              </div>
-            </el-popover>
-          </span>
-        </el-tooltip>
+
       </div>
-    </el-card>
-  </panel>
+  </teleport>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { Panel, useVueFlow, type XYPosition } from "@vue-flow/core";
-import { MiniMap } from "@vue-flow/minimap";
-import { IconMap, IconMagnet, IconFocusCentered } from "@tabler/icons-vue";
+import { useVueFlow, type XYPosition } from "@vue-flow/core";
+import { IconFocusCentered, IconArrowBackUp, IconArrowForwardUp } from "@tabler/icons-vue";
 import { ElMessage } from "element-plus";
 import { arrangeCanvas } from "../arrangeCanvas";
 
 const props = defineProps<{
+  active: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
   canvasId: string;
   directory: string | undefined;
   batchHistory: (action: () => Promise<void>) => Promise<void>;
@@ -131,11 +62,8 @@ const props = defineProps<{
 const snapEnabled = defineModel<boolean>("snapEnabled", { required: true });
 const showEdges = defineModel<boolean>("showEdges", { required: true });
 const assetsVisible = defineModel<boolean>("assetsVisible", { default: false });
-const showMap = ref(false);
-const zoomMenuVisible = ref(false);
 const flow = useVueFlow();
-const { viewport, zoomTo, zoomIn, zoomOut, fitView, getNodes, updateNode } = flow;
-const zoomPercent = computed(() => Math.round(viewport.value.zoom * 100));
+const { fitView, getNodes, updateNode } = flow;
 const layoutSnapshot = ref<{ id: string; position: XYPosition }[]>();
 const undoPopoverVisible = ref(false);
 const arranging = ref(false);
@@ -163,9 +91,7 @@ watch(
 );
 onBeforeUnmount(() => arrangeController?.abort());
 
-function applyZoom(value: number | undefined) {
-  if (value !== undefined && Number.isFinite(value)) void zoomTo(value / 100);
-}
+
 
 async function arrangeNodes() {
   if (!canArrange.value) return;
@@ -249,4 +175,8 @@ async function undoArrange() {
     margin-left: 0;
   }
 }
+</style>
+
+<style scoped lang="scss">
+.canvasControls { display: flex; align-items: center; flex-wrap: wrap; gap: 0; :deep(.el-button) { margin: 0; width: 32px; padding: 0; } }
 </style>

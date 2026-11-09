@@ -39,6 +39,13 @@ export function isTypeCompatible(sourceType: NodeHandle["dataType"], targetType:
 
 export const validateConnection: ValidConnectionFunc = (connection, context) => {
   if (connection.source === connection.target) return false;
+  if (context.edges.some(edge => edge.source === connection.source && edge.target === connection.target && edge.sourceHandle === connection.sourceHandle && edge.targetHandle === connection.targetHandle)) return false;
+  const pending = [connection.target], visited = new Set<string>();
+  while (pending.length) {
+    const id = pending.pop()!; if (id === connection.source) return false;
+    if (visited.has(id)) continue; visited.add(id);
+    pending.push(...context.edges.filter(edge => edge.source === id).map(edge => edge.target));
+  }
   const { sourceNode, targetNode } = context;
   const sourceHandles: NodeHandle[] = Array.isArray(sourceNode?.data.handles) ? sourceNode.data.handles : [];
   const targetHandles: NodeHandle[] = Array.isArray(targetNode?.data.handles) ? targetNode.data.handles : [];

@@ -1,5 +1,5 @@
 <template>
-  <div class="referenceItem" role="group" :title="title" :aria-label="title" @keydown.enter.self.stop.prevent="imageRef?.showPreview()" @keydown.space.self.stop.prevent="imageRef?.showPreview()">
+  <div class="referenceItem" :class="{ rowReference: isRow }" role="group" :title="title" :aria-label="title" @keydown.enter.self.stop.prevent="imageRef?.showPreview()" @keydown.space.self.stop.prevent="imageRef?.showPreview()">
     <el-image
       v-if="item.dataType === 'IMAGE' && previewUrl && !previewError"
       ref="imageRef"
@@ -23,7 +23,7 @@
       @loadedmetadata="readDuration"
       @loadeddata="readVideoPreview"
       @error="mediaError" />
-    <component v-else :is="itemIcon" class="typeIcon" :size="21" aria-hidden="true" />
+    <component v-else :is="itemIcon" class="typeIcon" v-show="!isRow" :size="21" aria-hidden="true" />
     <el-button
       class="removeButton nodrag nopan"
       :icon="IconX"
@@ -34,6 +34,7 @@
       @mousedown.stop
       @dblclick.stop
       @click.stop="emit('remove')" />
+    <button v-if="rowLabel" class="rowSource" type="button" @pointerdown.stop @mousedown.stop @click.stop="locateRow">{{ rowLabel }}<span v-if="rowUpdated"> · 来源已更新，结果待更新</span></button>
     <span class="indexBadge" aria-hidden="true">{{ index }}</span>
     <div v-if="item.dataType === 'VIDEO' && previewUrl && !previewError" class="videoInfo" aria-hidden="true">
       <icon-player-play :size="12" />
@@ -46,11 +47,29 @@
 import { computed, ref, watch } from "vue";
 import { ElButton, ElImage } from "element-plus";
 import { IconX, IconFileText, IconPhoto, IconVideo, IconMusic, IconPlayerPlay } from "@tabler/icons-vue";
+import { useNode, useVueFlow } from "@vue-flow/core";
 import { useNodeFiles } from "@toonflow/nodes-scaffold/workspaceFiles";
 import type { NodeInputValue } from "@toonflow/nodes-scaffold/values";
 
+const { node: targetNode } = useNode();
+const flow = useVueFlow();
 const props = defineProps<{ item: NodeInputValue; index: number }>();
 const emit = defineEmits<{ remove: []; preview: [url: string] }>();
+const isRow = computed(() => props.item.dataType === "STRING" && props.item.sourceHandle.startsWith("row:"));
+const rowLabel = computed(() => isRow.value ? `${flow.findNode(props.item.source)?.data.label || "脚本"} · ${typeof props.item.value === "string" ? props.item.value.split("\n")[0] : "镜头"}` : "");
+const referenceId = computed(() => JSON.stringify([props.item.source, props.item.sourceHandle]));
+watch(() => props.item.value, value => {
+  if (!isRow.value || typeof value !== "string") return;
+  const versions = targetNode.data.scriptReferenceVersions ??= {};
+  if (!(referenceId.value in versions)) versions[referenceId.value] = value;
+}, { immediate: true });
+const rowUpdated = computed(() => isRow.value && targetNode.data.scriptReferenceVersions?.[referenceId.value] !== props.item.value);
+async function locateRow() {
+  const source = flow.findNode(props.item.source); if (!source) return;
+  flow.removeSelectedElements(); flow.addSelectedNodes([source]); await flow.fitView({ nodes: [source.id], maxZoom: 1, padding: 0.3 });
+  const row = document.querySelector(`[data-id="${CSS.escape(source.id)}"] [data-row-id="${CSS.escape(props.item.sourceHandle.slice(4))}"]`);
+  row?.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
 const imageRef = ref<InstanceType<typeof ElImage>>();
 const previewError = ref("");
 const duration = ref("");
@@ -177,4 +196,12 @@ function readDuration(event: Event) {
     line-height: 12px;
   }
 }
+</style>
+
+<style scoped>
+.rowSource { position: relative; max-width: 180px; border: 0; background: var(--el-fill-color-light); color: var(--el-color-primary); font-size: 11px; cursor: pointer; white-space: normal; }
+</style>
+
+<style scoped>
+.referenceItem.rowReference { width: 190px; min-height: 48px; height: auto; flex-shrink: 0; } .rowReference .rowSource { width: 100%; max-width: none; padding: 8px 22px 8px 18px; text-align: left; } .rowSource span { display: block; color: var(--el-color-warning); }
 </style>
