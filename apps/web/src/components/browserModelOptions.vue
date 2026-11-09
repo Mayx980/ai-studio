@@ -1,43 +1,46 @@
 <template>
-  <el-popover v-if="browserConfig.enabled || browserWorkspaceMode" v-model:visible="parametersVisible" trigger="click" :triggerKeys="[]" :hideAfter="0" placement="bottom-start" :fallbackPlacements="['top-start', 'bottom-end', 'top-end']" :width="420" :showArrow="false" :popperOptions="{ modifiers: [{ name: 'preventOverflow', options: { padding: 12, altAxis: true, tether: false } }] }" popperClass="generationParameters" :popperStyle="{ maxHeight: 'calc(100dvh - 24px)', maxWidth: 'calc(100vw - 24px)', overflowY: 'auto', boxSizing: 'border-box', background: '#1e1e27f5', border: '1px solid #454151', borderRadius: '14px', padding: '20px', boxShadow: '0 14px 48px #0006', backdropFilter: 'blur(18px)' }">
-    <template #reference>
-      <span class="parameterTrigger">
-        <el-button class="modelParametersButton" plain :disabled="disabled || generationBusy" aria-label="模型 · 参数" :aria-expanded="parametersVisible" :title="parameterSummary">
-          <icon-adjustments-horizontal :size="17" /><span class="parameterButtonText"><strong>模型 · 参数</strong><small>{{ parameterSummary }}</small></span><icon-chevron-down :size="14" :class="{ opened: parametersVisible }" />
-        </el-button>
-      </span>
+  <template v-if="browserConfig.enabled || browserWorkspaceMode">
+    <el-select v-if="workspace.creationMode === 'professional' && !fixedKind" class="parameterKindSelect" v-model="parameterKind" :disabled="disabled || generationBusy" aria-label="参数类型"><el-option v-for="(label, value) in kindLabels" :key="value" :label="label" :value="value" /></el-select>
+    <el-select class="inlineModelSelect" v-model="selectedModelId" :disabled="disabled || generationBusy" placeholder="选择已接入模型" :noDataText="`未接入${kindLabels[kind]}模型，请在 API 配置中添加对应类型`" aria-label="生成模型" :title="selectedModel?.label"><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.id" /></el-select>
+    <slot name="afterModel" />
+    <template v-if="kind === 'image' || kind === 'video'">
+      <el-popover v-model:visible="parametersVisible" trigger="click" placement="bottom-start" :fallbackPlacements="['top-start', 'bottom-end', 'top-end']" :width="360" :showArrow="false" :hideAfter="0" :disabled="controlsDisabled" :popperOptions="popoverOptions" popperClass="generationParameters" :popperStyle="popoverStyle">
+        <template #reference><button class="inlineParameter formatParameter" type="button" :disabled="controlsDisabled" :aria-expanded="parametersVisible" aria-label="比例与清晰度"><span class="formatIcon" :style="ratioStyle(browserConfig.ratio)" aria-hidden="true" /><span>{{ browserConfig.ratio }}<span class="parameterDot"> · </span>{{ resolution }}</span></button></template>
+        <el-form class="parameterForm" labelPosition="top" :disabled="controlsDisabled" @keydown.esc.stop="parametersVisible = false">
+          <div class="parameterStack">
+            <el-form-item label="清晰度"><div class="segmentedOptions" role="group" aria-label="生成清晰度"><button v-for="item in resolutions" :key="item" type="button" :disabled="controlsDisabled" :aria-pressed="resolution === item" @click="resolution = item">{{ item.toLowerCase() }}</button></div></el-form-item>
+            <el-form-item label="比例"><div class="segmentedOptions ratioSegments" role="group" aria-label="生成比例"><button v-for="item in ratios" :key="item" type="button" :disabled="controlsDisabled" :aria-pressed="browserConfig.ratio === item" @click="browserConfig.ratio = item"><span class="ratioIcon" :style="ratioStyle(item)" aria-hidden="true" /><span>{{ item }}</span></button></div></el-form-item>
+          </div>
+          <div class="parameterDetails"><small v-if="kind === 'image'">实际图片尺寸 {{ browserConfig.imageSize.replace('*', ' × ') }}</small><label v-if="kind === 'video' && videoCapability?.audio === 'optional'">生成音频<el-switch v-model="browserConfig.generateAudio" aria-label="生成音频" /></label></div>
+        </el-form>
+      </el-popover>
+      <el-popover trigger="click" placement="top" :width="220" :showArrow="false" :disabled="controlsDisabled || kind === 'video'" :popperStyle="popoverStyle" popperClass="generationParameters">
+        <template #reference><button class="inlineParameter" type="button" :disabled="controlsDisabled || kind === 'video'" :title="kind === 'video' ? '每次默认生成一条视频' : '生成数量'" aria-label="生成数量"><icon-layers-subtract :size="19" /><span>{{ generationCount }} {{ kind === 'video' ? '条' : '张' }}</span></button></template>
+        <div class="parameterForm"><div class="parameterHeader">生成数量</div><div class="parameterStack"><div class="segmentedOptions" role="group" aria-label="图片生成数量"><button v-for="item in 6" :key="item" type="button" :disabled="controlsDisabled" :aria-pressed="generationCount === item" @click="generationCount = item">{{ item }}</button></div></div></div>
+      </el-popover>
+      <el-popover v-if="kind === 'video'" v-model:visible="durationVisible" trigger="click" placement="top" :width="360" :showArrow="false" :disabled="controlsDisabled" :popperStyle="popoverStyle" popperClass="generationParameters">
+        <template #reference><button class="inlineParameter" type="button" :disabled="controlsDisabled" :aria-expanded="durationVisible" aria-label="生成时长"><icon-clock :size="19" /><span>{{ videoDuration }}s</span></button></template>
+        <div class="parameterForm"><div class="parameterHeader">生成时长</div><div class="parameterStack"><div class="durationControls">
+          <el-slider v-model="durationPosition" :min="0" :max="Math.max(1, videoDurations.length - 1)" :step="1" :marks="durationMarks" :formatValueText="value => `${videoDurations[value] ?? 0} 秒`" :showTooltip="false" :disabled="controlsDisabled || videoDurations.length < 2" aria-label="视频生成时长" />
+          <el-input-number v-model="durationValue" :min="videoDurations[0] ?? 1" :max="videoDurations.at(-1) ?? 1" :precision="0" controlsPosition="right" :disabled="controlsDisabled || !videoDurations.length" aria-label="视频时长秒数" :title="`支持时长：${videoDurations.join('、')} 秒`"><template #suffix>s</template></el-input-number>
+        </div></div></div>
+      </el-popover>
     </template>
-    <el-form class="parameterForm" labelPosition="top" :disabled="disabled || generationBusy" @keydown.esc.stop="parametersVisible = false">
-      <div class="parameterHeader"><span>模型与生成参数</span><small>{{ kindLabels[kind] }}生成</small></div>
-      <el-form-item v-if="workspace.creationMode === 'professional' && !fixedKind" label="参数类型"><el-select :teleported="false" v-model="parameterKind" aria-label="参数类型"><el-option v-for="(label, value) in kindLabels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
-      <div class="parameterStack">
-        <el-form-item label="模型"><el-select :teleported="false" v-model="selectedModelId" placeholder="选择已接入模型" :noDataText="`未接入${kindLabels[kind]}模型，请在 API 配置中添加对应类型`" aria-label="生成模型"><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.id" /></el-select></el-form-item>
-        <template v-if="kind === 'image' || kind === 'video'">
-          <el-form-item label="清晰度"><div class="segmentedOptions" role="group" aria-label="生成清晰度"><button v-for="item in resolutions" :key="item" type="button" :disabled="controlsDisabled" :aria-pressed="resolution === item" @click="resolution = item">{{ item.toLowerCase() }}</button></div></el-form-item>
-          <el-form-item v-if="kind === 'video'" label="生成时长"><div class="durationControls">
-            <el-slider v-model="durationPosition" :min="0" :max="Math.max(1, videoDurations.length - 1)" :step="1" :marks="durationMarks" :formatValueText="value => `${videoDurations[value] ?? 0} 秒`" :showTooltip="false" :disabled="controlsDisabled || videoDurations.length < 2" aria-label="视频生成时长" />
-            <el-input-number v-model="durationValue" :min="videoDurations[0] ?? 1" :max="videoDurations.at(-1) ?? 1" :precision="0" controlsPosition="right" :disabled="controlsDisabled || !videoDurations.length" aria-label="视频时长秒数" :title="`支持时长：${videoDurations.join('、')} 秒`"><template #suffix>s</template></el-input-number>
-          </div></el-form-item>
-          <el-form-item label="比例"><div class="segmentedOptions ratioSegments" role="group" aria-label="生成比例"><button v-for="item in ratios" :key="item" type="button" :disabled="controlsDisabled" :aria-pressed="browserConfig.ratio === item" @click="browserConfig.ratio = item"><span class="ratioIcon" :style="ratioStyle(item)" aria-hidden="true" /><span>{{ item }}</span></button></div></el-form-item>
-          <el-form-item v-if="kind === 'image'" label="生成数量"><div class="segmentedOptions" role="group" aria-label="生成数量"><button v-for="item in 6" :key="item" type="button" :disabled="controlsDisabled" :aria-pressed="generationCount === item" @click="generationCount = item">{{ item }}</button></div></el-form-item>
-        </template>
-      </div>
-      <div v-if="kind === 'image' || kind === 'video'" class="parameterDetails"><small v-if="kind === 'image'">实际图片尺寸 {{ browserConfig.imageSize.replace('*', ' × ') }}</small><label v-if="kind === 'video' && videoCapability?.audio === 'optional'">生成音频<el-switch v-model="browserConfig.generateAudio" aria-label="生成音频" /></label></div>
-      <p v-else>当前适配器仅支持文字输入。</p>
-    </el-form>
-  </el-popover>
+  </template>
 </template>
 
 <script setup lang="ts">
 import { ElSlider, ElInputNumber } from "element-plus";
-import { IconAdjustmentsHorizontal, IconChevronDown } from "@tabler/icons-vue";
+import { IconClock, IconLayersSubtract } from "@tabler/icons-vue";
 import { imageClaritySizes, imageDimensions } from "@toonflow/node-shared/generationDefaults";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { computed, ref, watch } from "vue";
 import { browserConfig, browserModels, browserModelSelection, configuredBrowserModels, generationBusy, inferGenerationKind, type ModelKind } from "@/stores/browserGeneration";
 const props = withDefaults(defineProps<{ belowInput?: boolean; prompt?: string; fixedKind?: ModelKind; disabled?: boolean }>(), { prompt: "" });
-const parametersVisible = ref(false);
+const parametersVisible = ref(false), durationVisible = ref(false);
+const popoverOptions = { modifiers: [{ name: "preventOverflow", options: { padding: 12, altAxis: true, tether: false } }] };
+const popoverStyle = { maxHeight: "calc(100dvh - 24px)", maxWidth: "calc(100vw - 24px)", overflowY: "auto" as const, boxSizing: "border-box" as const, background: "#1e1e27f5", border: "1px solid #454151", borderRadius: "14px", padding: "18px", boxShadow: "0 14px 48px #0006" };
 const workspace = useWorkspaceStore();
 const parameterKind = ref<ModelKind>("text");
 const kindLabels = { text: "文字", image: "图片", video: "视频", audio: "音频" };
@@ -74,7 +77,6 @@ const ratios = computed(() => Object.keys(imageDimensions));
 const resolutions = computed(() => kind.value === "image" ? Object.keys(imageClaritySizes) : [...new Set(videoCapability.value?.durationResolutionMap.filter(item => item.duration.includes(videoDuration.value!)).flatMap(item => item.resolution) ?? [])]);
 const resolution = computed({ get: () => kind.value === "image" ? browserConfig.imageResolution : browserConfig.resolution, set: value => { if (kind.value === "image") { browserConfig.imageResolution = value; browserConfig.imageSize = imageClaritySizes[value]?.[browserConfig.ratio] ?? browserConfig.imageSize; } else browserConfig.resolution = value; } });
 const generationCount = computed({ get: () => kind.value === "video" ? 1 : browserConfig.count, set: value => { if (kind.value === "image") browserConfig.count = value; } });
-const parameterSummary = computed(() => [selectedModel.value?.label ?? "未接入模型", ...(["image", "video"].includes(kind.value) ? [browserConfig.ratio, ...(kind.value === "video" ? [`${videoDuration.value}s`] : []), resolution.value.toLowerCase(), ...(kind.value === "image" ? [`${generationCount.value}张`] : [])] : [])].join(" · "));
 watch([kind, selectedModelId, videoDurations], () => {
   if (kind.value !== "video" || !selectedModelId.value) return;
   if (videoDurations.value.length && !videoDurations.value.includes(videoDuration.value!)) browserConfig.duration = String(videoDurations.value[0]);
@@ -82,12 +84,19 @@ watch([kind, selectedModelId, videoDurations], () => {
 }, { immediate: true });
 watch(resolutions, values => { if (selectedModelId.value && values.length && !values.includes(resolution.value)) resolution.value = values[0]!; }, { immediate: true });
 watch(() => browserConfig.ratio, () => { browserConfig.imageSize = imageClaritySizes[browserConfig.imageResolution]?.[browserConfig.ratio] ?? browserConfig.imageSize; });
-watch(() => props.disabled || generationBusy.value, value => { if (value) parametersVisible.value = false; });
+watch(() => props.disabled || generationBusy.value, value => { if (value) { parametersVisible.value = false; durationVisible.value = false; } });
+watch(kind, () => { parametersVisible.value = false; durationVisible.value = false; });
 </script>
 
 <style scoped lang="scss">
-.parameterTrigger { display: inline-flex; flex: none;
-  .modelParametersButton { height: 48px; max-width: 260px; margin: 0; padding: 7px 12px; border: 1px solid #45414e; border-radius: 12px; background: #292730; color: #e8e5f0; transition: border-color 180ms, background 180ms; :deep(> span) { gap: 8px; min-width: 0; } &:hover:enabled, &[aria-expanded="true"] { border-color: #8b70dd; background: #332c43; } &:focus-visible { outline: 2px solid #a28ae9; outline-offset: 2px; } .parameterButtonText { display: grid; text-align: left; gap: 4px; min-width: 0; strong { font-size: 12px; font-weight: 500; } small { max-width: 190px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #aaa4b8; font-size: 10px; } } .opened { transform: rotate(180deg); } }
+.inlineModelSelect { flex: none; width: 160px; :deep(.el-select__wrapper) { min-height: 48px; border-radius: 12px; background: #24232c; box-shadow: inset 0 0 0 1px #45414e; } :deep(.el-select__selected-item) { color: #d0cbdc; font-size: 12px; } }
+.parameterKindSelect { flex: none; width: 110px; }
+.inlineParameter { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #e3dfeb; font: inherit; font-size: 13px; white-space: nowrap; cursor: pointer; transition: background 180ms, color 180ms;
+  .parameterDot { color: #77717f; }
+  .formatIcon { display: inline-block; box-sizing: border-box; flex: none; border: 2px solid currentColor; border-radius: 3px; }
+  &:hover:enabled, &[aria-expanded="true"] { background: #3c314e; color: #ceafff; }
+  &:focus-visible { outline: 2px solid #a28ae9; outline-offset: -2px; }
+  &:disabled { cursor: not-allowed; color: #96909e; }
 }
 .parameterForm {
   .parameterHeader { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; color: #eeebf5; font-size: 13px; small { color: #aaa4b8; font-size: 11px; } }
