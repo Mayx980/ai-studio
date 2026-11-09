@@ -1,13 +1,13 @@
 # 工具插件
 
-`packages/toolScaffold` 提供构建入口、共享类型与浏览器加载器，`packages/tools/<name>` 保存各工具包。服务端逻辑与可选的 Vue 组件统一打包为一个 `.tool.js`，安装、升级和卸载均处理这个文件。
+`packages/toolScaffold` 提供构建入口与共享类型，`packages/tools/<name>` 保存服务工具包；浏览器加载器位于 `frontend/toolScaffold`，通过 `@toonflow/tool-client` 导出。服务端逻辑与可选的 Vue 组件统一打包为一个 `.tool.js`，安装、升级和卸载均处理这个文件。
 
 每个工具包包含：
 
 - `build.ts`：调用 `createToolConfig(metadata, import.meta.url)`，声明名称、说明、工具包提示词 `prompt` 与 form-create 的纯 JSON 配置规则。
 - 可选的 `readme.md`：构建时自动读取并嵌入首行元数据的 `readme`，无需在 `build.ts` 配置；缺失时为空字符串，最多 200000 个字符。
 - `src/index.ts`：默认导出 `ToolPlugin`，实现 `validateConfig` 与 `createTools`。
-- 可选的 Vue 组件：通过 `components: { askUser: "src/questionCard.vue" }` 声明工具名到组件入口的映射；一个工具包可提供多个组件。
+- 可选的 Vue 组件：放在所属 `frontend/tools/<name>` UI 包，通过公开导出定位，例如 `components: { askUser: Bun.resolveSync("@toonflow/tool-ask-user-ui", import.meta.dir) }`；一个工具包可提供多个组件。
 - `package.json` 与 `tsconfig.json`：声明自身依赖及构建、类型检查命令。构建器自动读取工具子包的 `package.json.version` 并嵌入元数据，版本必须是非空字符串（最多 100 个字符），不在 `build.ts` 重复配置；发布更新时修改此版本。
 
 在工具包目录执行 `bun run build`，只输出 `build/tools/<name>.tool.js`。开发时在根目录执行 `bun run dev:plugins`，或以 `NODE_ENV=dev` 构建工具，才复制同步到 `data/tools/`。Pi 工具构造函数由宿主的 `context.sdk` 注入；`zod` 由 Server 共享，其余运行依赖随插件打包。单包构建保留其他工具的已有产物。
@@ -22,7 +22,7 @@
 
 配置 `components` 时，构建器使用 Vite 编译 Vue 组件，第二行 `/*! toonflowToolClient:<JSON> */` 保存独立 UMD 代码及 CSS，元数据只保存组件对应的工具名称。组件必须显式导入所用 UI 组件与样式，不依赖 web 自动导入；Vue、Element Plus、Axios 和 form-create 复用 `toonflowToolHost` 的宿主实例。其余客户端依赖随组件打包，不生成安装包外的资源文件。
 
-`/api/tools/renderers` 仅列出已启用的组件映射及内容版本地址，`/api/tools/client` 只下发对应浏览器代码与样式，不执行或暴露服务端入口、配置和密钥。web 使用 `@toonflow/tools-scaffold/client` 的 `loadToolComponent(tool.name)`，统一向组件传入 `{ tool: ToolCall, directory?: string }`；无组件时展示普通工具消息，加载失败时提示用户停止后重试。历史消息可能只有 `args/result`，组件不能假定一定存在实时交互信息。`askUser` 的回答、跳过和历史展示均由包内 `src/questionCard.vue` 维护，web 不导入该组件。
+`/api/tools/renderers` 仅列出已启用的组件映射及内容版本地址，`/api/tools/client` 只下发对应浏览器代码与样式，不执行或暴露服务端入口、配置和密钥。页面通过 `StudioPort.loadToolComponent` 加载，production adapter 使用 `@toonflow/tool-client` 的 `loadToolComponent(tool.name)`，向组件传入 `{ tool: ToolCall, directory?: string, toolSessionId?: string }`；无组件时展示普通工具消息，加载失败时提示用户停止后重试。历史消息可能只有 `args/result`，组件不能假定一定存在实时交互信息。`askUser` 的回答、跳过和历史展示由 `frontend/tools/askUser/src/questionCard.vue` 维护，通过公开 UI 包参与构建；组件的提交交互消费宿主注入的 QuestionPort。
 
 `createTools(context)` 返回 Pi 的工具定义数组，一个插件可提供多个工具。宿主传入当前工作区 `cwd`、仅属于该工具且已校验的配置 `config`、统一文件能力 `files`，以及 Pi SDK 工具构造函数。不传入应用全局设置或其他工具的配置；工具需要的密钥通过自身配置项填写。工作区文件插件通过宿主方法限制路径；只读模式只注册 `read` 与 `ls`。
 
