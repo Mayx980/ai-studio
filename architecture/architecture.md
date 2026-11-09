@@ -14,7 +14,9 @@
 
 实体 identity 只在 [facts/entities](../facts/entities) 分配。四个原生项以 `tool` 登记实际启动/打包宿主，UI 归属唯一 `web`；公共库和 UI 插件是共享代码单元，没有伪造为独立运行服务。
 
-`frontend/` 持有完整交互单元和共享 UI，`services/` 与 `packages/` 持有非 UI 实现，`ops/` 持有聚合构建和容器资料。包名、插件 ID、公开导出语义、`build/` 产物名、`data/` 和用户工作区格式保持兼容；路径与依赖以 [Project Facts](../facts/project.yaml)和真实包清单为准。
+`frontend/` 持有完整交互单元和共享 UI，`services/` 与 `packages/` 持有非 UI 实现，`ops/` 持有聚合构建和容器资料。原服务与 SDK 包名、插件 ID、`build/` 产物名、`data/` 和用户工作区格式保留；路径与依赖以 [Project Facts](../facts/project.yaml)和真实包清单为准。
+
+工具 UI 分离后，原 `@toonflow/tool-browser/panel` 入口迁至 `@toonflow/tool-browser-ui`，原 `@toonflow/tools-scaffold/client` 入口迁至 `@toonflow/tool-client`，内部调用方已同步使用这些新入口。
 
 所有代码单元采用 `project_observed`；保留 Bun、TypeScript、Vue、Express 和现有依赖，不因工具默认值切换包管理器。Preview 的项目适配和未支持的 Docker 路径见[运行说明](../frontend/previewGuide.md)。
 
