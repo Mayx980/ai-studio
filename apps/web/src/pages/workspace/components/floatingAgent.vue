@@ -1,14 +1,14 @@
 <template>
   <teleport to="body">
-    <aside v-show="visible" id="agentPanel" class="agentSidebar" :class="{ expanded, navigationCollapsed, historyExpanded: conversationHistoryOpen }" :style="panelStyle" aria-label="智能助手对话侧栏">
-      <studioSidebar v-if="expanded" activeSection="agent" :disabled="sidebarOpening" @navigate="navigate" @newAgent="newAgent" @openProject="openRecent" @openSettings="emit('openSettings')" />
-      <agentHistorySidebar v-if="expanded && conversationHistoryOpen" />
-      <div v-if="!expanded" class="resizeHandle" role="separator" aria-label="调整对话侧栏宽度" aria-orientation="vertical" :aria-valuemin="minimumWidth" :aria-valuemax="maximumWidth" :aria-valuenow="width" tabindex="0" @pointerdown="startResize" @pointermove="resize" @pointerup="stopResize" @pointercancel="stopResize" @lostpointercapture="stopResize" @keydown.left.prevent="preferredWidth = width + 16" @keydown.right.prevent="preferredWidth = width - 16" />
-      <el-tooltip v-if="!expanded" content="关闭" placement="left" :showArrow="false"><el-button class="closeAgent" text circle aria-label="关闭侧边栏" @click="visible = false"><icon-x :size="18" /></el-button></el-tooltip>
+    <aside v-show="visible" id="agentPanel" class="agentSidebar" :class="{ expanded: expanded && !sourceEditor, sourceEditor, navigationCollapsed, historyExpanded: conversationHistoryOpen && !sourceEditor }" :style="panelStyle" aria-label="智能助手对话侧栏">
+      <studioSidebar v-if="expanded && !sourceEditor" activeSection="agent" :disabled="sidebarOpening" @navigate="navigate" @newAgent="newAgent" @openProject="openRecent" @openSettings="emit('openSettings')" />
+      <agentHistorySidebar v-if="expanded && !sourceEditor && conversationHistoryOpen" />
+      <div v-if="!expanded && !sourceEditor" class="resizeHandle" role="separator" aria-label="调整对话侧栏宽度" aria-orientation="vertical" :aria-valuemin="minimumWidth" :aria-valuemax="maximumWidth" :aria-valuenow="width" tabindex="0" @pointerdown="startResize" @pointermove="resize" @pointerup="stopResize" @pointercancel="stopResize" @lostpointercapture="stopResize" @keydown.left.prevent="preferredWidth = width + 16" @keydown.right.prevent="preferredWidth = width - 16" />
+      <el-tooltip v-if="!expanded && !sourceEditor" content="关闭" placement="left" :showArrow="false"><el-button class="closeAgent" text circle aria-label="关闭侧边栏" @click="visible = false"><icon-x :size="18" /></el-button></el-tooltip>
       <div ref="assistantContent" class="assistantContent">
-        <header v-if="expanded" class="assistantHeader"><el-button text :disabled="sidebarOpening || generationBusy" @click="newChat"><icon-message-plus :size="18" />新聊天</el-button><el-button text :aria-expanded="conversationHistoryOpen" @click="conversationHistoryOpen = !conversationHistoryOpen"><icon-history :size="18" />历史对话</el-button></header>
-        <agent v-model="visible" creationModes :closable="!expanded"><template #menuActions><el-button v-if="expanded" class="enterCanvasButton" text :icon="IconVector" aria-label="进入画布" @click="emit('enterCanvas')">进入画布</el-button></template></agent>
-        <creativeCases v-if="expanded" class="assistantTemplates" @apply="applyCase" />
+        <header v-if="expanded && !sourceEditor" class="assistantHeader"><el-button text :disabled="sidebarOpening || generationBusy" @click="newChat"><icon-message-plus :size="18" />新聊天</el-button><el-button text :aria-expanded="conversationHistoryOpen" @click="conversationHistoryOpen = !conversationHistoryOpen"><icon-history :size="18" />历史对话</el-button></header>
+        <agent v-model="visible" creationModes :closable="!expanded"><template #menuActions><el-button v-if="expanded && !sourceEditor" class="enterCanvasButton" text :icon="IconVector" aria-label="进入画布" @click="emit('enterCanvas')">进入画布</el-button></template></agent>
+        <creativeCases v-if="expanded && !sourceEditor" class="assistantTemplates" @apply="applyCase" />
       </div>
     </aside>
   </teleport>
@@ -29,6 +29,7 @@ import { useRouter } from "vue-router";
 import agent from "@/components/agent/index.vue";
 import { generationBusy } from "@/stores/browserGeneration";
 const router = useRouter();
+const sourceEditor = window.frameElement?.getAttribute("data-source-editor") === "true";
 function navigate(section: string) { if (section === "history") { conversationHistoryOpen.value = !conversationHistoryOpen.value; return; } void router.push({ path: "/home", query: { section } }); }
 const props = defineProps<{ expanded?: boolean }>();
 const visible = defineModel<boolean>({ default: false });
@@ -63,7 +64,18 @@ window.addEventListener("resize", updateViewport);
 onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updateViewport); });
 </script>
 <style scoped lang="scss">
-.agentSidebar { position: fixed; z-index: 1001; box-sizing: border-box; max-width: 100vw; border-left: 1px solid var(--el-border-color); background: var(--el-bg-color); :deep(.agent) { border-radius: 0; } &:not(.expanded):not(.materialSplit) { padding-top: 44px; } .closeAgent { position: absolute; z-index: 3; top: 8px; right: 8px; } &.expanded { border: 0; background: transparent; } &.materialSplit { z-index: 1901; background: var(--el-bg-color); border: 0; border-radius: 0; overflow: hidden; } .resizeHandle { position: absolute; z-index: 2; top: 0; left: -4px; width: 8px; height: 100%; cursor: ew-resize; touch-action: none; &:focus-visible { background: var(--el-color-primary-light-5); } } }
+.agentSidebar { position: fixed; z-index: 1001; box-sizing: border-box; max-width: 100vw; border-left: 1px solid var(--el-border-color); background: var(--el-bg-color); :deep(.agent) { border-radius: 0; } &:not(.expanded):not(.materialSplit):not(.sourceEditor) { padding-top: 44px; } .closeAgent { position: absolute; z-index: 3; top: 8px; right: 8px; } &.expanded { border: 0; background: transparent; } &.materialSplit { z-index: 1901; background: var(--el-bg-color); border: 0; border-radius: 0; overflow: hidden; } .resizeHandle { position: absolute; z-index: 2; top: 0; left: -4px; width: 8px; height: 100%; cursor: ew-resize; touch-action: none; &:focus-visible { background: var(--el-color-primary-light-5); } } }
+.agentSidebar.sourceEditor { padding: 0; border: 0; background: #1c1b21;
+  .assistantContent { display: flex; height: 100%; min-height: 0; overflow: hidden;
+    :deep(.agent) { flex: 1; height: 100%; min-width: 0; min-height: 0; }
+    :deep(.senderActions.simpleToolbar) { flex-wrap: wrap; gap: 6px; overflow: visible;
+      .inlineModelSelect { flex: 1 1 120px; width: auto; min-width: 100px; max-width: 220px; }
+      .outputTabs button { min-width: 0; padding: 0 6px; }
+      .inlineParameter { padding: 0 4px; }
+      > .sendButton { position: static; height: 28px; min-width: 60px; margin: 0; padding: 0 8px; }
+    }
+  }
+}
 </style>
 
 <style scoped lang="scss">
@@ -75,5 +87,5 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
   &.historyExpanded { padding-right: 324px; }
   @media(max-width:700px) { &.historyExpanded { padding-right: min(260px, 42vw); :deep(.agentHistorySidebar) { width: min(248px, 40vw); } } padding: 16px 8px 12px 80px; &::before { left: calc(68px + (100% - 68px) / 2); width: calc(100% - 68px); height: 340px; } .assistantContent :deep(.agent) { min-height: 440px; } }
 }
-@media(max-width:700px) { .agentSidebar:not(.expanded):not(.materialSplit) { padding-top: 64px; } }
+@media(max-width:700px) { .agentSidebar:not(.expanded):not(.materialSplit):not(.sourceEditor) { padding-top: 64px; } }
 </style>
