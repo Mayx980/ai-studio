@@ -8,7 +8,7 @@ export type MaterialTaskStatus = "idle" | "queued" | "generating" | "completed" 
 export type MaterialWorkspace = {
   id: string; directory: string; label: string; target: MaterialTarget; sessionFile?: string;
   status: MaterialTaskStatus; taskId?: string; vendorTaskId?: string; resultIds: string[]; error: string; uncertain?: boolean;
-  prompt: string; attachments: AgentAttachment[]; minimized: boolean; ended?: boolean;
+  prompt: string; attachments: AgentAttachment[]; minimized: boolean; ended?: boolean; applied?: boolean;
   config: typeof browserConfig; modelSelection: typeof browserModelSelection; request?: MaterialRequest;
 };
 export const materialEditorState = shallowRef<MaterialRequest>();
@@ -22,7 +22,7 @@ export function saveMaterialWorkspaces() {
   if (!storageReadable) return;
   try {
     localStorage.setItem(storageKey, JSON.stringify(materialWorkspaces.value.map(item => ({
-      id: item.id, ended: item.ended === true, directory: item.directory, label: item.label, target: item.target, sessionFile: item.sessionFile,
+      id: item.id, ended: item.ended === true, applied: item.applied === true, directory: item.directory, label: item.label, target: item.target, sessionFile: item.sessionFile,
       status: item.status, taskId: item.taskId, vendorTaskId: item.vendorTaskId, resultIds: item.resultIds, error: item.error, uncertain: item.uncertain,
       prompt: item.prompt, attachments: item.attachments.filter(file => file.path).map(({ file, ...attachment }) => attachment),
       parameters: Object.fromEntries(browserParameterKeys.map(key => [key, item.config[key]])), modelSelection: item.modelSelection,
@@ -43,7 +43,7 @@ export function restoreMaterialWorkspaces() {
     for (const record of records) {
       if (!record || typeof record.id !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(record.id) || (record.sessionFile !== undefined && (typeof record.sessionFile !== "string" || !/^[\w-]+\.json$/.test(record.sessionFile))) || typeof record.directory !== "string" || typeof record.label !== "string" || !["reference", "firstFrame", "middleFrame", "lastFrame"].includes(record.target?.role) || !["idle", "queued", "generating", "completed", "failed"].includes(record.status)) throw new Error("invalid");
       const uncertain = record.status === "generating" || record.uncertain === true;
-      materialWorkspaces.value.push({ ...record, request: undefined, ended: record.ended === true, target: { role: record.target.role, category: ["character", "scene", "prop", "other"].includes(record.target.category) ? record.target.category : undefined }, minimized: true, status: ["generating", "queued"].includes(record.status) ? "failed" : record.status,
+      materialWorkspaces.value.push({ ...record, request: undefined, ended: record.ended === true, applied: record.applied === true, target: { role: record.target.role, category: ["character", "scene", "prop", "other"].includes(record.target.category) ? record.target.category : undefined }, minimized: true, status: ["generating", "queued"].includes(record.status) ? "failed" : record.status,
         uncertain, error: uncertain ? `页面已刷新，远端任务结果尚未确认。请先核查供应商任务记录，避免重复生成。${typeof record.vendorTaskId === "string" ? `任务编号：${record.vendorTaskId}` : ""}` : record.status === "queued" ? "等待中的任务未提交，可重新打开并生成。" : typeof record.error === "string" ? record.error : "",
         prompt: typeof record.prompt === "string" ? record.prompt : "", resultIds: Array.isArray(record.resultIds) ? record.resultIds.filter((id: unknown) => typeof id === "string") : [],
         attachments: Array.isArray(record.attachments) ? record.attachments.filter((file: AgentAttachment) => file && typeof file.name === "string" && typeof file.path === "string" && typeof file.mimeType === "string") : [],

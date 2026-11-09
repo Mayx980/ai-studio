@@ -102,6 +102,7 @@ function saveDraft(draft: { prompt: string; attachments: AgentAttachment[] }) {
   }).catch(error => { loadError.value = error instanceof Error ? error.message : "参考素材保存失败，请保留当前窗口"; });
 }
 function updateTask(task: { status: MaterialTaskStatus; error?: string; taskId?: string; vendorTaskId?: string; resultIds?: string[] }) {
+  if (task.status === "queued") props.workspace.applied = false;
   Object.assign(props.workspace, { status: task.status, error: task.error || "", taskId: task.taskId || props.workspace.taskId, vendorTaskId: task.vendorTaskId || props.workspace.vendorTaskId, resultIds: task.resultIds || props.workspace.resultIds });
   saveMaterialWorkspaces();
 }
@@ -110,7 +111,7 @@ async function applyMaterial(file: File) {
   if (applying.value) return;
   if (!item.request) { item.error = "原素材入口已不在当前页面，请返回对应项目的自定义素材入口后应用；生成结果已保留。"; return; }
   applying.value = true;
-  try { await item.request.apply(file); minimizeMaterialWorkspace(item); }
+  try { await item.request.apply(file); item.applied = true; minimizeMaterialWorkspace(item); }
   catch (error) { item.error = error instanceof Error ? error.message : "素材应用失败，对话已保留"; }
   finally { applying.value = false; saveMaterialWorkspaces(); }
 }

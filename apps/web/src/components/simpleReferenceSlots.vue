@@ -6,7 +6,7 @@
         <div class="referenceTabs" role="tablist" aria-label="参考素材类型"><button v-for="tab in tabs" :key="tab.value" type="button" role="tab" :aria-selected="mode === tab.value" :disabled="disabled || opening" @click="mode = tab.value; modeVisible = false">{{ tab.label }}</button></div>
       </el-popover>
     </teleport>
-    <el-tooltip v-for="task in materialWorkspaces.filter(item => !item.ended && item.directory === directory)" :key="task.id" content="点击可查看任务" :showArrow="false"><button class="materialTaskEntry" type="button" :aria-label="`${task.label} · ${materialStatusLabel(task)}，点击可查看任务`" @click="task.request = { owner, directory: task.directory, label: task.label, target: task.target, apply: file => applyFiles([file], task.target) }; openMaterialWorkspace(task)"><generationTaskRing :size="40" :status="task.status" :kind="task.config.outputKind" /></button></el-tooltip>
+    <el-tooltip v-for="task in materialWorkspaces.filter(item => !item.ended && !item.applied && item.directory === directory && (!item.request || item.request.owner === owner))" :key="task.id" content="点击可查看任务" :showArrow="false"><button class="materialTaskEntry" type="button" :aria-label="`${task.label} · ${materialStatusLabel(task)}，点击可查看任务`" @click="openTask(task)"><generationTaskRing :size="40" :status="task.status" :kind="task.config.outputKind" /></button></el-tooltip>
     <input ref="fileInput" type="file" :accept="target.role === 'firstFrame' || target.role === 'lastFrame' ? 'image/*' : 'image/*,video/*'" :multiple="['reference', 'middleFrame'].includes(target.role) && !replacing" hidden :disabled="disabled || opening" @change="selectFiles" />
     <div v-if="mode === 'reference'" class="referenceDeck" aria-label="参考图片">
       <button v-if="!referenceImages.length" class="slotCard" type="button" :disabled="disabled || opening" aria-label="添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="28" /></button>
@@ -52,7 +52,7 @@ import attachmentPreview from "@/components/agent/attachmentPreview.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import { IconPencil } from "@tabler/icons-vue";
 import generationTaskRing from "./generationTaskRing.vue";
-import { materialEditorState, materialWorkspaces, materialStatusLabel, openMaterialWorkspace, type MaterialTarget } from "@/stores/materialEditor";
+import { materialEditorState, materialWorkspaces, materialStatusLabel, openMaterialWorkspace, type MaterialTarget, type MaterialWorkspace } from "@/stores/materialEditor";
 const emit = defineEmits<{ edit: [attachment: AgentAttachment] }>();
 const props = withDefaults(defineProps<{ showFrames?: boolean; tabsTarget?: HTMLElement; directory?: string; disabled?: boolean; ensureDirectory?: () => Promise<string | undefined> }>(), { showFrames: true });
 const attachments = defineModel<AgentAttachment[]>({ required: true });
@@ -102,6 +102,12 @@ function applyFiles(files: File[], destination = target.value, replacement = rep
   if (replacement) { const result = [...retained]; result.splice(replacementIndex, 1, ...added); attachments.value = result; }
   else attachments.value = [...retained, ...added];
   replacing.value = undefined;
+}
+function openTask(task: MaterialWorkspace) {
+  if (task.ended || task.directory !== props.directory) return;
+  if (!task.request) task.request = { owner, directory: task.directory, label: task.label, target: task.target, apply: file => applyFiles([file], task.target) };
+  if (task.request.owner !== owner) return;
+  openMaterialWorkspace(task);
 }
 async function chooseSource(choice: string) {
   if (props.disabled || opening.value) return;
