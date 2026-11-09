@@ -692,7 +692,7 @@ function saveDocumentNode(directory: string, canvasPath: string, nodeId: string,
   .canvasToolDock { width: calc(100% - 24px);
     .bottomTools { width: 100%; min-width: 0; flex-wrap: wrap; justify-content: center;
       .toolMenu { flex: 0 1 auto; min-width: 0; max-width: 100%; }
-      .agentButton { position: static; flex: none; transform: none; margin: 0; }
+      .agentButton { position: relative; left: auto; flex: none; transform: none; margin: 0; }
     }
   }
   .canvasToolExtras { max-width: 100%; flex-wrap: wrap; justify-content: center; }
