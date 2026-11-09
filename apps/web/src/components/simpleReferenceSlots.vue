@@ -1,7 +1,7 @@
 <template>
   <div class="simpleReferenceSlots" aria-label="参考素材">
     <teleport :to="tabsTarget || 'body'" :disabled="!tabsTarget">
-      <el-popover v-model:visible="modeVisible" trigger="click" placement="top-start" :width="180" :disabled="disabled || opening" :hideAfter="0">
+      <el-popover v-if="showFrames" v-model:visible="modeVisible" trigger="click" placement="top-start" :width="180" :disabled="disabled || opening" :hideAfter="0">
         <template #reference><button class="referenceModeButton" type="button" :disabled="disabled || opening" :aria-expanded="modeVisible" aria-label="参考图模式"><icon-photo :size="16" />{{ mode === 'frames' ? '首尾帧' : '参考图' }}<icon-chevron-down :size="13" /></button></template>
         <div class="referenceTabs" role="tablist" aria-label="参考素材类型"><button v-for="tab in tabs" :key="tab.value" type="button" role="tab" :aria-selected="mode === tab.value" :disabled="disabled || opening" @click="mode = tab.value; modeVisible = false">{{ tab.label }}</button></div>
       </el-popover>
@@ -134,7 +134,7 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; if (materialEditor
   .frameDivider { align-self: center; border: 0; background: transparent; color: var(--el-text-color-secondary); cursor: pointer; display: grid; place-items: center; width: 26px; height: 30px; svg { display: none; } &:hover, &:focus-visible { span { display: none; } svg { display: block; } } }
   @media(max-width:600px) { flex-wrap: wrap; .referenceDeck, .frameDeck { width: 100%; } }
 }
-.referenceModeButton { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 6px; height: 48px; min-width: 88px; padding: 0 12px; border: 1px solid #45414e; border-radius: 12px; color: #d0cbdc; background: #24232c; font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; transition: background 180ms, border-color 180ms; &:hover:enabled, &[aria-expanded="true"] { background: #2e2938; border-color: #9071d5; } &:focus-visible { outline: 2px solid #a28ae9; outline-offset: 2px; } &:disabled { opacity: .5; cursor: not-allowed; } }
+.referenceModeButton { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 6px; height: 32px; min-width: 88px; padding: 0 12px; border: 1px solid #45414e; border-radius: 12px; color: #d0cbdc; background: #24232c; font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; transition: background 180ms, border-color 180ms; &:hover:enabled, &[aria-expanded="true"] { background: #2e2938; border-color: #9071d5; } &:focus-visible { outline: 2px solid #a28ae9; outline-offset: 2px; } &:disabled { opacity: .5; cursor: not-allowed; } }
 .referenceTabs { display: grid; gap: 4px; button { padding: 9px 10px; border: 0; border-radius: 8px; text-align: left; color: var(--el-text-color-secondary); background: transparent; cursor: pointer; font: inherit; font-size: 12px; &[aria-selected="true"] { color: var(--el-color-primary); background: var(--el-fill-color); } &:focus-visible { outline: 1px solid var(--el-color-primary); } } }
 .referenceSourceMenu { display: grid; gap: 3px; button { border: 0; border-radius: 6px; padding: 9px 10px; color: var(--el-text-color-primary); background: transparent; font: inherit; font-size: 13px; text-align: left; cursor: pointer; &:hover, &:focus-visible { background: var(--el-fill-color); } } }
 </style>

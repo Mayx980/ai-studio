@@ -89,7 +89,7 @@ watch(kind, () => { parametersVisible.value = false; durationVisible.value = fal
 </script>
 
 <style scoped lang="scss">
-.inlineModelSelect { flex: none; width: 160px; :deep(.el-select__wrapper) { min-height: 48px; border-radius: 12px; background: #24232c; box-shadow: inset 0 0 0 1px #45414e; } :deep(.el-select__selected-item) { color: #d0cbdc; font-size: 12px; } }
+.inlineModelSelect { flex: none; width: 160px; :deep(.el-select__wrapper) { min-height: 32px; border-radius: 12px; background: #24232c; box-shadow: inset 0 0 0 1px #45414e; } :deep(.el-select__selected-item) { color: #d0cbdc; font-size: 12px; } }
 .parameterKindSelect { flex: none; width: 110px; }
 .inlineParameter { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #e3dfeb; font: inherit; font-size: 13px; white-space: nowrap; cursor: pointer; transition: background 180ms, color 180ms;
   .parameterDot { color: #77717f; }
