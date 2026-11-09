@@ -376,7 +376,7 @@ function queueImages(files: File[]) {
       for (const directory of ["assets", "assets/documentAttachments"]) {
         lifetime.signal.throwIfAborted();
         await props.context.files.mkdir(directory).catch(async error => {
-          if ((error as { response?: { status?: number } }).response?.status !== 409) throw error;
+          if (!error || typeof error !== "object" || !("status" in error) || error.status !== 409) throw error;
           await props.context.files.list(directory);
         });
       }

@@ -8,7 +8,7 @@
 
 - 依 [note 129227](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_129227)，将原 `apps/`、`compat/` 和 UI 包迁入 `frontend/`、`services/`；非 UI 包保留在 `packages/`，聚合构建与容器文件归 `ops/`，同步修正引用和工作区配置。
 - 真实入口、归属和包内依赖登记在 [Project Facts](../facts/project.yaml)。所有单元采用 `project_observed`，不隐式切换 Bun 或升级生产架构。
-- 页面和生产行为保持原有实现，增加 Port 及独立场景组装；唯一 [Preview](../frontend/preview/readme.md) 只提供隔离展示，不连接真实模型或用户数据。未新增测试模块、自检入口或 CI job。
+- 页面和生产行为保持原有实现，增加 Port 及独立场景组装；唯一 [Preview](../frontend/previewGuide.md) 只提供隔离展示，不连接真实模型或用户数据。未新增测试模块、自检入口或 CI job。
 - [需求](../requirements/readme.md)、[系统基线](../architecture/readme.md)与[现有协议入口](../contracts/readme.md)分别说明目标、工程组成和当前接口；登记并不表示 #7 产品增量完成。
 - `.github/workflows/` 保留上游 GitHub Actions 配置，在 GitLab 不自动运行；当前未添加 GitLab CI、版本发布或生产部署。平台、签名和发布要求见[源码手册](../docs/sourceDevelopment.md)。
 - 上游 MIT 许可证和版权声明见 [LICENSE](../LICENSE)，贡献与原有开发资料保留有效内容。

@@ -11,8 +11,12 @@ export type StudioNoticeFeed<T = unknown> = {
 };
 
 export class StudioError<T = StudioFailure> extends Error {
+  readonly reasonCode?: string;
+
   constructor(message: string, readonly detail?: T, readonly status?: number, readonly metadata: Record<string, string> = {}, readonly cancelled = false, readonly code?: string) {
-    super(message);
+    const failure = detail as StudioFailure | undefined;
+    super(typeof failure?.message === "string" ? failure.message : message);
+    this.reasonCode = typeof failure?.data?.code === "string" ? failure.data.code : undefined;
     this.name = "StudioError";
   }
 }
@@ -26,6 +30,7 @@ export function isActionCancelled(value: unknown) {
 }
 
 export interface StudioPort {
+  assetMediaSource(path: string): string | undefined;
   loadHostConnection(signal: AbortSignal): Promise<HostConnection>;
   notifyDesktopReady(failed: boolean): Promise<void>;
   openDeveloperTools(): Promise<void>;

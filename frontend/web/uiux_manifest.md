@@ -17,7 +17,7 @@
 
 生产和 Scenario 共用 `src/bootstrap.ts`、路由、页面和组件；入口由 Vite mode 在构建时选择。页面及状态只消费 `src/ports/`，生产 HTTP/流适配位于 `src/adapters/production/`。Scenario Provider 直接提供内存展示数据，不导入生产适配层、HTTP 客户端或真实服务配置。
 
-基础场景 `empty`、`loading`、`error`、`permission`、`formValidation` 的进入方式见[Preview](../preview/readme.md)。当前覆盖首页与目录选择器的接入链路；分页、真实模型生成、媒体处理、支付及完整业务页面场景尚未覆盖，不能以预览启动当作这些能力验收。
+基础场景 `empty`、`loading`、`error`、`permission`、`formValidation` 的进入方式见[Preview](../previewGuide.md)。当前覆盖首页与目录选择器的接入链路；分页、真实模型生成、媒体处理、支付及完整业务页面场景尚未覆盖，不能以预览启动当作这些能力验收。
 
 ## 待确认问题
 

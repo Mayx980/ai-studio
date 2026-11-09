@@ -17,6 +17,15 @@ export interface WorkspaceFiles {
   mkdir(path: string): Promise<void>;
 }
 
+export function getWorkspaceFailure(error: unknown) {
+  const failure = error as { reasonCode?: unknown; status?: unknown; message?: unknown } | undefined;
+  return {
+    code: typeof failure?.reasonCode === "string" ? failure.reasonCode : undefined,
+    status: typeof failure?.status === "number" ? failure.status : undefined,
+    message: typeof failure?.message === "string" ? failure.message : undefined,
+  };
+}
+
 function getNodeDirectory(nodeId: string) {
   if (!nodeId || /[\\/]/.test(nodeId) || nodeId === "." || nodeId === "..") throw new Error("节点 ID 不能作为文件夹名称");
   return `assets/${nodeId}`;
@@ -25,8 +34,8 @@ function getNodeDirectory(nodeId: string) {
 export async function uploadNodeFile(files: WorkspaceFiles, nodeId: string, file: File) {
   const directory = getNodeDirectory(nodeId);
   for (const path of ["assets", directory]) {
-    await files.mkdir(path).catch((error: { response?: { data?: { data?: { code?: string } } } }) => {
-      if (error.response?.data?.data?.code !== "EEXIST") throw error;
+    await files.mkdir(path).catch((error: unknown) => {
+      if (getWorkspaceFailure(error).code !== "EEXIST") throw error;
     });
   }
   const extension = file.name.match(/\.[a-zA-Z0-9]{1,10}$/)?.[0].toLowerCase() ?? "";
@@ -53,8 +62,8 @@ export function useNodeFiles() {
     const directory = getNodeDirectory(nodeId);
     // ACT: 支持撤销的画布保留节点素材，不随节点删除物理文件。
     if (retainNodeFiles) return;
-    await getWorkspaceFiles().remove(directory, true).catch((error: { response?: { data?: { data?: { code?: string } } } }) => {
-      if (error.response?.data?.data?.code !== "ENOENT") throw error;
+    await getWorkspaceFiles().remove(directory, true).catch((error: unknown) => {
+      if (getWorkspaceFailure(error).code !== "ENOENT") throw error;
     });
   }
 

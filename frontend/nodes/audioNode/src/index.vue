@@ -47,6 +47,8 @@
 </template>
 
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
+
 import { computed, ref } from "vue";
 import { IconMusic, IconUpload, IconTransfer, IconScissors, IconGauge } from "@tabler/icons-vue";
 import { ElButton, ElMessage } from "element-plus";
@@ -132,7 +134,7 @@ async function uploadAudio(event: Event) {
 }
 
 function showError(error: unknown, fallback: string) {
-  const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+  const message = getWorkspaceFailure(error).message;
   ElMessage.error(message || (error instanceof Error ? error.message : fallback));
 }
 </script>

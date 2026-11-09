@@ -582,7 +582,7 @@ Copyright © 2026 北京爱阿科技有限公司
 
 [需求](requirements/readme.md) · [系统](architecture/readme.md) · [接口](contracts/readme.md) · [前端与 Preview](frontend/readme.md) · [服务端](services/readme.md) · [公共包](packages/readme.md) · [构建运行](ops/readme.md) · [Project Facts](facts/project.yaml)。
 
-本地环境使用 Bun 1.3.14；在根目录显式执行 `bun install --frozen-lockfile` 后，按[源码手册](docs/sourceDevelopment.md)运行开发和构建。隔离预览还需要 Node 24+、Python 3.10+，入口与未覆盖范围见 [Preview](frontend/preview/readme.md)。现有类型检查、构建与手动验证分别执行，不新增测试模块；实际验证结果见本次 MR，不把命令存在当作已通过。
+本地环境使用 Bun 1.3.14；在根目录显式执行 `bun install --frozen-lockfile` 后，按[源码手册](docs/sourceDevelopment.md)运行开发和构建。隔离预览还需要 Node 24+、Python 3.10+，入口与未覆盖范围见 [Preview](frontend/previewGuide.md)。现有类型检查、构建与手动验证分别执行，不新增测试模块；实际验证结果见本次 MR，不把命令存在当作已通过。
 
 [来源与接入边界](governance/upstream.md) · [使用 wf-prod 开发](governance/development.md)。
 

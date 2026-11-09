@@ -161,6 +161,8 @@
 </template>
 
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
+
 import { computed, inject, nextTick, onScopeDispose, ref, shallowRef, watch, watchEffect, type Component, type ShallowRef } from "vue";
 import { Handle, Position, getTransformForBounds, pointToRendererPoint, useNode, useVueFlow, wheelDelta } from "@vue-flow/core";
 import {
@@ -402,7 +404,7 @@ async function deleteNode() {
     await nodeEvent.emit("delete");
     removeNodes(nodeId);
   } catch (error) {
-    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+    const message = getWorkspaceFailure(error).message;
     ElMessage.error(message || (error instanceof Error ? error.message : "节点删除失败"));
   } finally {
     deleting.value = false;

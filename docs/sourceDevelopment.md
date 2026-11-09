@@ -85,7 +85,7 @@ bun run dev
 
 UI、原生宿主及交互插件在 `frontend/`，业务与更新服务在 `services/`，非 UI 公共包和服务工具在 `packages/`，聚合构建和容器资料在 `ops/`。包名、插件 ID、构建产物和用户数据格式保持原值。所有权与直接依赖见 [Project Facts](../facts/project.yaml)，边界见[系统说明](../architecture/readme.md)。
 
-Preview 需要 Node 24+、Python 3.10+，在根显式安装 Bun 依赖后运行 `python3 frontend/preview/start.py`；生产开发仍使用原 `bun run dev`。Preview 不自动安装、不运行真实模型、不读用户工作区，场景和清理说明见 [Preview](../frontend/preview/readme.md)。
+Preview 需要 Node 24+、Python 3.10+，在根显式安装 Bun 依赖后运行 `python3 frontend/preview/start.py`；生产开发仍使用原 `bun run dev`。Preview 不自动安装、不运行真实模型、不读用户工作区，场景和清理说明见 [Preview](../frontend/previewGuide.md)。
 
 ### 常用命令
 
@@ -108,7 +108,7 @@ Preview 需要 Node 24+、Python 3.10+，在根显式安装 Bun 依赖后运行 
 | `bun run typecheck` | 单独执行各工作区的类型检查。 |
 | `bun run --cwd packages/i18n extract` | 手动抽取中文源文案和来源索引，不生成其他语言的译文。 |
 
-构建与类型检查分别执行。新增、移动或删除业务接口后，在 `services/server` 执行 `bun run routes` 生成路由。
+构建与类型检查分别执行。本轮宿主的 Bun 1.3.14 执行根 `typecheck`（workspace filter）返回 ENOENT，未宣称该根命令通过；可在受影响包目录显式执行其已有 `bun run typecheck`。本次验证按全部现有包入口逐项执行，不增加聚合自检脚本。新增、移动或删除业务接口后，在 `services/server` 执行 `bun run routes` 生成路由。
 
 ### 多语言维护
 
@@ -156,7 +156,7 @@ bun run package:desktop
 # 仅 Intel Mac 需要
 cd frontend/compat/macIntel
 bun install --frozen-lockfile
-cd ../..
+cd ../../..
 ```
 
 在对应架构的 Mac 上生成原生启动库，然后构建：
@@ -183,6 +183,8 @@ xattr -dr com.apple.quarantine "/Applications/toonflow.app"
 bun frontend/desktop/node_modules/electrobun/bin/electrobun.cjs prepare
 bun run typecheck
 ```
+
+仅做类型检查时也需要这一步，包括 Linux：桌面 tsconfig 会读取根 `.hutch/devkit` 声明；准备 SDK 不代表可在 Linux 打包原生桌面应用。依赖安装和 SDK 准备始终显式执行。
 
 Intel Mac 在安装兼容 SDK 后，先运行桌面开发或构建命令生成适配文件。类型检查不会隐式安装依赖或编译原生库。
 

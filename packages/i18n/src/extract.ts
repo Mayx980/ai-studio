@@ -21,7 +21,7 @@ async function scan(directory: string) {
     if (item.isDirectory()) { if (!["node_modules", "installer", "locales", "dist"].includes(item.name)) await scan(path); continue; }
     if (!/\.(ts|vue)$/.test(item.name) || /(?:\.d\.ts|providerPrompt|systemPrompt)\./i.test(item.name) || /packages[\\/]ffmpeg[\\/]src[\\/]browser\.ts$/.test(path)) continue;
     const source = await readFile(path, "utf8");
-    if (/apps[\\/]web/.test(path)) {
+    if (/frontend[\\/]web/.test(path)) {
       for (const message of collectMessages(source, path)) add(message, path);
     }
     const scripts = item.name.endsWith(".vue")
@@ -29,7 +29,7 @@ async function scan(directory: string) {
       : [source];
     for (const script of scripts) {
       const ast = parse(script, { sourceType: "module", plugins: ["typescript"] });
-      const backend = /(?:apps[\\/](?:server|desktop|mobile)|packages[\\/](?:mcp|ffmpeg))/.test(path);
+      const backend = /(?:services[\\/]server|frontend[\\/](?:desktop|mobile)|packages[\\/](?:mcp|ffmpeg))/.test(path);
       const visit = (node: Node, parents: Node[] = []) => {
         const owner = [...parents].reverse().find(parent => parent.type === "VariableDeclarator" || parent.type === "ObjectProperty");
         const name = owner?.type === "VariableDeclarator" && owner.id.type === "Identifier" ? owner.id.name

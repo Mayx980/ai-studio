@@ -1,3 +1,5 @@
+
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { inject, onScopeDispose, ref, watch } from "vue";
 import { useNode, useVueFlow, type Node } from "@vue-flow/core";
 import { ElMessage } from "element-plus";
@@ -99,7 +101,7 @@ export function usePanoramaCapture(source: () => string) {
     } finally {
       if (!committed && workspace) {
         const cleanup = await Promise.allSettled(pendingIds.map(id => workspace!.remove(`assets/${id}`, true)));
-        const failure = cleanup.find(result => result.status === "rejected" && result.reason?.response?.data?.data?.code !== "ENOENT");
+        const failure = cleanup.find(result => result.status === "rejected" && getWorkspaceFailure(result.reason).code !== "ENOENT");
         if (failure?.status === "rejected") showNodeError(failure.reason, "全景截图中断，临时图片清理失败");
       }
       saving.value = false;

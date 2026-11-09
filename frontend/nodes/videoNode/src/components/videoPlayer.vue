@@ -51,6 +51,8 @@
 </template>
 
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
+
 import { inject, onBeforeUnmount, ref, watch } from "vue";
 import { useNode, useVueFlow } from "@vue-flow/core";
 import { ElButton, ElDropdown, ElDropdownMenu, ElDropdownItem, ElMessage, ElPopover, ElSlider } from "element-plus";
@@ -253,7 +255,7 @@ async function captureFrame(command: "current" | "first" | "last") {
     if (frameVideo) { frameVideo.removeAttribute("src"); frameVideo.load(); }
     if (uploadStarted && !committed) {
       await workspace!.remove(`assets/${id}`, true).catch(error => {
-        if (error?.response?.data?.data?.code !== "ENOENT") ElMessage.error("截帧中断，临时图片清理失败");
+        if (getWorkspaceFailure(error).code !== "ENOENT") ElMessage.error("截帧中断，临时图片清理失败");
       });
     }
     capturing.value = false;

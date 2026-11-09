@@ -16,7 +16,7 @@
 
 `frontend/` 持有完整交互单元和共享 UI，`services/` 与 `packages/` 持有非 UI 实现，`ops/` 持有聚合构建和容器资料。包名、插件 ID、公开导出语义、`build/` 产物名、`data/` 和用户工作区格式保持兼容；路径与依赖以 [Project Facts](../facts/project.yaml)和真实包清单为准。
 
-所有代码单元采用 `project_observed`；保留 Bun、TypeScript、Vue、Express 和现有依赖，不因工具默认值切换包管理器。Preview 的项目适配和未支持的 Docker 路径见[运行说明](../frontend/preview/readme.md)。
+所有代码单元采用 `project_observed`；保留 Bun、TypeScript、Vue、Express 和现有依赖，不因工具默认值切换包管理器。Preview 的项目适配和未支持的 Docker 路径见[运行说明](../frontend/previewGuide.md)。
 
 共享实例项目持久化、凭据读写合同及 AFXEN 创作页面的后续设计/实现仍由 #7 承接；本次仅补齐工程身份与当前接口导航，不以存量代码反向认可尚未实现的产品设计。
 

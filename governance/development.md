@@ -2,7 +2,7 @@
 
 [返回项目首页](../README.md) · [来源与接入边界](upstream.md) · [源码运行与扩展](../docs/sourceDevelopment.md) · [贡献约定](../CONTRIBUTING.md)
 
-本仓保留上游 Toonflow 的业务实现，并按 Issue #7 的明确决定迁移工程结构、登记真实 Project Facts。环境、依赖安装、开发、构建及平台打包命令以原生[开发说明](../docs/sourceDevelopment.md)和各组件脚本为准；隔离场景入口见 [Preview](../frontend/preview/readme.md)，当前没有 GitLab 发布链路。
+本仓保留上游 Toonflow 的业务实现，并按 Issue #7 的明确决定迁移工程结构、登记真实 Project Facts。环境、依赖安装、开发、构建及平台打包命令以原生[开发说明](../docs/sourceDevelopment.md)和各组件脚本为准；隔离场景入口见 [Preview](../frontend/previewGuide.md)，当前没有 GitLab 发布链路。
 
 ## 需求与修改
 

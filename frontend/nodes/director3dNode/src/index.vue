@@ -21,6 +21,8 @@
 </template>
 
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
+
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue";
 import { useVueFlow } from "@vue-flow/core";
 import { IconCube3dSphere } from "@tabler/icons-vue";
@@ -103,8 +105,8 @@ function getModelPath() {
 async function writeModel(workspaceFiles: ReturnType<typeof files.getWorkspaceFiles>, value: ModelDocument) {
   const path = getModelPath();
   for (const directory of ["assets", `assets/${node.id}`]) {
-    await workspaceFiles.mkdir(directory).catch((error: { response?: { data?: { data?: { code?: string } } } }) => {
-      if (error.response?.data?.data?.code !== "EEXIST") throw error;
+    await workspaceFiles.mkdir(directory).catch((error: unknown) => {
+      if (getWorkspaceFailure(error).code !== "EEXIST") throw error;
     });
   }
   await workspaceFiles.writeJson(path, value);
@@ -259,7 +261,7 @@ async function exportToCanvas(kind: "image" | "video", key: string, aspect: numb
     if (uploadStarted && !committed) {
       try { await workspaceFiles!.remove(`assets/${id}`, true); }
       catch (cleanupError) {
-        const code = (cleanupError as { response?: { data?: { data?: { code?: string } } } })?.response?.data?.data?.code;
+        const code = getWorkspaceFailure(cleanupError).code;
         if (!disposed && code !== "ENOENT") ElMessage.error("导出中断，临时素材清理失败");
       }
     }

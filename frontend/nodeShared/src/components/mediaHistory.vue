@@ -37,6 +37,8 @@
 </template>
 
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
+
 import { computed, ref, watch } from "vue";
 import { useNode } from "@vue-flow/core";
 import { ElAlert, ElButton, ElDialog, ElEmpty, ElLoading, ElPagination } from "element-plus";
@@ -81,8 +83,8 @@ watch(visible, async (open, _previous, onCleanup) => {
   if (!open) return;
   loading.value = true;
   try {
-    const { entries } = await files.getWorkspaceFiles().list(`assets/${id}`).catch((error: { response?: { data?: { data?: { code?: string } } } }) => {
-      if (error.response?.data?.data?.code !== "ENOENT") throw error;
+    const { entries } = await files.getWorkspaceFiles().list(`assets/${id}`).catch((error: unknown) => {
+      if (getWorkspaceFailure(error).code !== "ENOENT") throw error;
       return { entries: [] };
     });
     if (cancelled) return;
@@ -102,7 +104,7 @@ watch(visible, async (open, _previous, onCleanup) => {
     page.value = Math.floor(Math.max(0, items.value.findIndex(item => item.url === selected.value?.url)) / pageSize) + 1;
   } catch (error) {
     if (!cancelled) {
-      const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      const message = getWorkspaceFailure(error).message;
       loadError.value = message || (error instanceof Error ? error.message : "历史记录读取失败");
     }
   } finally {

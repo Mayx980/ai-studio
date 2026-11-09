@@ -79,7 +79,7 @@ bun run dev
 # 仅 Intel Mac 需要；执行后回到仓库根目录
 cd frontend/compat/macIntel
 bun install --frozen-lockfile
-cd ../..
+cd ../../..
 ```
 
 Apple Silicon 与 Intel Mac 都需要在各自的 Mac 上准备当前架构的原生启动库，首次桌面开发或更新原生启动实现后执行：
@@ -106,10 +106,10 @@ bun run dev:desktop
 | HTTP 接口、Agent 运行时与服务端工具 | `services/server/src/` |
 | 桌面宿主、原生交互、安装与更新 | `frontend/desktop/`；Intel Mac 兼容层在 `frontend/compat/macIntel/` |
 | 画布节点 | `frontend/nodes/`、[节点脚手架](./frontend/nodeScaffold/readme.md) |
-| Agent 工具及其交互组件 | `packages/tools/`、[工具脚手架](./packages/toolScaffold/readme.md) |
+| Agent 工具及其交互组件 | `packages/tools/`、`frontend/tools/`、[工具脚手架](./packages/toolScaffold/readme.md) |
 | 模型提供方与技能 | `packages/providers/src/`、`packages/skills/` |
 
-修改节点或工具时，编辑 `packages/` 中的源码，再运行 `bun run dev:plugins`。它会写入 `build/nodes/`、`build/tools/`，并**覆盖 `data/nodes/`、`data/tools/` 中的同名开发产物**；不要直接修改这些产物来代替源码改动。该命令不清理旧产物，改名或删除插件后需检查开发目录中的残留文件。
+修改节点时编辑 `frontend/nodes/`，修改工具服务时编辑 `packages/tools/`，交互组件编辑 `frontend/tools/`，再运行 `bun run dev:plugins`。它会写入 `build/nodes/`、`build/tools/`，并**覆盖 `data/nodes/`、`data/tools/` 中的同名开发产物**；不要直接修改这些产物来代替源码改动。该命令不清理旧产物，改名或删除插件后需检查开发目录中的残留文件。
 
 `bun run build:nodes` 和 `bun run build:tools` 则分别清空对应的 `build/` 子目录后重新构建，不同步到 `data/`。不要把生产构建当作开发插件同步。其他扩展方式见 [开发与扩展指南](./docs/sourceDevelopment.md)。
 

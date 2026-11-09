@@ -78,6 +78,8 @@
 </template>
 
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
+
 import { computed, inject, onBeforeUnmount, ref, watch } from "vue";
 import { useNode, useVueFlow, type Node } from "@vue-flow/core";
 import { ElButton, ElDialog, ElMessage, ElProgress } from "element-plus";
@@ -310,7 +312,7 @@ async function process() {
     workspace = files.getWorkspaceFiles();
     const ffmpeg = await loadFfmpeg(current.signal);
     current.signal.throwIfAborted();
-    await workspace.mkdir("assets").catch(error => { if (error?.response?.data?.data?.code !== "EEXIST") throw error; });
+    await workspace.mkdir("assets").catch(error => { if (getWorkspaceFailure(error).code !== "EEXIST") throw error; });
     for (const output of outputs) {
       current.signal.throwIfAborted();
       const directory = `assets/${output.id}`;
@@ -356,7 +358,7 @@ async function process() {
   } finally {
     if (!committed && workspace) {
       const results = await Promise.allSettled(createdDirectories.map(path => workspace!.remove(path, true)));
-      if (results.some(result => result.status === "rejected" && result.reason?.response?.data?.data?.code !== "ENOENT")) ElMessage.error("部分临时媒体文件清理失败");
+      if (results.some(result => result.status === "rejected" && getWorkspaceFailure(result.reason).code !== "ENOENT")) ElMessage.error("部分临时媒体文件清理失败");
     }
     if (current.signal.aborted) visible.value = false;
     processing.value = cancelling.value = false;

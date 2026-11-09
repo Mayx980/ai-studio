@@ -53,6 +53,8 @@
 </template>
 
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
+
 import { computed, inject, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useNode, useVueFlow } from "@vue-flow/core";
 import { ElButton, ElMessage } from "element-plus";
@@ -336,7 +338,7 @@ async function saveMark() {
     if (!controller.signal.aborted) showNodeError(error, "标记保存失败");
   } finally {
     if (!committed && workspace) await workspace.remove(`assets/${id}`, true).catch(error => {
-      if (error?.response?.data?.data?.code !== "ENOENT") showNodeError(error, "标记临时文件清理失败");
+      if (getWorkspaceFailure(error).code !== "ENOENT") showNodeError(error, "标记临时文件清理失败");
     });
     operation = undefined;
     busy.value = false;
@@ -392,7 +394,7 @@ async function createInpaint(input: InpaintDraftInput, signal: AbortSignal) {
   } finally {
     if (canvas) canvas.width = canvas.height = 0;
     if (!committed) await workspace.remove(`assets/${nodeId}`, true).catch(error => {
-      if (error?.response?.data?.data?.code !== "ENOENT") showNodeError(error, "重绘临时文件清理失败");
+      if (getWorkspaceFailure(error).code !== "ENOENT") showNodeError(error, "重绘临时文件清理失败");
     });
     operation = undefined;
     busy.value = false;

@@ -31,6 +31,8 @@
 </template>
 
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
+
 import { computed, inject, onBeforeUnmount, ref, watch } from "vue";
 import { useNode, useVueFlow } from "@vue-flow/core";
 import { ElButton, ElCard, ElDialog, ElInputNumber, ElMessage, ElSlider } from "element-plus";
@@ -121,7 +123,7 @@ async function process() {
     workspace = files.getWorkspaceFiles();
     const ffmpeg = await loadFfmpeg(current.signal);
     current.signal.throwIfAborted();
-    await workspace.mkdir("assets").catch(error => { if (error?.response?.data?.data?.code !== "EEXIST") throw error; });
+    await workspace.mkdir("assets").catch(error => { if (getWorkspaceFailure(error).code !== "EEXIST") throw error; });
     current.signal.throwIfAborted();
     await workspace.mkdir(`assets/${id}`);
     created = true;
@@ -146,7 +148,7 @@ async function process() {
     if (!current.signal.aborted) showNodeError(error, "音频处理失败");
   } finally {
     if (!committed && created && workspace) await workspace.remove(`assets/${id}`, true).catch(error => {
-      if (error?.response?.data?.data?.code !== "ENOENT") showNodeError(error, "临时音频清理失败");
+      if (getWorkspaceFailure(error).code !== "ENOENT") showNodeError(error, "临时音频清理失败");
     });
     if (current.signal.aborted) mode.value = undefined;
     processing.value = cancelling.value = false;

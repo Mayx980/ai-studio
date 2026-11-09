@@ -28,6 +28,7 @@ export function createScenarioPort(scenario: ScenarioName): StudioPort {
     return value({ path: "", absolutePath: "/scenario", parentPath: null, entries: [] })(...inputs);
   };
   return {
+    assetMediaSource: () => undefined,
     loadHostConnection: async () => ({ mode: "local" }),
     notifyDesktopReady: unavailable,
     openDeveloperTools: unavailable,

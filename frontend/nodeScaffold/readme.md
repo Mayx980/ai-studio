@@ -495,3 +495,5 @@ const apiKey = computed(() => String(config.value.apiKey ?? ""));
 - 其它依赖随各节点独立打包；不同节点可以使用不同 UI 框架和第三方库版本，同一个库也可能重复出现在不同 UMD 中。
 - 其它 UI 库的组件优先局部 import，所需 CSS 也在节点源码中 import。Vite 的 UMD 模式配合 `cssCodeSplit: true` 将 CSS 注入同一个 JS。需要 provider 的组件库，在节点根组件内包裹它自己的 provider。
 - 独立子包提供依赖管理边界，不提供页面样式隔离；全局 CSS、reset 或依赖 `app.use()` 全局安装的库需要单独适配。节点自有样式优先使用 `<style scoped>`。
+
+宿主文件操作失败时提供稳定的 `reasonCode`、`status` 和 Error.message；节点通过公开 `getWorkspaceFailure(error)` 读取 `{ code, status, message }`，不读取 HTTP 客户端错误。正常同名和缺失分别识别 EEXIST、ENOENT，冲突仍传播；错误对象不在 UMD 间依赖类实例身份。

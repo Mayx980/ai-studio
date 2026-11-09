@@ -56,6 +56,7 @@ function observe<T>(url: string): StudioNoticeFeed<T> {
 
 export function createProductionPort(): StudioPort {
   return {
+    assetMediaSource: path => `/api/assets/read?path=${encodeURIComponent(path)}`,
     async loadHostConnection(signal) {
       return (await request<HostConnection>(applicationClient, "get", "/api/connection/connection", [{ signal, headers: { "Cache-Control": "no-store" } }])).data;
     },

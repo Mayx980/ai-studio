@@ -1,10 +1,12 @@
+
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { h } from "vue";
 import { ElNotification } from "element-plus";
 import nodeError from "./components/nodeError.vue";
 
 export function showNodeError(error: unknown, title: string) {
   if (error instanceof Error && error.name === "AbortError") return;
-  const detail = (error as { response?: { data?: { message?: unknown } } })?.response?.data?.message;
+  const detail = getWorkspaceFailure(error).message;
   const message = typeof detail === "string" && detail.trim() ? detail
     : error instanceof Error ? error.message : typeof error === "string" ? error : title;
   const controller = new AbortController();

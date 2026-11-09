@@ -1,3 +1,5 @@
+
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { computed, ref, type Ref } from "vue";
 import { nodeTools, z } from "@toonflow/nodes-scaffold/nodeTools";
 import type { NodeOutputs } from "@toonflow/nodes-scaffold/values";
@@ -35,7 +37,7 @@ export function useNodeGeneration(outputs: Readonly<Ref<NodeOutputs>>, cancel: (
       return result;
     } catch (failure) {
       status.value = "failed";
-      const message = (failure as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      const message = getWorkspaceFailure(failure).message;
       error.value = failure instanceof Error && failure.name === "AbortError" ? "生成已取消"
         : message || (failure instanceof Error ? failure.message : "生成失败");
       throw failure;

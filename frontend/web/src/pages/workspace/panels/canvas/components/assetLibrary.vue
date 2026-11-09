@@ -123,7 +123,7 @@ let loadRequest = 0;
 onBeforeUnmount(() => { loadRequest++; });
 
 function assetUrl(path: string) {
-  return `/api/assets/read?path=${encodeURIComponent(path)}`;
+  return studio.assetMediaSource(path);
 }
 
 function mediaKind(entry: AssetEntry) {
@@ -136,8 +136,10 @@ function mediaKind(entry: AssetEntry) {
 function openPreview(entry: AssetEntry) {
   const kind = mediaKind(entry);
   if (!kind) return;
+  const url = assetUrl(entry.path);
+  if (!url) return;
   previewError.value = "";
-  previewAsset.value = { name: entry.name, url: assetUrl(entry.path), kind };
+  previewAsset.value = { name: entry.name, url, kind };
 }
 
 function openItemMenu(event: MouseEvent, entry: AssetEntry) {

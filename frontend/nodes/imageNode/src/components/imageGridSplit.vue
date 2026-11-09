@@ -56,6 +56,8 @@
 </template>
 
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
+
 import { computed, inject, onBeforeUnmount, ref, watch } from "vue";
 import { useNode, useVueFlow, type Node } from "@vue-flow/core";
 import { ElButton, ElInputNumber, ElMessage, ElPopover } from "element-plus";
@@ -184,7 +186,7 @@ async function splitImage() {
     canvas.width = canvas.height = 0;
     if (!committed && workspace) {
       const results = await Promise.allSettled(pendingIds.map(id => workspace!.remove(`assets/${id}`, true)));
-      if (results.some(result => result.status === "rejected" && result.reason?.response?.data?.data?.code !== "ENOENT")) {
+      if (results.some(result => result.status === "rejected" && getWorkspaceFailure(result.reason).code !== "ENOENT")) {
         ElMessage.error("切分中断，部分临时图片清理失败");
       }
     }

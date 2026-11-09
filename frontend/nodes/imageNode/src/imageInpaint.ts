@@ -1,3 +1,5 @@
+
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { useNode, useVueFlow } from "@vue-flow/core";
 import { uploadNodeFile, useNodeAi, useNodeFiles, type NodeImageRequest, type NodeImageResult } from "@toonflow/nodes-scaffold/runtime";
 import { showNodeError } from "@toonflow/node-shared/showNodeError";
@@ -88,7 +90,7 @@ export function useImageInpaint() {
       signal.throwIfAborted();
       if (findNode(id) !== node) throw new Error("重绘节点已移除");
       await workspace.remove(`assets/${temporaryId}`, true).catch(error => {
-        if (error?.response?.data?.data?.code !== "ENOENT") showNodeError(error, "重绘临时文件清理失败");
+        if (getWorkspaceFailure(error).code !== "ENOENT") showNodeError(error, "重绘临时文件清理失败");
       });
       requested = false;
       signal.throwIfAborted();
@@ -99,7 +101,7 @@ export function useImageInpaint() {
       canvas.width = canvas.height = 0;
       if (outputPath && !committed) await workspace.remove(outputPath).catch(error => showNodeError(error, "重绘临时文件清理失败"));
       if (requested) await workspace.remove(`assets/${temporaryId}`, true).catch(error => {
-        if (error?.response?.data?.data?.code !== "ENOENT") showNodeError(error, "重绘临时文件清理失败");
+        if (getWorkspaceFailure(error).code !== "ENOENT") showNodeError(error, "重绘临时文件清理失败");
       });
     }
   };

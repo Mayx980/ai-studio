@@ -49,6 +49,8 @@
 </template>
 
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
+
 import { computed, inject, onMounted, ref, watch } from "vue";
 import { ElAlert, ElButton, ElCard, ElSelect, ElDialog, ElOption, ElOptionGroup, ElMessage, ElMessageBox } from "element-plus";
 import { IconEdit, IconFileText, IconSparkles, IconArrowUp } from "@tabler/icons-vue";
@@ -116,7 +118,7 @@ function saveText(value: string) {
       documentState.error = "";
     }
   }).catch(error => {
-    documentState.error = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+    documentState.error = getWorkspaceFailure(error).message
       || (error instanceof Error ? error.message : "文本保存失败");
     throw error;
   });
@@ -149,12 +151,12 @@ async function loadText(fromDisk = false) {
     if (typeof value !== "string") throw new Error("文本内容无效");
     if (!data.value.textPath && !fromDisk) {
       for (const directory of ["assets", `assets/${node.id}`]) {
-        await textFiles.mkdir(directory).catch((error: { response?: { data?: { data?: { code?: string } } } }) => {
-          if (error.response?.data?.data?.code !== "EEXIST") throw error;
+        await textFiles.mkdir(directory).catch((error: unknown) => {
+          if (getWorkspaceFailure(error).code !== "EEXIST") throw error;
         });
       }
-      await textFiles.write(textPath, value, true).catch((error: { response?: { data?: { data?: { code?: string } } } }) => {
-        if (error.response?.data?.data?.code !== "EEXIST") throw error;
+      await textFiles.write(textPath, value, true).catch((error: unknown) => {
+        if (getWorkspaceFailure(error).code !== "EEXIST") throw error;
       });
       textSnapshot = await textFiles.readTextSnapshot(textPath);
       if (textSnapshot.text !== value) throw new Error("文本文件已被其他编辑器修改，请重新加载节点");
@@ -172,7 +174,7 @@ async function loadText(fromDisk = false) {
     documentState.dirty = false;
     documentState.error = "";
   } catch (error) {
-    documentState.error = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+    documentState.error = getWorkspaceFailure(error).message
       || (error instanceof Error ? error.message : "文本加载失败");
     ElMessage.error(documentState.error);
   } finally { textReloading.value = false; }
