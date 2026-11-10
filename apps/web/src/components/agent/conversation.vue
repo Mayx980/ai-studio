@@ -1499,7 +1499,6 @@ watch(() => !props.materialEditor && !props.initialSession?.parentFile && !!work
       left: 12px;
       height: 12px;
       border-radius: 4px;
-      &::after { content: ""; display: block; width: 36px; height: 3px; margin: 4px auto; background: var(--el-border-color); border-radius: 3px; }
       cursor: ns-resize;
       touch-action: none;
       user-select: none;
