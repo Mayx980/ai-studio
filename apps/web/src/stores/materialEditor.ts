@@ -1,5 +1,6 @@
 import { computed, reactive, ref, shallowRef, watch } from "vue";
 import type { AgentAttachment, ReferenceRole, ReferenceCategory } from "@/components/agent/types";
+import { sourceEditorMinimized } from "./sourceEditing";
 import { browserConfig, browserModelSelection, browserParameterKeys } from "./browserGeneration";
 
 export type MaterialTarget = { role: ReferenceRole; category?: ReferenceCategory };
@@ -54,6 +55,7 @@ export function restoreMaterialWorkspaces() {
 }
 export function openMaterialWorkspace(item: MaterialWorkspace) {
   if (item.ended) return;
+  sourceEditorMinimized.value = true;
   materialWorkspaces.value.forEach(workspace => { workspace.minimized = workspace.id !== item.id; });
   item.minimized = false; activeMaterialWorkspace.value = item.id;
 }

@@ -6,7 +6,7 @@
           <component :is="currentComponent" />
         </transition>
       </router-view>
-      <customMaterialEditor v-if="standaloneWindow" />
+      <customMaterialEditor />
       <sourceEditReturn v-if="standaloneWindow" />
       <ffmpegRequired />
       <updateBox
