@@ -158,9 +158,9 @@
             </div>
           </div>
         </el-popover>
-        <el-button class="sendButton" type="primary" circle :disabled="!sending && locked" :aria-label="sending ? '停止生成' : editingId ? '重发消息' : '发送消息'" :title="sending ? '停止生成' : editingId ? '重发消息' : '发送消息'" @click="sending ? stopGeneration() : submitMessage()">
+        <el-button class="sendButton" :class="{ emptyDraft: !sending && !draftPrompt.trim() && !activeDraftAttachments.length && !draftMentions.length }" type="primary" circle :disabled="!sending && locked" :aria-label="sending ? '停止生成' : editingId ? '重发消息' : '发送消息'" :title="sending ? '停止生成' : editingId ? '重发消息' : '发送消息'" @click="sending ? stopGeneration() : submitMessage()">
           <generationTaskRing v-if="sending && props.materialEditor" :size="16" /><el-icon v-else-if="sending" class="is-loading"><icon-loader-2 :size="16" /></el-icon>
-          <icon-arrow-up v-else :size="16" /><span v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')">{{ sending ? '停止生成' : '生成' }}</span>
+          <icon-arrow-up v-else :size="16" />
         </el-button>
       </div>
     </div>
@@ -1650,6 +1650,11 @@ watch(() => !props.materialEditor && !props.initialSession?.parentFile && !!work
 </style>
 
 <style scoped lang="scss">
+.senderActions.simpleToolbar > .sendButton {
+  width: 32px !important; min-width: 32px !important; height: 32px !important; padding: 0 !important; border: 0; border-radius: 50%; background: #fff !important; color: #181818; box-shadow: none;
+  &.emptyDraft, &.is-disabled { background: #333 !important; color: #858585; }
+  svg { width: 16px; height: 16px; }
+}
 .messageInput.simpleInput {
   border-color: transparent;
   box-shadow: inset 0 0 2px 1px color-mix(in srgb, var(--el-border-color-light) 50%, transparent), 0 4px 16px rgb(0 0 0 / 8%);
