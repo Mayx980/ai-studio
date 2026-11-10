@@ -2,7 +2,7 @@
   <transition name="materialWindow">
     <section v-show="!workspace.minimized" class="materialGenerationWindow" role="dialog" aria-modal="true" :style="windowStyle" :aria-label="`独立生成对话 · ${workspace.label}`">
       <button v-for="handle in resizeHandles" :key="handle.edge" type="button" class="windowResize" :class="handle.edge" :aria-label="`拖动${handle.label}调整窗口大小`" @pointerdown="startResize($event, handle.edge)" @pointermove="resizeWindow" @pointerup="stopResize" @pointercancel="stopResize" @lostpointercapture="stopResize" @keydown="resizeWithKeyboard($event, handle.edge)" />
-      <header><div><strong>{{ workspace.label }}</strong><small role="status">{{ materialStatusLabel(workspace) }}</small></div><div class="windowActions"><el-tooltip content="新建生成对话" :showArrow="false"><el-button text aria-label="新建生成对话" :disabled="!workspace.request" @click="newWorkspace"><icon-message-plus :size="18" /></el-button></el-tooltip><el-popconfirm title="确认关闭该对话？记录会保留，已提交的任务继续运行。" confirmButtonText="确认关闭" cancelButtonText="取消" placement="bottom-end" :width="260" @confirm="endMaterialWorkspace(workspace)"><template #reference><el-button text aria-label="结束对话" title="结束对话"><icon-x :size="18" /></el-button></template></el-popconfirm></div></header>
+      <header><div><strong>{{ workspace.label }}</strong><small role="status">{{ materialStatusLabel(workspace) }}</small></div><div class="windowActions"><el-tooltip content="新建生成对话" :showArrow="false"><el-button text aria-label="新建生成对话" :disabled="!workspace.request" @click="newWorkspace"><icon-message-plus :size="18" /></el-button></el-tooltip><el-popconfirm title="确认关闭对话吗？" confirmButtonText="确定" cancelButtonText="取消" placement="bottom-end" :width="270" iconColor="#ff8a00" popperClass="materialCloseConfirm" @confirm="endMaterialWorkspace(workspace)"><template #reference><el-button text aria-label="结束对话" title="结束对话"><icon-x :size="18" /></el-button></template></el-popconfirm></div></header>
       <el-alert v-if="workspace.error" :title="workspace.error" type="warning" :closable="false" />
       <el-alert v-if="loadError" :title="loadError" type="error" :closable="false"><el-button text @click="loadSession">重新打开</el-button></el-alert>
       <p v-if="loading" role="status">正在打开独立生成对话…</p>
@@ -117,7 +117,7 @@ async function applyMaterial(file: File) {
 }
 </script>
 <style scoped lang="scss">
-.materialGenerationWindow { position: fixed; z-index: 1901; box-sizing: border-box; container-type: inline-size; display: flex; flex-direction: column; background: #1c1b21; border: 1px solid #494052; border-radius: 18px; box-shadow: -12px 12px 48px #0006; overflow: hidden;
+.materialGenerationWindow { position: fixed; z-index: 1901; box-sizing: border-box; container-type: inline-size; display: flex; flex-direction: column; background: var(--el-border-color-light); border: 1px solid transparent; border-radius: 18px; box-shadow: inset 0 0 2px 1px color-mix(in srgb, var(--el-border-color-light) 50%, transparent), -12px 12px 48px #0006; overflow: hidden;
   .windowResize { position: absolute; z-index: 5; border: 0; padding: 0; margin: 0; background: transparent; touch-action: none;
     &.left, &.right { top: 12px; bottom: 12px; width: 7px; cursor: ew-resize; }
     &.left { left: 0; } &.right { right: 0; }
@@ -133,13 +133,13 @@ async function applyMaterial(file: File) {
   .materialConversation { flex: 1; min-height: 0; overflow: hidden; }
   :deep(.messageInput) { resize: none; }
   :deep(.agentConversation .messageInput .senderActions.simpleToolbar) {
-    flex-wrap: wrap; gap: 6px; overflow: visible; padding: 8px;
+    flex-wrap: wrap; gap: 6px; overflow: visible; padding: 8px 52px 12px 8px;
     .outputTabs { max-width: 100%; button { min-width: 0; padding: 0 8px; } }
     .inlineModelSelect { flex: 1 1 130px; width: auto; min-width: 110px; max-width: 240px; }
     .styleSelect { min-width: 60px; max-width: 110px; padding: 0 8px; > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
     .inlineParameter { height: 32px; padding: 0 6px; gap: 6px; }
     .quickMention { height: 32px; width: 28px; font-size: 18px; }
-    > .sendButton { position: static; height: 28px; min-width: 60px; padding: 0 8px; margin: 0; font-size: 12px; > span > svg { width: 14px; height: 14px; } }
+    > .sendButton { position: absolute; right: 12px; bottom: 12px; height: 28px; min-width: 60px; padding: 0 8px; margin: 0; font-size: 12px; > span > svg { width: 14px; height: 14px; } }
   }
 }
 @container (max-width: 420px) {
@@ -154,4 +154,12 @@ async function applyMaterial(file: File) {
 .materialWindow-enter-active, .materialWindow-leave-active { transition: transform 240ms ease, opacity 240ms ease; }
 .materialWindow-enter-from, .materialWindow-leave-to { transform: translateX(calc(100% + 16px)); opacity: 0; }
 @media(prefers-reduced-motion:reduce) { .materialWindow-enter-active, .materialWindow-leave-active { transition: none; } }
+</style>
+
+<style lang="scss">
+.materialCloseConfirm.el-popper { padding: 16px 18px; border: 1px solid #303030; border-radius: 4px; background: #131313; color: #f2f2f2; box-shadow: 0 4px 16px #0005;
+  .el-popconfirm__main { align-items: center; gap: 8px; margin: 2px 0 20px; color: #f2f2f2; font-size: 14px; line-height: 22px; }
+  .el-popconfirm__action { margin: 0; text-align: right; .el-button { min-width: 48px; height: 24px; padding: 0 10px; border: 0; border-radius: 2px; font-size: 12px; background: #292929; color: #e4e4e4; &.el-button--primary { background: #2463ff; color: #fff; } } }
+  .el-popper__arrow::before { background: #131313; border-color: #303030; }
+}
 </style>
