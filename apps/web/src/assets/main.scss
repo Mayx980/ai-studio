@@ -83,5 +83,6 @@ html.dark {
 html.dark { --agent-input-bg: #1b1b1b; }
 html:not(.dark) { --agent-input-bg: var(--el-bg-color); }
 
-html.dark .home, html.dark .studioSidebar, html.dark .studioSidebar .sidebarFooter { background-color: #090909; }
+html.dark .home { background-color: #090909; }
+html.dark .studioSidebar, html.dark .studioSidebar .sidebarFooter { background-color: #1c1c1c; }
 html.dark .workspacePage, html.dark .vue-flow { background-color: #090909; }
