@@ -35,7 +35,7 @@ const sections = computed(() => [
   .studioBrand { display: flex; align-items: center; gap: 8px; padding: 0; height: 32px; margin-bottom: 50px; border: 0; background: transparent; color: inherit; font-size: 26px; font-weight: 700; cursor: pointer; :deep(.fullBrand) { width: 118px; } :deep(.compactBrand) { display: none; } }
   nav { display: grid; gap: 6px; button { display: flex; align-items: center; gap: 12px; min-height: 44px; width: 100%; padding: 10px 12px; border: 0; border-radius: 10px; background: transparent; color: #cdd0d7; font: inherit; font-size: 14px; text-align: left; cursor: pointer; position: relative; isolation: isolate; overflow: hidden; transition: background 180ms ease, color 180ms ease;
       &::after { content: ""; position: absolute; z-index: 0; pointer-events: none; inset: 0; border-radius: inherit; background: radial-gradient(ellipse at 50% 50%, #8970e847 0%, #4d70c72e 40%, #3a477515 62%, transparent 82%); opacity: 0; transition: opacity 180ms ease; }
-      &:hover { background: #19232b; color: var(--el-color-primary); }
+      &:hover { background: #292333; color: #b4a1ff; }
       &[aria-current="page"] { background: transparent; color: #b4a1ff; &::after { opacity: 1; } svg { filter: drop-shadow(0 0 5px #8261ff66); } }
       svg, span { position: relative; z-index: 1; } svg { flex: none; } } }
   .sidebarFooter { flex: none; padding: 14px 20px; border-top: 1px solid #292b30; background: #141414; :deep(.accountMenu) { width: 100%; } }
