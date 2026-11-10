@@ -114,7 +114,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
       .welcomeHeader { gap: 6px; .welcomeIcon { display: none; } h3 { font-size: clamp(24px, 2.2vw, 28px); font-weight: 500; font-style: italic; color: #d5dbe8; letter-spacing: .4px; line-height: 1.3; } }
     }
     .conversationMode { width: min(320px, calc(100% - 24px)); margin: 4px auto 10px; padding: 2px; border-radius: 999px; background: #424242b3; backdrop-filter: blur(12px); box-shadow: inset 0 1px 0 #ffffff0a;
-      .modeButton { height: 36px; padding: 0; border-radius: 999px; color: #f2f2f2; font-size: 13px; font-weight: 400; transition: background 180ms ease, color 180ms ease;
+      .modeButton { height: 36px; padding: 0; border-radius: 999px; color: #f2f2f2; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 14px; font-weight: 400; transition: background 180ms ease, color 180ms ease;
         svg { display: none; }
         &.selected { color: #15272c; background: radial-gradient(ellipse at 25% 65%, #ffe9df, transparent 62%), radial-gradient(ellipse at 67% 55%, #b6edf3, transparent 66%), #fafafa; box-shadow: inset 0 1px 0 #fff9; }
       }
@@ -139,6 +139,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
   @media(min-width:1100px) {
     :deep(.agent) { width: calc(100% - 128px); max-width: none; }
     :deep(.emptyConversation) {
+      .conversationMode .modeButton { font-size: 16px; }
       .welcomeMessage { padding-bottom: 12px; .welcomeHeader { gap: 12px; h3 { font-size: 28px; } } }
       .simpleInput { border-radius: 20px;
         .simpleReferenceSlots { padding: 12px; .slotCard { width: 56px; height: 56px; border-radius: 8px; svg { width: 24px; height: 24px; } } }

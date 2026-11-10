@@ -1456,10 +1456,6 @@ watch(() => !props.materialEditor && !props.initialSession?.parentFile && !!work
     background: var(--agent-input-bg);
     box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
 
-    &:focus-within {
-      border-color: var(--el-color-primary-light-5);
-    }
-
     &.draggingAttachments {
       border-color: var(--el-color-primary-light-5);
     }
