@@ -92,7 +92,6 @@
         <small>图片、视频、文档或代码文件</small>
       </div>
       <div v-if="editingId" class="editingBanner"><span>编辑消息</span><el-button text size="small" :disabled="busy" @click="cancelEdit">取消</el-button></div>
-      <el-button v-if="props.materialEditor" class="materialUpload" text size="small" :disabled="locked" aria-label="上传参考素材" @click="attachmentInput?.click()"><icon-paperclip :size="16" />上传参考素材</el-button>
       <div
         class="senderResizeHandle"
         role="separator"
@@ -120,6 +119,7 @@
         <simpleGenerationTools v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" controls="tabs" :lockedKind="lockedGenerationKind" :imageOnly="props.materialEditor && !!props.materialRole && props.materialRole !== 'reference'" :disabled="locked" />
         <browserModelOptions :disabled="locked" :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor && props.materialRole && props.materialRole !== 'reference' ? 'image' : lockedGenerationKind" :prompt="draftPrompt"><template #afterModel><div v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" ref="referenceTabsTarget" class="referenceTabsTarget" /><simpleGenerationTools v-if="props.materialEditor || workspaceStore.creationMode === 'simple'" controls="style" :disabled="locked" /></template></browserModelOptions><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <el-button v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" class="quickMention" text :disabled="locked || !directory" aria-label="提及参考素材" title="提及参考素材" @mousedown.prevent @click="mentionMenuRef?.openMenu()"><icon-at :size="19" /></el-button>
+        <el-tooltip v-if="props.materialEditor" content="引用" :showArrow="false"><button class="materialUpload" type="button" :disabled="locked" aria-label="引用" @click="attachmentInput?.click()"><icon-paperclip :size="19" /></button></el-tooltip>
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
         <referencePicker v-if="!props.creationModes" :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
         <mentionMenu :currentOnly="props.creationModes && workspaceStore.creationMode === 'simple'" :attachments="props.creationModes ? activeDraftAttachments : undefined" @selectAttachment="insertAttachmentMention" :hideTrigger="props.creationModes" ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
@@ -1432,7 +1432,6 @@ watch(() => !props.materialEditor && !props.initialSession?.parentFile && !!work
   }
 
   .messageInput {
-    .materialUpload { margin: 6px 8px 0; color: #d2c6e7; :deep(> span) { gap: 6px; } }
     --chat-text: var(--el-text-color-primary);
     --chat-text-placeholder: var(--el-text-color-placeholder);
     --chat-rect-padding: 12px;
@@ -1639,6 +1638,11 @@ watch(() => !props.materialEditor && !props.initialSession?.parentFile && !!work
   display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 6px; padding: 10px 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
   &::-webkit-scrollbar { display: none; width: 0; height: 0; }
   .referenceTabsTarget { display: flex; flex: none; }
+  .materialUpload { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; margin: 0; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #f2f2f2; cursor: pointer;
+    &:hover:enabled { background: #303030; }
+    &:focus-visible { outline: 2px solid #a28ae9; outline-offset: -2px; }
+    &:disabled { cursor: not-allowed; opacity: .5; }
+  }
   .quickMention { flex: none; width: 32px; height: 40px; padding: 0; margin: 0; color: #e3dfeb; font-size: 21px; border-radius: 10px; }
   > .sendButton { position: sticky; right: 0; z-index: 1; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 100px; width: auto; height: 48px; margin: 0 0 0 auto; padding: 0 16px; border-radius: 12px; transform: none; background: linear-gradient(110deg, #8747ed, #397df6); box-shadow: 0 4px 14px #7552d52b; font-size: 12px; :deep(> span) { gap: 6px; } &:hover:enabled { background: linear-gradient(110deg, #985ef4, #548dfa); } &:active:enabled { filter: brightness(.94); } &.is-disabled { background: #383241; color: #a49bad; box-shadow: none; } }
 }
