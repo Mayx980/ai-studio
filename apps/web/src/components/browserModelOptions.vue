@@ -91,7 +91,7 @@ watch(kind, () => { parametersVisible.value = false; durationVisible.value = fal
 </script>
 
 <style scoped lang="scss">
-.inlineModelSelect { flex: none; width: 160px; :deep(.el-select__wrapper) { min-height: 32px; border-radius: 12px; background: #24232c; box-shadow: inset 0 0 0 1px #45414e; } :deep(.el-select__selected-item) { color: #f2f2f2; font: 400 13px/1 Arial, sans-serif; } }
+.inlineModelSelect { flex: none; width: 160px; :deep(.el-select__wrapper) { min-height: 32px; border-radius: 12px; background: #24232c; box-shadow: none; } :deep(.el-select__selected-item) { color: #f2f2f2; font: 400 13px/1 Arial, sans-serif; } }
 .parameterKindSelect { flex: none; width: 110px; }
 .inlineParameter { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #f2f2f2; font: 400 13px/1 Arial, sans-serif; white-space: nowrap; cursor: pointer; transition: background 180ms, color 180ms;
   .parameterDot { color: inherit; }
@@ -103,7 +103,7 @@ watch(kind, () => { parametersVisible.value = false; durationVisible.value = fal
 .parameterForm {
   .parameterHeader { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; color: #eeebf5; font-size: 13px; small { color: #aaa4b8; font-size: 11px; } }
   .parameterStack { display: flex; flex-direction: column; gap: 20px;
-    .el-form-item { min-width: 0; margin: 0; :deep(.el-form-item__label) { margin-bottom: 10px; color: #bdb8ca; font-size: 13px; } :deep(.el-form-item__content) { width: 100%; } :deep(.el-select) { width: 100%; } :deep(.el-select__wrapper) { min-height: 38px; border-radius: 10px; background: #292831; box-shadow: inset 0 0 0 1px #45414e; } :deep(.el-select__selected-item) { color: #e4dfed; font-size: 12px; } }
+    .el-form-item { min-width: 0; margin: 0; :deep(.el-form-item__label) { margin-bottom: 10px; color: #bdb8ca; font-size: 13px; } :deep(.el-form-item__content) { width: 100%; } :deep(.el-select) { width: 100%; } :deep(.el-select__wrapper) { min-height: 38px; border-radius: 10px; background: #292831; box-shadow: none; } :deep(.el-select__selected-item) { color: #e4dfed; font-size: 12px; } }
     .segmentedOptions { display: flex; width: 100%; padding: 3px; gap: 3px; border-radius: 11px; background: #28272f;
       button { display: flex; flex: 1; min-width: 0; align-items: center; justify-content: center; gap: 7px; height: 38px; padding: 5px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: #aaa6b5; font: inherit; font-size: 13px; cursor: pointer; transition: background 180ms, color 180ms, border-color 180ms; &[aria-pressed="true"] { background: #44414f; border-color: #76648e; color: #f2edf9; } &:hover:enabled { background: #393440; color: #e8def7; } &:focus-visible { outline: 2px solid #a28ae9; outline-offset: -2px; } &:disabled { cursor: not-allowed; opacity: .55; } }
     }
