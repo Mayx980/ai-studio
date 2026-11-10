@@ -238,7 +238,7 @@ async function openHistory(item: ConversationHistory) {
 }
 </script>
 <style scoped lang="scss">
-.home { position: relative; padding-left: 220px; isolation: isolate; min-height: 100dvh; background: var(--el-bg-color-page);
+.home { position: relative; padding-left: 150px; isolation: isolate; min-height: 100dvh; background: var(--el-bg-color-page);
   .pageBackground { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
   .pageContent { padding: 28px clamp(20px, 3vw, 48px) 40px; min-width: 0;
     h2 { margin: 0; font-size: 17px; }
