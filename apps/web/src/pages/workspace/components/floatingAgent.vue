@@ -89,3 +89,39 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
 }
 @media(max-width:700px) { .agentSidebar:not(.expanded):not(.materialSplit):not(.sourceEditor) { padding-top: 64px; } }
 </style>
+
+<style scoped lang="scss">
+.agentSidebar.expanded:not(.materialSplit) .assistantContent:has(.emptyConversation:not([style*="display: none"])) {
+  :deep(.agent) { width: 100%; max-width: 884px; height: auto; min-height: 0; }
+  :deep(.emptyConversation) {
+    justify-content: flex-start;
+    .messageViewport { max-height: none; overflow: visible; }
+    .welcomeMessage { padding: 0 16px 6px;
+      .welcomeHeader { gap: 6px; .welcomeIcon .brandLogo { width: 104px; } h3 { font-size: clamp(24px, 2.2vw, 28px); line-height: 1.3; } }
+    }
+    .conversationMode { width: min(300px, calc(100% - 24px)); margin: 4px auto 10px; .modeButton { height: 28px; } }
+    .simpleInput { display: flex; flex-wrap: wrap; align-items: stretch; border-radius: 20px;
+      .simpleReferenceSlots { flex: 0 1 auto; max-width: calc(100% - 220px); padding: 12px; .referenceDeck, .frameDeck { padding: 0; } }
+      .senderEditor { flex: 1 1 220px; min-width: 0; min-height: 124px; }
+      .draftAttachments, .editingBanner { flex-basis: 100%; }
+      .senderActions.simpleToolbar { flex: 1 0 100%; min-width: 0; box-sizing: border-box; flex-wrap: wrap; gap: 4px; padding: 8px 10px; overflow: visible;
+        .outputTabs button { min-width: 0; padding: 0 6px; }
+        .inlineModelSelect { flex: 1 1 120px; width: 132px; min-width: 120px; max-width: 180px; }
+        .referenceModeButton { min-width: 80px; padding: 0 8px; }
+        .inlineParameter { height: 32px; padding: 0 5px; gap: 5px; }
+        .quickMention { width: 26px; height: 32px; font-size: 19px; }
+        .styleSelect { min-width: 64px; padding: 0 8px; }
+        > .sendButton { position: static; height: 36px; min-width: 80px; margin-left: auto; padding: 0 12px; }
+      }
+    }
+  }
+  .assistantTemplates { margin-top: 48px; }
+  @media(max-width:700px) {
+    :deep(.emptyConversation) {
+      .welcomeMessage .welcomeHeader h3 { font-size: 24px; }
+      .simpleInput { .simpleReferenceSlots { max-width: 100%; } .senderEditor { flex-basis: 180px; min-height: 100px; } }
+    }
+    .assistantTemplates { margin-top: 32px; }
+  }
+}
+</style>
