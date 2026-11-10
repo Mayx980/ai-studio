@@ -33,6 +33,7 @@ export type AgentHistory = { file: string; name: string; modified: string; messa
 export type AgentConversation = {
   purpose?: "material";
   generationKind?: "image" | "video";
+  generationSubmitted?: boolean;
   creationMode?: "simple" | "professional";
   file: string;
   name: string;

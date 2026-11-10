@@ -257,7 +257,7 @@ function snapshotMessages(value: AgentMessage[]) {
   return JSON.parse(JSON.stringify(value.map(message => ({ ...message, streaming: false, attachments: message.attachments?.map(({ file, ...attachment }) => attachment) })))) as AgentMessage[];
 }
 let savedMessages = snapshotMessages(props.initialSession?.messages ?? []);
-const generationKind = ref(props.initialSession?.generationKind);
+const generationKind = ref(props.initialSession?.generationSubmitted || props.initialSession?.messages.some(message => message.role === "user") ? props.initialSession?.generationKind : undefined);
 const lockedGenerationKind = computed(() => props.creationModes && (props.materialEditor || (sessionMode.value ?? workspaceStore.creationMode) === "simple") ? generationKind.value : undefined);
 watch([() => props.active, lockedGenerationKind, () => browserConfig.outputKind], ([active, kind]) => {
   if (active && kind) { browserConfig.outputKind = kind; browserConfig.kind = kind; browserConfig.outputChosen = true; }

@@ -19,6 +19,7 @@ export async function readBrowserConversation(directory: string, file: string) {
   const session = await useWorkspaceFiles(directory).readJson<AgentConversation>(`${folder}/${file}`);
   if (session?.file !== file || typeof session.name !== "string" || !Array.isArray(session.messages) || session.messages.some(message => !message || typeof message.id !== "string" || !["user", "assistant"].includes(message.role) || typeof message.content !== "string")) throw new Error("浏览器对话数据无效");
   if (session.generationKind !== undefined && !["image", "video"].includes(session.generationKind)) throw new Error("对话生成类型记录无效");
+  if (session.generationSubmitted !== undefined && typeof session.generationSubmitted !== "boolean") throw new Error("对话生成提交记录无效");
   if (session.messages.some(message => message.professional !== undefined && !isProfessionalCreation(message.professional))) throw new Error("专业创作流程数据无效，请保留当前项目并检查对话文件");
   return session;
 }
@@ -36,9 +37,11 @@ export async function saveBrowserConversation(directory: string, file: string, m
   const snapshot = await files.readTextSnapshot(path);
   const session = JSON.parse(snapshot.text) as AgentConversation & { modified?: string };
   if (creationMode) session.creationMode = creationMode;
+  if (!session.generationSubmitted && !session.messages.some(message => message.role === "user")) delete session.generationKind;
   if (options?.generationKind) {
     if (session.generationKind && session.generationKind !== options.generationKind) throw new Error("该对话已固定生成类型，请新建对话切换图片或视频生成");
     session.generationKind = options.generationKind;
+    session.generationSubmitted = true;
   }
   const incoming = messages.map(message => ({ ...message, streaming: false, attachments: message.attachments?.map(({ file, ...attachment }) => attachment) }));
   if (options?.baseMessages) {
