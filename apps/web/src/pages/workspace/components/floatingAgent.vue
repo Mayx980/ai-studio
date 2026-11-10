@@ -113,7 +113,13 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
     .welcomeMessage { padding: 0 16px 6px;
       .welcomeHeader { gap: 6px; .welcomeIcon { display: none; } h3 { font-size: clamp(24px, 2.2vw, 28px); line-height: 1.3; } }
     }
-    .conversationMode { width: min(300px, calc(100% - 24px)); margin: 4px auto 10px; .modeButton { height: 28px; } }
+    .conversationMode { width: min(320px, calc(100% - 24px)); margin: 4px auto 10px; padding: 2px; border-radius: 999px; background: #424242b3; backdrop-filter: blur(12px); box-shadow: inset 0 1px 0 #ffffff0a;
+      .modeButton { height: 36px; padding: 0; border-radius: 999px; color: #f2f2f2; font-size: 13px; font-weight: 400; transition: background 180ms ease, color 180ms ease;
+        svg { display: none; }
+        &.selected { color: #15272c; background: radial-gradient(ellipse at 25% 65%, #ffe9df, transparent 62%), radial-gradient(ellipse at 67% 55%, #b6edf3, transparent 66%), #fafafa; box-shadow: inset 0 1px 0 #fff9; }
+      }
+      .modeHelp { display: none; }
+    }
     .simpleInput { display: flex; flex-wrap: wrap; align-items: stretch; border-radius: 20px;
       .simpleReferenceSlots { flex: 0 1 auto; max-width: calc(100% - 220px); padding: 12px; .referenceDeck, .frameDeck { padding: 0; } }
       .senderEditor { flex: 1 1 220px; min-width: 0; min-height: 124px; }
@@ -134,10 +140,6 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
     :deep(.agent) { width: calc(100% - 128px); max-width: none; }
     :deep(.emptyConversation) {
       .welcomeMessage { padding-bottom: 12px; .welcomeHeader { gap: 12px; h3 { font-size: 42px; } } }
-      .conversationMode { width: 375px; margin: 5px auto 12.5px; padding: 6.25px;
-        .modeButton { height: 35px; padding-left: 16.25px; padding-right: 50px; font-size: 17.5px; svg { width: 20px; height: 20px; } }
-        .modeHelp { width: 35px; height: 35px; svg { width: 25px; height: 25px; } }
-      }
       .simpleInput { border-radius: 20px;
         .simpleReferenceSlots { padding: 12px; .slotCard { width: 56px; height: 56px; border-radius: 8px; svg { width: 24px; height: 24px; } } }
         .senderEditor { min-height: 126px; .chat-rich-text, .chat-placeholder-wrap { font-size: 16px !important; line-height: 24px !important; } }

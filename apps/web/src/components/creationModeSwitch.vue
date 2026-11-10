@@ -1,7 +1,7 @@
 <template>
   <div class="creationModeSwitch" role="group" aria-label="创作模式">
     <div v-for="item in modes" :key="item.value" class="modeItem">
-      <el-button class="modeButton" :class="{ selected: mode === item.value, simple: item.value === 'simple' }" :aria-pressed="mode === item.value" @click="mode = item.value">
+      <el-button class="modeButton" :class="{ selected: mode === item.value, simple: item.value === 'simple' }" :aria-pressed="mode === item.value" :title="item.description" @click="mode = item.value">
         <component :is="item.icon" :size="16" aria-hidden="true" />{{ item.label }}
       </el-button>
       <el-tooltip :content="item.description" placement="top" :showAfter="150">
