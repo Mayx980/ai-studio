@@ -85,7 +85,7 @@
       <span>正在压缩上下文…</span>
     </div>
     <creationModeSwitch v-if="props.creationModes && !props.materialEditor && !messages.length" v-model="workspaceStore.creationMode" class="conversationMode" />
-    <div class="messageInput" :class="{ draggingAttachments }" @dragenter.capture="dragEnterAttachments" @dragover.capture="dragOverAttachments" @dragleave.capture="dragLeaveAttachments" @drop.capture="dropAttachments">
+    <div class="messageInput" :class="{ draggingAttachments, simpleInput: props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple') }" @dragenter.capture="dragEnterAttachments" @dragover.capture="dragOverAttachments" @dragleave.capture="dragLeaveAttachments" @drop.capture="dropAttachments">
       <div v-if="draggingAttachments" class="attachmentDropHint" role="status">
         <icon-paperclip :size="20" aria-hidden="true" />
         <span>松开添加附件</span>
@@ -1646,9 +1646,18 @@ watch(() => !props.materialEditor && !props.initialSession?.parentFile && !!work
 
 <style scoped lang="scss">
 .agentConversation .messageInput .senderActions.simpleToolbar {
-  display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 6px; padding: 10px 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin;
+  display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 6px; padding: 10px 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; width: 0; height: 0; }
   .referenceTabsTarget { display: flex; flex: none; }
   .quickMention { flex: none; width: 32px; height: 40px; padding: 0; margin: 0; color: #e3dfeb; font-size: 21px; border-radius: 10px; }
   > .sendButton { position: sticky; right: 0; z-index: 1; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 100px; width: auto; height: 48px; margin: 0 0 0 auto; padding: 0 16px; border-radius: 12px; transform: none; background: linear-gradient(110deg, #8747ed, #397df6); box-shadow: 0 4px 14px #7552d52b; font-size: 12px; :deep(> span) { gap: 6px; } &:hover:enabled { background: linear-gradient(110deg, #985ef4, #548dfa); } &:active:enabled { filter: brightness(.94); } &.is-disabled { background: #383241; color: #a49bad; box-shadow: none; } }
+}
+</style>
+
+<style scoped lang="scss">
+.messageInput.simpleInput {
+  :deep(.chat-rich-text), :deep(.chat-scroll) { scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; width: 0; height: 0; }
+  }
 }
 </style>
