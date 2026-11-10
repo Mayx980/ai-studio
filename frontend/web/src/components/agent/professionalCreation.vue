@@ -184,7 +184,7 @@ async function run(action: () => Promise<void>) {
 }
 async function textRequest(instruction: string) {
   const model = resolveBrowserModel("text");
-  const result = await generateBrowserText({ providerId: model.id, modelId: model.modelId, prompt: instruction, signal: controller?.signal, systemPrompt: "你是专业创作助手。遵守用户指定的创作目标和约束，先收集细节，再提供多个可选方案。只输出请求的 JSON，不输出 Markdown 围栏。不臆造用户已经确认的内容。" });
+  const result = await generateBrowserText({ providerId: model.providerId, modelId: model.modelId, prompt: instruction, signal: controller?.signal, systemPrompt: "你是专业创作助手。遵守用户指定的创作目标和约束，先收集细节，再提供多个可选方案。只输出请求的 JSON，不输出 Markdown 围栏。不臆造用户已经确认的内容。" });
   controller?.signal.throwIfAborted();
   let value: unknown;
   try { value = JSON.parse(result.text.trim().replace(/^```(?:json)?\s*|\s*```$/g, "")); }
@@ -319,7 +319,7 @@ async function media(kind: "image" | "video" | "audio", prompt: string, label = 
   const results = generationResults.value.filter(item => !previous.has(item.id) && item.directory === props.directory);
   if (!results.length && !success) throw new Error(generationError.value);
   for (const result of results) {
-    const draft = { resultId: result.id, kind, label: label || ({ image: "参考图", video: "视频", audio: "音频" })[kind], prompt, model: JSON.stringify([model.id, model.modelId]), node: undefined as BrowserWorkflowNode | undefined };
+    const draft = { resultId: result.id, kind, label: label || ({ image: "参考图", video: "视频", audio: "音频" })[kind], prompt, model: JSON.stringify([model.providerId, model.modelId]), node: undefined as BrowserWorkflowNode | undefined };
     (props.state.mediaDrafts ??= []).push(draft);
     props.state.resultIds.push(result.id);
     if (kind === "audio") draft.node = await canvas.apply(props.directory, result, sources(), draft.label, draft.model, draft.prompt);

@@ -10,8 +10,10 @@
 
 页面、状态和共享交互组件通过 Port 消费能力；HTTP、事件流和生产组件加载放在 Web 的 `src/adapters/production/`。插件通过宿主注入的公开 Port 复用交互，不自行连网。场景 Provider 直接返回合成展示数据，不能导入生产适配层。
 
-已合入的 AFXEN 浏览器原型通过 `src/ports/prototype.ts` 接入：生产适配层保留 IndexedDB 文件、页面内存 Key、原型账号和原厂商协议；Scenario 使用自己的宿主，不读取浏览器项目或账号，不调用供应商。模型能力描述位于 `src/lib/browserModelDefinitions.ts`，协议实现只在生产适配层，页面不直接装配请求。
+AFXEN 正式创作入口复用已确认的原型页面，经 `src/ports/prototype.ts` 注入共享 Server 能力。项目与会话使用统一工作区入口；全局资产和模板通过固定库适配器访问各自服务器目录；模型请求使用现有 NodeAiPort。`workspaceMode` 表示浏览器文件存储，`supportsCreation` 表示简单/专业创作交互，二者独立。
 
-该原型尚未完成 #7 已确认的共享实例服务端版。现有 Server API 和浏览器原型目前是不同的数据来源；不要据此宣称跨浏览器共享、凭据服务端持久化或生产账号权限已经实现。
+启动先加载脱敏设置、共享索引及可用模型，再挂载页面；不读取旧浏览器业务列表或 IndexedDB，不自动迁移旧数据。保存 Key 时只短暂持有用户当次输入，成功后以脱敏配置更新 Store。主流程不需要演示账号，模板为共享实例管理；界面中的“个人资产”不表示按用户隔离。旧浏览器适配代码保留供设计来源参考，不进入正式生产组装。
 
-开发、构建及现有类型检查命令以[源码手册](../docs/sourceDevelopment.md)和各包 `package.json` 为准。遵守[项目规范](../AGENTS.md)，不新增测试、自检或 CI 自动测试入口。迁移不代表 Issue #7 的创作业务已经实现。
+Scenario 使用独立的内存展示宿主，拒绝真实文件保存和模型调用；它不连接共享 Server，不读取旧浏览器项目或账号。协议细节见 [Contract](../contracts/readme.md)，当前外部供应商、跨浏览器及原生宿主实测情况以 MR 为准。
+
+开发、构建及现有类型检查命令以[源码手册](../docs/sourceDevelopment.md)和各包 `package.json` 为准。遵守[项目规范](../AGENTS.md)，不新增测试、自检或 CI 自动测试入口。工程迁移不替代 Issue #7 的业务验收。

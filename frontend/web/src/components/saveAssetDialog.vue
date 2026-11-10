@@ -14,6 +14,7 @@
   </el-dialog>
 </template>
 <script setup lang="ts">
+import { flushSharedState } from "@/stores/sharedState";
 import { computed, onBeforeUnmount, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { browserAssetFiles, listBrowserAssets, requiresAssetFolder, type BrowserAssetEntry } from "@/lib/browserAssets";
@@ -56,6 +57,7 @@ async function save() {
       assets.metadata[path] = { ...item.metadata, createdAt: Date.now() };
       item.saved = true;
     }
+    await flushSharedState();
     emit("saved"); visible.value = false; ElMessage.success("已保存到个人资产");
   } catch (cause) { error.value = cause instanceof Error ? cause.message : "保存失败，请重试"; }
   finally { saving.value = false; }

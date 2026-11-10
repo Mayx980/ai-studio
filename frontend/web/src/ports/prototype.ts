@@ -23,8 +23,9 @@ export type PrototypeMediaRequest = {
   kind: Exclude<PrototypeKind, "text">;
   modelId: string;
   prompt: string;
-  config: { apiKey: string; endpoint: string };
-  references: { type: "binary"; data: Uint8Array; mimeType: string; name: string }[];
+  providerId: string;
+  directory: string;
+  references: { path: string; mimeType: string; name: string }[];
   ratio: string;
   imageSize: string;
   count: number;
@@ -34,16 +35,17 @@ export type PrototypeMediaRequest = {
   firstFrameIndex?: number;
   signal: AbortSignal;
 };
-export type PrototypeMediaAsset = { type: string; data?: string; url?: string; mimeType?: string };
+export type PrototypeMediaAsset = { type: string; data?: string; url?: string; path?: string; mimeType?: string };
 
 export interface PrototypePort {
   readonly workspaceMode: boolean;
+  readonly supportsCreation: boolean;
   readonly requiresAccount: boolean;
   readLegacyState(key: string): string | null;
   readAccount(): string | null;
   writeAccount(id: string): void;
   clearAccount(): void;
-  createWorkspaceFiles(getDirectory: () => string, nativeFiles: NativeWorkspaceReader): BrowserWorkspaceFiles;
+  createWorkspaceFiles(getDirectory: () => string, nativeFiles: NativeWorkspaceReader): BrowserWorkspaceFiles | undefined;
   nodeAi: Omit<NodeAiAdapter, "enabled" | "continueOnUnmount">;
   generateText(input: NodeAiRequest): Promise<NodeAiResult>;
   generateMedia(input: PrototypeMediaRequest): Promise<PrototypeMediaAsset[]>;

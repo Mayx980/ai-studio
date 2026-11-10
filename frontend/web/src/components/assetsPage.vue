@@ -32,6 +32,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import saveAssetDialog from "@/components/saveAssetDialog.vue";
@@ -65,8 +66,8 @@ onMounted(async () => {
     if (disposed) return;
     try {
       const files = useWorkspaceFiles(project.directory);
-      const records = await files.readJson<unknown>(".agent/browserResults.json").catch(cause => { if (cause.code === "ENOENT") return []; throw cause; });
-      const hidden = await files.readJson<string[]>(".agent/hiddenResults.json").catch(cause => { if (cause.code === "ENOENT") return [] as string[]; throw cause; });
+      const records = await files.readJson<unknown>(".agent/browserResults.json").catch(cause => { if (getWorkspaceFailure(cause).code === "ENOENT") return []; throw cause; });
+      const hidden = await files.readJson<string[]>(".agent/hiddenResults.json").catch(cause => { if (getWorkspaceFailure(cause).code === "ENOENT") return [] as string[]; throw cause; });
       if (!Array.isArray(records) || !Array.isArray(hidden) || hidden.some(id => typeof id !== "string")) throw new Error("历史记录格式无效");
       for (const record of records) {
         if (disposed) return;
@@ -98,10 +99,13 @@ async function run(action: "canvas" | "newCanvas" | "save" | "download" | "delet
       if (!confirmed) return;
       for (const directory of new Set(targets.map(item => item.directory))) {
         const files = useWorkspaceFiles(directory);
-        const hidden = await files.readJson<string[]>(".agent/hiddenResults.json").catch(cause => { if (cause.code === "ENOENT") return [] as string[]; throw cause; });
+        const snapshot = await files.readTextSnapshot(".agent/hiddenResults.json").catch(cause => { if (getWorkspaceFailure(cause).code === "ENOENT") return undefined; throw cause; });
+        const hidden: string[] = snapshot ? JSON.parse(snapshot.text) : [];
         if (!Array.isArray(hidden) || hidden.some(id => typeof id !== "string")) throw new Error("历史记录格式无效");
         const removed = targets.filter(item => item.directory === directory);
-        await files.writeJson(".agent/hiddenResults.json", [...new Set([...hidden, ...removed.map(item => item.id)])]);
+        const next = [...new Set([...hidden, ...removed.map(item => item.id)])];
+        if (snapshot) await files.writeTextSnapshot(".agent/hiddenResults.json", JSON.stringify(next), snapshot);
+        else await files.writeJson(".agent/hiddenResults.json", next, true);
         const keys = new Set(removed.map(item => item.key)); items.value = items.value.filter(item => !keys.has(item.key)); selected.value = selected.value.filter(key => !keys.has(key)); completed += removed.length;
       }
     } else if (action === "canvas" || action === "newCanvas") {

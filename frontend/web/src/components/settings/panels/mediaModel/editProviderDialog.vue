@@ -9,10 +9,16 @@
     :closeOnClickModal="false"
     :closeOnPressEscape="!saving"
     :showClose="!saving"
-    @closed="formApi = undefined">
+    @closed="formApi = undefined; apiKey = ''; clearApiKey = false">
     <div class="providerEditor">
       <messageMarkdown v-if="provider?.readme" class="providerReadme" :content="provider.readme" />
       <form-create v-model="formValues" v-model:api="formApi" :rule="formRules" :option="formOptions" />
+      <el-form v-if="hasApiKey" labelPosition="top" :disabled="saving">
+        <el-form-item label="API Key">
+          <el-input v-model="apiKey" type="password" showPassword autocomplete="off" :disabled="clearApiKey" :placeholder="apiKeyConfigured ? '已保存，留空保留原 Key' : '输入 API Key'" />
+          <el-checkbox v-if="apiKeyConfigured" v-model="clearApiKey">清除已保存的 Key</el-checkbox>
+        </el-form-item>
+      </el-form>
       <div class="modelHeader">
         <h4>模型配置 <el-text type="info">{{ models.length }}</el-text></h4>
         <el-button :icon="IconPlus" size="small" :disabled="saving" @click="editModel()">手动添加</el-button>
@@ -82,6 +88,10 @@ const formValues = ref<Record<string, unknown>>({});
 const formOptions = computed<Options>(() => ({ form: { labelPosition: "top", disabled: saving.value }, appendValue: false, submitBtn: false, resetBtn: false }));
 const revision = ref("");
 const formError = ref("");
+const apiKey = ref("");
+const clearApiKey = ref(false);
+const apiKeyConfigured = ref(false);
+const hasApiKey = computed(() => provider?.rules?.some(rule => rule.field === "apiKey") ?? false);
 const modelTypes = { get image() { return translate("图片"); }, get video() { return translate("视频"); }, get audio() { return translate("音频"); }, get text() { return translate("文本"); } };
 const modeLabels: Record<string, string> = {
   singleImage: "单图参考", multiReference: "多图参考", startEndRequired: "首尾帧必填",
@@ -95,8 +105,12 @@ watch(visible, isVisible => {
   modelEditorVisible.value = false;
   editingModelIndex.value = undefined;
   const configs = settings.value.mediaProviderConfigs as Record<string, Record<string, unknown>> | undefined;
-  formRules.value = formCreate.copyRules(provider?.rules ?? []);
+  formRules.value = formCreate.copyRules(provider?.rules ?? []).filter(rule => rule.field !== "apiKey");
   formValues.value = structuredClone(toRaw((provider && configs?.[provider.id]) ?? {}));
+  apiKey.value = "";
+  clearApiKey.value = false;
+  apiKeyConfigured.value = formValues.value.apiKeyConfigured === true;
+  delete formValues.value.apiKey;
   revision.value = provider?.revision ?? "";
   models.value = JSON.parse(JSON.stringify(provider?.models ?? []));
 }, { immediate: true });
@@ -132,10 +146,9 @@ async function saveModels() {
   try {
     if (!(await formApi.value.validate().then(() => true, () => false))) return;
     const config = formApi.value.formData();
-    if ("apiKey" in config) {
-      config.apiKey = typeof config.apiKey === "string" ? config.apiKey.trim() : "";
-      if ((config.apiKey as string).length > 8192) throw new Error("API Key 过长");
-    }
+    delete config.apiKey;
+    if (hasApiKey.value && (apiKey.value.trim() || clearApiKey.value)) config.apiKey = clearApiKey.value ? "" : apiKey.value.trim();
+    if (apiKey.value.trim().length > 8192 || /[\r\n]/.test(apiKey.value)) throw new Error("API Key 格式无效");
     const ids = new Set<string>();
     const values = models.value.map((item, index) => {
       const id = item.id.trim();

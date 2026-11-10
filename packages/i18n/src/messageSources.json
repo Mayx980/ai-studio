@@ -1,30 +1,69 @@
 {
+  "创作描述": [
+    "frontend/web/src/components/creationPrompt.vue"
+  ],
+  "模板只读画布": [
+    "frontend/web/src/components/templateProjectPreview.vue"
+  ],
+  "正在读取模板画布…": [
+    "frontend/web/src/components/templateProjectPreview.vue"
+  ],
+  "只读 · 可拖拽节点、平移和缩放查看": [
+    "frontend/web/src/components/templateProjectPreview.vue"
+  ],
+  "缩小画布": [
+    "frontend/web/src/components/templateProjectPreview.vue"
+  ],
+  "放大画布": [
+    "frontend/web/src/components/templateProjectPreview.vue"
+  ],
+  "适应视图": [
+    "frontend/web/src/components/templateProjectPreview.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
+  ],
+  "当前为只读创作过程，请复制项目后编辑": [
+    "frontend/web/src/components/templateProjectPreview.vue"
+  ],
+  "项目缺少文件：{0}": [
+    "frontend/web/src/components/templateProjectPreview.vue"
+  ],
+  "项目缺少素材：{0}": [
+    "frontend/web/src/components/templateProjectPreview.vue"
+  ],
+  "模板画布读取失败": [
+    "frontend/web/src/components/templateProjectPreview.vue"
+  ],
   "新对话": [
     "frontend/web/src/components/agent/index.vue",
     "services/server/src/agent/runtime/index.ts",
     "services/server/src/agent/runtime/sessions.ts"
   ],
+  "新建对话失败": [
+    "frontend/web/src/components/agent/index.vue",
+    "frontend/web/src/pages/home/index.vue"
+  ],
   "请先打开项目": [
     "frontend/web/src/components/agent/index.vue",
     "frontend/web/src/components/agent/conversation.vue",
     "frontend/web/src/components/agent/textAttachments.ts",
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/canvasHost.vue",
     "frontend/web/src/pages/workspace/panels/canvas/nodeClipboard.ts"
-  ],
-  "新建对话失败": [
-    "frontend/web/src/components/agent/index.vue"
   ],
   "读取对话失败": [
     "frontend/web/src/components/agent/index.vue"
   ],
   "读取历史对话失败": [
-    "frontend/web/src/components/agent/index.vue"
+    "frontend/web/src/components/agent/index.vue",
+    "frontend/web/src/pages/home/index.vue"
   ],
   "请输入 1–80 个字符的对话名称": [
     "frontend/web/src/components/agent/index.vue",
     "frontend/web/src/components/agent/menu.vue"
   ],
   "重命名对话失败": [
-    "frontend/web/src/components/agent/index.vue"
+    "frontend/web/src/components/agent/index.vue",
+    "frontend/web/src/pages/home/index.vue"
   ],
   "对话文件名无效": [
     "frontend/web/src/components/agent/index.vue"
@@ -36,6 +75,7 @@
     "frontend/web/src/components/agent/attachmentPreview.vue",
     "frontend/web/src/components/agent/mentionContent.vue",
     "frontend/web/src/components/agent/conversation.vue",
+    "frontend/web/src/components/assetsPage.vue",
     "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
   ],
   "还原到输入框": [
@@ -82,6 +122,7 @@
   ],
   "重试": [
     "frontend/web/src/components/agent/mentionMenu.vue",
+    "frontend/web/src/components/templateReview.vue",
     "frontend/web/src/components/settings/panels/pluginMarket/index.vue",
     "frontend/web/src/components/settings/panels/developer/systemPromptDialog.vue",
     "frontend/web/src/components/settings/panels/general/nodeMenuSettings.vue",
@@ -89,6 +130,7 @@
     "frontend/web/src/components/settings/panels/personalization.vue",
     "frontend/web/src/components/settings/tfAccount.vue",
     "frontend/web/src/components/settings/tfRechargeDialog.vue",
+    "frontend/web/src/components/creativeCases.vue",
     "frontend/web/src/bootstrap.ts",
     "frontend/web/src/pages/workspace/panels/document/components/extView.vue",
     "services/server/src/remoteConnection.ts"
@@ -128,6 +170,7 @@
   "文本": [
     "frontend/web/src/components/agent/mentionMenu.vue",
     "frontend/web/src/components/settings/panels/mediaModel/editProviderDialog.vue",
+    "frontend/web/src/pages/home/index.vue",
     "services/server/src/utils/ai/initialize.ts"
   ],
   "整数": [
@@ -141,8 +184,15 @@
   ],
   "图片": [
     "frontend/web/src/components/agent/mentionMenu.vue",
+    "frontend/web/src/components/browserModelOptions.vue",
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/assetsPage.vue",
     "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue",
     "frontend/web/src/components/settings/panels/mediaModel/editProviderDialog.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasEmpty.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasLayers.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue",
+    "frontend/web/src/pages/home/index.vue",
     "services/server/src/utils/ai/initialize.ts",
     "services/server/src/utils/media/generation.ts"
   ],
@@ -151,15 +201,29 @@
   ],
   "视频": [
     "frontend/web/src/components/agent/mentionMenu.vue",
+    "frontend/web/src/components/browserModelOptions.vue",
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/assetsPage.vue",
     "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue",
     "frontend/web/src/components/settings/panels/mediaModel/editProviderDialog.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasEmpty.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasLayers.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue",
+    "frontend/web/src/pages/home/index.vue",
     "services/server/src/utils/ai/initialize.ts",
     "services/server/src/utils/media/generation.ts"
   ],
   "音频": [
     "frontend/web/src/components/agent/mentionMenu.vue",
+    "frontend/web/src/components/browserModelOptions.vue",
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/assetsPage.vue",
     "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue",
     "frontend/web/src/components/settings/panels/mediaModel/editProviderDialog.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasEmpty.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasLayers.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue",
+    "frontend/web/src/pages/home/index.vue",
     "services/server/src/utils/ai/initialize.ts",
     "services/server/src/utils/media/generation.ts"
   ],
@@ -169,8 +233,7 @@
   ],
   "画布": [
     "frontend/web/src/components/agent/mentionMenu.vue",
-    "frontend/web/src/components/settings/panels/mcp/index.vue",
-    "frontend/web/src/pages/workspace/index.vue"
+    "frontend/web/src/components/settings/panels/mcp/index.vue"
   ],
   "数据": [
     "frontend/web/src/components/agent/mentionMenu.vue"
@@ -287,7 +350,10 @@
     "frontend/web/src/components/agent/menu.vue"
   ],
   "历史对话": [
-    "frontend/web/src/components/agent/menu.vue"
+    "frontend/web/src/components/agent/menu.vue",
+    "frontend/web/src/components/agentHistorySidebar.vue",
+    "frontend/web/src/pages/workspace/components/floatingAgent.vue",
+    "frontend/web/src/pages/home/index.vue"
   ],
   "正在加载对话…": [
     "frontend/web/src/components/agent/menu.vue"
@@ -299,7 +365,8 @@
     "frontend/web/src/components/agent/menu.vue"
   ],
   "重命名对话": [
-    "frontend/web/src/components/agent/menu.vue"
+    "frontend/web/src/components/agent/menu.vue",
+    "frontend/web/src/pages/home/index.vue"
   ],
   "移除历史对话 {0}": [
     "frontend/web/src/components/agent/menu.vue"
@@ -316,12 +383,15 @@
   "关闭": [
     "frontend/web/src/components/agent/menu.vue",
     "frontend/web/src/components/languageSelect.vue",
+    "frontend/web/src/components/browserModelOptions.vue",
+    "frontend/web/src/components/assetsPage.vue",
     "frontend/web/src/components/settings/panels/about.vue",
     "frontend/web/src/components/settings/panels/pluginMarket/index.vue",
     "frontend/web/src/components/settings/panels/pluginMarket/agentEditorDialog.vue",
     "frontend/web/src/components/settings/panels/pluginMarket/skillEditorDialog.vue",
     "frontend/web/src/components/settings/panels/pluginMarket/a2aSettingsDialog.vue",
     "frontend/web/src/components/settings/tfRechargeDialog.vue",
+    "frontend/web/src/pages/workspace/components/floatingAgent.vue",
     "frontend/web/src/pages/workspace/panels/document/components/editorTab.vue",
     "frontend/web/src/pages/workspace/panels/document/components/workspaceSearch.vue"
   ],
@@ -339,14 +409,16 @@
   ],
   "失败": [
     "frontend/web/src/components/agent/menu.vue",
-    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
+    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue",
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
   ],
   "达到限制": [
     "frontend/web/src/components/agent/menu.vue"
   ],
   "已取消": [
     "frontend/web/src/components/agent/menu.vue",
-    "frontend/web/src/components/settings/panels/pluginMarket/ffmpeg.vue"
+    "frontend/web/src/components/settings/panels/pluginMarket/ffmpeg.vue",
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
   ],
   "等待补充": [
     "frontend/web/src/components/agent/menu.vue",
@@ -359,7 +431,8 @@
     "frontend/web/src/components/agent/menu.vue"
   ],
   "请输入对话名称": [
-    "frontend/web/src/components/agent/menu.vue"
+    "frontend/web/src/components/agent/menu.vue",
+    "frontend/web/src/pages/home/index.vue"
   ],
   "保存": [
     "frontend/web/src/components/agent/menu.vue",
@@ -372,9 +445,10 @@
     "frontend/web/src/components/settings/panels/developer/systemPromptDialog.vue",
     "frontend/web/src/components/settings/panels/personalization.vue",
     "frontend/web/src/components/settings/tfAccount.vue",
+    "frontend/web/src/components/saveAssetDialog.vue",
+    "frontend/web/src/components/personalAssetBrowser.vue",
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
     "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue",
     "frontend/web/src/pages/workspace/panels/document/components/extView.vue",
     "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue",
     "frontend/web/src/pages/home/index.vue",
@@ -383,6 +457,9 @@
   "取消": [
     "frontend/web/src/components/agent/menu.vue",
     "frontend/web/src/components/agent/conversation.vue",
+    "frontend/web/src/components/templateReview.vue",
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/assetsPage.vue",
     "frontend/web/src/components/settings/panels/pluginMarket/index.vue",
     "frontend/web/src/components/settings/panels/pluginMarket/pluginConfigDialog.vue",
     "frontend/web/src/components/settings/panels/pluginMarket/ffmpeg.vue",
@@ -400,10 +477,12 @@
     "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue",
     "frontend/web/src/components/settings/panels/personalization.vue",
     "frontend/web/src/components/settings/tfRechargeDialog.vue",
+    "frontend/web/src/components/saveAssetDialog.vue",
+    "frontend/web/src/components/creativeCases.vue",
+    "frontend/web/src/components/personalAssetBrowser.vue",
     "frontend/web/src/pages/workspace/components/workspaceMenu.vue",
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
     "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue",
     "frontend/web/src/pages/workspace/panels/document/components/extView.vue",
     "frontend/web/src/pages/workspace/panels/document/components/openWithDialog.vue",
     "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue",
@@ -413,6 +492,18 @@
     "frontend/web/src/lib/desktopProtocol.ts",
     "frontend/web/src/lib/i18n.ts"
   ],
+  "对话名称无效": [
+    "frontend/web/src/components/agent/browserConversations.ts"
+  ],
+  "浏览器对话数据无效": [
+    "frontend/web/src/components/agent/browserConversations.ts"
+  ],
+  "专业创作流程数据无效，请保留当前项目并检查对话文件": [
+    "frontend/web/src/components/agent/browserConversations.ts"
+  ],
+  "请先重新打开对话再保存": [
+    "frontend/web/src/components/agent/browserConversations.ts"
+  ],
   "对话消息": [
     "frontend/web/src/components/agent/conversation.vue",
     "frontend/web/src/components/singleAgentDialog.vue"
@@ -420,19 +511,7 @@
   "开始新对话": [
     "frontend/web/src/components/agent/conversation.vue"
   ],
-  "你好，我是 Toonflow 助手": [
-    "frontend/web/src/components/agent/conversation.vue"
-  ],
-  "从一个想法开始": [
-    "frontend/web/src/components/agent/conversation.vue"
-  ],
-  "聊聊你的故事、画面或镜头，让我们一起把想法落到画布上。": [
-    "frontend/web/src/components/agent/conversation.vue"
-  ],
-  "填入提示：{0}": [
-    "frontend/web/src/components/agent/conversation.vue"
-  ],
-  "点击填入提示，也可以直接输入，或添加图片、视频和文档。": [
+  "今天，你想创造什么？": [
     "frontend/web/src/components/agent/conversation.vue"
   ],
   "{0} 上报": [
@@ -443,6 +522,16 @@
     "frontend/web/src/components/singleAgentDialog.vue"
   ],
   "{0} 秒": [
+    "frontend/web/src/components/agent/conversation.vue",
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "选择创作内容": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "请先补充创作主体或用途，再确认要生成的内容。": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "你希望生成哪种内容？确认后我会在画布搭建节点和连线。": [
     "frontend/web/src/components/agent/conversation.vue"
   ],
   "正在下方编辑": [
@@ -454,6 +543,20 @@
   "编辑消息": [
     "frontend/web/src/components/agent/conversation.vue"
   ],
+  "应用": [
+    "frontend/web/src/components/agent/conversation.vue",
+    "frontend/web/src/components/agent/professionalCreation.vue",
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "引用到输入框": [
+    "frontend/web/src/components/agent/conversation.vue",
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "进入画布": [
+    "frontend/web/src/components/agent/conversation.vue",
+    "frontend/web/src/components/browserModelResults.vue",
+    "frontend/web/src/pages/workspace/components/floatingAgent.vue"
+  ],
   "删除消息": [
     "frontend/web/src/components/agent/conversation.vue"
   ],
@@ -464,22 +567,16 @@
     "frontend/web/src/components/agent/conversation.vue"
   ],
   "松开添加附件": [
-    "frontend/web/src/components/agent/conversation.vue",
-    "frontend/web/src/pages/home/index.vue"
+    "frontend/web/src/components/agent/conversation.vue"
   ],
   "图片、视频、文档或代码文件": [
-    "frontend/web/src/components/agent/conversation.vue",
-    "frontend/web/src/pages/home/index.vue"
+    "frontend/web/src/components/agent/conversation.vue"
   ],
   "调整输入框高度": [
     "frontend/web/src/components/agent/conversation.vue"
   ],
   "拖动调整输入框高度": [
     "frontend/web/src/components/agent/conversation.vue"
-  ],
-  "添加附件": [
-    "frontend/web/src/components/agent/conversation.vue",
-    "frontend/web/src/pages/home/index.vue"
   ],
   "查看上下文用量": [
     "frontend/web/src/components/agent/conversation.vue"
@@ -528,22 +625,10 @@
   "消息": [
     "frontend/web/src/components/agent/conversation.vue"
   ],
-  "搭建创作画布": [
+  "引用素材失败": [
     "frontend/web/src/components/agent/conversation.vue"
   ],
-  "把创意串成清晰的节点流程": [
-    "frontend/web/src/components/agent/conversation.vue"
-  ],
-  "梳理故事分镜": [
-    "frontend/web/src/components/agent/conversation.vue"
-  ],
-  "拆解故事，安排画面与镜头": [
-    "frontend/web/src/components/agent/conversation.vue"
-  ],
-  "生成图片素材": [
-    "frontend/web/src/components/agent/conversation.vue"
-  ],
-  "为角色和场景寻找视觉方向": [
+  "引用素材的媒体信息无效": [
     "frontend/web/src/components/agent/conversation.vue"
   ],
   "每条消息最多提及 20 个输出或素材": [
@@ -552,13 +637,79 @@
   "添加提及失败": [
     "frontend/web/src/components/agent/conversation.vue"
   ],
+  "创作流程保存失败": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "这条消息还没有可加入画布的内容": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "已加入画布": [
+    "frontend/web/src/components/agent/conversation.vue",
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "加入画布失败": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "请先在设置 → API 配置中启用图片或视频模型并填写 Key": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "请先在设置 → API 配置中启用模型联调并输入 Key": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "请输入提示词或添加有效的脚本文字参考": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "自定义素材对话用于生成或编辑图片、视频，请选择图片或视频产物": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "请填写提示词或提供包含有效文字的脚本参考": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "请先在设置 → API 配置中输入当前模型的 Key": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "当前文字／音频适配器只支持文字输入，请移除引用素材后重试": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "当前图片／视频适配器仅支持图片、视频或文字参考，素材已保留，请调整引用后重试": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "已停止发送；已创建的画布节点保留供修改": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "文字引用最多支持 100000 字符，请缩小内容": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "角色": [
+    "frontend/web/src/components/agent/conversation.vue",
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "场景": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "道具": [
+    "frontend/web/src/components/agent/conversation.vue",
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "其他": [
+    "frontend/web/src/components/agent/conversation.vue",
+    "frontend/web/src/components/simpleReferenceSlots.vue",
+    "frontend/web/src/components/settings/index.vue"
+  ],
+  "已停止发送，输入已保留。": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
+  "浏览器对话保存失败": [
+    "frontend/web/src/components/agent/conversation.vue"
+  ],
   "已复制": [
     "frontend/web/src/components/agent/conversation.vue",
     "frontend/web/src/components/settings/panels/deviceLink.vue",
     "frontend/web/src/lib/i18n.ts"
   ],
   "复制失败，请重试": [
-    "frontend/web/src/components/agent/conversation.vue"
+    "frontend/web/src/components/agent/conversation.vue",
+    "frontend/web/src/components/assetsPage.vue"
   ],
   "请重新打开对话后再删除": [
     "frontend/web/src/components/agent/conversation.vue"
@@ -595,21 +746,17 @@
     "frontend/web/src/components/agent/conversation.vue"
   ],
   "只支持图片、视频和受支持的文本或文档文件": [
-    "frontend/web/src/components/agent/conversation.vue",
-    "frontend/web/src/pages/home/index.vue"
+    "frontend/web/src/components/agent/conversation.vue"
   ],
   "附件不能为空且不能超过 100 MB": [
-    "frontend/web/src/components/agent/conversation.vue",
-    "frontend/web/src/pages/home/index.vue"
+    "frontend/web/src/components/agent/conversation.vue"
   ],
   "文本附件不能超过 400000 字节": [
     "frontend/web/src/components/agent/conversation.vue",
-    "frontend/web/src/components/agent/textAttachments.ts",
-    "frontend/web/src/pages/home/index.vue"
+    "frontend/web/src/components/agent/textAttachments.ts"
   ],
   "每条消息最多添加 20 个附件": [
-    "frontend/web/src/components/agent/conversation.vue",
-    "frontend/web/src/pages/home/index.vue"
+    "frontend/web/src/components/agent/conversation.vue"
   ],
   "文本附件不能超过 100000 字符": [
     "frontend/web/src/components/agent/textAttachments.ts"
@@ -623,6 +770,215 @@
   "提问缺少对应的工具调用": [
     "frontend/web/src/components/agent/replyStream.ts"
   ],
+  "专业创作流程": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "专业创作 · {0}": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "专业创作历史内容": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "方案{0}": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "编辑剧情脚本": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "正在处理，请稍候…": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "停止等待": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "分析创作要求": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "其他想法（选填）": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "已有剧情／分镜正文": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "粘贴正文，或使用本轮已引用的文本内容": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "确认要求，生成方案": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "继续生成分镜脚本": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "分镜脚本": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "放大分镜脚本": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "确认分镜并同步到画布": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "是否根据分镜脚本生成图片设计提示词？": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "生成设计提示词供我选择": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "暂不生成设计提示词": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "勾选角色／场景设计提示词，可多选，分别生成参考图。": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "生成选中的参考图": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "勾选要应用的图片。确认后分别保存到画布图片节点。": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "参考图 {0}": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "应用所选图片并加入画布": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "继续选择提示词": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "勾选要应用的视频。确认后分别保存到画布视频节点。": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "视频 {0}": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "应用所选视频并加入画布": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "是否使用已确认的剧情、分镜与参考图生成视频？": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "确认生成视频": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "暂不生成": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "调整参考图": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "所选内容已加入画布，可继续编辑。": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "分析要求": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "勾选创作细节": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "选择方案": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "选择脚本": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "生成分镜脚本": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "预览修改分镜": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "确认设计提示词": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "预览参考图": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "确认视频生成": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "预览并应用视频": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "图片提示词": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "请检查原画布文件": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "历史文档读取失败：{0}": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "已停止等待，已创建的节点与选择保留。": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "处理失败，请重试": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "模型未返回有效的结构化内容，请重试；不会用示例方案替代。": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "创作上下文过长，请缩小引用内容后重试": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "模型返回的选项格式不完整，请重试": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "模型未返回有效的提问选项，请重新分析": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "画布尚未就绪": [
+    "frontend/web/src/components/agent/professionalCreation.vue",
+    "frontend/web/src/pages/workspace/index.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/canvasHost.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/useCanvasHistory.ts",
+    "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue"
+  ],
+  "请先提供已有剧情或分镜正文": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "请先填写有效脚本内容": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "节点预览打开失败": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "模型没有返回有效分镜表格": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "请先应用剧情脚本": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "分镜脚本尚未就绪": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "请先保存有效分镜内容": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "分镜内容读取失败": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "参考图未能恢复，请保留当前内容并重新打开对话": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "当前模型不支持本轮音频／视频或其他文件参考，请调整引用后继续": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "音频模型只支持文字参考，图片不会被静默忽略": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "另一个模型请求仍在处理中，请稍后继续": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "请先勾选要应用的素材": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "素材未能恢复，请重新打开对话，已有节点保留": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
+  "请先勾选设计提示词": [
+    "frontend/web/src/components/agent/professionalCreation.vue"
+  ],
   "请先打开工作区": [
     "frontend/web/src/components/agent/mentionSources.ts",
     "frontend/web/src/pages/workspace/index.vue",
@@ -631,6 +987,9 @@
   ],
   "工作区已切换，请重新选择": [
     "frontend/web/src/components/agent/mentionSources.ts"
+  ],
+  "图{0}": [
+    "frontend/web/src/components/agent/attachmentList.vue"
   ],
   "工具界面加载失败，请停止后重试：{0}": [
     "frontend/web/src/components/agent/toolMessage.vue"
@@ -669,6 +1028,41 @@
     "frontend/web/src/components/agent/toolMessage.vue",
     "frontend/web/src/components/settings/panels/mediaModel/providerAgentDialog.vue"
   ],
+  "对话历史侧边栏": [
+    "frontend/web/src/components/agentHistorySidebar.vue"
+  ],
+  "列表视图": [
+    "frontend/web/src/components/agentHistorySidebar.vue",
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "图片和视频": [
+    "frontend/web/src/components/agentHistorySidebar.vue"
+  ],
+  "切换列表视图": [
+    "frontend/web/src/components/agentHistorySidebar.vue"
+  ],
+  "切换图片视频视图": [
+    "frontend/web/src/components/agentHistorySidebar.vue"
+  ],
+  "折叠": [
+    "frontend/web/src/components/agentHistorySidebar.vue",
+    "frontend/web/src/lib/i18n.ts"
+  ],
+  "折叠历史对话": [
+    "frontend/web/src/components/agentHistorySidebar.vue"
+  ],
+  "查看对话 {0}": [
+    "frontend/web/src/components/agentHistorySidebar.vue"
+  ],
+  "对话素材记录无效": [
+    "frontend/web/src/components/agentHistorySidebar.vue"
+  ],
+  "历史读取失败": [
+    "frontend/web/src/components/agentHistorySidebar.vue"
+  ],
+  "对话打开失败": [
+    "frontend/web/src/components/agentHistorySidebar.vue"
+  ],
   "语言": [
     "frontend/web/src/components/languageSelect.vue",
     "frontend/web/src/components/settings/panels/ui.vue"
@@ -676,6 +1070,156 @@
   "跟随系统": [
     "frontend/web/src/components/languageSelect.vue",
     "frontend/web/src/components/settings/panels/ui.vue"
+  ],
+  "选择项目文件夹": [
+    "frontend/web/src/components/browserProjectPicker.vue"
+  ],
+  "项目文件夹": [
+    "frontend/web/src/components/browserProjectPicker.vue"
+  ],
+  "新建项目文件夹": [
+    "frontend/web/src/components/browserProjectPicker.vue"
+  ],
+  "新项目文件夹名称": [
+    "frontend/web/src/components/browserProjectPicker.vue"
+  ],
+  "新建并选择": [
+    "frontend/web/src/components/browserProjectPicker.vue"
+  ],
+  "画布、对话与素材保存在当前实例的共享项目中。": [
+    "frontend/web/src/components/browserProjectPicker.vue"
+  ],
+  "请输入项目文件夹名称": [
+    "frontend/web/src/components/browserProjectPicker.vue"
+  ],
+  "已有同名项目，请直接选择或使用其它名称": [
+    "frontend/web/src/components/browserProjectPicker.vue"
+  ],
+  "创建项目失败": [
+    "frontend/web/src/components/browserProjectPicker.vue"
+  ],
+  "参考素材": [
+    "frontend/web/src/components/simpleReferenceSlots.vue",
+    "frontend/web/src/components/assetsPage.vue",
+    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
+  ],
+  "参考素材类型": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "参考图片": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "添加参考图": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "替换图片": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "替换{0}": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "移除{0}": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "移除图片": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "继续添加参考图": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "首尾帧图片": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "添加中间帧": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "替换{0}图片": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "选择素材类别": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "选择素材来源": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "上传{0}": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "从个人资产库上传": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "参考图": [
+    "frontend/web/src/components/simpleReferenceSlots.vue",
+    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
+  ],
+  "首尾帧": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "背景": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "请选择非空且不超过100 MB的图片或视频，首尾帧仅支持图片": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "原参考图已移除，请重新选择": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "每条消息最多添加20个附件": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "请先选择项目文件夹": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "自定义素材打开失败": [
+    "frontend/web/src/components/simpleReferenceSlots.vue"
+  ],
+  "1. 查看示例提示词": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "已添加图1，并填写“去掉人物，其他不变”。可以直接体验去除人物，也可以修改提示词。": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "上传参考图片，然后在输入框中补充提示词内容": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "2. 查看参考图片": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "2. 使用 @ 引用参考图": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "输入框上方的图1是本次编辑的参考图片。点击缩略图可以放大查看，移除后可通过上传或引用入口替换。": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "提示词已插入真实的图1、图2引用标签。点击输入框的 @ 按钮可再次选择参考图；女人引用图2，房顶引用图1，点击标签可以查看对应图片。": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "3. 选择模型与参数": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "支持参考图编辑的图片": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "支持参考图的视频": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "和时长": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "及数量": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "选择已配置、{0}模型，调整比例、清晰度{1}。没有可用模型时，先到设置的 API 配置中接入模型。": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "4. 生成并查看结果": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "点击右下角上箭头提交生成，成功后结果显示在当前节点中，可放大查看或保存。引导不会自动调用模型。": [
+    "frontend/web/src/components/canvasTutorial.vue"
+  ],
+  "跳过": [
+    "frontend/web/src/components/canvasTutorial.vue"
   ],
   "我的消息": [
     "frontend/web/src/components/singleAgentDialog.vue"
@@ -730,6 +1274,364 @@
   "临时会话清理失败": [
     "frontend/web/src/components/singleAgentDialog.vue"
   ],
+  "模板管理": [
+    "frontend/web/src/components/templateReview.vue",
+    "frontend/web/src/components/studioSidebar.vue"
+  ],
+  "模板审核": [
+    "frontend/web/src/components/templateReview.vue",
+    "frontend/web/src/components/studioSidebar.vue"
+  ],
+  "我的模板提交": [
+    "frontend/web/src/components/templateReview.vue",
+    "frontend/web/src/components/studioSidebar.vue"
+  ],
+  "正在读取模板…": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "暂无模板提交": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "查看提交 {0}": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "管理员": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "普通用户": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "拒绝原因：{0}": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "查看内容": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "通过": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "拒绝": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "待审核": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "已通过": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "已拒绝": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "模板读取失败": [
+    "frontend/web/src/components/templateReview.vue",
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "请输入拒绝原因": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "拒绝模板": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "确认拒绝": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "请输入1–300个字符": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "审核通过，模板已公开展示": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "模板已拒绝": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "审核失败": [
+    "frontend/web/src/components/templateReview.vue"
+  ],
+  "模型与生成参数": [
+    "frontend/web/src/components/browserModelOptions.vue"
+  ],
+  "未接入模型": [
+    "frontend/web/src/components/browserModelOptions.vue"
+  ],
+  "{0} · 参数": [
+    "frontend/web/src/components/browserModelOptions.vue"
+  ],
+  "参数类型": [
+    "frontend/web/src/components/browserModelOptions.vue"
+  ],
+  "{0}模型": [
+    "frontend/web/src/components/browserModelOptions.vue"
+  ],
+  "选择已接入模型": [
+    "frontend/web/src/components/browserModelOptions.vue"
+  ],
+  "未接入{0}模型，请在 API 配置中添加对应类型": [
+    "frontend/web/src/components/browserModelOptions.vue"
+  ],
+  "比例": [
+    "frontend/web/src/components/browserModelOptions.vue",
+    "frontend/web/src/components/assetsPage.vue",
+    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
+  ],
+  "生成比例": [
+    "frontend/web/src/components/browserModelOptions.vue"
+  ],
+  "图片清晰度": [
+    "frontend/web/src/components/browserModelOptions.vue"
+  ],
+  "图片尺寸": [
+    "frontend/web/src/components/browserModelOptions.vue",
+    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
+  ],
+  "生成数量": [
+    "frontend/web/src/components/browserModelOptions.vue"
+  ],
+  "清晰度": [
+    "frontend/web/src/components/browserModelOptions.vue",
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "视频清晰度": [
+    "frontend/web/src/components/browserModelOptions.vue"
+  ],
+  "生成音频": [
+    "frontend/web/src/components/browserModelOptions.vue",
+    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
+  ],
+  "开启": [
+    "frontend/web/src/components/browserModelOptions.vue",
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "生成时长 · {0} 秒": [
+    "frontend/web/src/components/browserModelOptions.vue"
+  ],
+  "视频生成时长": [
+    "frontend/web/src/components/browserModelOptions.vue"
+  ],
+  "当前适配器仅支持文字输入。": [
+    "frontend/web/src/components/browserModelOptions.vue"
+  ],
+  "文字": [
+    "frontend/web/src/components/browserModelOptions.vue",
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasEmpty.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasLayers.vue"
+  ],
+  "按厂商配置 API Key 和模型。Key 仅保存在当前页面内存，刷新后清除。": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "启用已接入模型": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "{0} 个模型": [
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/settings/panels/mediaModel/index.vue",
+    "frontend/web/src/components/settings/panels/languageModel/index.vue"
+  ],
+  "待填写 Key": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "编辑供应商": [
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
+  ],
+  "删除供应商": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "添加供应商": [
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/settings/panels/mediaModel/index.vue",
+    "frontend/web/src/components/settings/panels/languageModel/index.vue",
+    "frontend/web/src/components/settings/panels/languageModel/addProviderDialog.vue"
+  ],
+  "清除全部 Key 并停止等待": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "选择厂商": [
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue",
+    "frontend/web/src/components/settings/panels/languageModel/addProviderDialog.vue"
+  ],
+  "官方文档": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "供应商 API Key": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "输入 API Key，刷新后清除": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "API 基础地址（HTTPS）": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "供应商 API 基础地址": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "模型列表": [
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue",
+    "frontend/web/src/components/settings/panels/languageModel/addProviderDialog.vue",
+    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
+  ],
+  "获取模型列表": [
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
+  ],
+  "添加模型": [
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue"
+  ],
+  "模型类型": [
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue"
+  ],
+  "选择或填写模型 ID": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "模型 ID": [
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue",
+    "frontend/web/src/components/settings/panels/mediaModel/providerAgentDialog.vue",
+    "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue",
+    "frontend/web/src/components/settings/panels/languageModel/addProviderDialog.vue",
+    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
+  ],
+  "模型显示名称": [
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue",
+    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
+  ],
+  "显示名称（可选）": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "移除模型 {0}": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "移除": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "填写配置不会发起生成。模型权限以厂商账号为准；未获取列表时可填写厂商提供的模型 ID。": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "保存供应商": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "阿里云百炼": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "文字使用 OpenAI 兼容接口；图片、视频沿用已接入的百炼协议。可使用对应地域或业务空间的基础地址。": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "接入 DeepSeek 官方文字模型，按账号权限获取模型列表或填写实际模型 ID。": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "硅基流动": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "当前接入文字对话协议；图片、视频等其它协议不在本次接入范围。": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "月之暗面 Kimi": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "使用 Kimi 的 OpenAI 兼容文字对话接口。": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "智谱 GLM": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "使用智谱开放平台的文字对话接口；模型 ID 以控制台可用模型为准。": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "仅支持提供 Chat Completions 接口的文字模型；不支持仅提供 Responses 接口的模型。": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "火山引擎 Seed-Audio": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "沿用已接入的 Seed-Audio 文字生成音频协议，不包含其它豆包模型协议。": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "已有自定义供应商": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "此地址不属于当前支持的厂商。请使用受支持的厂商地址重新配置。": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "请填写所选厂商不含账号、查询参数的 HTTPS 基础地址": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "请先填写 API Key": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "请填写有效的 API Key": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "请至少添加一个模型": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "请填写有效模型 ID 并选择厂商支持的模型类型": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "同一类型的模型 ID 不能重复": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "该厂商配置中已存在相同模型": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "保存失败": [
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/settings/panels/pluginMarket/agentEditorDialog.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "删除{0}及其 {1} 个模型？": [
+    "frontend/web/src/components/browserApiSettings.vue"
+  ],
+  "删除": [
+    "frontend/web/src/components/browserApiSettings.vue",
+    "frontend/web/src/components/assetsPage.vue",
+    "frontend/web/src/components/settings/panels/mediaModel/index.vue",
+    "frontend/web/src/components/settings/panels/mediaModel/editProviderDialog.vue",
+    "frontend/web/src/components/settings/panels/developer/index.vue",
+    "frontend/web/src/components/settings/panels/languageModel/index.vue",
+    "frontend/web/src/components/settings/panels/personalization.vue",
+    "frontend/web/src/components/creativeCases.vue",
+    "frontend/web/src/components/personalAssetBrowser.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue",
+    "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue",
+    "frontend/web/src/pages/home/index.vue",
+    "frontend/web/src/pages/home/workspacePicker.vue",
+    "frontend/web/src/lib/canvasShortcuts.ts"
+  ],
+  "主导航": [
+    "frontend/web/src/components/studioSidebar.vue"
+  ],
+  "展开导航栏": [
+    "frontend/web/src/components/studioSidebar.vue"
+  ],
+  "折叠导航栏": [
+    "frontend/web/src/components/studioSidebar.vue"
+  ],
+  "AFXEN 首页": [
+    "frontend/web/src/components/studioSidebar.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
+  ],
+  "首页": [
+    "frontend/web/src/components/studioSidebar.vue",
+    "frontend/web/src/components/settings/panels/mcp/index.vue",
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "Agent 助手": [
+    "frontend/web/src/components/studioSidebar.vue"
+  ],
+  "资产": [
+    "frontend/web/src/components/studioSidebar.vue",
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "我的项目": [
+    "frontend/web/src/components/studioSidebar.vue",
+    "frontend/web/src/pages/home/index.vue"
+  ],
   "构建代码": [
     "frontend/web/src/components/updateBox.vue"
   ],
@@ -749,6 +1651,126 @@
     "frontend/web/src/components/updateBox.vue",
     "frontend/web/src/pages/hello/index.vue"
   ],
+  "真实模型联调": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "正在调用 {0}，请保持页面打开。": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "真实模型生成图片，点击放大": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "生成视频，点击放大": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "加入画布": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "引用素材": [
+    "frontend/web/src/components/browserModelResults.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/nodeReferences.vue"
+  ],
+  "是否将此素材应用为{0}？": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "尾帧": [
+    "frontend/web/src/components/browserModelResults.vue",
+    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
+  ],
+  "首帧": [
+    "frontend/web/src/components/browserModelResults.vue",
+    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
+  ],
+  "提取{0}并应用": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "基于首帧继续修改": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "继续修改": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "视频预览": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "视频尚未就绪，请稍后重试": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "素材读取失败": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "已创建素材节点并定位到画布": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "加入画布失败，请检查结果地址的跨域许可": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "读取引用素材失败": [
+    "frontend/web/src/components/browserModelResults.vue"
+  ],
+  "自定义素材对话": [
+    "frontend/web/src/components/customMaterialEditor.vue"
+  ],
+  "自定义素材 · {0}": [
+    "frontend/web/src/components/customMaterialEditor.vue"
+  ],
+  "关闭自定义素材对话": [
+    "frontend/web/src/components/customMaterialEditor.vue"
+  ],
+  "正在打开独立素材对话…": [
+    "frontend/web/src/components/customMaterialEditor.vue"
+  ],
+  "独立素材对话打开失败": [
+    "frontend/web/src/components/customMaterialEditor.vue"
+  ],
+  "素材应用失败，当前对话已保留": [
+    "frontend/web/src/components/customMaterialEditor.vue"
+  ],
+  "用户中心": [
+    "frontend/web/src/components/accountMenu.vue"
+  ],
+  "外观与设置": [
+    "frontend/web/src/components/accountMenu.vue"
+  ],
+  "切换账号": [
+    "frontend/web/src/components/accountMenu.vue"
+  ],
+  "退出登录": [
+    "frontend/web/src/components/accountMenu.vue"
+  ],
+  "共享工作区设置": [
+    "frontend/web/src/components/accountMenu.vue"
+  ],
+  "设置": [
+    "frontend/web/src/components/accountMenu.vue",
+    "frontend/web/src/components/settings/index.vue",
+    "frontend/web/src/pages/workspace/components/workspaceMenu.vue"
+  ],
+  "退出登录失败，请重试": [
+    "frontend/web/src/components/accountMenu.vue"
+  ],
+  "快捷键": [
+    "frontend/web/src/components/shortcutHelp.vue"
+  ],
+  "使用说明": [
+    "frontend/web/src/components/shortcutHelp.vue"
+  ],
+  "快捷键在专业模式的画布中使用；编辑文字时保留系统输入与编辑操作。": [
+    "frontend/web/src/components/shortcutHelp.vue"
+  ],
+  "未绑定": [
+    "frontend/web/src/components/shortcutHelp.vue",
+    "frontend/web/src/components/settings/panels/general/keyInput.vue"
+  ],
+  " + 拖动": [
+    "frontend/web/src/components/shortcutHelp.vue"
+  ],
+  " + 滚轮": [
+    "frontend/web/src/components/shortcutHelp.vue"
+  ],
+  "快捷键设置": [
+    "frontend/web/src/components/shortcutHelp.vue"
+  ],
   "模型与推理设置": [
     "frontend/web/src/components/modelPopover.vue"
   ],
@@ -758,7 +1780,6 @@
   ],
   "模型": [
     "frontend/web/src/components/modelPopover.vue",
-    "frontend/web/src/components/settings/index.vue",
     "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
   ],
   "请先在设置中添加模型": [
@@ -780,9 +1801,26 @@
   "高": [
     "frontend/web/src/components/modelPopover.vue"
   ],
+  "素材无法预览，请检查文件格式或重新上传": [
+    "frontend/web/src/components/templateMedia.vue"
+  ],
+  "视频尚未就绪，无法读取参考帧": [
+    "frontend/web/src/components/templateMedia.vue"
+  ],
+  "引用上传": [
+    "frontend/web/src/components/referencePicker.vue"
+  ],
+  "本地上传": [
+    "frontend/web/src/components/referencePicker.vue"
+  ],
+  "从个人资产选择": [
+    "frontend/web/src/components/referencePicker.vue"
+  ],
+  "引用个人资产": [
+    "frontend/web/src/components/referencePicker.vue"
+  ],
   "设备互联": [
     "frontend/web/src/components/mobileConnect.vue",
-    "frontend/web/src/components/settings/index.vue",
     "frontend/web/src/lib/mobile.ts"
   ],
   "连接方式": [
@@ -807,7 +1845,7 @@
   "设备互联说明": [
     "frontend/web/src/components/mobileConnect.vue"
   ],
-  "请使用 Toonflow 桌面端或 Android 客户端连接其他设备。": [
+  "请使用 AFXEN 桌面端或 Android 客户端连接其他设备。": [
     "frontend/web/src/components/mobileConnect.vue"
   ],
   "本机共享可在“设置 → 设备互联”中管理。": [
@@ -913,7 +1951,7 @@
   "手动输入": [
     "frontend/web/src/components/mobileConnect.vue"
   ],
-  "请扫描 Toonflow 的设备互联二维码": [
+  "请扫描 AFXEN 的设备互联二维码": [
     "frontend/web/src/components/mobileConnect.vue"
   ],
   "请输入局域网地址或公网 HTTPS 地址，不能包含路径、账号或参数": [
@@ -940,10 +1978,163 @@
   "请输入对方显示的 12 位数字配对码": [
     "frontend/web/src/components/mobileConnect.vue"
   ],
-  "设置": [
-    "frontend/web/src/components/settings/index.vue",
-    "frontend/web/src/pages/workspace/components/workspaceMenu.vue",
-    "frontend/web/src/pages/home/index.vue"
+  "生成历史": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "时间倒序": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "时间正序": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "正在读取生成历史…": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "选择 {0}": [
+    "frontend/web/src/components/assetsPage.vue",
+    "frontend/web/src/components/personalAssetBrowser.vue",
+    "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue"
+  ],
+  "保存到个人资产": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "保存到个人资产 {0}": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "下载素材": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "下载 {0}": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "删除历史": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "删除 {0}": [
+    "frontend/web/src/components/assetsPage.vue",
+    "frontend/web/src/components/settings/panels/developer/index.vue",
+    "frontend/web/src/components/creativeCases.vue",
+    "frontend/web/src/pages/home/workspacePicker.vue"
+  ],
+  "批量素材操作": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "取消选择": [
+    "frontend/web/src/components/assetsPage.vue",
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "已选择 {0} 项": [
+    "frontend/web/src/components/assetsPage.vue",
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "去画布编辑": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "新建画布添加": [
+    "frontend/web/src/components/assetsPage.vue",
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "下载图片": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "删除所选历史": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "资产模块": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "个人资产库": [
+    "frontend/web/src/components/assetsPage.vue",
+    "frontend/web/src/components/personalAssetBrowser.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/nodeReferences.vue"
+  ],
+  "关闭素材详情": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "创建于": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "生成信息": [
+    "frontend/web/src/components/assetsPage.vue",
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "复制生成信息": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "未记录提示词": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "生成模型": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "生成模式": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "文本生成": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "首帧生成": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "自动": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "尺寸": [
+    "frontend/web/src/components/assetsPage.vue",
+    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
+  ],
+  "数量": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "风格": [
+    "frontend/web/src/components/assetsPage.vue",
+    "frontend/web/src/components/simpleGenerationTools.vue"
+  ],
+  "时长": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "素材操作": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "已复制生成信息": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "历史记录格式无效": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "部分项目历史读取失败：{0}": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "从生成历史中移除所选记录？画布和对话引用的素材将保留。": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "已发起 {0} 项下载": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "已完成 {0} 项": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "已完成 {0} 项；": [
+    "frontend/web/src/components/assetsPage.vue"
+  ],
+  "操作失败，请重试": [
+    "frontend/web/src/components/assetsPage.vue",
+    "frontend/web/src/pages/home/workspacePicker.vue"
+  ],
+  "创作模式": [
+    "frontend/web/src/components/creationModeSwitch.vue"
+  ],
+  "简单模式": [
+    "frontend/web/src/components/creationModeSwitch.vue"
+  ],
+  "输入提示词，或者加入参考图，即可生成对应的图片或内容": [
+    "frontend/web/src/components/creationModeSwitch.vue"
+  ],
+  "专业模式": [
+    "frontend/web/src/components/creationModeSwitch.vue"
+  ],
+  "在画布中连接节点、组合素材和调整参数，精细控制创作流程。": [
+    "frontend/web/src/components/creationModeSwitch.vue"
   ],
   "设置分类": [
     "frontend/web/src/components/settings/index.vue"
@@ -951,17 +2142,13 @@
   "{0}，有新版本可用": [
     "frontend/web/src/components/settings/index.vue"
   ],
-  "界面设置": [
+  "外观": [
+    "frontend/web/src/components/settings/index.vue"
+  ],
+  "API 配置": [
     "frontend/web/src/components/settings/index.vue"
   ],
   "常规配置": [
-    "frontend/web/src/components/settings/index.vue"
-  ],
-  "文本模型": [
-    "frontend/web/src/components/settings/index.vue",
-    "frontend/web/src/components/settings/panels/pluginMarket/a2aSettingsDialog.vue"
-  ],
-  "媒体模型": [
     "frontend/web/src/components/settings/index.vue"
   ],
   "插件市场": [
@@ -976,9 +2163,6 @@
   "个性化": [
     "frontend/web/src/components/settings/index.vue"
   ],
-  "其他": [
-    "frontend/web/src/components/settings/index.vue"
-  ],
   "隐私": [
     "frontend/web/src/components/settings/index.vue"
   ],
@@ -989,18 +2173,6 @@
     "frontend/web/src/components/settings/index.vue"
   ],
   "版本更新": [
-    "frontend/web/src/components/settings/panels/about.vue"
-  ],
-  "前往 GitHub 更新": [
-    "frontend/web/src/components/settings/panels/about.vue"
-  ],
-  "更新源": [
-    "frontend/web/src/components/settings/panels/about.vue"
-  ],
-  "官方源": [
-    "frontend/web/src/components/settings/panels/about.vue"
-  ],
-  "自定义源": [
     "frontend/web/src/components/settings/panels/about.vue"
   ],
   "查看更新失败原因": [
@@ -1021,19 +2193,9 @@
   "上次更新未成功": [
     "frontend/web/src/components/settings/panels/about.vue"
   ],
-  "请前往 GitHub 最新发布页，选择适合当前系统的完整安装包，关闭客户端后重新安装。": [
+  "请联系管理员获取适合当前系统的完整安装包，关闭客户端后重新安装。": [
     "frontend/web/src/components/settings/panels/about.vue",
     "frontend/web/src/App.vue"
-  ],
-  "前往下载页": [
-    "frontend/web/src/components/settings/panels/about.vue",
-    "frontend/web/src/App.vue"
-  ],
-  "GitHub 仓库：HBAI-Ltd/Toonflow-app": [
-    "frontend/web/src/components/settings/panels/about.vue"
-  ],
-  "GitHub 仓库": [
-    "frontend/web/src/components/settings/panels/about.vue"
   ],
   "官方中转平台 TF-Router": [
     "frontend/web/src/components/settings/panels/about.vue"
@@ -1047,12 +2209,11 @@
   "展示二维码": [
     "frontend/web/src/components/settings/panels/about.vue"
   ],
-  "Toonflow 交流群二维码": [
+  "AFXEN 交流群二维码": [
     "frontend/web/src/components/settings/panels/about.vue"
   ],
-  "Toonflow 是为爱发电的开源项目。欢迎文明交流、友善反馈；回复可能需要一些时间，请避免责问或命令式沟通，感谢你的理解与尊重。": [
-    "frontend/web/src/components/settings/panels/about.vue",
-    "frontend/web/src/pages/workspace/index.vue"
+  "欢迎文明交流、友善反馈。请勿在公开讨论中分享工作素材、个人信息或服务密钥。": [
+    "frontend/web/src/components/settings/panels/about.vue"
   ],
   "赞助商": [
     "frontend/web/src/components/settings/panels/about.vue"
@@ -1066,7 +2227,7 @@
   "成为赞助商": [
     "frontend/web/src/components/settings/panels/about.vue"
   ],
-  "Toonflow 商务合作二维码": [
+  "AFXEN 商务合作二维码": [
     "frontend/web/src/components/settings/panels/about.vue"
   ],
   "查看 {0} 详情": [
@@ -1205,6 +2366,7 @@
   ],
   "搜索": [
     "frontend/web/src/components/settings/panels/pluginMarket/index.vue",
+    "frontend/web/src/components/creativeCases.vue",
     "frontend/web/src/pages/workspace/panels/document/components/workspaceSearch.vue"
   ],
   "填写 TF-Router API Key": [
@@ -1217,9 +2379,6 @@
     "frontend/web/src/components/settings/panels/pluginMarket/index.vue"
   ],
   "{0}列表": [
-    "frontend/web/src/components/settings/panels/pluginMarket/index.vue"
-  ],
-  "{0} 的 GitHub": [
     "frontend/web/src/components/settings/panels/pluginMarket/index.vue"
   ],
   "暂不支持安装": [
@@ -1422,7 +2581,8 @@
   "保存失败，请重试": [
     "frontend/web/src/components/settings/panels/pluginMarket/pluginConfigDialog.vue",
     "frontend/web/src/components/settings/panels/personalization.vue",
-    "frontend/web/src/components/settings/tfAccount.vue"
+    "frontend/web/src/components/settings/tfAccount.vue",
+    "frontend/web/src/components/saveAssetDialog.vue"
   ],
   "检测失败": [
     "frontend/web/src/components/settings/panels/pluginMarket/ffmpeg.vue"
@@ -1512,7 +2672,7 @@
   "下载版本：{0} · {1}": [
     "frontend/web/src/components/settings/panels/pluginMarket/ffmpeg.vue"
   ],
-  "保存在当前 Toonflow 服务的数据目录，下载后自动复用。": [
+  "保存在当前 AFXEN 服务的数据目录，下载后自动复用。": [
     "frontend/web/src/components/settings/panels/pluginMarket/ffmpeg.vue"
   ],
   "下载版": [
@@ -1524,13 +2684,13 @@
   "不可用": [
     "frontend/web/src/components/settings/panels/pluginMarket/ffmpeg.vue"
   ],
-  "优先使用已下载的版本；未下载时，从当前 Toonflow 服务的系统 PATH 查找。": [
+  "优先使用已下载的版本；未下载时，从当前 AFXEN 服务的系统 PATH 查找。": [
     "frontend/web/src/components/settings/panels/pluginMarket/ffmpeg.vue"
   ],
   "仅使用此页面下载的版本。": [
     "frontend/web/src/components/settings/panels/pluginMarket/ffmpeg.vue"
   ],
-  "仅从当前 Toonflow 服务的系统 PATH 查找 FFmpeg 与 ffprobe。": [
+  "仅从当前 AFXEN 服务的系统 PATH 查找 FFmpeg 与 ffprobe。": [
     "frontend/web/src/components/settings/panels/pluginMarket/ffmpeg.vue"
   ],
   "等待下载": [
@@ -1569,6 +2729,7 @@
   "操作失败": [
     "frontend/web/src/components/settings/panels/pluginMarket/ffmpeg.vue",
     "frontend/web/src/components/settings/panels/mediaModel/providerAgentDialog.vue",
+    "frontend/web/src/components/personalAssetBrowser.vue",
     "frontend/web/src/pages/workspace/panels/document/components/workspaceSearch.vue"
   ],
   "按文件类型选择默认扩展。清除后，有多个可用扩展时会再次询问打开方式。": [
@@ -1634,9 +2795,6 @@
     "frontend/web/src/components/settings/panels/pluginMarket/skillEditorDialog.vue",
     "frontend/web/src/components/settings/panels/personalization.vue"
   ],
-  "保存失败": [
-    "frontend/web/src/components/settings/panels/pluginMarket/agentEditorDialog.vue"
-  ],
   "已保存": [
     "frontend/web/src/components/settings/panels/pluginMarket/agentEditorDialog.vue",
     "frontend/web/src/components/settings/panels/pluginMarket/skillEditorDialog.vue",
@@ -1696,7 +2854,7 @@
   ],
   "创建": [
     "frontend/web/src/components/settings/panels/pluginMarket/skillEditorDialog.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue",
+    "frontend/web/src/components/personalAssetBrowser.vue",
     "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue",
     "frontend/web/src/pages/home/workspacePicker.vue"
   ],
@@ -1724,6 +2882,9 @@
     "frontend/web/src/components/settings/panels/pluginMarket/a2aSettingsDialog.vue"
   ],
   "选择允许团队操作的工作区": [
+    "frontend/web/src/components/settings/panels/pluginMarket/a2aSettingsDialog.vue"
+  ],
+  "文本模型": [
     "frontend/web/src/components/settings/panels/pluginMarket/a2aSettingsDialog.vue"
   ],
   "选择团队使用的文本模型": [
@@ -1778,7 +2939,7 @@
   "开启 MCP": [
     "frontend/web/src/components/settings/panels/mcp/index.vue"
   ],
-  "允许外部 Coding 工具和 Agent 操作 Toonflow。开启后，将客户端配置添加到对应工具中。": [
+  "允许外部 Coding 工具和 Agent 操作 AFXEN。开启后，将客户端配置添加到对应工具中。": [
     "frontend/web/src/components/settings/panels/mcp/index.vue"
   ],
   "连接状态": [
@@ -1797,14 +2958,10 @@
   "{0} 个界面已连接": [
     "frontend/web/src/components/settings/panels/mcp/index.vue"
   ],
-  "首页": [
+  "文档": [
     "frontend/web/src/components/settings/panels/mcp/index.vue"
   ],
-  "文档": [
-    "frontend/web/src/components/settings/panels/mcp/index.vue",
-    "frontend/web/src/pages/workspace/index.vue"
-  ],
-  "画布与节点操作需要 Toonflow 界面保持打开。": [
+  "画布与节点操作需要 AFXEN 界面保持打开。": [
     "frontend/web/src/components/settings/panels/mcp/index.vue"
   ],
   "首选本地端口": [
@@ -1831,7 +2988,7 @@
   "HTTP 配置包含访问凭证，请仅提供给可信的客户端。": [
     "frontend/web/src/components/settings/panels/mcp/index.vue"
   ],
-  "教外部 Agent 组合使用 Toonflow 工具。将 SKILL.md 安装到对应 Coding 工具的技能目录。": [
+  "教外部 Agent 组合使用 AFXEN 工具。将 SKILL.md 安装到对应 Coding 工具的技能目录。": [
     "frontend/web/src/components/settings/panels/mcp/index.vue"
   ],
   "查看 Skill": [
@@ -1869,10 +3026,6 @@
     "frontend/web/src/components/settings/panels/mediaModel/index.vue",
     "frontend/web/src/components/settings/panels/languageModel/index.vue"
   ],
-  "{0} 个模型": [
-    "frontend/web/src/components/settings/panels/mediaModel/index.vue",
-    "frontend/web/src/components/settings/panels/languageModel/index.vue"
-  ],
   "获取模型": [
     "frontend/web/src/components/settings/panels/mediaModel/index.vue",
     "frontend/web/src/components/settings/panels/languageModel/index.vue"
@@ -1884,23 +3037,6 @@
   "确定删除此供应商及其模型？": [
     "frontend/web/src/components/settings/panels/mediaModel/index.vue",
     "frontend/web/src/components/settings/panels/languageModel/index.vue"
-  ],
-  "删除": [
-    "frontend/web/src/components/settings/panels/mediaModel/index.vue",
-    "frontend/web/src/components/settings/panels/mediaModel/editProviderDialog.vue",
-    "frontend/web/src/components/settings/panels/developer/index.vue",
-    "frontend/web/src/components/settings/panels/languageModel/index.vue",
-    "frontend/web/src/components/settings/panels/personalization.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue",
-    "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue",
-    "frontend/web/src/pages/home/workspacePicker.vue",
-    "frontend/web/src/lib/canvasShortcuts.ts"
-  ],
-  "添加供应商": [
-    "frontend/web/src/components/settings/panels/mediaModel/index.vue",
-    "frontend/web/src/components/settings/panels/languageModel/index.vue",
-    "frontend/web/src/components/settings/panels/languageModel/addProviderDialog.vue"
   ],
   "添加自定义供应商": [
     "frontend/web/src/components/settings/panels/mediaModel/index.vue",
@@ -1923,28 +3059,11 @@
   "供应商已删除，连接配置未清理：{0}": [
     "frontend/web/src/components/settings/panels/mediaModel/index.vue"
   ],
-  "添加模型": [
-    "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue"
-  ],
   "显示名称": [
     "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue",
     "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue",
     "frontend/web/src/components/settings/panels/languageModel/addProviderDialog.vue",
     "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
-  ],
-  "模型显示名称": [
-    "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue",
-    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
-  ],
-  "模型 ID": [
-    "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue",
-    "frontend/web/src/components/settings/panels/mediaModel/providerAgentDialog.vue",
-    "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue",
-    "frontend/web/src/components/settings/panels/languageModel/addProviderDialog.vue",
-    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
-  ],
-  "模型类型": [
-    "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue"
   ],
   "文本（旧配置）": [
     "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue"
@@ -2184,6 +3303,17 @@
   "编辑媒体供应商：{0}": [
     "frontend/web/src/components/settings/panels/mediaModel/editProviderDialog.vue"
   ],
+  "已保存，留空保留原 Key": [
+    "frontend/web/src/components/settings/panels/mediaModel/editProviderDialog.vue",
+    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
+  ],
+  "输入 API Key": [
+    "frontend/web/src/components/settings/panels/mediaModel/editProviderDialog.vue"
+  ],
+  "清除已保存的 Key": [
+    "frontend/web/src/components/settings/panels/mediaModel/editProviderDialog.vue",
+    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
+  ],
   "模型配置": [
     "frontend/web/src/components/settings/panels/mediaModel/editProviderDialog.vue"
   ],
@@ -2199,9 +3329,10 @@
   "暂无模型": [
     "frontend/web/src/components/settings/panels/mediaModel/editProviderDialog.vue"
   ],
-  "API Key 过长": [
+  "API Key 格式无效": [
     "frontend/web/src/components/settings/panels/mediaModel/editProviderDialog.vue",
-    "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue"
+    "services/server/src/utils/conf/providerCredentials.ts",
+    "services/server/src/routes/providers/models.ts"
   ],
   "请填写第 {0} 个模型的 ID 和显示名称": [
     "frontend/web/src/components/settings/panels/mediaModel/editProviderDialog.vue"
@@ -2237,18 +3368,9 @@
   "添加自定义媒体供应商": [
     "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue"
   ],
-  "选择厂商": [
-    "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue",
-    "frontend/web/src/components/settings/panels/languageModel/addProviderDialog.vue"
-  ],
   "连接配置": [
     "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue",
     "frontend/web/src/components/settings/panels/languageModel/addProviderDialog.vue"
-  ],
-  "模型列表": [
-    "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue",
-    "frontend/web/src/components/settings/panels/languageModel/addProviderDialog.vue",
-    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
   ],
   "添加方式": [
     "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue"
@@ -2321,7 +3443,11 @@
   ],
   "请填写 API Key": [
     "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue",
-    "frontend/web/src/components/settings/panels/languageModel/addProviderDialog.vue"
+    "frontend/web/src/components/settings/panels/languageModel/addProviderDialog.vue",
+    "frontend/web/src/adapters/production/browserModels/audioModel.ts"
+  ],
+  "API Key 过长": [
+    "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue"
   ],
   "供应商已添加，连接配置未保存：{0}。填写内容已保留，请重试。": [
     "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue"
@@ -2341,7 +3467,7 @@
   "允许其他设备连接": [
     "frontend/web/src/components/settings/panels/deviceLink.vue"
   ],
-  "其他电脑、安卓设备可使用这里的项目与配置。连接时请保持 Toonflow 运行。": [
+  "其他电脑、安卓设备可使用这里的项目与配置。连接时请保持 AFXEN 运行。": [
     "frontend/web/src/components/settings/panels/deviceLink.vue"
   ],
   "连接新设备": [
@@ -2395,6 +3521,7 @@
   "撤销": [
     "frontend/web/src/components/settings/panels/deviceLink.vue",
     "frontend/web/src/pages/workspace/panels/canvas/components/nodeMenu.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue",
     "frontend/web/src/lib/canvasShortcuts.ts",
     "frontend/desktop/src/index.ts"
   ],
@@ -2423,7 +3550,7 @@
   "局域网地址": [
     "frontend/web/src/components/settings/panels/deviceLink.vue"
   ],
-  "无法连接时可尝试其他地址，并检查电脑防火墙是否允许 Toonflow 联网。": [
+  "无法连接时可尝试其他地址，并检查电脑防火墙是否允许 AFXEN 联网。": [
     "frontend/web/src/components/settings/panels/deviceLink.vue"
   ],
   "公网 HTTPS 地址": [
@@ -2484,7 +3611,7 @@
   "生成二维码失败": [
     "frontend/web/src/components/settings/panels/deviceLink.vue"
   ],
-  "撤销后，这个设备将无法继续访问当前 Toonflow。": [
+  "撤销后，这个设备将无法继续访问当前 AFXEN。": [
     "frontend/web/src/components/settings/panels/deviceLink.vue"
   ],
   "撤销设备授权": [
@@ -2598,7 +3725,7 @@
   "圆润": [
     "frontend/web/src/components/settings/panels/ui.vue"
   ],
-  "Toonflow 每一个灵感，都值得被看见": [
+  "AFXEN 每一个灵感，都值得被看见": [
     "frontend/web/src/components/settings/panels/ui.vue"
   ],
   "这是当前颜色、字体与圆角的实际效果。": [
@@ -2760,10 +3887,6 @@
   "确定删除这条缓存？": [
     "frontend/web/src/components/settings/panels/developer/index.vue"
   ],
-  "删除 {0}": [
-    "frontend/web/src/components/settings/panels/developer/index.vue",
-    "frontend/web/src/pages/home/workspacePicker.vue"
-  ],
   "{0} 的值": [
     "frontend/web/src/components/settings/panels/developer/index.vue"
   ],
@@ -2866,43 +3989,19 @@
   "调试提示词": [
     "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
   ],
-  "参考素材": [
-    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
-  ],
   "参考图用途": [
-    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
-  ],
-  "参考图": [
-    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
-  ],
-  "首帧": [
-    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
-  ],
-  "尾帧": [
     "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
   ],
   "添加参考素材": [
     "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
   ],
-  "比例": [
-    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
-  ],
   "画面比例": [
-    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
-  ],
-  "尺寸": [
-    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
-  ],
-  "图片尺寸": [
     "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
   ],
   "视频分辨率": [
     "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
   ],
   "视频时长": [
-    "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
-  ],
-  "生成音频": [
     "frontend/web/src/components/settings/panels/developer/providerDebugDialog.vue"
   ],
   "音色": [
@@ -3072,9 +4171,6 @@
     "frontend/web/src/components/settings/panels/general/keyInput.vue"
   ],
   "请按快捷键…": [
-    "frontend/web/src/components/settings/panels/general/keyInput.vue"
-  ],
-  "未绑定": [
     "frontend/web/src/components/settings/panels/general/keyInput.vue"
   ],
   "清除{0}": [
@@ -3282,9 +4378,6 @@
   "此供应商已添加，请在供应商列表中编辑": [
     "frontend/web/src/components/settings/panels/languageModel/addProviderDialog.vue"
   ],
-  "编辑供应商": [
-    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
-  ],
   "例如 myProvider": [
     "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
   ],
@@ -3301,9 +4394,6 @@
     "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
   ],
   "本地无鉴权服务可留空": [
-    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
-  ],
-  "获取模型列表": [
     "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
   ],
   "展开 token 设置": [
@@ -3360,25 +4450,28 @@
   "token 限制必须为正整数或留空": [
     "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
   ],
+  "修改供应商 ID 后请重新输入 Key，或明确清除凭据": [
+    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
+  ],
   "Provider ID 已存在": [
     "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
   ],
-  "Toonflow 说明": [
+  "AFXEN 说明": [
     "frontend/web/src/components/settings/panels/personalization.vue"
   ],
   "为所有聊天提供额外说明和上下文。支持 Markdown，保存后下一次发送消息时生效。": [
     "frontend/web/src/components/settings/panels/personalization.vue"
   ],
-  "Toonflow 说明内容": [
+  "AFXEN 说明内容": [
     "frontend/web/src/components/settings/panels/personalization.vue"
   ],
   "有未保存的修改": [
     "frontend/web/src/components/settings/panels/personalization.vue"
   ],
-  "重新加载 Toonflow 说明": [
+  "重新加载 AFXEN 说明": [
     "frontend/web/src/components/settings/panels/personalization.vue"
   ],
-  "保存 Toonflow 说明": [
+  "保存 AFXEN 说明": [
     "frontend/web/src/components/settings/panels/personalization.vue"
   ],
   "启用本地记忆": [
@@ -3396,7 +4489,7 @@
   "查看": [
     "frontend/web/src/components/settings/panels/personalization.vue"
   ],
-  "Toonflow 记忆": [
+  "AFXEN 记忆": [
     "frontend/web/src/components/settings/panels/personalization.vue"
   ],
   "本地记忆内容": [
@@ -3441,7 +4534,7 @@
   "读取本地记忆失败，请重试": [
     "frontend/web/src/components/settings/panels/personalization.vue"
   ],
-  "将删除所有工作区共用的本地记忆及未保存的记忆修改，此操作无法撤销。Toonflow 说明会保留。": [
+  "将删除所有工作区共用的本地记忆及未保存的记忆修改，此操作无法撤销。AFXEN 说明会保留。": [
     "frontend/web/src/components/settings/panels/personalization.vue"
   ],
   "本地记忆已更新，未删除任何内容。请重新查看后重试。": [
@@ -3571,16 +4664,386 @@
   "创建充值订单失败，请重试": [
     "frontend/web/src/components/settings/tfRechargeDialog.vue"
   ],
+  "保存资产": [
+    "frontend/web/src/components/saveAssetDialog.vue"
+  ],
+  "选择素材": [
+    "frontend/web/src/components/saveAssetDialog.vue"
+  ],
+  "选择待保存素材": [
+    "frontend/web/src/components/saveAssetDialog.vue"
+  ],
+  "资产名称": [
+    "frontend/web/src/components/saveAssetDialog.vue"
+  ],
+  "保存位置": [
+    "frontend/web/src/components/saveAssetDialog.vue"
+  ],
+  "请选择文件夹": [
+    "frontend/web/src/components/saveAssetDialog.vue"
+  ],
+  "根文件夹": [
+    "frontend/web/src/components/saveAssetDialog.vue",
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "设置标签": [
+    "frontend/web/src/components/saveAssetDialog.vue"
+  ],
+  "请选择标签": [
+    "frontend/web/src/components/saveAssetDialog.vue"
+  ],
+  "个人资产仅支持图片、视频和音频": [
+    "frontend/web/src/components/saveAssetDialog.vue"
+  ],
+  "读取保存位置失败": [
+    "frontend/web/src/components/saveAssetDialog.vue"
+  ],
+  "已保存到个人资产": [
+    "frontend/web/src/components/saveAssetDialog.vue"
+  ],
+  "节点只读输入框": [
+    "frontend/web/src/components/templatePreviewNode.vue"
+  ],
+  "只读": [
+    "frontend/web/src/components/templatePreviewNode.vue"
+  ],
+  "关闭节点输入框": [
+    "frontend/web/src/components/templatePreviewNode.vue"
+  ],
+  "查看引用 {0}": [
+    "frontend/web/src/components/templatePreviewNode.vue"
+  ],
+  "节点输入内容": [
+    "frontend/web/src/components/templatePreviewNode.vue"
+  ],
   "图片保存或读取失败": [
     "frontend/web/src/components/markdownImage.vue"
+  ],
+  "创作优选": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "模板中心": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "上传创作优选": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "上传模板": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "搜索视频模板": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "搜索关键词或描述想要的视频": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "正在理解需求并查找相关模板…": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "按回车或点击搜索，查找语义相关的模板。": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "没有找到相关模板，试试调整描述或分类。": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "当前分类暂无项目模板，可从“我的项目”制作模板。": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "当前分类暂无视频模板。": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "播放作品": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "查看模板": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "查看创作过程": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "一键同款": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "复制项目": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "创作详情": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "当前模型": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "当前比例": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "当前清晰度": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "｜ {0}秒": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "选择项目": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "制作项目模板": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "上传个人模板": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "模板名称": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "分类": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "选择分类": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "模板视频": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "选择视频": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "模板描述": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "创作提示词": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "生成模型（可选）": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "比例（可选）": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "视频清晰度（可选）": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "提交审核": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "保存模板": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "删除“{0}”的展示卡片？原项目与素材会保留。": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "删除失败": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "项目读取失败": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "语义搜索需要文字模型，请先在设置 → API 配置中启用文字模型并填写 Key。": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "语义搜索超时，请重试": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "文字模型返回的搜索排序无效，请重试": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "语义搜索失败，请重试": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "复制项目失败": [
+    "frontend/web/src/components/creativeCases.vue",
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "模板素材读取失败": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "当前浏览器无法创建项目预览": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "项目节点分组存在循环引用": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "项目预览保存失败": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "请选择模板视频": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "模板中心仅支持视频模板": [
+    "frontend/web/src/components/creativeCases.vue",
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "请填写模板名称和描述": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "模板已保存到共享实例": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "模板保存失败": [
+    "frontend/web/src/components/creativeCases.vue"
+  ],
+  "项目图片预览": [
+    "frontend/web/src/components/projectThumbnail.vue"
+  ],
+  "项目视频封面": [
+    "frontend/web/src/components/projectThumbnail.vue"
+  ],
+  "创作类型": [
+    "frontend/web/src/components/simpleGenerationTools.vue"
+  ],
+  "图片生成": [
+    "frontend/web/src/components/simpleGenerationTools.vue"
+  ],
+  "视频生成": [
+    "frontend/web/src/components/simpleGenerationTools.vue"
+  ],
+  "选择风格": [
+    "frontend/web/src/components/simpleGenerationTools.vue"
+  ],
+  "视觉风格": [
+    "frontend/web/src/components/simpleGenerationTools.vue"
+  ],
+  "不指定风格": [
+    "frontend/web/src/components/simpleGenerationTools.vue"
+  ],
+  "搜索资产": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "新建": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "上传资产": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "新建文件夹": [
+    "frontend/web/src/components/personalAssetBrowser.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue",
+    "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue",
+    "frontend/web/src/pages/home/index.vue",
+    "frontend/web/src/pages/home/workspacePicker.vue"
+  ],
+  "资产批量操作": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "删除所选资产": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "重命名": [
+    "frontend/web/src/components/personalAssetBrowser.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue",
+    "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue",
+    "frontend/web/src/pages/home/index.vue",
+    "frontend/web/src/pages/home/workspacePicker.vue"
+  ],
+  "移动到": [
+    "frontend/web/src/components/personalAssetBrowser.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue"
+  ],
+  "修改标签": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "关闭资产详情": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "创建时间": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "资产来源": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "未记录": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "下载": [
+    "frontend/web/src/components/personalAssetBrowser.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue",
+    "frontend/web/src/lib/i18n.ts"
+  ],
+  "目标文件夹": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "移动": [
+    "frontend/web/src/components/personalAssetBrowser.vue",
+    "frontend/web/src/lib/canvasShortcuts.ts"
+  ],
+  "资产读取失败": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "名称不能为空，且不能包含斜杠或使用点目录": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "文件夹名称": [
+    "frontend/web/src/components/personalAssetBrowser.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
+  ],
+  "请输入有效文件夹名称": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "{0}：仅支持图片、视频和音频": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "已上传 {0} 项": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "上传失败": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "已上传 {0} 项；{1}": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "删除所选 {0} 项资产？": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "删除资产": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "不能移入自身或子文件夹": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "图片和视频须放入文件夹": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "已移动 {0} 项": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "移动失败": [
+    "frontend/web/src/components/personalAssetBrowser.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
+  ],
+  "已移动 {0} 项；{1}": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "请输入新名称": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "请输入有效名称": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "重命名请保留原文件扩展名": [
+    "frontend/web/src/components/personalAssetBrowser.vue"
+  ],
+  "模型配置供本实例共享使用，Key 由服务器保存。编辑时留空保留已保存的 Key，清除需明确勾选。": [
+    "frontend/web/src/components/serverApiSettings.vue"
+  ],
+  "文字模型": [
+    "frontend/web/src/components/serverApiSettings.vue"
+  ],
+  "图片、视频与音频": [
+    "frontend/web/src/components/serverApiSettings.vue"
   ],
   "隔离预览不连接真实工作区或模型服务": [
     "frontend/web/src/composition/scenario.ts"
   ],
-  "当前 Microsoft Edge WebView2 Runtime 版本过旧。请以管理员身份运行微软最新版安装器；若仍提示已安装，请修复 WebView2 或联系管理员检查更新服务。更新完成后，请完全退出 Toonflow 再重新打开。": [
+  "隔离预览不连接浏览器项目或原型账号": [
+    "frontend/web/src/composition/scenario.ts"
+  ],
+  "当前 Microsoft Edge WebView2 Runtime 版本过旧。请以管理员身份运行微软最新版安装器；若仍提示已安装，请修复 WebView2 或联系管理员检查更新服务。更新完成后，请完全退出 AFXEN 再重新打开。": [
     "frontend/web/src/bootstrap.ts"
   ],
-  "当前移动端浏览器内核缺少 Toonflow 所需能力。请更新 Toonflow 和系统浏览器内核；部分系统需要通过系统更新升级。更新完成后，请完全退出并重新打开 Toonflow。": [
+  "当前移动端浏览器内核缺少 AFXEN 所需能力。请更新 AFXEN 和系统浏览器内核；部分系统需要通过系统更新升级。更新完成后，请完全退出并重新打开 AFXEN。": [
     "frontend/web/src/bootstrap.ts"
   ],
   "切回本机失败，请重试": [
@@ -3601,6 +5064,9 @@
   "启动失败": [
     "frontend/web/src/bootstrap.ts"
   ],
+  "创作宿主尚未配置": [
+    "frontend/web/src/ports/prototype.ts"
+  ],
   "更新未成功": [
     "frontend/web/src/App.vue"
   ],
@@ -3619,6 +5085,27 @@
   "更新说明的展示记录保存失败，下次启动时可能再次显示。": [
     "frontend/web/src/App.vue"
   ],
+  "服务端未返回有效创作索引": [
+    "frontend/web/src/stores/sharedState.ts"
+  ],
+  "服务端创作索引格式无效": [
+    "frontend/web/src/stores/sharedState.ts"
+  ],
+  "读取共享创作索引失败": [
+    "frontend/web/src/stores/sharedState.ts"
+  ],
+  "共享创作索引尚未加载": [
+    "frontend/web/src/stores/sharedState.ts"
+  ],
+  "共享存储键无效或尚未加载": [
+    "frontend/web/src/stores/sharedState.ts"
+  ],
+  "共享创作索引保存失败": [
+    "frontend/web/src/stores/sharedState.ts"
+  ],
+  "{0}。未保存内容保留在当前页面，请先保留内容再刷新": [
+    "frontend/web/src/stores/sharedState.ts"
+  ],
   "暂时无法确认更新结果，请稍后重新读取状态，或重新打开客户端。": [
     "frontend/web/src/stores/desktopUpdate.ts"
   ],
@@ -3628,7 +5115,13 @@
   "读取设置失败": [
     "frontend/web/src/stores/settings.ts"
   ],
+  "浏览器外观设置损坏，请清除此项设置后重试；项目数据未改动": [
+    "frontend/web/src/stores/settings.ts"
+  ],
   "保存设置失败": [
+    "frontend/web/src/stores/settings.ts"
+  ],
+  "设置已提交，但未收到脱敏配置，请刷新后继续": [
     "frontend/web/src/stores/settings.ts"
   ],
   "API Key 已保存，部分模型获取失败：{0}": [
@@ -3637,11 +5130,116 @@
   "设置保存失败，请稍后重试": [
     "frontend/web/src/stores/settings.ts"
   ],
+  "读取服务端模型失败": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "请先在设置 → API 配置中接入并选择对应模型": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "浏览器素材记录无效": [
+    "frontend/web/src/stores/browserGeneration.ts",
+    "frontend/web/src/lib/generationHistory.ts"
+  ],
+  "读取失败": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "素材已生成，但下载保存失败，请保留页面重试：{0}": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "请先在设置 → API 配置中接入可用模型": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "图片生成数量须为 1–6 张": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "请填写提示词，并在设置 → API 配置中接入对应模型。": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "接口地址必须使用 HTTPS。": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "当前文字／音频适配器仅支持文字输入，请移除引用素材；输入与素材已保留。": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "参考素材仅支持图片或视频。": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "当前图片模型不支持参考视频，请切换视频生成或移除视频。素材已保留。": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "素材用途与图片不匹配，请重新选择素材": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "首帧和尾帧用于视频生成，请选择视频产物或将图片放入参考图。素材已保留。": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "当前视频模型不支持尾帧，素材已保留。请更换支持尾帧的模型或修改要求。": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "首帧选择与输入要求冲突，请确认后重试。素材已保留。": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "当前首帧模式仅接受一张图片，请仅保留指定的首帧图片；其他图片不会被静默忽略。": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "请明确指定首帧图片，例如“图1作为首帧”。": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "请先创建或打开项目": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "模型未返回生成素材": [
+    "frontend/web/src/stores/browserGeneration.ts",
+    "frontend/web/src/adapters/production/browserNodeAi.ts"
+  ],
+  "已停止等待；已提交的远端任务可能仍在运行，请先检查供应商任务记录。": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "无法访问供应商接口，请检查本机预览服务及网络。输入和参考已保留。": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "模型调用失败": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "结果地址没有返回有效素材，请检查供应商的结果地址和有效期": [
+    "frontend/web/src/stores/browserGeneration.ts"
+  ],
+  "项目标识不能为空": [
+    "frontend/web/src/stores/workspace.ts"
+  ],
   "工作目录校验失败": [
     "frontend/web/src/stores/workspace.ts"
   ],
-  "切换面板": [
-    "frontend/web/src/pages/workspace/index.vue"
+  "当前宿主不支持创建创作项目": [
+    "frontend/web/src/stores/workspace.ts"
+  ],
+  "请输入1–80个字符的项目名称": [
+    "frontend/web/src/stores/workspace.ts",
+    "services/server/src/utils/studio.ts"
+  ],
+  "项目已不存在": [
+    "frontend/web/src/stores/workspace.ts"
+  ],
+  "当前宿主不支持创建项目副本": [
+    "frontend/web/src/stores/workspace.ts"
+  ],
+  "项目副本校验失败：{0}": [
+    "frontend/web/src/stores/workspace.ts"
+  ],
+  "请选择有效的原型账号": [
+    "frontend/web/src/stores/prototypeAccount.ts"
+  ],
+  "登录 AFXEN": [
+    "frontend/web/src/pages/login/index.vue"
+  ],
+  "原型账号，仅用于当前浏览器演示。": [
+    "frontend/web/src/pages/login/index.vue"
+  ],
+  "原型账号": [
+    "frontend/web/src/pages/login/index.vue"
+  ],
+  "登录": [
+    "frontend/web/src/pages/login/index.vue"
   ],
   "画布工具": [
     "frontend/web/src/pages/workspace/index.vue"
@@ -3655,28 +5253,40 @@
   "切换抓手/移动工具": [
     "frontend/web/src/pages/workspace/index.vue"
   ],
-  "帮助": [
+  "快捷键说明": [
     "frontend/web/src/pages/workspace/index.vue"
   ],
-  "使用教程": [
+  "引导流程": [
     "frontend/web/src/pages/workspace/index.vue"
   ],
-  "Toonflow 需求/BUG反馈表": [
+  "教学引导打开失败": [
     "frontend/web/src/pages/workspace/index.vue"
   ],
-  "汇报 BUG": [
+  "项目创建失败": [
+    "frontend/web/src/pages/workspace/index.vue",
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "模板应用失败": [
+    "frontend/web/src/pages/workspace/index.vue",
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "画布正在初始化，请稍后重试": [
+    "frontend/web/src/pages/workspace/index.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "画布打开失败，项目已保留": [
     "frontend/web/src/pages/workspace/index.vue"
   ],
-  "加入交流群": [
+  "教学引导打开失败，请点击底部引导流程重试": [
     "frontend/web/src/pages/workspace/index.vue"
   ],
-  "商务合作": [
+  "无法进入画布": [
     "frontend/web/src/pages/workspace/index.vue"
   ],
-  "{0}二维码": [
+  "项目已切换，请返回原对话重试": [
     "frontend/web/src/pages/workspace/index.vue"
   ],
-  "此联系方式仅用于商务合作接洽，不提供问题答疑。使用问题欢迎在交流群交流，需求与 BUG 可通过反馈表提交。感谢理解。": [
+  "工作区已切换，生成结果保留在原对话": [
     "frontend/web/src/pages/workspace/index.vue"
   ],
   "工作区已关闭": [
@@ -3718,41 +5328,37 @@
   "文本保存失败": [
     "frontend/web/src/pages/workspace/index.vue"
   ],
-  "画布尚未就绪": [
-    "frontend/web/src/pages/workspace/index.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/canvasHost.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/useCanvasHistory.ts",
-    "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue"
-  ],
   "工作目录已切换，请重新选择节点": [
     "frontend/web/src/pages/workspace/index.vue"
+  ],
+  "返回对话": [
+    "frontend/web/src/pages/workspace/components/workspaceMenu.vue"
   ],
   "退出项目": [
     "frontend/web/src/pages/workspace/components/workspaceMenu.vue"
   ],
   "设置，有新版本可用": [
-    "frontend/web/src/pages/workspace/components/workspaceMenu.vue",
-    "frontend/web/src/pages/home/index.vue"
-  ],
-  "是否退出当前项目并返回首页？": [
     "frontend/web/src/pages/workspace/components/workspaceMenu.vue"
   ],
-  "AI 对话": [
+  "是否退出当前项目并返回原页面？": [
+    "frontend/web/src/pages/workspace/components/workspaceMenu.vue"
+  ],
+  "智能助手对话侧栏": [
     "frontend/web/src/pages/workspace/components/floatingAgent.vue"
   ],
-  "切换为悬浮": [
+  "调整对话侧栏宽度": [
     "frontend/web/src/pages/workspace/components/floatingAgent.vue"
   ],
-  "停靠到右侧": [
+  "关闭侧边栏": [
     "frontend/web/src/pages/workspace/components/floatingAgent.vue"
   ],
-  "从左侧调整对话宽度": [
+  "新聊天": [
     "frontend/web/src/pages/workspace/components/floatingAgent.vue"
   ],
-  "从右侧调整对话宽度": [
+  "项目打开失败": [
     "frontend/web/src/pages/workspace/components/floatingAgent.vue"
   ],
-  "从下方调整对话高度": [
+  "工作区尚未就绪": [
     "frontend/web/src/pages/workspace/components/floatingAgent.vue"
   ],
   "节点不存在：{0}": [
@@ -3801,6 +5407,13 @@
   "未知画布操作：{0}": [
     "frontend/web/src/pages/workspace/panels/canvas/useCanvasTools.ts"
   ],
+  "显示层级": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "个人资产": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
+  ],
   "断开连接": [
     "frontend/web/src/pages/workspace/panels/canvas/index.vue"
   ],
@@ -3811,6 +5424,63 @@
     "frontend/web/src/lib/workspaceFiles.ts"
   ],
   "画布菜单尚未就绪": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "项目已切换，请重新操作": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "画布已切换，请重新选择节点": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "工作区已切换或画布尚未就绪，请重新操作": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "前序画布或节点已变化，请回到原画布后应用；生成结果已保留": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "素材节点未能创建，请重试": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "工作区已切换，停止定位素材节点": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "素材节点已创建，但显示尚未就绪，请在层级中定位节点": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "对话结果与当前项目不匹配，请返回原对话重试": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "对话素材的媒体类型不匹配，原文件已保留": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "部分对话素材未能创建节点，请重试": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "节点引用类型不匹配，已保留原对话素材": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "历史结果未记录完整参数，已使用当前简单模式参数": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "节点创建失败，部分导入副本未能清理；原对话素材已保留，请勿重复导入": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "前序节点所在画布已切换或节点已删除，请回到原画布继续": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "请先安装并启用对应节点": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "画布或节点已变化，生成结果保留在对话中，请手动加入画布": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "节点内容、配置或连线已修改，生成结果保留在对话中，请确认后手动加入画布": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "模型未返回结果，创作节点已保留": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "生成素材尚未保存，请从对话中重试加入画布": [
     "frontend/web/src/pages/workspace/panels/canvas/index.vue"
   ],
   "工作区或画布已切换，请重新删除": [
@@ -3860,7 +5530,34 @@
     "frontend/web/src/pages/workspace/panels/canvas/index.vue",
     "frontend/web/src/pages/workspace/panels/canvas/canvasDrop.ts"
   ],
+  "画布已切换，请重新引用": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "该节点不支持此引用类型；已上传素材保留在画布": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "该引用会形成循环，未添加连线": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "引用失败": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "节点创建失败": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "该节点尚未启用或画布不可编辑": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "节点创建失败，项目已保留，可在画布重试": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "教学准备失败，部分参考图片未能清理：{0}": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
   "恢复画布失败": [
+    "frontend/web/src/pages/workspace/panels/canvas/index.vue"
+  ],
+  "画布尚未载入可保存的版本，请保留当前内容后重新打开": [
     "frontend/web/src/pages/workspace/panels/canvas/index.vue"
   ],
   "画布保存失败": [
@@ -3916,6 +5613,7 @@
   "创建副本": [
     "frontend/web/src/pages/workspace/panels/canvas/components/selectionToolbar.vue",
     "frontend/web/src/pages/workspace/panels/canvas/components/nodeMenu.vue",
+    "frontend/web/src/pages/home/index.vue",
     "frontend/web/src/lib/canvasShortcuts.ts"
   ],
   "打组": [
@@ -3986,6 +5684,7 @@
   ],
   "重做": [
     "frontend/web/src/pages/workspace/panels/canvas/components/nodeMenu.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue",
     "frontend/web/src/lib/canvasShortcuts.ts",
     "frontend/desktop/src/index.ts"
   ],
@@ -4028,49 +5727,16 @@
   "双击画布 自由生成节点": [
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasEmpty.vue"
   ],
-  "图片生成": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasEmpty.vue"
-  ],
-  "视频生成": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasEmpty.vue"
-  ],
-  "音频生成": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasEmpty.vue"
-  ],
-  "关闭素材库": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
-  ],
-  "打开素材库": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
-  ],
-  "素材库": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
+  "脚本": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasEmpty.vue",
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasLayers.vue",
+    "frontend/web/src/pages/home/index.vue"
   ],
   "整理画布": [
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue",
     "frontend/web/src/lib/canvasShortcuts.ts"
   ],
   "撤销整理": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
-  ],
-  "隐藏地图": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
-  ],
-  "显示地图": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
-  ],
-  "显示或隐藏地图": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
-  ],
-  "关闭网格吸附": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
-  ],
-  "开启网格吸附": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
-  ],
-  "网格吸附": [
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
   ],
   "隐藏连线": [
@@ -4082,36 +5748,26 @@
   "显示或隐藏连线": [
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
   ],
-  "适应视图": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
-  ],
-  "缩放菜单（滚轮调整缩放）": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
-  ],
-  "缩放菜单": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
-  ],
-  "缩放百分比": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
-  ],
-  "放大": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue",
-    "frontend/web/src/lib/canvasShortcuts.ts",
-    "frontend/web/src/lib/i18n.ts"
-  ],
-  "缩小": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue",
-    "frontend/web/src/lib/canvasShortcuts.ts",
-    "frontend/web/src/lib/i18n.ts"
-  ],
-  "适合屏幕": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
-  ],
   "整理画布失败": [
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
   ],
   "撤销整理失败": [
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasControls.vue"
+  ],
+  "搜索节点": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasLayers.vue"
+  ],
+  "搜索层级节点": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasLayers.vue"
+  ],
+  "节点封面": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasLayers.vue"
+  ],
+  "节点音频预览": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasLayers.vue"
+  ],
+  "共 {0} 节点": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasLayers.vue"
   ],
   "重新加载节点": [
     "frontend/web/src/pages/workspace/panels/canvas/components/remoteNode.vue"
@@ -4122,75 +5778,30 @@
   "远程节点未加载，请确认插件已安装并启用": [
     "frontend/web/src/pages/workspace/panels/canvas/components/remoteNode.vue"
   ],
+  "展开画布侧栏": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
+  ],
+  "折叠画布侧栏": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
+  ],
+  "展开侧栏": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
+  ],
+  "折叠侧栏": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
+  ],
+  "返回首页": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
+  ],
+  "当前浏览器": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
+  ],
   "项目名称": [
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
-  ],
-  "切换画布": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
-  ],
-  "搜索画布": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
-  ],
-  "新建文件夹": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue",
-    "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue",
-    "frontend/web/src/pages/home/workspacePicker.vue"
-  ],
-  "新建画布文件夹": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
-  ],
-  "新增画布": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
-  ],
-  "文件夹名称": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
-  ],
-  "新画布名称": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
-  ],
-  "画布名称": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
-  ],
-  "更多 {0}": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
-  ],
-  "更多": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
-  ],
-  "供应商余额": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
-  ],
-  "TF-Router 剩余可用余额": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
-  ],
-  "TF-Router 余额与充值": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
-  ],
-  "点击刷新 {0} 余额": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
-  ],
-  "刷新 {0} 余额": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
-  ],
-  "移动到": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue"
   ],
   "移动到目录": [
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
     "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue"
-  ],
-  "重命名": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue",
-    "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue",
-    "frontend/web/src/pages/home/index.vue",
-    "frontend/web/src/pages/home/workspacePicker.vue"
   ],
   "请先移出或删除文件夹内的内容": [
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
@@ -4265,15 +5876,13 @@
   "工作区文件管理尚未就绪": [
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
   ],
-  "移动失败": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
-  ],
   "新文件夹将创建在画布根目录": [
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
   ],
   "创建并移动": [
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue",
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue"
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue",
+    "frontend/web/src/pages/home/index.vue"
   ],
   "确定删除文件夹“{0}”？": [
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
@@ -4293,21 +5902,18 @@
   "重命名画布失败": [
     "frontend/web/src/pages/workspace/panels/canvas/components/canvasMenu.vue"
   ],
-  "下载": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue",
-    "frontend/web/src/lib/i18n.ts"
-  ],
   "请先删除文件夹内的素材": [
     "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue"
   ],
-  "素材库根目录": [
+  "个人资产根目录": [
     "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue"
   ],
-  "新文件夹将创建在素材库根目录": [
+  "新文件夹将创建在个人资产根目录": [
     "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue"
   ],
   "请输入文件夹名称": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue"
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue",
+    "frontend/web/src/pages/home/index.vue"
   ],
   "请输入名称": [
     "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue",
@@ -4319,37 +5925,49 @@
   "删除素材": [
     "frontend/web/src/pages/workspace/panels/canvas/components/assetMenu.vue"
   ],
+  "素材类别": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
+  ],
+  "全部素材": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
+  ],
+  "按标签分类": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
+  ],
+  "全部标签": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
+  ],
+  "更多 {0}": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
+  ],
+  "{0} 标签": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
+  ],
+  "标签": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
+  ],
+  "暂无符合条件的素材": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
+  ],
+  "引用 {0}": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
+  ],
+  "引用": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
+  ],
   "预览（也可双击素材）": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
+  ],
+  "更多": [
     "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
   ],
   "关闭音频预览": [
     "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
   ],
-  "保存到素材库": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
-  ],
-  "素材名称": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
-  ],
-  "输入完整文件名": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
-  ],
-  "节点输出": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
-  ],
-  "保存位置": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
-  ],
-  "新文件夹名称": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
-  ],
-  "素材库 / {0}": [
-    "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
-  ],
   "文件夹名称不能包含斜杠": [
     "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
   ],
-  "已保存到素材库": [
+  "个人资产仅支持图片、视频和音频。": [
     "frontend/web/src/pages/workspace/panels/canvas/components/assetLibrary.vue"
   ],
   "{0}（双击编辑名称）": [
@@ -4378,6 +5996,36 @@
   ],
   "连接选中节点": [
     "frontend/web/src/pages/workspace/panels/canvas/components/selectionHandle.vue"
+  ],
+  "上传引用文件": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/nodeReferences.vue"
+  ],
+  "当前画布资产": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/nodeReferences.vue"
+  ],
+  "其他项目资产": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/nodeReferences.vue"
+  ],
+  "自定义素材": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/nodeReferences.vue"
+  ],
+  "打开图片生成对话": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/nodeReferences.vue"
+  ],
+  "引用项目": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/nodeReferences.vue"
+  ],
+  "请先完成或关闭自定义素材对话": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/nodeReferences.vue"
+  ],
+  "来源项目的分镜行格式无效": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/nodeReferences.vue"
+  ],
+  "该输出不能作为素材引用": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/nodeReferences.vue"
+  ],
+  "读取引用失败": [
+    "frontend/web/src/pages/workspace/panels/canvas/components/nodeReferences.vue"
   ],
   "工作区文件正在操作，请稍后重试": [
     "frontend/web/src/pages/workspace/panels/canvas/canvasHost.vue"
@@ -4418,6 +6066,12 @@
     "frontend/web/src/pages/workspace/panels/canvas/canvasHost.vue",
     "services/server/src/agent/mentionSources.ts",
     "services/server/src/agent/mentionFiles.ts"
+  ],
+  "教学引导项目中没有可讲解的节点，原项目未修改": [
+    "frontend/web/src/pages/workspace/panels/canvas/canvasHost.vue"
+  ],
+  "教学画布尚未就绪": [
+    "frontend/web/src/pages/workspace/panels/canvas/canvasHost.vue"
   ],
   "{0}：该文件类型暂不支持导入画布": [
     "frontend/web/src/pages/workspace/panels/canvas/canvasDrop.ts"
@@ -4690,7 +6344,8 @@
     "frontend/web/src/pages/workspace/panels/document/components/openWithDialog.vue"
   ],
   "打开": [
-    "frontend/web/src/pages/workspace/panels/document/components/openWithDialog.vue"
+    "frontend/web/src/pages/workspace/panels/document/components/openWithDialog.vue",
+    "frontend/web/src/pages/home/index.vue"
   ],
   "文档空状态": [
     "frontend/web/src/pages/workspace/panels/document/components/editorEmpty.vue"
@@ -4742,9 +6397,6 @@
     "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue"
   ],
   "暂无文件": [
-    "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue"
-  ],
-  "选择 {0}": [
     "frontend/web/src/pages/workspace/panels/document/components/fileTree.vue"
   ],
   "在画布上聚焦": [
@@ -4970,50 +6622,19 @@
   "扩展加载失败：{0}": [
     "frontend/web/src/pages/workspace/panels/document/extensions.ts"
   ],
-  "点个 Star 支持一下": [
+  "新建画布创作": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "创建项目": [
+  "节点快捷创作": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "灵感创作模式": [
+  "新建{0}节点项目": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "创作描述": [
+  "最近项目": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "发送": [
-    "frontend/web/src/pages/home/index.vue"
-  ],
-  "选择工作目录": [
-    "frontend/web/src/pages/home/index.vue",
-    "frontend/web/src/pages/home/workspacePicker.vue"
-  ],
-  "请先选择一个空文件夹作为工作目录，画布和素材会保存在这里。": [
-    "frontend/web/src/pages/home/index.vue"
-  ],
-  "项目列表": [
-    "frontend/web/src/pages/home/index.vue"
-  ],
-  "导入项目": [
-    "frontend/web/src/pages/home/index.vue"
-  ],
-  "添加项目": [
-    "frontend/web/src/pages/home/index.vue"
-  ],
-  "按时间降序": [
-    "frontend/web/src/pages/home/index.vue"
-  ],
-  "按时间升序": [
-    "frontend/web/src/pages/home/index.vue"
-  ],
-  "项目视图": [
-    "frontend/web/src/pages/home/index.vue"
-  ],
-  "网格视图": [
-    "frontend/web/src/pages/home/index.vue"
-  ],
-  "列表视图": [
+  "查看全部": [
     "frontend/web/src/pages/home/index.vue"
   ],
   "打开项目 {0}": [
@@ -5022,49 +6643,55 @@
   "最近打开 {0}": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "重命名项目 {0}": [
+  "搜索对话名称或项目": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "移除项目 {0}": [
+  "搜索历史对话": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "从列表移除，不删除文件": [
+  "正在读取历史对话…": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "描述你想创作的内容，让灵感从这里开始…": [
+  "{0} · {1} 条消息": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "把一个故事灵感，变成一段精彩的短片…": [
+  "按项目名搜索": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "为你的主角设计独特的外形和性格…": [
+  "导入项目": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "创作一段雨夜街头的电影感镜头…": [
+  "添加项目": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "把这段文字拆解成连贯的分镜画面…": [
+  "切换时间排序": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "为一场奇幻冒险生成场景和角色…": [
+  "项目视图": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "为你的画面配上一段合适的音乐…": [
+  "网格视图": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "写一段温暖的旁白，讲述这个故事…": [
+  "更多项目操作 {0}": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "设计一支富有想象力的产品宣传片…": [
+  "更多操作": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "从一句话开始，搭建你的创作工作流…": [
+  "修改封面": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "添加附件失败，请重试": [
+  "制作模板": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "取回文本失败，请重试": [
+  "移动至文件夹": [
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "删除项目": [
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "示例读取失败": [
     "frontend/web/src/pages/home/index.vue"
   ],
   "项目“{0}”的文件夹不存在，是否重新选择文件夹？": [
@@ -5088,17 +6715,50 @@
   "项目名称不能为空": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "请选择一个空文件夹作为项目目录，画布和素材将保存在其中。": [
+  "从项目列表删除“{0}”？项目文件不会被删除。": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "选择空文件夹": [
+  "已创建项目副本": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "该文件夹不为空，请重新选择空文件夹；已有项目请使用“导入项目”或点击项目列表打开。": [
+  "创建副本失败": [
     "frontend/web/src/pages/home/index.vue"
   ],
-  "创建项目失败，请重试": [
+  "已移动至 {0}": [
     "frontend/web/src/pages/home/index.vue"
+  ],
+  "已移动至根文件夹": [
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "请输入有效文件夹名称（1–50字）": [
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "请选择图片作为项目封面": [
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "封面已更新": [
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "修改封面失败": [
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "请输入 1–80 个字符": [
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "删除对话“{0}”？已保存到画布的素材会保留。": [
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "删除对话": [
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "删除对话失败": [
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "打开历史对话失败": [
+    "frontend/web/src/pages/home/index.vue"
+  ],
+  "选择工作目录": [
+    "frontend/web/src/pages/home/workspacePicker.vue"
   ],
   "工作目录": [
     "frontend/web/src/pages/home/workspacePicker.vue"
@@ -5145,9 +6805,6 @@
   "删除确认": [
     "frontend/web/src/pages/home/workspacePicker.vue"
   ],
-  "操作失败，请重试": [
-    "frontend/web/src/pages/home/workspacePicker.vue"
-  ],
   "返回": [
     "frontend/web/src/pages/hello/index.vue",
     "frontend/web/src/lib/i18n.ts"
@@ -5185,7 +6842,7 @@
   "稍后配置": [
     "frontend/web/src/pages/hello/index.vue"
   ],
-  "© {0} Toonflow · 保留所有权利。": [
+  "© {0} AFXEN · 保留所有权利。": [
     "frontend/web/src/pages/hello/index.vue"
   ],
   "保存引导状态失败，请重试": [
@@ -5230,17 +6887,339 @@
   "插件脚本加载失败（{0}）": [
     "frontend/web/src/adapters/production/studio.ts"
   ],
+  "浏览器项目内的文件路径无效": [
+    "frontend/web/src/adapters/production/browserWorkspaceFiles.ts"
+  ],
+  "浏览器保存失败，请检查存储空间及浏览器设置": [
+    "frontend/web/src/adapters/production/browserWorkspaceFiles.ts"
+  ],
+  "旧目录无法读取，已创建独立的浏览器项目；旧目录中的文件未改动，也未导入。": [
+    "frontend/web/src/adapters/production/browserWorkspaceFiles.ts"
+  ],
+  "不能覆盖浏览器项目根目录": [
+    "frontend/web/src/adapters/production/browserWorkspaceFiles.ts"
+  ],
+  "不能移动或复制项目根目录及自身子目录": [
+    "frontend/web/src/adapters/production/browserWorkspaceFiles.ts"
+  ],
+  "不能删除浏览器项目根目录": [
+    "frontend/web/src/adapters/production/browserWorkspaceFiles.ts"
+  ],
+  "读取图片失败（HTTP {0}）": [
+    "frontend/web/src/adapters/production/browserWorkspaceFiles.ts"
+  ],
+  "结果不是图片": [
+    "frontend/web/src/adapters/production/browserWorkspaceFiles.ts"
+  ],
   "未收到响应流": [
     "frontend/web/src/adapters/production/streams.ts"
   ],
+  "请先填写百炼 API Key": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "请选择已配置的模型": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts",
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "请输入图片提示词": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "提示词过长，请缩短后重试": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "千问 DashScope 原生接口不支持 mask 蒙版": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "接口文档未提供 quality 参数，请在提示词中描述画质要求": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "qwen-image-3.0-pro 输出 PNG，暂不支持指定其他格式": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "生成数量 n 必须是 1 到 6 的整数": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "请填写业务空间接口地址，例如 https://你的WorkspaceId.cn-beijing.maas.aliyuncs.com": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "业务空间接口地址必须使用 HTTPS": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "请将接口地址中的示例 WorkspaceId 替换为真实业务空间 ID": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "参考图片 URL 必须是 HTTP(S) 地址": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "单张参考图片不能超过 10 MB": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "不支持的参考图片格式": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "qwen-image-3.0-pro 最多支持 3 张参考图片": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "当前支持的宽高比：1:1、3:2、2:3、4:3、3:4、16:9、9:16、21:9、9:21、2:1、4:1": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "图片尺寸请使用 auto、1K、2K 或类似 1024x1024 的格式": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "图片总像素须在 512²～2048² 之间，最长边比例不超过 8:1": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "当前适配器不支持额外参数：{0}": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "negative_prompt 必须是字符串": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "seed 必须是 0 到 2147483647 的整数": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "{0} 必须是布尔值": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "prompt_extend_mode 只能是 direct 或 agent": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "agent 提示词增强仅支持文生图，图片编辑请使用 direct": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "{0}未返回有效 JSON，请检查厂商响应，勿重复提交生成": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "千问接口未返回有效任务编号，请检查厂商记录，勿重复提交生成": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "无效": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "图片任务状态：{0}": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "千问接口未返回有效的 output 结果": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "千问接口返回的 output.choices 格式无效": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "千问接口返回了无效的 Base64 图片数据": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "千问接口返回了无效的图片 URL": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "千问接口返回的图片 URL 协议无效": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "千问接口没有返回图片{0}{1}": [
+    "frontend/web/src/adapters/production/browserModels/imageModel.ts"
+  ],
+  "请先在 AFXEN 供应商配置中填写阿里云百炼 API Key。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "请填写视频提示词。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "{0}失败：{1}": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "{0}失败：接口没有返回有效 JSON。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "操作已取消": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "收到的参考素材格式不正确。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "本地素材的数据地址无法解析。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "无法读取本地素材内容；请重新选择图片或视频后重试。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "参考素材为空，请重新上传。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "参考视频不能超过 100 MB。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "参考图片不能超过 20 MB。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "参考视频仅支持 MP4 或 MOV 格式，请转换格式后重试。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "参考图片仅支持 JPG、PNG、BMP 或 WEBP 格式。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "阿里云返回的上传凭证不完整，无法上传素材。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "当前模型允许上传的单文件大小不超过 {0} MB。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "上传素材失败：HTTP {0}{1}": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "当前已配置的能力不包含尾帧模式，请勿传入尾帧图片。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "文生视频模式不能同时传入参考素材；请切换到对应的图片或参考素材模式。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "图片生视频模式只支持一张图片，且不能同时传入参考视频。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "图片生视频需要先上传一张图片。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "当前视频生成模式不受支持。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "参考素材模式不支持首帧字段；请把图片作为参考图片上传。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "参考图片最多支持 10 张。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "参考视频最多支持 5 段。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "参考素材模式至少需要一张参考图片或一段参考视频。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "分辨率仅支持 1080P、720P 或 480P。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "视频比例不受支持。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "视频时长请设置为 -1 或 2–30 秒的整数。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "当前适配器不支持这些额外参数：{0}。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "seed 必须是非负整数。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "万相接口没有返回任务编号，无法查询生成结果。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "任务已完成，但接口没有返回可访问的视频地址。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "万相视频生成{0}：{1}": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "空状态": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "万相返回了无法识别的任务状态：{0}。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "等待万相视频生成超过 30 分钟，已停止等待。远端任务可能仍在运行；请稍后在百炼任务记录中查看，避免重复提交。": [
+    "frontend/web/src/adapters/production/browserModels/videoModel.ts"
+  ],
+  "请选择已配置的音频模型": [
+    "frontend/web/src/adapters/production/browserModels/audioModel.ts"
+  ],
+  "当前音频协议仅支持文字输入": [
+    "frontend/web/src/adapters/production/browserModels/audioModel.ts"
+  ],
+  "上传的音频适配器不支持独立音色参数，请在提示词中说明": [
+    "frontend/web/src/adapters/production/browserModels/audioModel.ts"
+  ],
+  "音频参数必须是有效数字": [
+    "frontend/web/src/adapters/production/browserModels/audioModel.ts"
+  ],
+  "当前音频适配器不接受额外参数": [
+    "frontend/web/src/adapters/production/browserModels/audioModel.ts"
+  ],
+  "请输入待合成的文本内容或提示词": [
+    "frontend/web/src/adapters/production/browserModels/audioModel.ts"
+  ],
+  "音频格式不支持": [
+    "frontend/web/src/adapters/production/browserModels/audioModel.ts"
+  ],
+  "音频生成请求失败，HTTP {0}": [
+    "frontend/web/src/adapters/production/browserModels/audioModel.ts"
+  ],
+  "接口返回错误: {0}": [
+    "frontend/web/src/adapters/production/browserModels/audioModel.ts"
+  ],
+  "接口未返回有效的音频数据": [
+    "frontend/web/src/adapters/production/browserModels/audioModel.ts"
+  ],
   "提交回答失败": [
     "frontend/web/src/adapters/production/question.ts"
+  ],
+  "当前实例使用共享工作区，没有演示账号": [
+    "frontend/web/src/adapters/production/prototype.ts"
+  ],
+  "此项目属于旧浏览器原型，尚未导入服务器；原浏览器数据未改动": [
+    "frontend/web/src/adapters/production/prototype.ts"
+  ],
+  "所选模型未配置或已停用，输入与引用已保留": [
+    "frontend/web/src/adapters/production/prototype.ts"
+  ],
+  "所选图片模型未声明支持当前参考组合，素材已保留": [
+    "frontend/web/src/adapters/production/prototype.ts"
+  ],
+  "所选视频模型不支持当前首帧组合，素材已保留": [
+    "frontend/web/src/adapters/production/prototype.ts"
+  ],
+  "所选视频模型未声明支持当前参考类型或数量，素材已保留": [
+    "frontend/web/src/adapters/production/prototype.ts"
+  ],
+  "所选视频模型需要参考素材，请先添加支持的引用": [
+    "frontend/web/src/adapters/production/prototype.ts"
+  ],
+  "模型结果必须先通过服务器保存到项目": [
+    "frontend/web/src/adapters/production/prototype.ts"
+  ],
+  "读取模型结果失败（HTTP {0}）": [
+    "frontend/web/src/adapters/production/prototype.ts"
+  ],
+  "请先将模型结果保存到项目，再保存到资产库": [
+    "frontend/web/src/adapters/production/assetFiles.ts"
   ],
   "未收到浏览器画面流": [
     "frontend/web/src/adapters/production/browser.ts"
   ],
   "网页操作失败": [
     "frontend/web/src/adapters/production/browser.ts"
+  ],
+  "接口地址必须使用 HTTPS": [
+    "frontend/web/src/adapters/production/browserNodeAi.ts"
+  ],
+  "当前文本模型仅支持文字参考，请移除图片、视频或文件引用后重试": [
+    "frontend/web/src/adapters/production/browserNodeAi.ts"
+  ],
+  "当前浏览器文本适配器不支持工具调用": [
+    "frontend/web/src/adapters/production/browserNodeAi.ts"
+  ],
+  "文本输出达到模型上限，请缩小要求后重试": [
+    "frontend/web/src/adapters/production/browserNodeAi.ts"
+  ],
+  "文本模型没有返回有效内容": [
+    "frontend/web/src/adapters/production/browserNodeAi.ts"
+  ],
+  "下载生成素材失败（HTTP {0}）": [
+    "frontend/web/src/adapters/production/browserNodeAi.ts"
+  ],
+  "模型未返回有效素材地址": [
+    "frontend/web/src/adapters/production/browserNodeAi.ts"
+  ],
+  "模型结果不是有效媒体": [
+    "frontend/web/src/adapters/production/browserNodeAi.ts"
+  ],
+  "当前音频模型仅支持文字输入": [
+    "frontend/web/src/adapters/production/browserNodeAi.ts"
   ],
   "导出接口返回了无效的文件地址": [
     "frontend/web/src/lib/saveFile.ts"
@@ -5268,7 +7247,7 @@
   "正在安装插件…": [
     "frontend/web/src/lib/desktopProtocol.ts"
   ],
-  "安装接口返回了无效响应，请重启或更新 Toonflow 后重试": [
+  "安装接口返回了无效响应，请重启或更新 AFXEN 后重试": [
     "frontend/web/src/lib/desktopProtocol.ts"
   ],
   "安装接口未返回有效的插件名称，请先检查插件列表，再重试": [
@@ -5280,10 +7259,10 @@
   "安装请求等待超时，请先查看插件是否已安装，再重试": [
     "frontend/web/src/lib/desktopProtocol.ts"
   ],
-  "无法连接 Toonflow 本机服务，请确认应用正常运行后重试": [
+  "无法连接 AFXEN 本机服务，请确认应用正常运行后重试": [
     "frontend/web/src/lib/desktopProtocol.ts"
   ],
-  "安装接口返回异常（HTTP {0}），请重启或更新 Toonflow 后重试": [
+  "安装接口返回异常（HTTP {0}），请重启或更新 AFXEN 后重试": [
     "frontend/web/src/lib/desktopProtocol.ts"
   ],
   "{0}“{1}”安装失败：{2}": [
@@ -5322,6 +7301,81 @@
   "写入剪贴板失败": [
     "frontend/web/src/lib/clipboard.ts"
   ],
+  "视频画面读取失败，请确认视频可正常播放后重试": [
+    "frontend/web/src/lib/videoFrame.ts"
+  ],
+  "视频时长无效，无法提取首尾帧": [
+    "frontend/web/src/lib/videoFrame.ts"
+  ],
+  "视频没有可读取的画面": [
+    "frontend/web/src/lib/videoFrame.ts"
+  ],
+  "视频画面转换失败": [
+    "frontend/web/src/lib/videoFrame.ts"
+  ],
+  "模板数据无效，请保留当前内容并检查服务端模板文件": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "模板审核信息无效": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "模板删除记录无效": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "填写{0}": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "模板素材读取失败（HTTP {0}）": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "请先登录再提交模板": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "请填写模板名称和提示词": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "每个模板最多保存 10 张参考图片": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "预览支持 JPG、PNG、WebP、MP4，参考素材仅支持 JPG、PNG、WebP，图片不超过 10 MB，视频不超过 100 MB": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "请上传 MP4 视频模板": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "账号已切换，请重新提交": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "存储错误": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "模板保存失败，部分临时文件未能清理：{0}": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "仅管理员可以审核模板": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "无效审核结果": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "请填写1–300个字符的拒绝原因": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "模板状态已变化，请刷新后重试": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "账号已切换": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "仅管理员可以删除展示卡片": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "模板标识无效": [
+    "frontend/web/src/lib/creationTemplates.ts"
+  ],
+  "原画布格式无效，生成素材已保存在生成历史": [
+    "frontend/web/src/lib/canvasGeneration.ts"
+  ],
   "MCP 连接已关闭": [
     "frontend/web/src/lib/mcpControl.ts"
   ],
@@ -5349,6 +7403,36 @@
   "MCP 调用已取消": [
     "frontend/web/src/lib/mcpControl.ts"
   ],
+  "生成参数记录无效，请保留原素材后重试": [
+    "frontend/web/src/lib/generationHistory.ts"
+  ],
+  "教学参考图读取失败（HTTP {0}）": [
+    "frontend/web/src/lib/canvasTutorial.ts"
+  ],
+  "教学参考图无效，请刷新后重试": [
+    "frontend/web/src/lib/canvasTutorial.ts"
+  ],
+  "认识教学画布": [
+    "frontend/web/src/lib/canvasTutorial.ts"
+  ],
+  "从当前画布开始，依次查看图片、提示词、视频引用和生成操作。引导会保留现有节点、素材和连线，不会自动提交生成。": [
+    "frontend/web/src/lib/canvasTutorial.ts"
+  ],
+  "教学素材仅可写入新建的空白画布": [
+    "frontend/web/src/lib/canvasTutorial.ts"
+  ],
+  "教学图片读取失败（HTTP {0}）": [
+    "frontend/web/src/lib/canvasTutorial.ts"
+  ],
+  "图片和视频必须保存到个人资产库的文件夹中": [
+    "frontend/web/src/lib/browserAssets.ts"
+  ],
+  "示例素材读取失败（HTTP {0}）": [
+    "frontend/web/src/lib/exampleProjects.ts"
+  ],
+  "账号已切换，请返回首页载入示例": [
+    "frontend/web/src/lib/exampleProjects.ts"
+  ],
   "成组": [
     "frontend/web/src/lib/canvasShortcuts.ts"
   ],
@@ -5360,6 +7444,14 @@
   ],
   "节点复制": [
     "frontend/web/src/lib/canvasShortcuts.ts"
+  ],
+  "放大": [
+    "frontend/web/src/lib/canvasShortcuts.ts",
+    "frontend/web/src/lib/i18n.ts"
+  ],
+  "缩小": [
+    "frontend/web/src/lib/canvasShortcuts.ts",
+    "frontend/web/src/lib/i18n.ts"
   ],
   "适应画布": [
     "frontend/web/src/lib/canvasShortcuts.ts"
@@ -5374,9 +7466,6 @@
     "frontend/web/src/lib/canvasShortcuts.ts"
   ],
   "追加选择": [
-    "frontend/web/src/lib/canvasShortcuts.ts"
-  ],
-  "移动": [
     "frontend/web/src/lib/canvasShortcuts.ts"
   ],
   "抓手工具": [
@@ -5440,7 +7529,7 @@
     "frontend/web/src/lib/mobile.ts",
     "frontend/desktop/src/connection.ts"
   ],
-  "请使用 Toonflow 桌面端或移动客户端连接其他设备": [
+  "请使用 AFXEN 桌面端或移动客户端连接其他设备": [
     "frontend/web/src/lib/mobile.ts"
   ],
   "设备未返回有效的切换方式，请重试": [
@@ -5452,6 +7541,9 @@
   "读取字节数必须为正整数": [
     "frontend/web/src/lib/workspaceFiles.ts"
   ],
+  "共享资产库不提供本机文件夹定位": [
+    "frontend/web/src/lib/workspaceFiles.ts"
+  ],
   "远程项目文件无法在本机文件管理器中定位，请下载或导出后查看。": [
     "frontend/web/src/lib/workspaceFiles.ts"
   ],
@@ -5459,7 +7551,8 @@
     "frontend/web/src/lib/workspaceFiles.ts"
   ],
   "请先配置 TF-Router API Key": [
-    "frontend/web/src/lib/tf.ts"
+    "frontend/web/src/lib/tf.ts",
+    "services/server/src/utils/marketplace.ts"
   ],
   "TF-Router 响应格式不正确": [
     "frontend/web/src/lib/tf.ts"
@@ -5504,9 +7597,6 @@
     "frontend/web/src/lib/i18n.ts"
   ],
   "代码": [
-    "frontend/web/src/lib/i18n.ts"
-  ],
-  "折叠": [
     "frontend/web/src/lib/i18n.ts"
   ],
   "最小化": [
@@ -5613,6 +7703,54 @@
   ],
   "分享": [
     "frontend/web/src/lib/i18n.ts"
+  ],
+  "项目包含不安全文件路径，无法制作模板": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "项目包含凭据字段，不能保存为模板": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "项目引用未保存到项目内的文件：{0}。请先导入素材再制作模板": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "模板缺少画布：{0}": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "模板画布格式无效：{0}": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "模板节点或连线不完整：{0}": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "项目中没有可保存的画布节点": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "制作模板期间项目发生变化，请停止编辑后重试": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "模板项目快照无效或不完整": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "项目示例包含未知素材": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "项目素材读取失败（HTTP {0}）": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "模板文件损坏：{0}": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "副本校验失败：{0}": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "副本画布不完整": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "；部分临时文件清理失败，项目未加入列表": [
+    "frontend/web/src/lib/projectTemplates.ts"
+  ],
+  "；未创建可打开的项目": [
+    "frontend/web/src/lib/projectTemplates.ts"
   ],
   "本次任务名称": [
     "services/server/src/agent/tools/subAgent.ts"
@@ -6487,6 +8625,21 @@
   "顺序列表包含无效或不存在的文件": [
     "services/server/src/utils/skills/files.ts"
   ],
+  "创作索引必须是普通文件": [
+    "services/server/src/utils/studio.ts"
+  ],
+  "创作索引超过 16 MiB，请保留文件并联系维护者": [
+    "services/server/src/utils/studio.ts"
+  ],
+  "创作索引超过 16 MiB": [
+    "services/server/src/utils/studio.ts"
+  ],
+  "共享数据已被其它页面修改，当前内容未覆盖服务端；请保留当前内容并刷新后重试": [
+    "services/server/src/utils/studio.ts"
+  ],
+  "画布1.json": [
+    "services/server/src/utils/studio.ts"
+  ],
   "请在 target.directory 指定绝对工作目录，或先打开项目": [
     "services/server/src/utils/mcp/tools.ts"
   ],
@@ -7023,6 +9176,18 @@
   "不支持此文档的实际格式": [
     "services/server/src/utils/documents.ts"
   ],
+  "文本供应商配置必须是数组": [
+    "services/server/src/utils/conf/providerCredentials.ts"
+  ],
+  "文本供应商 ID 无效或重复": [
+    "services/server/src/utils/conf/providerCredentials.ts"
+  ],
+  "媒体供应商配置必须是对象": [
+    "services/server/src/utils/conf/providerCredentials.ts"
+  ],
+  "供应商配置已变更，请刷新后重试": [
+    "services/server/src/utils/conf/providerCredentials.ts"
+  ],
   "全局 AGENTS.md": [
     "services/server/src/utils/personalization.ts"
   ],
@@ -7434,6 +9599,24 @@
   "所选媒体模型不存在或类型不匹配，请重新选择": [
     "services/server/src/utils/media/generation.ts"
   ],
+  "所选模型不支持当前图片数量，请重新选择": [
+    "services/server/src/utils/media/generation.ts"
+  ],
+  "所选模型不支持当前图片尺寸，请重新选择": [
+    "services/server/src/utils/media/generation.ts"
+  ],
+  "所选模型不支持当前图片比例，请重新选择": [
+    "services/server/src/utils/media/generation.ts"
+  ],
+  "所选模型不支持当前视频时长与清晰度组合，请重新选择": [
+    "services/server/src/utils/media/generation.ts"
+  ],
+  "所选模型不支持当前参考素材模式，素材已保留": [
+    "services/server/src/utils/media/generation.ts"
+  ],
+  "所选媒体供应商已停用，请重新配置": [
+    "services/server/src/utils/media/generation.ts"
+  ],
   "读取参考媒体信息超时，请稍后重试": [
     "services/server/src/utils/media/generation.ts"
   ],
@@ -7449,6 +9632,12 @@
   "供应商未返回生成结果": [
     "services/server/src/utils/media/generation.ts"
   ],
+  "素材保存失败": [
+    "services/server/src/utils/media/generation.ts"
+  ],
+  "没有可保存的生成结果": [
+    "services/server/src/utils/media/generation.ts"
+  ],
   "参考媒体须为不超过 100 MB 的非空文件": [
     "services/server/src/utils/media/priceReference.ts"
   ],
@@ -7458,6 +9647,9 @@
   "只能读取普通素材文件": [
     "services/server/src/utils/assets/index.ts"
   ],
+  "素材已被删除或移动，请重新读取": [
+    "services/server/src/utils/assets/index.ts"
+  ],
   "素材已被修改，请重新读取后再更新": [
     "services/server/src/utils/assets/index.ts"
   ],
@@ -7465,6 +9657,9 @@
     "services/server/src/utils/assets/index.ts"
   ],
   "只能删除普通素材文件或空文件夹": [
+    "services/server/src/utils/assets/index.ts"
+  ],
+  "图片和视频必须保存到素材文件夹中": [
     "services/server/src/utils/assets/index.ts"
   ],
   "素材分页游标关闭失败": [
@@ -7490,6 +9685,12 @@
   ],
   "仅允许桌面页面发起操作。": [
     "services/server/src/lib/desktop.ts"
+  ],
+  "文件不是受支持的 UTF-8 或带 BOM 的 UTF-16 文本，请先用原编辑器转换编码后再打开，原文件未修改": [
+    "services/server/src/lib/textEncoding.ts"
+  ],
+  "请发送 UTF-8 编码的文本": [
+    "services/server/src/lib/textEncoding.ts"
   ],
   "找不到这个文件或文件夹，可能已被移动、删除，或者位置选错了。": [
     "services/server/src/lib/responseFormat.ts"
@@ -7735,6 +9936,9 @@
   "心跳仅允许已配对的共享连接访问": [
     "services/server/src/routes/mobileLink/heartbeat.ts"
   ],
+  "请填写充值金额": [
+    "services/server/src/routes/marketplace/payment.ts"
+  ],
   "请在桌面端或服务器本机安装节点": [
     "services/server/src/routes/nodes/install.ts"
   ],
@@ -7825,10 +10029,8 @@
     "services/server/src/routes/assets/read.ts"
   ],
   "文件超过本次文本读取的大小限制": [
-    "services/server/src/routes/workspaces/files/read.ts"
-  ],
-  "文件不是受支持的 UTF-8 或带 BOM 的 UTF-16 文本，请先用原编辑器转换编码后再打开，原文件未修改": [
-    "services/server/src/routes/workspaces/files/read.ts"
+    "services/server/src/routes/workspaces/files/read.ts",
+    "services/server/src/routes/assets/read.ts"
   ],
   "仅支持桌面客户端或本机开发页面打开文件所在位置": [
     "services/server/src/routes/workspaces/files/reveal.ts"
@@ -7908,6 +10110,12 @@
   ],
   "文件扩展已卸载": [
     "services/server/src/routes/ext/uninstall.ts"
+  ],
+  "素材文件夹层级过深": [
+    "services/server/src/routes/assets/list.ts"
+  ],
+  "素材库超过一万项，请使用素材搜索或进入具体文件夹": [
+    "services/server/src/routes/assets/list.ts"
   ],
   "保存文件名无效，不能包含路径或控制字符": [
     "frontend/desktop/src/saveFile.ts"

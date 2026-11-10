@@ -25,7 +25,7 @@
               <component
                 :is="activePanel.component"
                 v-bind="
-                  ['pluginMarket', 'languageModel', 'mediaModel', 'personalization', 'deviceLink'].includes(activePanel.id) ? { visible } : {}
+                  ['api', 'pluginMarket', 'languageModel', 'mediaModel', 'personalization', 'deviceLink'].includes(activePanel.id) ? { visible } : {}
                 " />
             </keep-alive>
           </transition>
@@ -52,7 +52,7 @@ import {
 
 const settingsPanels = [
   { id: "ui", label: "外观", icon: IconPalette, component: defineAsyncComponent(() => import("./panels/ui.vue")) },
-  { id: "api", label: "API 配置", icon: IconKey, component: defineAsyncComponent(() => import("@/components/browserApiSettings.vue")) },
+  { id: "api", label: "API 配置", icon: IconKey, component: defineAsyncComponent(() => import("@/components/serverApiSettings.vue")) },
   { id: "general", label: "常规配置", icon: IconSettings, component: defineAsyncComponent(() => import("./panels/general/index.vue")) },
   {
     id: "pluginMarket",

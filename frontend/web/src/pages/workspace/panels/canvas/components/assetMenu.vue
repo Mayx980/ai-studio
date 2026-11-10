@@ -26,7 +26,7 @@
 <script setup lang="ts">
 import { studio, isStudioError } from "@/ports";
 
-import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { studioCreationMode } from "@/lib/browserWorkspaceFiles";
 import { browserAssetFiles } from "@/lib/browserAssets";
 import { translate } from "@toonflow/i18n/vue";
 import { computed, nextTick, ref, shallowRef } from "vue";
@@ -82,7 +82,7 @@ function showError(error: unknown) {
 async function relocate(entry: AssetEntry, target: string) {
   busy.value = true;
   try {
-    if (browserWorkspaceMode) await browserAssetFiles().rename(entry.path, target);
+    if (studioCreationMode) await browserAssetFiles().rename(entry.path, target);
     else await studio.renameAsset({ path: entry.path, target });
     emit("changed", entry.path, target);
   } finally {
@@ -113,7 +113,7 @@ async function createMoveFolder() {
       cancelButtonText: "取消",
     });
     const name = value.trim();
-    if (browserWorkspaceMode) await browserAssetFiles().mkdir(name);
+    if (studioCreationMode) await browserAssetFiles().mkdir(name);
     else await studio.createAssetFolder({ path: name });
     await relocate(entry, name + "/" + entry.name);
   } catch (error) {
@@ -132,7 +132,7 @@ async function handleCommand(command: string) {
   closeMenu();
   try {
     if (command === "download") {
-      await saveFile(() => browserWorkspaceMode ? browserAssetFiles().read(entry.path).then(data => new Blob([data])) : studio.readAsset<Blob>({ params: { path: entry.path, download: true }, responseType: "blob" }).then(({ data }) => data), entry.name);
+      await saveFile(() => studioCreationMode ? browserAssetFiles().read(entry.path).then(data => new Blob([data])) : studio.readAsset<Blob>({ params: { path: entry.path, download: true }, responseType: "blob" }).then(({ data }) => data), entry.name);
     }
     if (command === "rename") {
       const { value } = await ElMessageBox.prompt("名称", "重命名", {
@@ -149,7 +149,7 @@ async function handleCommand(command: string) {
       await ElMessageBox.confirm("确定删除“" + entry.name + "”？", "删除素材", { type: "warning", confirmButtonText: "删除", cancelButtonText: "取消" });
       busy.value = true;
       try {
-        if (browserWorkspaceMode) await browserAssetFiles().remove(entry.path);
+        if (studioCreationMode) await browserAssetFiles().remove(entry.path);
         else await studio.removeAsset({ data: { path: entry.path } });
         emit("changed", entry.path);
       } finally {

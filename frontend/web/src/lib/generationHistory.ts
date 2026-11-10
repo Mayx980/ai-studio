@@ -1,3 +1,4 @@
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { z } from "@toonflow/nodes-scaffold/nodeTools";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 
@@ -21,12 +22,15 @@ export async function recordGenerationResults(directory: string, records: Genera
   const previous = pendingSaves.get(directory) ?? Promise.resolve();
   const saving = previous.catch(() => {}).then(async () => {
     const files = useWorkspaceFiles(directory);
-    const saved = await files.readJson<GenerationRecord[]>(".agent/browserResults.json").catch(error => { if (error.code === "ENOENT") return [] as GenerationRecord[]; throw error; });
+    const path = ".agent/browserResults.json";
+    const snapshot = await files.readTextSnapshot(path).catch(error => { if (getWorkspaceFailure(error).code === "ENOENT") return undefined; throw error; });
+    const saved: GenerationRecord[] = snapshot ? JSON.parse(snapshot.text) : [];
     if (!Array.isArray(saved)) throw new Error("浏览器素材记录无效");
     const merged = new Map(saved.map(item => [item.id, item]));
     for (const item of records) merged.set(item.id, item);
-    await files.mkdir(".agent").catch(error => { if (error.code !== "EEXIST") throw error; });
-    await files.writeJson(".agent/browserResults.json", [...merged.values()]);
+    await files.mkdir(".agent").catch(error => { if (getWorkspaceFailure(error).code !== "EEXIST") throw error; });
+    if (snapshot) await files.writeTextSnapshot(path, JSON.stringify([...merged.values()]), snapshot);
+    else await files.writeJson(path, [...merged.values()], true);
   });
   pendingSaves.set(directory, saving);
   try { await saving; } finally { if (pendingSaves.get(directory) === saving) pendingSaves.delete(directory); }

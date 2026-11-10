@@ -1,6 +1,6 @@
 <template>
   <div class="tfAccount" :aria-busy="loading">
-    <div v-if="apiKey" class="accountHeader">
+    <div v-if="hasKey" class="accountHeader">
       <div class="accountBalance">
         <el-text size="small" type="info">账户余额</el-text>
         <el-skeleton v-if="loading && !balance" animated>
@@ -9,11 +9,11 @@
         <strong v-else class="balanceNumber">{{ balance ? `${numberFormat.format(balance.balance)} ${balance.unit}` : "—" }}</strong>
       </div>
       <div class="accountActions">
-        <el-button text circle :icon="IconRefresh" :loading="loading" :disabled="!apiKey" aria-label="刷新余额" title="刷新余额" @click="refresh" />
-        <el-button size="small" :icon="IconCreditCard" :disabled="!apiKey" @click="openRecharge">充值</el-button>
+        <el-button text circle :icon="IconRefresh" :loading="loading" :disabled="!hasKey" aria-label="刷新余额" title="刷新余额" @click="refresh" />
+        <el-button size="small" :icon="IconCreditCard" :disabled="!hasKey" @click="openRecharge">充值</el-button>
       </div>
     </div>
-    <div v-if="!apiKey" class="accountSetup">
+    <div v-if="!hasKey" class="accountSetup">
       <el-text size="small" type="info">填写API Key开始使用官方供应商</el-text>
       <div class="setupForm">
         <el-input
@@ -50,7 +50,7 @@
         <span>{{ numberFormat.format(balance.totalRecharge) }} {{ balance.unit }}</span>
       </div>
     </div>
-    <component :is="rechargeDialog" v-model="rechargeVisible" :apiKey="apiKey" />
+    <component :is="rechargeDialog" v-model="rechargeVisible" :apiKey="apiKey" :apiKeyConfigured="hasKey" />
   </div>
 </template>
 
@@ -65,6 +65,7 @@ import { getProviderBalance, providerBalances } from "@/lib/providerBilling";
 
 const props = withDefaults(defineProps<{
   apiKey: string;
+  apiKeyConfigured?: boolean;
   visible?: boolean;
   saveApiKey: (key: string) => Promise<void>;
 }>(), { visible: true });
@@ -77,6 +78,7 @@ const apiKey = computed(() =>
     .replace(/^Bearer\s+/i, "")
     .trim()
 );
+const hasKey = computed(() => props.apiKeyConfigured || !!apiKey.value);
 const balance = ref<ProviderBalance>();
 const accountId = ref("");
 const sharedBalance = computed(() => accountId.value ? providerBalances.value.find(entry => entry.accountId === accountId.value)?.balance : undefined);
@@ -91,7 +93,7 @@ let controller: AbortController | undefined;
 let rechargeKey = "";
 
 function openRecharge() {
-  if (!apiKey.value || !props.visible) return;
+  if (!hasKey.value || !props.visible) return;
   rechargeKey = apiKey.value;
   rechargeDialog.value ??= defineAsyncComponent(() => import("./tfRechargeDialog.vue"));
   rechargeVisible.value = true;
@@ -116,12 +118,12 @@ async function refresh() {
   controller?.abort();
   loading.value = false;
   errorMessage.value = "";
-  if (!apiKey.value || !props.visible) return;
+  if (!hasKey.value || !props.visible) return;
   const request = new AbortController();
   controller = request;
   loading.value = true;
   try {
-    const result = await getProviderBalance("tfRouter", { apiKey: apiKey.value, signal: request.signal });
+    const result = await getProviderBalance("tfRouter", { ...(apiKey.value ? { apiKey: apiKey.value } : {}), signal: request.signal });
     if (!request.signal.aborted) {
       accountId.value = result.accountId;
       balance.value = sharedBalance.value ?? result.balance ?? undefined;
@@ -140,7 +142,7 @@ async function refresh() {
 }
 
 watch(
-  [apiKey, () => props.visible],
+  [apiKey, hasKey, () => props.visible],
   () => {
     rechargeVisible.value = false;
     accountId.value = "";

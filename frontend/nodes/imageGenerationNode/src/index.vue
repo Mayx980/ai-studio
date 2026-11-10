@@ -84,6 +84,7 @@
             v-model:ratio="data.ratio"
             :sizes="sizeOptions"
             :ratios="ratioOptions"
+            :counts="countOptions"
             :disabled="generating || deleting || !selectedModel" />
           <div ref="promptActions" class="promptActions" />
           <el-button v-if="editor?.mode === 'inpaint'" class="confirmButton" type="primary" :icon="IconCheck" :loading="editor.busy" :disabled="deleting || uploading || !generationPrompt" @click="confirmInpaint().catch(error => showNodeError(error, '重绘节点创建失败'))">确认</el-button>
@@ -188,10 +189,12 @@ let modelsRequest: Promise<void> | undefined;
 const selectedModel = computed(() => models.value.find((item) => JSON.stringify([item.providerId, item.modelId]) === data.value.model));
 const sizeOptions = computed(() => (selectedModel.value?.imageSizes?.length ? selectedModel.value.imageSizes : ["2K"]));
 const ratioOptions = computed(() => (selectedModel.value?.imageRatios?.length ? selectedModel.value.imageRatios : ["16:9"]));
+const countOptions = computed(() => selectedModel.value?.imageCounts?.length ? selectedModel.value.imageCounts : [1]);
 watch(
   selectedModel,
   (choice) => {
     if (!choice) return;
+    if (!countOptions.value.includes(data.value.n ?? 0)) data.value.n = countOptions.value[0]!;
     // ACT: 现有分辨率使用 K 单位；出现其他单位时再统一换算，未知名称排在数值选项之后。
     if (!sizeOptions.value.includes(data.value.size)) data.value.size = sizeOptions.value.toSorted((left, right) =>
       (Number.parseFloat(left) || Infinity) - (Number.parseFloat(right) || Infinity)

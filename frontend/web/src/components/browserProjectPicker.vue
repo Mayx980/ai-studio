@@ -4,14 +4,13 @@
     <el-select v-if="!newOnly" :modelValue="model" class="projectFolders" placeholder="选择项目文件夹" aria-label="项目文件夹" filterable @update:modelValue="select"><el-option v-for="project in store.projectList" :key="project.directory" :label="project.name" :value="project.directory" /></el-select>
     <el-form labelPosition="top" @submit.prevent="create"><el-form-item label="新建项目文件夹"><el-input v-model="name" maxlength="80" aria-label="新项目文件夹名称" /></el-form-item><el-button type="primary" :loading="creating" @click="create">新建并选择</el-button></el-form>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
-    <p>画布、对话与加入画布的素材保存在当前浏览器的该项目中。</p>
+    <p>画布、对话与素材保存在当前实例的共享项目中。</p>
   </el-dialog>
 </template>
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { IconFolder } from "@tabler/icons-vue";
 import { useWorkspaceStore } from "@/stores/workspace";
-import useWorkspaceFiles from "@/lib/workspaceFiles";
 defineProps<{ disabled?: boolean }>();
 const model = defineModel<string>({ default: "" });
 const store = useWorkspaceStore();
@@ -29,10 +28,8 @@ async function create() {
   if (!value) { error.value = "请输入项目文件夹名称"; return; }
   if (store.projectList.some(project => project.name === value)) { error.value = "已有同名项目，请直接选择或使用其它名称"; return; }
   creating.value = true;
-  const directory = `browser://${crypto.randomUUID()}`;
   try {
-    await useWorkspaceFiles(directory).writeJson("画布1.json", { toonflowCanvas: true, nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }, true);
-    await store.openProject(directory); store.renameProject(directory, value);
+    const { directory } = await store.createProject(value);
     select(directory); name.value = "";
   } catch (reason) { error.value = reason instanceof Error ? reason.message : "创建项目失败"; }
   finally { creating.value = false; }

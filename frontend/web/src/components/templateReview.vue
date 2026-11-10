@@ -1,13 +1,13 @@
 <template>
   <section class="templateReview">
-    <h2>{{ isAdmin ? '模板审核' : '我的模板提交' }}</h2>
+    <h2>{{ sharedWorkspace ? '模板管理' : isAdmin ? '模板审核' : '我的模板提交' }}</h2>
     <p v-if="loading" role="status">正在读取模板…</p>
     <el-alert v-else-if="error" type="error" :title="error" :closable="false"><el-button text @click="load">重试</el-button></el-alert>
     <p v-else-if="!submittedTemplates.length" role="status">暂无模板提交</p>
     <el-card v-for="item in submittedTemplates" :key="item.id" class="reviewItem" shadow="never">
       <button class="reviewPreview" type="button" :aria-label="`查看提交 ${item.name}`" @click="preview = item"><templateMedia :media="item.media" /></button>
-      <div class="reviewInfo"><h3>{{ item.name }}</h3><p>{{ item.category }} · {{ item.review?.authorId === 'admin' ? '管理员' : '普通用户' }}</p><el-tag :type="item.review?.status === 'approved' ? 'success' : item.review?.status === 'rejected' ? 'danger' : 'warning'">{{ statusLabels[item.review?.status || 'pending'] }}</el-tag><p v-if="item.review?.reason">拒绝原因：{{ item.review.reason }}</p></div>
-      <div v-if="isAdmin && item.review?.status === 'pending'" class="reviewActions"><el-button :disabled="!!reviewing" @click="preview = item">查看内容</el-button><el-button type="success" :disabled="!!reviewing" @click="review(item, 'approved')">通过</el-button><el-button type="danger" :disabled="!!reviewing" @click="review(item, 'rejected')">拒绝</el-button></div>
+      <div class="reviewInfo"><h3>{{ item.name }}</h3><p>{{ item.category }}<template v-if="!sharedWorkspace"> · {{ item.review?.authorId === 'admin' ? '管理员' : '普通用户' }}</template></p><el-tag v-if="!sharedWorkspace" :type="item.review?.status === 'approved' ? 'success' : item.review?.status === 'rejected' ? 'danger' : 'warning'">{{ statusLabels[item.review?.status || 'pending'] }}</el-tag><p v-if="!sharedWorkspace && item.review?.reason">拒绝原因：{{ item.review.reason }}</p></div>
+      <div v-if="!sharedWorkspace && isAdmin && item.review?.status === 'pending'" class="reviewActions"><el-button :disabled="!!reviewing" @click="preview = item">查看内容</el-button><el-button type="success" :disabled="!!reviewing" @click="review(item, 'approved')">通过</el-button><el-button type="danger" :disabled="!!reviewing" @click="review(item, 'rejected')">拒绝</el-button></div>
     </el-card>
     <el-dialog :modelValue="!!preview" :title="preview?.name" width="min(1100px, 96vw)" alignCenter appendToBody destroyOnClose @update:modelValue="preview = undefined">
       <template v-if="preview"><div class="reviewDetail"><div class="reviewVideo"><templateMedia :media="preview.media" controls /></div><p>{{ preview.prompt }}</p></div><templateProjectPreview v-if="preview.project" :template="preview" /></template>
@@ -17,10 +17,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { prototype } from "@/ports/prototype";
 import { currentAccount } from "@/stores/prototypeAccount";
 import { loadCreationTemplates, submittedTemplates, reviewCreationTemplate, type CreationTemplate } from "@/lib/creationTemplates";
 import templateMedia from "@/components/templateMedia.vue";
 import templateProjectPreview from "@/components/templateProjectPreview.vue";
+const sharedWorkspace = !prototype.requiresAccount;
 const isAdmin = computed(() => currentAccount.value?.role === "admin");
 const loading = ref(false), error = ref(""), reviewing = ref(""), preview = ref<CreationTemplate>();
 const statusLabels = { pending: "待审核", approved: "已通过", rejected: "已拒绝" };

@@ -18,11 +18,11 @@
       </section>
       <assetsPage v-if="homeSection === 'assets'" />
       <section v-show="homeSection === 'projects'" class="projectList" aria-labelledby="projectListTitle">
-        <div class="sectionHeader"><h2 id="projectListTitle">我的项目</h2><el-input class="projectSearch" v-model="projectSearch" placeholder="按项目名搜索" aria-label="按项目名搜索" clearable style="max-width:240px" /><el-space wrap><el-button v-if="!browserWorkspaceMode" :icon="IconFolderOpen" @click="openProject()">导入项目</el-button><el-button :icon="IconPlus" :disabled="creating || opening" @click="createCanvas()">添加项目</el-button><el-button circle :icon="sortDescending ? IconSortDescending : IconSortAscending" aria-label="切换时间排序" @click="sortDescending = !sortDescending" /><el-radio-group v-model="viewMode" aria-label="项目视图"><el-radio-button value="grid" aria-label="网格视图"><icon-layout-grid :size="16" /></el-radio-button><el-radio-button value="list" aria-label="列表视图"><icon-list :size="16" /></el-radio-button></el-radio-group></el-space></div>
+        <div class="sectionHeader"><h2 id="projectListTitle">我的项目</h2><el-input class="projectSearch" v-model="projectSearch" placeholder="按项目名搜索" aria-label="按项目名搜索" clearable style="max-width:240px" /><el-space wrap><el-button v-if="!studioCreationMode" :icon="IconFolderOpen" @click="openProject()">导入项目</el-button><el-button :icon="IconPlus" :disabled="creating || opening" @click="createCanvas()">添加项目</el-button><el-button circle :icon="sortDescending ? IconSortDescending : IconSortAscending" aria-label="切换时间排序" @click="sortDescending = !sortDescending" /><el-radio-group v-model="viewMode" aria-label="项目视图"><el-radio-button value="grid" aria-label="网格视图"><icon-layout-grid :size="16" /></el-radio-button><el-radio-button value="list" aria-label="列表视图"><icon-list :size="16" /></el-radio-button></el-radio-group></el-space></div>
         <div class="projectItems" :class="{ listView: viewMode === 'list' }"><el-card v-for="project in filteredProjects" :key="project.directory" class="projectCard" shadow="hover" :bodyStyle="{ padding: '0' }"><button class="projectEntry" type="button" :disabled="creating || opening" :aria-label="`打开项目 ${project.name}`" @click="openProject(project)"><projectThumbnail :key="`${project.directory}:${coverVersions[project.directory] ?? 0}`" :directory="project.directory" /><span class="projectInfo"><strong :title="project.name">{{ project.name }}</strong><small>最近打开 {{ formatTime(project.lastOpenedAt) }}</small></span></button><div class="projectActions"><el-dropdown trigger="click" placement="bottom-end" @command="command => projectAction(project, command)">
           <el-button text :disabled="creating || opening || projectBusy" :aria-label="`更多项目操作 ${project.name}`" title="更多操作"><icon-dots :size="20" /></el-button>
           <template #dropdown><el-dropdown-menu>
-            <el-dropdown-item command="open">打开</el-dropdown-item><el-dropdown-item command="rename">重命名</el-dropdown-item><el-dropdown-item command="cover">修改封面</el-dropdown-item><el-dropdown-item command="copy" :disabled="!browserWorkspaceMode">创建副本</el-dropdown-item><el-dropdown-item v-if="browserWorkspaceMode" command="template">制作模板</el-dropdown-item>
+            <el-dropdown-item command="open">打开</el-dropdown-item><el-dropdown-item command="rename">重命名</el-dropdown-item><el-dropdown-item command="cover">修改封面</el-dropdown-item><el-dropdown-item command="copy" :disabled="!studioCreationMode">创建副本</el-dropdown-item><el-dropdown-item v-if="studioCreationMode" command="template">制作模板</el-dropdown-item>
             <el-dropdown-item><el-popover trigger="hover" placement="right-start" :width="180" :showArrow="false"><template #reference><span class="projectMoveLabel">移动至文件夹 <icon-chevron-right :size="14" /></span></template><div class="projectFolders"><el-button text @click="moveProject(project, '')">根文件夹</el-button><el-button v-for="folder in projectFolders" :key="folder" text @click="moveProject(project, folder)">{{ folder }}</el-button><el-button text @click="createProjectFolder(project)">新建文件夹</el-button></div></el-popover></el-dropdown-item>
             <el-dropdown-item command="remove">删除项目</el-dropdown-item>
           </el-dropdown-menu></template>
@@ -33,6 +33,7 @@
   </el-container>
 </template>
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { studio, isStudioError } from "@/ports";
 import { locale } from "@toonflow/i18n/vue";
 import { openTutorialProject } from "@/lib/canvasTutorial";
@@ -41,7 +42,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { IconPlus, IconFolderOpen, IconTrash, IconDots, IconChevronRight, IconSortAscending, IconSortDescending, IconFileText, IconMovie, IconPhoto, IconVideo, IconVolume } from "@tabler/icons-vue";
-import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { studioCreationMode } from "@/lib/browserWorkspaceFiles";
 import { useWorkspaceStore, type Project } from "@/stores/workspace";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
@@ -176,8 +177,12 @@ async function changeProjectCover(event: Event) {
   let uploaded: string | undefined;
   try {
     uploaded = await uploadNodeFile(files, "projectCover", file);
-    await files.mkdir(".agent").catch(error => { if (error.code !== "EEXIST") throw error; });
-    await files.writeJson(".agent/projectCover.json", { path: uploaded, mimeType: file.type });
+    await files.mkdir(".agent").catch(error => { if (getWorkspaceFailure(error).code !== "EEXIST") throw error; });
+    const coverPath = ".agent/projectCover.json";
+    const snapshot = await files.readTextSnapshot(coverPath).catch(error => { if (getWorkspaceFailure(error).code !== "ENOENT") throw error; return undefined; });
+    const content = { path: uploaded, mimeType: file.type };
+    if (snapshot) await files.writeTextSnapshot(coverPath, JSON.stringify(content), snapshot);
+    else await files.writeJson(coverPath, content, true);
     coverVersions.value[project.directory] = (coverVersions.value[project.directory] ?? 0) + 1;
     ElMessage.success("封面已更新");
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "修改封面失败"); }
@@ -196,7 +201,7 @@ async function renameHistory(item: ConversationHistory) {
   historyLoading.value = true;
   try {
     const name = result.value.trim();
-    if (browserWorkspaceMode) await renameBrowserConversation(item.directory, item.file, name);
+    if (studioCreationMode) await renameBrowserConversation(item.directory, item.file, name);
     else await studio.renameConversation({ directory: item.directory, sessionFile: item.file, name }, { headers: { "x-toonflow-workspace": "1" } });
     item.name = name;
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "重命名对话失败"); }
@@ -206,7 +211,7 @@ async function removeHistory(item: ConversationHistory) {
   if (!await ElMessageBox.confirm(`删除对话“${item.name}”？已保存到画布的素材会保留。`, "删除对话", { confirmButtonText: "删除", cancelButtonText: "取消", type: "warning" }).then(() => true, () => false)) return;
   historyLoading.value = true;
   try {
-    if (browserWorkspaceMode) await removeBrowserConversation(item.directory, item.file);
+    if (studioCreationMode) await removeBrowserConversation(item.directory, item.file);
     else await useWorkspaceFiles(item.directory).remove(`.agent/sessions/${item.file}`);
     conversationHistory.value = conversationHistory.value.filter(entry => entry !== item);
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "删除对话失败"); }
@@ -218,7 +223,7 @@ watch(() => [homeSection.value, examplesReady.value], async ([section, ready]) =
   historyError.value = "";
   try {
     const lists = await Promise.all([...workspaceStore.projectList, ...workspaceStore.draftProjects].filter(project => project.historyArchived).map(async project => {
-      const items = browserWorkspaceMode ? await listBrowserConversations(project.directory) : (await studio.listConversations<{ data: AgentHistory[] }>({ params: { directory: project.directory }, headers: { "x-toonflow-workspace": "1" } })).data.data;
+      const items = studioCreationMode ? await listBrowserConversations(project.directory) : (await studio.listConversations<{ data: AgentHistory[] }>({ params: { directory: project.directory }, headers: { "x-toonflow-workspace": "1" } })).data.data;
       return items.map(item => ({ ...item, directory: project.directory, projectName: project.name }));
     }));
     conversationHistory.value = lists.flat().sort((a, b) => b.modified.localeCompare(a.modified));

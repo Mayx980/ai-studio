@@ -55,10 +55,16 @@ export function getTfApiKey() {
     .find(Boolean) ?? "";
 }
 
+export function hasTfApiKey() {
+  const provider = customProviders.value.find(isTfRouterProvider);
+  const configs = settings.value.mediaProviderConfigs as Record<string, { apiKeyConfigured?: boolean }> | undefined;
+  return provider?.apiKeyConfigured === true || configs?.tfRouter?.apiKeyConfigured === true || !!getTfApiKey();
+}
+
 function requestOptions({ apiKey, signal }: TfRequestOptions = {}) {
   const key = (apiKey ?? getTfApiKey()).trim().replace(/^Bearer(?:\s+|$)/i, "").trim();
-  if (!key) throw new Error("请先配置 TF-Router API Key");
-  return { signal, timeout: 20000, headers: { Authorization: `Bearer ${key}` } };
+  if (!key && !hasTfApiKey()) throw new Error("请先配置 TF-Router API Key");
+  return { signal, timeout: 20000, headers: { "x-toonflow-workspace": "1", ...(key ? { Authorization: `Bearer ${key}` } : {}) } };
 }
 
 function responseData<T>(response: TfResponse<T>, fallback = "TF-Router 请求失败"): T {

@@ -81,6 +81,7 @@ export interface MediaModel {
   mode?: unknown;
   imageSizes?: string[];
   imageRatios?: string[];
+  imageCounts?: number[];
   durationResolutionMap?: { duration: number[]; resolution: string[] }[];
   audio?: boolean | "optional";
   voices?: { title: string; voice: string }[];
@@ -103,6 +104,7 @@ export interface MediaGenerationRequest {
   lastFrame?: MediaReference;
   ratio?: string;
   size?: string;
+  n?: number;
   resolution?: string;
   duration?: number;
   generateAudio?: boolean;
@@ -121,6 +123,7 @@ export interface GeneratedMedia {
   path: string;
   mimeType: string;
   mediaType: "image" | "video" | "audio";
+  warning?: string;
 }
 
 export interface MediaContext {

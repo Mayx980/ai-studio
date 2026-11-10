@@ -6,7 +6,8 @@ import { success } from "@/lib/responseFormat";
 
 const router = Router();
 
-export default router.post("/", validateFields({ path: z.string().min(1).max(4096), target: z.string().min(1).max(4096) }), async (req, res) => {
-  await u.assets.moveAsset(req.body.path, req.body.target);
+export default router.post("/", validateFields({ library: u.assets.librarySchema.optional(), path: z.string().min(1).max(4096), target: z.string().min(1).max(4096) }), async (req, res) => {
+  u.mcpControl.assertAppRequest(req);
+  await u.assets.moveAsset(req.body.path, req.body.target, req.body.library);
   res.json(success());
 });

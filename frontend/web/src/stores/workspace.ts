@@ -1,7 +1,9 @@
 import { studio } from "@/ports";
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { browserWorkspaceMode, studioCreationMode } from "@/lib/browserWorkspaceFiles";
+import { nextTick } from "vue";
+import { flushSharedState } from "./sharedState";
 import { settingsStorage } from "@/stores/settings";
 import axios from "axios";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
@@ -64,7 +66,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   async function restoreProjectEntry() {
     const current = project.value;
     if (!current) return;
-    if (!browserWorkspaceMode) { creationMode.value = "professional"; pendingCanvasEntry.value = { directory: current.directory, tutorial: current.tutorial }; return; }
+    if (!studioCreationMode) { creationMode.value = "professional"; pendingCanvasEntry.value = { directory: current.directory, tutorial: current.tutorial }; return; }
     const { readCanvasFiles } = await import("@/pages/workspace/panels/canvas/canvasFiles");
     const canvases = await readCanvasFiles(useWorkspaceFiles(current.directory));
     const hasNodes = canvases.some(canvas => canvas.data.nodes.length > 0);
@@ -78,11 +80,12 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   }
 
   async function createProject(name = "未命名项目", mode: "simple" | "professional" = "professional"): Promise<Project> {
-    if (!browserWorkspaceMode) throw new Error("当前自动创作项目使用浏览器保存，请在浏览器原型模式打开");
+    if (!studioCreationMode) throw new Error("当前宿主不支持创建创作项目");
+    if (!browserWorkspaceMode) await flushSharedState();
     if (!name.trim() || name.trim().length > 80) throw new Error("请输入1–80个字符的项目名称");
     const previousSimpleDirectory = lastSimpleDirectory.value;
-    const directory = `browser://${crypto.randomUUID()}`;
-    await useWorkspaceFiles(directory).writeJson("画布1.json", { toonflowCanvas: true, nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }, true);
+    const directory = browserWorkspaceMode ? `browser://${crypto.randomUUID()}` : (await studio.createWorkspace<{ data: { directory: string } }>({ name })).data.data.directory;
+    if (browserWorkspaceMode) await useWorkspaceFiles(directory).writeJson("画布1.json", { toonflowCanvas: true, nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }, true);
     await openProject(directory);
     renameProject(directory, name);
     project.value!.creationMode = mode;
@@ -92,6 +95,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       archiveSimpleConversation(previousSimpleDirectory);
     }
     creationMode.value = mode;
+    await nextTick();
+    if (!browserWorkspaceMode) await flushSharedState();
     return project.value!;
   }
 
@@ -129,14 +134,20 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   }
 
   async function duplicateProject(source: Project, includeAgent = true) {
-    if (!browserWorkspaceMode) throw new Error("创建副本目前支持浏览器项目");
-    const directory = `browser://${crypto.randomUUID()}`;
+    if (!studioCreationMode) throw new Error("当前宿主不支持创建项目副本");
+    if (!browserWorkspaceMode) await flushSharedState();
+    const directory = browserWorkspaceMode ? `browser://${crypto.randomUUID()}` : (await studio.createWorkspace<{ data: { directory: string } }>({ name: `${source.name} 副本`, initializeCanvas: false })).data.data.directory;
     const original = useWorkspaceFiles(source.directory), target = useWorkspaceFiles(directory);
     async function copy(path = "") {
       for (const entry of (await original.list(path)).entries) {
         if (!includeAgent && !path && entry.name === ".agent") continue;
         if (entry.type === "directory") { await target.mkdir(entry.path); await copy(entry.path); }
-        else await target.write(entry.path, await original.read(entry.path), true);
+        else {
+          const bytes = await original.read(entry.path);
+          await target.write(entry.path, bytes, true);
+          const copied = new Uint8Array(await target.read(entry.path)), expected = new Uint8Array(bytes);
+          if (copied.length !== expected.length || copied.some((value, index) => value !== expected[index])) throw new Error(`项目副本校验失败：${entry.path}`);
+        }
       }
     }
     try { await copy(); }
@@ -146,6 +157,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
     const duplicated = { ...source, directory, name: `${source.name} 副本`, lastOpenedAt: Date.now() };
     projectList.value.unshift(duplicated);
+    await nextTick();
+    if (!browserWorkspaceMode) await flushSharedState();
     return duplicated;
   }
 
@@ -156,9 +169,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
   return { creationMode, project, projectList, draftProjects, lastSimpleDirectory, tutorialVisited, canvasTutorialVersion, completeSimpleProject, archiveSimpleConversation, resumeSimpleConversation, pendingAgentMessage, pendingAgentSession, pendingCanvasEntry, createProject, openProject, restoreProjectEntry, renameProject, moveProject, duplicateProject, removeProject };
 }, {
-  persist: {
+  persist: [{
     key: browserWorkspaceMode ? currentAccount.value?.id === "admin" ? "aiStudio.browserProjects.admin" : "aiStudio.browserProjects" : "toonflow.projectList",
     storage: browserWorkspaceMode ? { getItem: (key: string) => localStorage.getItem(key) ?? (key === "aiStudio.browserProjects" ? settingsStorage.getItem("toonflow.projectList") : null), setItem: (key: string, value: string) => localStorage.setItem(key, value) } : settingsStorage,
-    pick: ["project", "projectList", "draftProjects", "lastSimpleDirectory", "creationMode", "tutorialVisited", "canvasTutorialVersion"],
-  },
+    pick: ["project", "projectList", "draftProjects", "lastSimpleDirectory"],
+  }, { key: "afxen.creationPreferences", storage: localStorage, pick: ["creationMode", "tutorialVisited", "canvasTutorialVersion"] }],
 });

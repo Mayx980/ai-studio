@@ -17,6 +17,7 @@ import { computed } from "vue";
 import { navigationCollapsed } from "@/stores/navigation";
 import { IconLayoutSidebar, IconHome, IconPhoto, IconFolder, IconCheck } from "@tabler/icons-vue";
 import type { Project } from "@/stores/workspace";
+import { prototype } from "@/ports/prototype";
 import { currentAccount } from "@/stores/prototypeAccount";
 import brandLogo from "@/components/brandLogo.vue";
 import accountMenu from "@/components/accountMenu.vue";
@@ -26,7 +27,7 @@ const emit = defineEmits<{ navigate: [section: string]; newAgent: []; openProjec
 const sections = computed(() => [
   { value: "assets", label: "资产", icon: IconPhoto },
   { value: "projects", label: "我的项目", icon: IconFolder },
-  { value: "reviews", label: currentAccount.value?.role === "admin" ? "模板审核" : "我的模板提交", icon: IconCheck },
+  { value: "reviews", label: !prototype.requiresAccount ? "模板管理" : currentAccount.value?.role === "admin" ? "模板审核" : "我的模板提交", icon: IconCheck },
 ]);
 </script>
 <style scoped lang="scss">

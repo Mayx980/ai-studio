@@ -2,7 +2,7 @@
 
 ## 端
 
-本次登记既有 `web` entity，复用 [PRD](../../requirements/prd.md)描述的浏览器入口；不新分配产品端 ID。AFXEN 创作原型已合入该页面工程，服务端业务增量尚未完成。原生端共享同一 Web 页面工程。
+本次登记既有 `web` entity，复用 [PRD](../../requirements/prd.md)描述的浏览器入口；不新分配产品端 ID。AFXEN 创作交互复用已合入的原型，正式数据与模型传输由共享 Server 承接。原生端共享同一 Web 页面工程。
 
 ## 通用约束
 
@@ -17,7 +17,7 @@
 
 生产和 Scenario 共用 `src/bootstrap.ts`、路由、页面和组件；入口由 Vite mode 在构建时选择。页面及状态只消费 `src/ports/`，生产 HTTP/流适配位于 `src/adapters/production/`。Scenario Provider 直接提供内存展示数据，不导入生产适配层、HTTP 客户端或真实服务配置。
 
-浏览器原型宿主由 `src/ports/prototype.ts` 声明，生产组装保留原型文件与模型协议，隔离组装拒绝浏览器项目、演示登录与真实生成操作。模型描述为公共纯数据；不以原型接入当作共享服务端业务完成。
+创作宿主由 `src/ports/prototype.ts` 声明，生产组装使用服务端工作区和固定资产/模板库，模型请求复用 NodeAiPort；旧 IndexedDB、内存 Key 和演示账号不进入正式主流程。隔离组装拒绝真实文件保存与模型调用，不读取旧浏览器业务数据。接口与共享边界见 [Contract](../../contracts/readme.md)。
 
 基础场景 `empty`、`loading`、`error`、`permission`、`formValidation` 的进入方式见[Preview](../previewGuide.md)。当前覆盖首页及“我的项目 → 导入项目”的目录选择器接入链路；分页、真实模型生成、媒体处理、支付及完整业务页面场景尚未覆盖，不能以预览启动当作这些能力验收。
 
@@ -25,7 +25,7 @@
 
 | 问题 | 状态 | 责任入口 |
 | --- | --- | --- |
-| AFXEN 创作 UI 与服务端业务增量 | deferred | Issue #7 后续实施 |
+| 共享服务端与供应商的实际验收 | 逐项验证中 | Issue #7 同一 source/MR |
 
 ## 修订记录
 

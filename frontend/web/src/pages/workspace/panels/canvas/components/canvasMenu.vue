@@ -47,6 +47,7 @@ import { Panel, useVueFlow, type FlowExportObject } from "@vue-flow/core";
 import { ElMessage, ElMessageBox, type DropdownInstance, type FilterNodeMethodFunction, type InputInstance, type LoadFunction, type TreeInstance } from "element-plus";
 import { IconLayoutSidebar, IconVector, IconCheck, IconChevronDown, IconChevronUp, IconChevronRight, IconDots, IconFolder, IconFolderOpen, IconFolderPlus, IconPlus, IconSearch } from "@tabler/icons-vue";
 import { useWorkspaceStore } from "@/stores/workspace";
+import type { TextSnapshot } from "@/lib/workspaceFiles";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { getCanvasAssetDirectories, isCanvasFile } from "@/pages/workspace/canvasFile";
 
@@ -72,7 +73,8 @@ function saveProjectName(event: Event) {
   projectNameDraft.value = workspaceName.value;
 }
 
-type Canvas = { id: string; name: string; flow?: Pick<FlowExportObject, "nodes" | "edges" | "viewport"> };
+const registerCanvasSnapshot = inject<(snapshot: TextSnapshot) => void>("registerCanvasSnapshot");
+type Canvas = { id: string; name: string; snapshot?: TextSnapshot; flow?: Pick<FlowExportObject, "nodes" | "edges" | "viewport"> };
 const canvases = inject<ShallowRef<Canvas[]>>("canvasList", shallowRef<Canvas[]>([]));
 const getRetainedNodes = inject<(id: string) => { id: string; data?: unknown }[]>("canvasAssetNodes", () => []);
 const performFileAction = inject<(directory: string, action: "copy" | "rename" | "move" | "delete", path: string, target?: string, entryType?: "canvas" | "directory") => Promise<void>>("performWorkspaceFileAction");
@@ -342,8 +344,10 @@ async function applyCanvas(canvasId: string, directory: string, signal?: AbortSi
     checkCanvasDirectory(directory, signal);
     return;
   }
-  if (!nextCanvas.flow) {
-    const data = await useWorkspaceFiles(directory).readJson<Partial<NonNullable<Canvas["flow"]>> & { toonflowCanvas?: boolean } | null>(nextCanvas.id);
+  if (!nextCanvas.flow || !nextCanvas.snapshot) {
+    const snapshot = await useWorkspaceFiles(directory).readTextSnapshot(nextCanvas.id);
+    const data = JSON.parse(snapshot.text) as Partial<NonNullable<Canvas["flow"]>> & { toonflowCanvas?: boolean } | null;
+    nextCanvas.snapshot = snapshot;
     checkCanvasDirectory(directory, signal);
     if (data?.toonflowCanvas !== true || !Array.isArray(data.nodes) || !Array.isArray(data.edges) || !data.viewport
       || ![data.viewport.x, data.viewport.y, data.viewport.zoom].every(Number.isFinite) || data.viewport.zoom <= 0) throw new Error("画布文件格式无效");
@@ -363,6 +367,7 @@ async function applyCanvas(canvasId: string, directory: string, signal?: AbortSi
   await nextTick();
   checkCanvasDirectory(directory);
   boundCanvas.value = nextCanvas;
+  registerCanvasSnapshot?.(nextCanvas.snapshot!);
   activeCanvasId.value = nextCanvas.id;
   signal?.throwIfAborted();
 }

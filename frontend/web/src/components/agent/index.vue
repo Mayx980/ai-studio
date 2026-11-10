@@ -39,7 +39,7 @@
 <script setup lang="ts">
 import { studio, isStudioError } from "@/ports";
 
-import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { studioCreationMode } from "@/lib/browserWorkspaceFiles";
 import { createBrowserConversation, readBrowserConversation, listBrowserConversations, renameBrowserConversation, removeBrowserConversation } from "./browserConversations";
 import { restoreBrowserResults } from "@/stores/browserGeneration";
 import { computed, inject, onBeforeUnmount, ref, watch, type ComponentPublicInstance } from "vue";
@@ -156,7 +156,7 @@ function setSessionFile(item: OpenConversation, file: string) {
 const startNewProject = inject<((mode: "simple" | "professional") => Promise<void>) | undefined>("startNewProject", undefined);
 async function newConversation() {
   if (loading.value || historyLoading.value) return;
-  if (props.creationModes && browserWorkspaceMode) {
+  if (props.creationModes && studioCreationMode) {
     try {
       if (startNewProject) await startNewProject("simple");
       else { await workspaceStore.createProject("未命名项目", "simple"); }
@@ -169,7 +169,7 @@ async function newConversation() {
   const currentRequest = ++requestId;
   loading.value = true;
   try {
-    const data = browserWorkspaceMode ? { code: 200, data: await createBrowserConversation(directory), message: "" } : (await studio.createConversation<{ code: number; data: AgentConversation; message?: string }>({ directory }, { headers: { "x-toonflow-workspace": "1" } })).data;
+    const data = studioCreationMode ? { code: 200, data: await createBrowserConversation(directory), message: "" } : (await studio.createConversation<{ code: number; data: AgentConversation; message?: string }>({ directory }, { headers: { "x-toonflow-workspace": "1" } })).data;
     if (data.code !== 200) throw new Error(data.message || "新建对话失败");
     if (currentRequest !== requestId) return;
     const session = data.data;
@@ -186,7 +186,7 @@ async function newConversation() {
 }
 
 async function readConversation(directory: string, file: string) {
-  if (browserWorkspaceMode) return readBrowserConversation(directory, file);
+  if (studioCreationMode) return readBrowserConversation(directory, file);
   const { data } = await studio.openConversation<{ code: number; data: AgentConversation; message?: string }>({
     params: { directory, sessionFile: file }, headers: { "x-toonflow-workspace": "1" },
   });
@@ -201,8 +201,8 @@ async function loadHistory(openLatest = false) {
   historyLoading.value = true;
   loading.value = openLatest;
   try {
-    if (browserWorkspaceMode) await restoreBrowserResults(directory);
-    const data = browserWorkspaceMode ? { code: 200, data: await listBrowserConversations(directory), message: "" } : (await studio.listConversations<{ code: number; data: AgentHistory[]; message?: string }>({ params: { directory }, headers: { "x-toonflow-workspace": "1" } })).data;
+    if (studioCreationMode) await restoreBrowserResults(directory);
+    const data = studioCreationMode ? { code: 200, data: await listBrowserConversations(directory), message: "" } : (await studio.listConversations<{ code: number; data: AgentHistory[]; message?: string }>({ params: { directory }, headers: { "x-toonflow-workspace": "1" } })).data;
     if (data.code !== 200) throw new Error(data.message || "读取历史对话失败");
     if (currentRequest !== requestId) return;
     history.value = data.data;
@@ -211,7 +211,7 @@ async function loadHistory(openLatest = false) {
     if (openLatest) {
       const requested = workspaceStore.pendingAgentSession;
       const file = requested?.directory === directory ? requested.file : !workspaceStore.pendingAgentMessage ? data.data[0]?.file : undefined;
-      const session = file ? await readConversation(directory, file) : browserWorkspaceMode ? await createBrowserConversation(directory) : null;
+      const session = file ? await readConversation(directory, file) : studioCreationMode ? await createBrowserConversation(directory) : null;
       if (requested?.directory === directory) workspaceStore.pendingAgentSession = null;
       if (currentRequest !== requestId) return;
       showConversation(session);
@@ -259,7 +259,7 @@ async function renameConversation(file: string, value: string) {
   const currentRequest = ++requestId;
   loading.value = true;
   try {
-    const data = browserWorkspaceMode ? { code: 200, data: await renameBrowserConversation(directory, file, nextName), message: "" } : (await studio.renameConversation<{ code: number; data: { name: string }; message?: string }>({ directory, sessionFile: file, name: nextName }, { headers: { "x-toonflow-workspace": "1" } })).data;
+    const data = studioCreationMode ? { code: 200, data: await renameBrowserConversation(directory, file, nextName), message: "" } : (await studio.renameConversation<{ code: number; data: { name: string }; message?: string }>({ directory, sessionFile: file, name: nextName }, { headers: { "x-toonflow-workspace": "1" } })).data;
     if (data.code !== 200) throw new Error(data.message || "重命名对话失败");
     if (currentRequest !== requestId) return;
     if (item) item.name = data.data.name;
@@ -277,11 +277,11 @@ async function renameConversation(file: string, value: string) {
 async function removeConversation(file: string) {
   const directory = workspaceStore.project?.directory;
   if (!directory || loading.value || historyLoading.value || history.value.length <= 1 || !history.value.some(item => item.file === file)) return;
-  if (!(browserWorkspaceMode ? /^[\w-]+\.json$/ : /^[\w-]+\.jsonl$/).test(file)) return ElMessage.error("对话文件名无效");
+  if (!(studioCreationMode ? /^[\w-]+\.json$/ : /^[\w-]+\.jsonl$/).test(file)) return ElMessage.error("对话文件名无效");
   const currentRequest = ++requestId;
   loading.value = true;
   try {
-    if (browserWorkspaceMode) await removeBrowserConversation(directory, file);
+    if (studioCreationMode) await removeBrowserConversation(directory, file);
     else await useWorkspaceFiles(directory).remove(`.agent/sessions/${file}`);
     if (currentRequest !== requestId) return;
     history.value = history.value.filter(item => item.file !== file);

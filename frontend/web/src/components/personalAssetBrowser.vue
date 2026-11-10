@@ -12,7 +12,9 @@
   </section>
 </template>
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
 import saveAssetDialog from "@/components/saveAssetDialog.vue";
+import { flushSharedState } from "@/stores/sharedState";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
@@ -59,7 +61,7 @@ onMounted(async () => {
   try {
     for (const name of categories) {
       try { await browserAssetFiles().mkdir(name); assets.metadata[name] = { createdAt: Date.now() }; }
-      catch (cause) { if ((cause as { code?: string }).code !== "EEXIST") throw cause; }
+      catch (cause) { if (getWorkspaceFailure(cause).code !== "EEXIST") throw cause; }
     }
     await reload();
   } catch (cause) { error.value = cause instanceof Error ? cause.message : "资产读取失败"; }
@@ -90,6 +92,7 @@ async function upload(event: Event) {
       if (!/^(image|video|audio)\//.test(file.type) || !/^(image|video|audio)\//.test(browserAssetMimeType(file.name))) throw new Error(`${file.name}：仅支持图片、视频和音频`);
       const path = namePath(file.name, directory); await browserAssetFiles().write(path, file, true); assets.metadata[path] = { createdAt: Date.now(), source: "本地上传" }; completed++;
     }
+    await flushSharedState();
     ElMessage.success(`已上传 ${completed} 项`);
   } catch (cause) { ElMessage.error(`已上传 ${completed} 项；${cause instanceof Error ? cause.message : "上传失败"}`); }
   finally { try { await reload(); } catch (cause) { failure(cause); } busy.value = false; }
@@ -123,7 +126,7 @@ async function move() {
       await browserAssetFiles().rename(item.path, target);
       moveMetadata(item.path, target); completed++;
     }
-    selected.value = []; moveVisible.value = false; ElMessage.success(`已移动 ${completed} 项`);
+    await flushSharedState(); selected.value = []; moveVisible.value = false; ElMessage.success(`已移动 ${completed} 项`);
   } catch (cause) { ElMessage.error(`已移动 ${completed} 项；${cause instanceof Error ? cause.message : "移动失败"}`); }
   finally { try { await reload(); } catch (cause) { failure(cause); } busy.value = false; }
 }
@@ -142,7 +145,10 @@ async function rename() {
   } catch (cause) { failure(cause); } finally { busy.value = false; }
 }
 function editTags() { chosenTags.value = [...new Set(selectedEntries.value.flatMap(item => assets.tags[item.path] ?? []))]; tagsVisible.value = true; }
-function saveTags() { for (const item of selectedEntries.value) assets.tags[item.path] = [...chosenTags.value]; tagsVisible.value = false; }
+async function saveTags() {
+  try { for (const item of selectedEntries.value) assets.tags[item.path] = [...chosenTags.value]; await flushSharedState(); tagsVisible.value = false; }
+  catch (cause) { failure(cause); }
+}
 </script>
 <style scoped lang="scss">
 .personalAssetBrowser { header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; } .breadcrumbs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; button { padding: 0; border: 0; color: inherit; background: none; font-size: 15px; cursor: pointer; } span { color: var(--el-text-color-secondary); } } .libraryActions { display: flex; align-items: center; gap: 8px; .el-input { max-width: 220px; } } .uploadInput { display: none; } .assetGrid { display: flex; flex-wrap: wrap; gap: 20px 14px; } .assetCard { position: relative; width: 140px; min-width: 0; h3 { font-size: 12px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 10px 4px 6px; } small { font-size: 11px; color: var(--el-text-color-secondary); margin-left: 4px; } .assetCover { display: grid; place-items: center; width: 140px; height: 140px; border: 2px solid transparent; padding: 0; background: #242526; border-radius: 12px; overflow: hidden; color: #b4b5b7; cursor: pointer; img, video { width: 100%; height: 100%; object-fit: contain; } .folderIcon { filter: drop-shadow(0 3px 3px #0003); } } .assetCheckbox { position: absolute; left: 8px; top: 8px; width: 17px; height: 17px; opacity: 0; accent-color: var(--el-color-primary); cursor: pointer; } &:hover .assetCheckbox, &:focus-within .assetCheckbox, &.selected .assetCheckbox { opacity: 1; } &.selected .assetCover { border-color: var(--el-color-primary); } } .selectionToolbar { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; gap: 5px; align-items: center; max-width: calc(100vw - 32px); overflow-x: auto; white-space: nowrap; padding: 10px; border-radius: 16px; background: #28292b; border: 1px solid #3b3c3e; font-size: 12px; .el-button { margin: 0; border-color: transparent; background: transparent; &:hover { background: #ffffff12; border-color: transparent; } } } }

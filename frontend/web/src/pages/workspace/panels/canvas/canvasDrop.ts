@@ -1,5 +1,5 @@
 import { studio, isStudioError } from "@/ports";
-import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { studioCreationMode } from "@/lib/browserWorkspaceFiles";
 import { browserAssetFiles } from "@/lib/browserAssets";
 import { ElMessage } from "element-plus";
 import type { useVueFlow } from "@vue-flow/core";
@@ -84,7 +84,7 @@ export async function dropCanvasFiles(event: DragEvent, context: CanvasFileConte
   try {
     signal.throwIfAborted();
     if (path) {
-      const data = browserWorkspaceMode
+      const data = studioCreationMode
         ? new Blob([await browserAssetFiles().read(path)], { type: fileMimeTypes[path.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream" })
         : (await studio.readAsset<Blob>({ params: { path }, responseType: "blob", signal })).data;
       droppedFiles = [new File([data], path.split("/").pop()!, { type: data.type })];

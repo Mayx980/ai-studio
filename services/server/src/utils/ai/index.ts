@@ -19,7 +19,7 @@ export { refreshProviderModels } from "@/utils/ai/initialize";
 
 export const providerSchema = z.object({
   apiUrl: z.url({ protocol: /^https?$/ }),
-  apiKey: z.string(),
+  apiKey: z.string().trim().min(1),
   protocol: z.enum(["openai-completions", "openai-responses", "anthropic-messages"]),
   maxRequestImageBytes: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(),
   maxRequestBytes: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(),
@@ -54,7 +54,7 @@ export function getModelLimits(providerId: string, model: z.infer<typeof provide
 export function getConfiguredModel(providerId: string, modelId: string) {
   const providers = conf.get("settings", {}).customProviders;
   const parsed = providerSchema.safeParse(Array.isArray(providers) ? providers.find(item => item?.id === providerId) : undefined);
-  if (!parsed.success) throw Object.assign(new Error("请先在设置中配置模型供应商"), { status: 400 });
+  if (!parsed.success || (Array.isArray(providers) && providers.find(item => item?.id === providerId)?.enabled === false)) throw Object.assign(new Error("请先在设置中配置模型供应商"), { status: 400 });
   const provider = parsed.data;
   const model = provider.models.find(item => item.id === modelId);
   if (!model) throw Object.assign(new Error("所选模型不存在，请重新选择"), { status: 400 });
@@ -69,7 +69,7 @@ export function listAiModels() {
   if (!Array.isArray(providers)) return [];
   return providers.flatMap(item => {
     const parsed = providerSchema.extend({ id: z.string().min(1), label: z.string() }).safeParse(item);
-    if (!parsed.success) return [];
+    if (!parsed.success || item.enabled === false) return [];
     const provider = parsed.data;
     return provider.models.filter(model => model.id.trim()).map(model => {
       const limits = getModelLimits(provider.id, model);

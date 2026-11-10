@@ -20,7 +20,9 @@
 
 所有代码单元采用 `project_observed`；保留 Bun、TypeScript、Vue、Express 和现有依赖，不因工具默认值切换包管理器。Preview 的项目适配和未支持的 Docker 路径见[运行说明](../frontend/previewGuide.md)。
 
-AFXEN 创作原型已在同一 Web 工程合入；其浏览器文件与供应商协议由独立生产适配层经创作 Port 注入，Scenario 拒绝这些操作。该原型仍使用浏览器项目、页面内存 Key 与演示账号，不代表现有 Server 已接管这些数据或提供可信身份。共享实例项目持久化、凭据读写合同及对应生产接线仍由 #7 后续实施承接；工程登记不以原型代码反向认可尚未实现的服务端方案。
+AFXEN 页面沿用人工合入的原型交互，正式组装改为共享 Server：工作区保存项目/画布/会话和生成素材，固定全局库保存资产与模板，共享索引独立以 revision 更新。实例级模型凭据由 Server 保存，普通读取只返回配置状态；供应商调用与结果下载在 Server 执行。具体协议见 [studio](../contracts/data/studio.md) 和 [settings](../contracts/data/settings.md)。
+
+访问同一实例的浏览器共享同一数据边界，没有生产账号、个人隔离或可信管理员权限。旧浏览器业务数据保留，不自动导入；首次教学和视图等偏好仍可在当前浏览器记录。单进程文件锁和版本校验阻止过期快照覆盖，不提供实时协作或持久任务队列。
 
 ## 服务与页面通信矩阵
 
@@ -43,7 +45,7 @@ AFXEN 创作原型已在同一 Web 工程合入；其浏览器文件与供应商
 
 | 数据域 | 唯一归属 Entity | Contract identity | 说明 |
 | --- | --- | --- | --- |
-| 应用配置与工作区文件 | `server` | [settings](../contracts/data/settings.md) | 维持进程级单例、数据目录和路径边界 |
+| 应用配置、共享创作索引与工作区文件 | `server` | [settings](../contracts/data/settings.md) | 维持进程级单例、数据目录和路径边界 |
 | 更新文件 | `updateserver` | [updateArtifacts](../contracts/data/updateArtifacts.md) | 仅服务既有发布器产生的普通文件 |
 
 ## 跨实体关系

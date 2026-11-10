@@ -23,7 +23,8 @@
           </el-form-item>
         </div>
         <el-form-item label="API 密钥" prop="apiKey">
-          <el-input v-model="form.apiKey" type="password" dir="ltr" showPassword autocomplete="off" placeholder="本地无鉴权服务可留空" />
+          <el-input v-model="form.apiKey" type="password" dir="ltr" showPassword autocomplete="off" :disabled="clearApiKey" :placeholder="provider?.apiKeyConfigured ? '已保存，留空保留原 Key' : '本地无鉴权服务可留空'" />
+          <el-checkbox v-if="provider?.apiKeyConfigured" v-model="clearApiKey">清除已保存的 Key</el-checkbox>
         </el-form-item>
         <div class="modelHeader">
           <el-text tag="strong">模型列表</el-text>
@@ -128,6 +129,7 @@ const props = defineProps<{ provider?: CustomProvider }>();
 const visible = defineModel<boolean>({ default: false });
 const providerForm = ref<FormInstance>();
 const form = reactive({ id: "", label: "", apiUrl: "", protocol: "openai-completions", apiKey: "" });
+const clearApiKey = ref(false);
 const models = ref<(CustomProviderModel & { key: string })[]>([]);
 const expandedModels = ref(new Set<string>());
 const fetchedModels = shallowRef<CustomProviderModel[]>([]);
@@ -188,8 +190,8 @@ watch(visible, (value) => {
   if (value) {
     resetForm();
     if (props.provider) {
-      const { models: providerModels, id, label, apiUrl, protocol, apiKey } = props.provider;
-      Object.assign(form, { id, label, apiUrl, protocol, apiKey });
+      const { models: providerModels, id, label, apiUrl, protocol } = props.provider;
+      Object.assign(form, { id, label, apiUrl, protocol });
       models.value = providerModels.map((item) => ({ ...item, key: crypto.randomUUID() }));
     }
   } else {
@@ -201,6 +203,7 @@ onBeforeUnmount(() => request?.abort());
 watch([() => form.id, () => form.apiUrl, () => form.protocol, () => form.apiKey], () => request?.abort());
 
 function resetForm() {
+  clearApiKey.value = false;
   Object.assign(form, { id: "", label: "", apiUrl: "", protocol: "openai-completions", apiKey: "" });
   models.value = [];
   expandedModels.value = new Set();
@@ -217,7 +220,9 @@ async function fetchModels() {
   const controller = new AbortController();
   request = controller;
   try {
-    const { data } = await studio.loadLanguageModels({ apiUrl: form.apiUrl.trim(), protocol: form.protocol, apiKey: form.apiKey.trim() }, { signal: controller.signal, timeout: 35000 });
+    const credential = !clearApiKey.value && !form.apiKey.trim() && props.provider
+      ? { providerId: props.provider.id } : { apiKey: clearApiKey.value ? "" : form.apiKey.trim() };
+    const { data } = await studio.loadLanguageModels({ apiUrl: form.apiUrl.trim(), protocol: form.protocol, ...credential }, { signal: controller.signal, timeout: 35000 });
     if (controller.signal.aborted) return;
     if (data.code !== 200 || !Array.isArray(data.data)) throw new Error(data.message || "获取模型列表失败");
     if (isTfRouterProvider(form)) {
@@ -278,11 +283,13 @@ async function addProvider() {
   }
   saving.value = true;
   try {
+    if (props.provider?.apiKeyConfigured && form.id !== props.provider.id && !form.apiKey.trim() && !clearApiKey.value) throw new Error("修改供应商 ID 后请重新输入 Key，或明确清除凭据");
+    const { apiKey, ...connection } = form;
     const updatedProvider = {
-      ...form,
+      ...connection,
       label: form.label.trim(),
       apiUrl: form.apiUrl.trim(),
-      apiKey: form.apiKey.trim(),
+      ...(!props.provider || apiKey.trim() || clearApiKey.value ? { apiKey: clearApiKey.value ? "" : apiKey.trim() } : {}),
       models: models.value.map(({ key, ...item }) => ({
         ...item,
         id: item.id.trim(),

@@ -11,12 +11,13 @@ const unavailable = async (): Promise<never> => { throw new Error("隔离预览�
 const unavailableSync = (): never => { throw new Error("隔离预览不连接浏览器项目或原型账号"); };
 configurePrototypePort({
   workspaceMode: false,
+  supportsCreation: false,
   requiresAccount: false,
   readLegacyState: () => null,
   readAccount: () => null,
   writeAccount: unavailableSync,
   clearAccount: unavailableSync,
-  createWorkspaceFiles: unavailableSync,
+  createWorkspaceFiles: () => undefined,
   nodeAi: { getModels: async () => [], getMediaModels: async () => [], generate: unavailable, generateImage: unavailable, generateVideo: unavailable, generateAudio: unavailable },
   generateText: unavailable,
   generateMedia: unavailable,

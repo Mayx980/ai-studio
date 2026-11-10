@@ -2,6 +2,7 @@ import { createHash, createHmac, randomBytes } from "node:crypto";
 import type { Response } from "express";
 import { z } from "zod";
 import type { ProviderBalance, ProviderPrice, ProviderPriceRequest } from "@toonflow/providers";
+import { savedTfKey } from "@/utils/marketplace";
 import conf from "@/utils/conf";
 import { getMediaProvider, loadMediaProviderSource } from "@/utils/media/provider";
 
@@ -118,7 +119,7 @@ export async function getProviderBalance(providerId: string, apiKey?: string): P
     return 'export default { id: "tfRouter", label: "TF-router", rules: [], models: [] };';
   });
   const configs = conf.get("settings", {}).mediaProviderConfigs as Record<string, Record<string, unknown>> | undefined;
-  const provider = await loadMediaProviderSource(source, { ...configs?.[providerId], ...(apiKey === undefined ? {} : { apiKey }) });
+  const provider = await loadMediaProviderSource(source, { ...configs?.[providerId], ...(apiKey === undefined ? providerId === "tfRouter" ? { apiKey: savedTfKey() } : {} : { apiKey }) });
   const account = getAccount(provider);
   if (account.provider && account.provider.sourceRevision !== provider.sourceRevision) account.epoch++;
   account.provider = provider;

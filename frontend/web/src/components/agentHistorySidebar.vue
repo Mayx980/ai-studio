@@ -7,6 +7,7 @@
   </aside>
 </template>
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { inject, onBeforeUnmount, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { generationBusy } from "@/stores/browserGeneration";
@@ -36,10 +37,10 @@ watch(() => [conversationHistoryOpen.value, gallery.value, generationBusy.value,
     const cards: typeof media.value = [];
     if (gallery.value) for (const item of items) {
       const files = useWorkspaceFiles(item.directory);
-      const session = await readBrowserConversation(item.directory, item.file);
+      const session = await readBrowserConversation(item.directory, item.file, false);
       const ids = new Set(session.messages.flatMap(message => message.browserResultIds ?? []));
-      const hidden = await files.readJson<string[]>(".agent/hiddenResults.json").catch(cause => { if (cause.code === "ENOENT") return [] as string[]; throw cause; });
-      const records = await files.readJson<GenerationRecord[]>(".agent/browserResults.json").catch(cause => { if (cause.code === "ENOENT") return [] as GenerationRecord[]; throw cause; });
+      const hidden = await files.readJson<string[]>(".agent/hiddenResults.json").catch(cause => { if (getWorkspaceFailure(cause).code === "ENOENT") return [] as string[]; throw cause; });
+      const records = await files.readJson<GenerationRecord[]>(".agent/browserResults.json").catch(cause => { if (getWorkspaceFailure(cause).code === "ENOENT") return [] as GenerationRecord[]; throw cause; });
       if (!Array.isArray(records) || !Array.isArray(hidden)) throw new Error("对话素材记录无效");
       for (const record of records.filter(record => ids.has(record.id) && !hidden.includes(record.id) && ["image", "video"].includes(record.kind))) {
         const handle = files.acquireUrl(record.path, record.mimeType ?? (record.kind === "video" ? "video/mp4" : "image/png"));

@@ -1,0 +1,48 @@
+# 共享实例的创作数据
+
+实现方为 `server`，消费方为 `web`。依据 Issue #7 [服务端方案](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_128590)，同一实例的访问者共享项目、资产及模板；不提供账号、角色审核、个人隔离或实时协作。模型凭据独立遵循 [设置合同](settings.md)，不进入本页的数据。
+
+## 共享索引
+
+项目登记和资产标签／来源元数据保存在数据目录的 `studioState.json`，继续使用现有文件原语、原子写入与单进程冲突锁。独立保存是为了避免其它页面完整保存普通设置时覆盖业务索引，不引入数据库或第二套文件基础库。当前快照上限 16 MiB；超过时明确拒绝，后续扩大规模应迁移为所属业务的独立索引。
+
+| 操作 | 请求与结果 |
+| --- | --- |
+| `GET /api/studio/state/get` | 返回 `{ code: 200, data: { revision, stores }, message }`，禁用缓存。`revision` 是实际快照字节的 SHA-256，`stores` 必须为对象。 |
+| `PUT /api/studio/state/save` | 请求 `{ revision, stores }`，两者必填；成功返回同一形状的新快照。`stores` 完整替换，不做隐式合并。 |
+
+`stores` 仅接受两个既有持久化键：`toonflow.projectList` 保存项目登记及现有创作恢复字段；`aiStudio.assetTags` 保存标签和素材来源元数据。值须为合法 JSON；不存在的键表示尚无对应状态，集合字段沿用各自已有格式。禁止通过此接口读写应用凭据、任意配置键或磁盘路径。
+
+没有 `studioState.json` 时，首次读取只取同一服务端既有 `settings.stores` 中上述两项；其规范 JSON 字节形成初始 revision。首次成功保存建立独立文件，后续以该文件为唯一来源。保留原设置和已有项目文件，不从浏览器 localStorage／IndexedDB 自动导入或删除数据。
+
+保存在同一冲突锁内重新读取当前快照并比较 revision；不匹配返回 HTTP 409、业务代码 `ESTALE`，不改磁盘内容。非法键、缺字段、null 或错误类型返回 HTTP 400；超过大小限制返回 413。客户端保留未保存内容并提示刷新／另存，不自动用旧快照覆盖新版本，也不把冲突重试为成功。读失败不能当作空状态。
+
+启动时先取得共享快照，再挂载 Store 和页面。客户端只在内存保存该快照及当前 revision；同一页面串行提交变更。成功响应才更新已确认 revision；请求失败保留失败事实，不自动重发。项目和资产的最终保存操作须等待相关索引保存，部分失败须说明文件与索引各自结果。
+
+## 工作区创建
+
+`POST /api/workspaces/create` 接收 `{ name, initializeCanvas? }`：名称去除首尾空白后为 1–80 字符，`initializeCanvas` 默认 true。服务端在现有 `data/workspaces/` 下分配独立项目目录；默认以 exclusive 原子写入创建空的 `画布1.json`，完成后返回 `{ code: 200, data: { directory }, message }`。设为 false 时创建空目录，供现有项目／模板复制流程使用。
+
+客户端在目录及初始文件完成后才发布项目索引。复制完成文件与引用校验后才登记副本；失败不登记未完成项目，不递归删除可能包含其它操作内容的目录。移除项目列表项继续保留文件。工作区授权、相对路径、符号链接和 revision 规则继承 [工作区文件合同](settings.md)，不把 `browser://` 当系统路径。
+
+## 全局资产和模板文件
+
+沿用 `/api/assets/` 下的文件入口及 `u.assets`，以可选枚举 `library=assets|templates` 区分数据目录下两个受限根；省略时为原 `assets`，模板使用独立的 `templates` 根。客户端不能传入任意根目录；普通工作区接口不因全局文件需求扩大授权范围。
+
+- `GET /api/assets/list` 可传相对 `path` 和 `recursive`；未传时保留原递归列表形状。返回 `entries`，每项为 `name/path/type`，递归目录包含 `children`。失败不返回假空数组。
+- `GET /api/assets/read` 保留原二进制、下载和 Range 行为；`snapshot=true` 时返回 UTF-8 或带 BOM 的 UTF-16 文本、`encoding` 与内容 `revision`，可用 `maxBytes` 限制文本大小。
+- `PUT /api/assets/save` 继续发送原始字节；不带 `expectedRevision` 时仅允许新建，带 revision 时执行比较后原子覆盖并返回新 revision。并发修改或文件已移动／删除返回 409 `ESTALE`。
+- `POST /api/assets/mkdir`、`POST /api/assets/rename`、`POST /api/assets/copy` 处理相对路径，不覆盖已有目标；复制继续使用已有普通文件／目录复制及符号链接保护。
+- `DELETE /api/assets/remove` 默认只删普通文件或空目录；仅明确的 `recursive=true` 允许递归删除，不能修改或删除库根目录。
+
+资产库中新保存或移动的图片／视频必须位于文件夹中，旧根目录媒体沿现有“未分类”规则归档并保持同名保护、标签和来源关联；项目内素材副本不随全局资产移动。模板快照与目录清单沿用现有校验，排除对话和凭据；共享实例直接管理模板，不把原型账号和审核状态当作正式权限。
+
+文件和索引当前都以单进程为边界。服务端保存不承诺多进程并发、浏览器关闭后的任务恢复、服务重启后的持续模型任务或自动迁移旧浏览器数据。
+
+## 模型能力与部分结果
+
+媒体模型列表保留所选模型的 `mode`、`durationResolutionMap`、`audio`、`imageSizes`、`imageRatios`，图片模型另有 `imageCounts`。未登记多图能力时只提供单张；千问适配器登记 1–6 张。参数面板按实际能力展示，服务端在调用供应商前拒绝不支持的数量、尺寸、时长／清晰度组合或参考模式；省略未登记的参数时沿用适配器默认值，不把其它供应商的能力套到当前模型。HTTP 引用只传 `{ path, mimeType }`，素材名称留在页面与会话记录中。
+
+`POST /api/ai/media/generate` 和 Server 工具入口继续返回成功文件数组，每项有 `path`、`mimeType`、`mediaType`。同一次供应商响应中的部分素材下载或保存失败时，保留已成功文件，继续处理其余返回项；成功数组首项的可选 `warning` 说明成功数量和失败项。Web 显示持续警告并继续接收成功路径，Server 工具的文字和详情同样保留该警告。全部失败仍返回错误，不发起第二次生成请求。明确停止后保留已经保存的文件；不承诺关闭连接后能把未接收的结果重新送达浏览器。
+
+资产树请求最多返回一万项、64 层，超过时返回 413，不将截断数据冒充完整结果；较大库使用既有分页素材搜索或具体文件夹。素材库的图片和视频必须放在文件夹中。普通文件读取保留 HTTP Range；文本快照与工作区共用编码、revision 协议。

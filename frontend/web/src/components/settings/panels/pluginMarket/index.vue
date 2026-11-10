@@ -257,7 +257,7 @@ import parse from "semver/functions/parse";
 import { computed, defineAsyncComponent, markRaw, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { IconBox, IconBook, IconTool, IconFileText, IconExternalLink, IconSparkles2, IconUpload, IconShare, IconStar, IconStarFilled, IconLink, IconSettings, IconCopy } from "@tabler/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import tf, { getTfApiKey, isTfRouterProvider } from "@/lib/tf";
+import tf, { hasTfApiKey, isTfRouterProvider } from "@/lib/tf";
 import { saveSettings } from "@/stores/settings";
 import tfRouter from "@toonflow/providers/language/tfRouter";
 import { invalidateNodeModels } from "@toonflow/nodes-scaffold/nodeAi";
@@ -310,7 +310,7 @@ const installedByKey = computed(() => new Map(installedPlugins.value.map((plugin
 const marketPlugins = ref<Plugin[]>([]);
 const marketLoading = ref(false);
 const marketError = ref("");
-const apiKey = computed(getTfApiKey);
+const apiKey = computed(hasTfApiKey);
 const marketNeedsKey = ref(false);
 const draftKey = ref("");
 const savingKey = ref(false);
@@ -633,7 +633,7 @@ async function toggleCollection(plugin: Plugin) {
   const key = apiKey.value;
   collectingPlugins.value.add(plugin.key);
   try {
-    const { collected } = await tf.toggleCollection(plugin.id, { apiKey: key });
+    const { collected } = await tf.toggleCollection(plugin.id);
     if (apiKey.value !== key) return;
     const current = marketPlugins.value.find(item => item.id === plugin.id);
     if (current) current.isCollected = collected;

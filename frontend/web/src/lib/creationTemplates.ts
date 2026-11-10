@@ -1,4 +1,7 @@
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { computed, ref } from "vue";
+import { prototype } from "@/ports/prototype";
+import { browserWorkspaceMode } from "./browserWorkspaceFiles";
 import { currentAccount } from "@/stores/prototypeAccount";
 import type { AnyTagProps } from "x-sender";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
@@ -7,14 +10,15 @@ import { imageClaritySizes, imageDimensions } from "@toonflow/node-shared/genera
 
 export type TemplateMedia = { directory?: string; path: string; mimeType: string; name: string };
 export type TemplateProject = { files: { path: string; sha256: string }[]; canvases: string[] };
-export type TemplateReview = { authorId: "admin" | "user"; status: "pending" | "approved" | "rejected"; reason?: string; reviewedAt?: string };
+export type TemplateReview = { authorId: "admin" | "user" | "shared"; status: "pending" | "approved" | "rejected"; reason?: string; reviewedAt?: string };
 export type CreationTemplate = { sourceDirectory?: string; id: string; name: string; category: string; prompt: string; media: TemplateMedia; references: TemplateMedia[]; kind: "image" | "video"; modelId?: string; ratio?: string; resolution?: string; imageSize?: string; duration?: number; project?: TemplateProject; review?: TemplateReview };
 export type TemplateApplication = { prompt: string; references: File[]; template?: CreationTemplate };
-export const templateDirectory = "browser://personalTemplates";
+export const templateDirectory = browserWorkspaceMode ? "browser://personalTemplates" : "studio://templates";
+export const canManageTemplates = computed(() => !prototype.requiresAccount || currentAccount.value?.role === "admin");
 const personal = ref<CreationTemplate[]>([]);
 const removedTemplateIds = ref<string[]>([]);
 export function templateIsRemoved(item: CreationTemplate) { return removedTemplateIds.value.includes(item.id) || item.id === "creatorRecommendationProject" || (item.name === "达人种草" && item.kind === "image" && (item.media.name === "项目编排.png" || item.media.path.endsWith("/preview.png"))); }
-export const submittedTemplates = computed(() => personal.value.filter(item => !templateIsRemoved(item)).filter(item => currentAccount.value?.role === "admin" || item.review?.authorId === currentAccount.value?.id));
+export const submittedTemplates = computed(() => personal.value.filter(item => !templateIsRemoved(item)).filter(item => canManageTemplates.value || item.review?.authorId === currentAccount.value?.id));
 const media = (path: string, name: string, mimeType = "video/mp4"): TemplateMedia => ({ path: `/templates/${path}`, name, mimeType });
 const builtin: CreationTemplate[] = [
   { id: "productShowcase", name: "重庆溜达节 · 落地签模板", category: "产品展示", kind: "video", media: media("productShowcase.mp4", "产品展示.mp4"), references: [], ratio: "9:16", resolution: "720P", duration: 10, prompt: "创意：重庆溜达节-落地签模板\n请上传一张产品底图" },
@@ -28,10 +32,10 @@ export const creationTemplates = computed(() => [...personal.value.filter(item =
 let loading: Promise<void> | undefined;
 function parseTemplates(text: string): CreationTemplate[] {
   const values: unknown = JSON.parse(text);
-  if (!Array.isArray(values) || values.some(value => !value || typeof value.id !== "string" || typeof value.name !== "string" || typeof value.prompt !== "string" || typeof value.category !== "string" || !["image", "video"].includes(value.kind) || !value.media || typeof value.media.path !== "string" || typeof value.media.mimeType !== "string" || typeof value.media.name !== "string" || (value.duration !== undefined && (!Number.isInteger(value.duration) || value.duration < 3 || value.duration > 30)) || ["modelId", "ratio", "resolution", "imageSize"].some(key => value[key] !== undefined && typeof value[key] !== "string") || !Array.isArray(value.references) || value.references.some((item: TemplateMedia) => !item || typeof item.path !== "string" || typeof item.mimeType !== "string" || typeof item.name !== "string"))) throw new Error("个人模板数据无效，请保留浏览器数据并检查模板文件");
+  if (!Array.isArray(values) || values.some(value => !value || typeof value.id !== "string" || typeof value.name !== "string" || typeof value.prompt !== "string" || typeof value.category !== "string" || !["image", "video"].includes(value.kind) || !value.media || typeof value.media.path !== "string" || typeof value.media.mimeType !== "string" || typeof value.media.name !== "string" || (value.duration !== undefined && (!Number.isInteger(value.duration) || value.duration < 3 || value.duration > 30)) || ["modelId", "ratio", "resolution", "imageSize"].some(key => value[key] !== undefined && typeof value[key] !== "string") || !Array.isArray(value.references) || value.references.some((item: TemplateMedia) => !item || typeof item.path !== "string" || typeof item.mimeType !== "string" || typeof item.name !== "string"))) throw new Error("模板数据无效，请保留当前内容并检查服务端模板文件");
   for (const value of values) {
     if (!value.review) value.review = { authorId: "user", status: "pending" };
-    if (!["admin", "user"].includes(value.review.authorId) || !["pending", "approved", "rejected"].includes(value.review.status) || (value.review.reason !== undefined && typeof value.review.reason !== "string")) throw new Error("模板审核信息无效");
+    if (!["admin", "user", "shared"].includes(value.review.authorId) || !["pending", "approved", "rejected"].includes(value.review.status) || (value.review.reason !== undefined && typeof value.review.reason !== "string")) throw new Error("模板审核信息无效");
   }
   return values;
 }
@@ -41,9 +45,9 @@ export function loadCreationTemplates() {
       const removed: unknown = await useWorkspaceFiles(templateDirectory).readJson("removedTemplates.json");
       if (!Array.isArray(removed) || removed.some(id => typeof id !== "string")) throw new Error("模板删除记录无效");
       removedTemplateIds.value = removed;
-    } catch (error) { if ((error as { code?: string }).code !== "ENOENT") throw error; }
+    } catch (error) { if (getWorkspaceFailure(error).code !== "ENOENT") throw error; }
     try { personal.value = parseTemplates(await useWorkspaceFiles(templateDirectory).readText("templates.json")); }
-    catch (error) { if ((error as { code?: string }).code !== "ENOENT") throw error; }
+    catch (error) { if (getWorkspaceFailure(error).code !== "ENOENT") throw error; }
   })().catch(error => { loading = undefined; throw error; });
   return loading;
 }
@@ -74,7 +78,7 @@ export async function readTemplateFile(item: TemplateMedia) {
 }
 export async function saveCreationTemplate(template: Omit<CreationTemplate, "id" | "media" | "references" | "project" | "review">, preview: File, references: File[], projectSnapshot?: { files: Map<string, ArrayBuffer>; project: TemplateProject }) {
   const account = currentAccount.value;
-  if (!account) throw new Error("请先登录再提交模板");
+  if (prototype.requiresAccount && !account) throw new Error("请先登录再提交模板");
   await loadCreationTemplates();
   if (template.kind !== "video" && !projectSnapshot) throw new Error("模板中心仅支持视频模板");
   if (!template.name.trim() || !template.prompt.trim()) throw new Error("请填写模板名称和提示词");
@@ -89,7 +93,7 @@ export async function saveCreationTemplate(template: Omit<CreationTemplate, "id"
     await files.write(path, file, true); return { path, mimeType, name: file.name };
   };
   try {
-    await files.mkdir("assets").catch(error => { if (error.code !== "EEXIST") throw error; });
+    await files.mkdir("assets").catch(error => { if (getWorkspaceFailure(error).code !== "EEXIST") throw error; });
     await files.mkdir(`assets/${id}`); createdRoot = true;
     const media = await put(preview, 0), images: TemplateMedia[] = [];
     if (media.mimeType !== "video/mp4" && !projectSnapshot) throw new Error("请上传 MP4 视频模板");
@@ -106,21 +110,21 @@ export async function saveCreationTemplate(template: Omit<CreationTemplate, "id"
         await files.write(destination, bytes, true);
       }
     }
-    if (currentAccount.value !== account) throw new Error("账号已切换，请重新提交");
-    const value: CreationTemplate = { ...template, kind: media.mimeType.startsWith("video/") ? "video" : "image", id, media, references: images, review: { authorId: account.id, status: "pending" }, ...(projectSnapshot ? { project: projectSnapshot.project } : {}) };
-    const snapshot = await files.readTextSnapshot("templates.json").catch(error => { if (error.code !== "ENOENT") throw error; return undefined; });
+    if (prototype.requiresAccount && currentAccount.value !== account) throw new Error("账号已切换，请重新提交");
+    const value: CreationTemplate = { ...template, kind: media.mimeType.startsWith("video/") ? "video" : "image", id, media, references: images, review: { authorId: account?.id ?? "shared", status: prototype.requiresAccount ? "pending" : "approved" }, ...(projectSnapshot ? { project: projectSnapshot.project } : {}) };
+    const snapshot = await files.readTextSnapshot("templates.json").catch(error => { if (getWorkspaceFailure(error).code !== "ENOENT") throw error; return undefined; });
     const next = [value, ...(snapshot ? parseTemplates(snapshot.text) : [])];
     if (snapshot) await files.writeTextSnapshot("templates.json", JSON.stringify(next), snapshot); else await files.writeJson("templates.json", next, true);
     personal.value = next; return value;
   } catch (error) {
     if (!createdRoot) throw error;
-    const cleanup = await files.remove(`assets/${id}`, true).then(() => true, error => error.code === "ENOENT");
+    const cleanup = await files.remove(`assets/${id}`, true).then(() => true, error => getWorkspaceFailure(error).code === "ENOENT");
     if (!cleanup) throw new Error(`模板保存失败，部分临时文件未能清理：${error instanceof Error ? error.message : "存储错误"}`);
     throw error;
   }
 }
 export async function reviewCreationTemplate(id: string, status: "approved" | "rejected", reason = "") {
-  if (currentAccount.value?.role !== "admin") throw new Error("仅管理员可以审核模板");
+  if (!canManageTemplates.value) throw new Error("仅管理员可以审核模板");
   if (!["approved", "rejected"].includes(status)) throw new Error("无效审核结果");
   if (status === "rejected" && (!reason.trim() || reason.trim().length > 300)) throw new Error("请填写1–300个字符的拒绝原因");
   const files = useWorkspaceFiles(templateDirectory);
@@ -128,20 +132,20 @@ export async function reviewCreationTemplate(id: string, status: "approved" | "r
   const next = parseTemplates(snapshot.text);
   const item = next.find(item => item.id === id);
   if (!item || item.review?.status !== "pending") throw new Error("模板状态已变化，请刷新后重试");
-  if (currentAccount.value?.role !== "admin") throw new Error("账号已切换");
+  if (!canManageTemplates.value) throw new Error("账号已切换");
   item.review = { authorId: item.review.authorId, status, reason: status === "rejected" ? reason.trim() : undefined, reviewedAt: new Date().toISOString() };
   await files.writeTextSnapshot("templates.json", JSON.stringify(next), snapshot);
   personal.value = next;
 }
 
 export async function removeCreationTemplate(id: string) {
-  if (currentAccount.value?.role !== "admin") throw new Error("仅管理员可以删除展示卡片");
+  if (!canManageTemplates.value) throw new Error("仅管理员可以删除展示卡片");
   if (!id.trim() || id.length > 200) throw new Error("模板标识无效");
   const files = useWorkspaceFiles(templateDirectory);
-  const snapshot = await files.readTextSnapshot("removedTemplates.json").catch(error => { if (error.code !== "ENOENT") throw error; return undefined; });
+  const snapshot = await files.readTextSnapshot("removedTemplates.json").catch(error => { if (getWorkspaceFailure(error).code !== "ENOENT") throw error; return undefined; });
   const removed: unknown = snapshot ? JSON.parse(snapshot.text) : [];
   if (!Array.isArray(removed) || removed.some(value => typeof value !== "string")) throw new Error("模板删除记录无效");
-  if (currentAccount.value?.role !== "admin") throw new Error("账号已切换");
+  if (!canManageTemplates.value) throw new Error("账号已切换");
   const next = [...new Set([...removed, id])];
   if (snapshot) await files.writeTextSnapshot("removedTemplates.json", JSON.stringify(next), snapshot);
   else await files.writeJson("removedTemplates.json", next, true);

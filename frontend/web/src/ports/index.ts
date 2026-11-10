@@ -47,6 +47,9 @@ export interface StudioPort {
   loadPluginSource(url: string, kind: "node" | "editor"): Promise<string>;
   loadToolComponent(name: string): Promise<import("vue").Component | undefined>;
   createAssistantSession: StudioAction;
+  createWorkspace: StudioAction;
+  loadCreationState: StudioAction;
+  saveCreationState: StudioAction;
   controlAssistantSession: StudioAction;
   completeAssistantTool: StudioAction;
   addMediaProvider: StudioAction;
@@ -57,6 +60,7 @@ export interface StudioPort {
   chooseWorkspaceDirectory: StudioAction;
   connectAgent: StudioAction;
   copyWorkspaceFile: StudioAction;
+  copyAsset: StudioAction;
   createAssetFolder: StudioAction;
   createConversation: StudioAction;
   createPayment: StudioAction;

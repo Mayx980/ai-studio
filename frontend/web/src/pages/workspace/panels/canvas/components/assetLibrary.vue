@@ -71,7 +71,7 @@
 import { studio, isStudioError } from "@/ports";
 
 import saveAssetDialog, { type AssetSaveSource } from "@/components/saveAssetDialog.vue";
-import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { studioCreationMode } from "@/lib/browserWorkspaceFiles";
 import { browserAssetFiles, browserAssetMimeType, listBrowserAssets } from "@/lib/browserAssets";
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import axios from "axios";
@@ -99,7 +99,7 @@ onBeforeUnmount(() => { for (const release of assetReleases) release(); });
 async function selectAsset(entry: AssetEntry) {
   if (selecting.value) return;
   selecting.value = true;
-  try { const data = browserWorkspaceMode ? new Blob([await browserAssetFiles().read(entry.path)], { type: browserAssetMimeType(entry.path) }) : (await studio.readAsset<Blob>({ params: { path: entry.path }, responseType: "blob" })).data; emit("select", new File([data], entry.name, { type: data.type && data.type !== "application/octet-stream" ? data.type : mediaKind(entry) === "image" ? `image/${/\.jpe?g$/i.test(entry.name) ? "jpeg" : entry.name.split(".").pop()}` : mediaKind(entry) === "audio" ? "audio/mpeg" : "video/mp4" })); } catch (error) { showError(error); } finally { selecting.value = false; }
+  try { const data = studioCreationMode ? new Blob([await browserAssetFiles().read(entry.path)], { type: browserAssetMimeType(entry.path) }) : (await studio.readAsset<Blob>({ params: { path: entry.path }, responseType: "blob" })).data; emit("select", new File([data], entry.name, { type: data.type && data.type !== "application/octet-stream" ? data.type : mediaKind(entry) === "image" ? `image/${/\.jpe?g$/i.test(entry.name) ? "jpeg" : entry.name.split(".").pop()}` : mediaKind(entry) === "audio" ? "audio/mpeg" : "video/mp4" })); } catch (error) { showError(error); } finally { selecting.value = false; }
 }
 const visible = defineModel<boolean>({ default: false });
 const assetCategories = ["角色", "场景", "物品", "风格", "音效"];
@@ -118,7 +118,7 @@ let loadRequest = 0;
 onBeforeUnmount(() => { loadRequest++; });
 
 function assetUrl(path: string) {
-  if (browserWorkspaceMode) return assetUrls.value[path] || "";
+  if (studioCreationMode) return assetUrls.value[path] || "";
   return studio.assetMediaSource(path);
 }
 
@@ -239,8 +239,8 @@ const saveDialog = ref<InstanceType<typeof saveAssetDialog>>();
 async function loadEntries() {
   const request = ++loadRequest;
   try {
-    const data = browserWorkspaceMode ? { data: { entries: await listBrowserAssets() } } : (await studio.listAssets<{ data: { entries: AssetEntry[] } }>()).data;
-    if (browserWorkspaceMode) {
+    const data = studioCreationMode ? { data: { entries: await listBrowserAssets() } } : (await studio.listAssets<{ data: { entries: AssetEntry[] } }>()).data;
+    if (studioCreationMode) {
       const releases: (() => void)[] = [];
       const urls: Record<string, string> = {};
       const loadUrls = async (items: AssetEntry[]) => {
@@ -290,7 +290,7 @@ function selectFolder(entry: AssetEntry) {
 async function createAssetFolder(parent: string, name: string) {
   if (/[\\/]/.test(name)) throw new Error("文件夹名称不能包含斜杠");
   const path = parent === "." ? name : `${parent}/${name}`;
-  if (browserWorkspaceMode) await browserAssetFiles().mkdir(path);
+  if (studioCreationMode) await browserAssetFiles().mkdir(path);
   else await studio.createAssetFolder({ path });
   return path;
 }

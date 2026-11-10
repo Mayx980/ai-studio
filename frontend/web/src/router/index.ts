@@ -25,9 +25,16 @@ const router = createRouter({
     },
     {
       path: "/workspace",
+      beforeEnter: async () => {
+        if (!prototype.supportsCreation) return true;
+        const { useWorkspaceStore } = await import("@/stores/workspace");
+        const workspace = useWorkspaceStore();
+        if (workspace.project && !workspace.pendingCanvasEntry && !workspace.pendingAgentMessage && !workspace.pendingAgentSession) await workspace.restoreProjectEntry();
+        return true;
+      },
       component: () => import("@/pages/workspace/index.vue"),
     },
   ],
 });
-router.beforeEach(to => prototype.requiresAccount && to.path !== "/login" && !currentAccount.value ? { path: "/login", replace: true } : true);
+router.beforeEach(to => !prototype.requiresAccount && to.path === "/login" ? { path: "/home", replace: true } : prototype.requiresAccount && to.path !== "/login" && !currentAccount.value ? { path: "/login", replace: true } : true);
 export default router;

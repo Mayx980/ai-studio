@@ -74,10 +74,11 @@ import { isStudioError } from "@/ports";
 
 import { IconVector, IconFileText, IconPointer, IconHandStop, IconPlus, IconHelp, IconBook, IconBug, IconBrandWechat, IconBriefcase } from "@tabler/icons-vue";
 import { materialEditorState } from "@/stores/materialEditor";
-import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { studioCreationMode } from "@/lib/browserWorkspaceFiles";
 import { generateBrowserText, browserNodeAi } from "@/lib/browserNodeAi";
 import { browserConfig, browserResultFile, resolveBrowserModel, additionalBrowserModels, type ProfessionalCanvas, type BeginBrowserWorkflow, type BrowserConversationImport } from "@/stores/browserGeneration";
 import { computed, defineAsyncComponent, nextTick, onMounted, onScopeDispose, provide, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
+import { flushSharedState } from "@/stores/sharedState";
 import { onBeforeRouteLeave } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import shortcutHelp from "@/components/shortcutHelp.vue";
@@ -95,7 +96,7 @@ import { applyTemplateParameters, type TemplateApplication } from "@/lib/creatio
 provide("nodeAi", browserNodeAi);
 provide("optimizeNodePrompt", async (prompt: string, kind: "image" | "video" | "audio", signal: AbortSignal) => {
   const model = resolveBrowserModel("text");
-  const result = await generateBrowserText({ providerId: model.id, modelId: model.modelId, prompt,
+  const result = await generateBrowserText({ providerId: model.providerId, modelId: model.modelId, prompt,
     systemPrompt: `优化用于${({ image: "图片", video: "视频", audio: "音频" })[kind]}生成的提示词。保持用户意图、人物、场景、时长和全部引用标记（例如 {{ref 1}}）原样，改善表达和必要细节。只输出优化后的提示词，不要解释，不要编造引用或生成结果。`, signal });
   return result.text;
 });
@@ -194,7 +195,7 @@ async function applyAssistantTemplate(value: TemplateApplication) {
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "模板应用失败"); }
   finally { applyingAssistantTemplate = false; }
 }
-onMounted(() => { if (browserWorkspaceMode && !workspaceStore.project) void startNewProject("professional").catch(error => ElMessage.error(error.message)); });
+onMounted(() => { if (studioCreationMode && !workspaceStore.project) void startNewProject("professional").catch(error => ElMessage.error(error.message)); });
 watch(() => workspaceStore.pendingCanvasEntry, async entry => {
   if (!entry || entry.directory !== workspaceStore.project?.directory) return;
   workspaceStore.pendingCanvasEntry = null;
@@ -346,6 +347,7 @@ registerWorkspaceControl({
 async function flushSave() {
   await documentPanelRef.value?.flushSave();
   await canvasPanelRef.value?.flushSave();
+  await flushSharedState();
 }
 
 onBeforeRouteLeave(async () => {

@@ -4,9 +4,9 @@ import { StudioError, type StudioPort, type StudioResponse, type StudioNoticeFee
 import { loadToolComponent } from "@toonflow/tool-client";
 import { readEvents, openEvents } from "./streams";
 
-const applicationClient = axios.create();
-const workspaceClient = axios.create({ baseURL: "/api/workspaces/files", headers: { "x-toonflow-workspace": "1" } });
+const applicationClient = axios.create({ headers: { "x-toonflow-workspace": "1" } });
 const marketplaceClient = axios.create({ baseURL: "https://api.toonflow.net" });
+const workspaceClient = axios.create({ baseURL: "/api/workspaces/files", headers: { "x-toonflow-workspace": "1" } });
 
 for (const client of [axios, applicationClient, workspaceClient]) {
   client.interceptors.request.use(config => {
@@ -26,7 +26,16 @@ async function request<T>(client: AxiosInstance, method: string, url: string, in
   } catch (error) {
     if (!axios.isAxiosError(error)) throw error;
     const headers = Object.fromEntries(Object.entries(error.response?.headers ?? {}).map(([key, value]) => [key, String(value)]));
-    throw new StudioError(error.message, error.response?.data, error.response?.status, headers, axios.isCancel(error), error.code);
+    let detail = error.response?.data;
+    if (typeof detail === "string") {
+      try { detail = JSON.parse(detail); }
+      catch { /* ACT: 非 JSON 文本保留原传输错误，不伪造业务错误码。 */ }
+    }
+    if (detail instanceof ArrayBuffer || ArrayBuffer.isView(detail) || detail instanceof Blob) {
+      try { detail = JSON.parse(detail instanceof Blob ? await detail.text() : new TextDecoder().decode(detail)); }
+      catch { detail = undefined; }
+    }
+    throw new StudioError(error.message, detail, error.response?.status, headers, axios.isCancel(error), error.code);
   }
 }
 
@@ -94,17 +103,21 @@ export function createProductionPort(): StudioPort {
     controlAssistantSession: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/singleAgent/control", inputs),
     completeAssistantTool: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/singleAgent/toolResult", inputs),
     createAssistantSession: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/singleAgent/create", inputs),
+    createWorkspace: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/workspaces/create", inputs),
+    loadCreationState: <T>(...inputs: unknown[]) => request<T>(applicationClient, "get", "/api/studio/state/get", inputs),
+    saveCreationState: <T>(...inputs: unknown[]) => request<T>(applicationClient, "put", "/api/studio/state/save", inputs),
     addMediaProvider: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/providers/media/add", inputs),
-    browseMarketplace: <T>(...inputs: unknown[]) => request<T>(marketplaceClient, "post", "/v1/plugin/getPlugin", inputs),
+    browseMarketplace: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/marketplace/browse", inputs),
     chooseDownloadDestination: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/desktop/selectSaveFile", inputs),
     chooseLocalDirectory: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/desktop/selectDirectory", inputs),
     chooseProviderDocument: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/desktop/providerFile/select", inputs),
     chooseWorkspaceDirectory: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/workspaces/selectDirectory", inputs),
     connectAgent: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/agents/connect", inputs),
+    copyAsset: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/assets/copy", inputs),
     copyWorkspaceFile: <T>(...inputs: unknown[]) => request<T>(workspaceClient, "post", "/copy", inputs),
     createAssetFolder: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/assets/mkdir", inputs),
     createConversation: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/agent/create", inputs),
-    createPayment: <T>(...inputs: unknown[]) => request<T>(marketplaceClient, "post", "/v1/recharge/pay", inputs),
+    createPayment: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/marketplace/payment", inputs),
     createSkillFile: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/skills/create", inputs),
     createWorkspaceFolder: <T>(...inputs: unknown[]) => request<T>(workspaceClient, "post", "/mkdir", inputs),
     disconnectDevice: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/mobileLink/revoke", inputs),
@@ -123,7 +136,7 @@ export function createProductionPort(): StudioPort {
     listInstalledPlugins: <T>(selection0: unknown, selection1: unknown, ...inputs: unknown[]) => request<T>(applicationClient, "get", `/api/${selection0}/${selection1}`, inputs),
     listInstalledTools: <T>(...inputs: unknown[]) => request<T>(applicationClient, "get", "/api/tools/get", inputs),
     listMediaProviders: <T>(...inputs: unknown[]) => request<T>(applicationClient, "get", "/api/providers/media/list", inputs),
-    listPaymentOptions: <T>(...inputs: unknown[]) => request<T>(marketplaceClient, "get", "/v1/recharge/getRechargeData", inputs),
+    listPaymentOptions: <T>(...inputs: unknown[]) => request<T>(applicationClient, "get", "/api/marketplace/options", inputs),
     listSkillFiles: <T>(...inputs: unknown[]) => request<T>(applicationClient, "get", "/api/skills/list", inputs),
     listSponsors: <T>(...inputs: unknown[]) => request<T>(marketplaceClient, "post", "/web/sponsor/getSponsorList", inputs),
     listWorkspaceDirectories: <T>(...inputs: unknown[]) => request<T>(applicationClient, "get", "/api/workspaces/list", inputs),
@@ -138,7 +151,7 @@ export function createProductionPort(): StudioPort {
     loadMediaToolProgress: <T>(...inputs: unknown[]) => request<T>(applicationClient, "get", "/api/ffmpeg/progress", inputs),
     loadMediaToolStatus: <T>(...inputs: unknown[]) => request<T>(applicationClient, "get", "/api/ffmpeg/status", inputs),
     loadMentionContent: <T>(...inputs: unknown[]) => request<T>(applicationClient, "get", "/api/agent/mentionSource", inputs),
-    loadPaymentStatus: <T>(...inputs: unknown[]) => request<T>(marketplaceClient, "get", "/v1/recharge/queryOrder", inputs),
+    loadPaymentStatus: <T>(...inputs: unknown[]) => request<T>(applicationClient, "get", "/api/marketplace/order", inputs),
     loadPersonalization: <T>(...inputs: unknown[]) => request<T>(applicationClient, "get", "/api/settings/personalization/get", inputs),
     loadProviderBalance: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/ai/media/balance", inputs),
     loadToolConnection: <T>(...inputs: unknown[]) => request<T>(applicationClient, "get", "/api/mcp/status", inputs),
@@ -179,7 +192,7 @@ export function createProductionPort(): StudioPort {
     savePluginConfiguration: <T>(selection0: unknown, ...inputs: unknown[]) => request<T>(applicationClient, "put", `/api/${selection0}/save`, inputs),
     saveSkillFile: <T>(...inputs: unknown[]) => request<T>(applicationClient, "put", "/api/skills/save", inputs),
     setPluginEnabled: <T>(selection0: unknown, ...inputs: unknown[]) => request<T>(applicationClient, "put", `/api/${selection0}/setEnabled`, inputs),
-    toggleMarketplaceCollection: <T>(...inputs: unknown[]) => request<T>(marketplaceClient, "post", "/v1/plugin/toggleCollection", inputs),
+    toggleMarketplaceCollection: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/marketplace/collection", inputs),
     validateMediaProvider: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/providers/media/validate", inputs),
     writeClipboard: <T>(...inputs: unknown[]) => request<T>(applicationClient, "post", "/api/desktop/clipboard/write", inputs),
     writeWorkspaceFile: <T>(...inputs: unknown[]) => request<T>(workspaceClient, "put", "/write", inputs),

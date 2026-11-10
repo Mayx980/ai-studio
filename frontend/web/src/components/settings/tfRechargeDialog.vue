@@ -67,7 +67,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { IconBrandAlipay, IconBrandWechat, IconCreditCard, IconExternalLink, IconRefresh } from "@tabler/icons-vue";
 import tf, { type TfPayment, type TfPayParams, type TfRechargeSku } from "@/lib/tf";
 
-const props = defineProps<{ apiKey: string }>();
+const props = defineProps<{ apiKey: string; apiKeyConfigured?: boolean }>();
 const visible = defineModel<boolean>({ default: false });
 const amount = ref<number>();
 const skus = ref<TfRechargeSku[]>([]);
@@ -81,7 +81,7 @@ const creating = ref(false);
 const errorMessage = ref("");
 const moneyFormat = computed(() => new Intl.NumberFormat(locale.value, { style: "currency", currency: "CNY" }));
 const selectedAmount = computed(() => selectedSkuId.value === -1 ? amount.value : skus.value.find(sku => sku.id === selectedSkuId.value)?.price);
-const canPay = computed(() => !!props.apiKey.trim() && !loadingSkus.value && typeof selectedAmount.value === "number"
+const canPay = computed(() => (props.apiKeyConfigured || !!props.apiKey.trim()) && !loadingSkus.value && typeof selectedAmount.value === "number"
   && Number.isFinite(selectedAmount.value) && selectedAmount.value >= 0.01 && (selectedSkuId.value !== -1 || selectedAmount.value <= 50000));
 const paymentLink = computed(() => {
   const url = payment.value?.payUrl;
@@ -92,13 +92,13 @@ let skuController: AbortController | undefined;
 
 async function loadSkus() {
   skuController?.abort();
-  if (!visible.value || !props.apiKey.trim()) return;
+  if (!visible.value || !(props.apiKeyConfigured || props.apiKey.trim())) return;
   const request = new AbortController();
   skuController = request;
   loadingSkus.value = true;
   skuError.value = "";
   try {
-    const result = await tf.getRechargeData({ apiKey: props.apiKey, signal: request.signal });
+    const result = await tf.getRechargeData({ ...(props.apiKey ? { apiKey: props.apiKey } : {}), signal: request.signal });
     if (request.signal.aborted) return;
     skus.value = result;
     selectedSkuId.value = result[0]?.id ?? -1;
@@ -122,7 +122,7 @@ async function createPayment() {
   errorMessage.value = "";
   const money = selectedAmount.value!;
   try {
-    const result = await tf.pay({ comboId: selectedSkuId.value, ...(selectedSkuId.value === -1 ? { customMoney: money } : {}), payType: payType.value }, { apiKey: props.apiKey, signal: request.signal });
+    const result = await tf.pay({ comboId: selectedSkuId.value, ...(selectedSkuId.value === -1 ? { customMoney: money } : {}), payType: payType.value }, { ...(props.apiKey ? { apiKey: props.apiKey } : {}), signal: request.signal });
     if (request.signal.aborted) return;
     paymentAmount.value = money;
     payment.value = result;

@@ -1,6 +1,9 @@
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
+import { studio } from "@/ports";
+import { browserWorkspaceMode } from "./browserWorkspaceFiles";
 import useWorkspaceFiles from "./workspaceFiles";
 import { useAssetStore } from "@/stores/assets";
-export const browserAssetsDirectory = "browser://personalAssets";
+export const browserAssetsDirectory = browserWorkspaceMode ? "browser://personalAssets" : "studio://assets";
 export function requiresAssetFolder(path: string, mimeType = browserAssetMimeType(path)) { return /^(image|video)\//.test(mimeType); }
 function validateAssetLocation(path: string, mimeType?: string) {
   const normalized = path.replaceAll("\\", "/").split("/").filter(part => part && part !== ".").join("/");
@@ -30,11 +33,11 @@ export function ensureAssetFolders() {
     const { entries } = await files.list();
     const looseMedia = entries.filter(entry => entry.type === "file" && requiresAssetFolder(entry.name));
     if (!looseMedia.length && entries.some(entry => entry.type === "directory")) return;
-    await files.mkdir("未分类").catch(error => { if (error.code !== "EEXIST") throw error; });
+    await files.mkdir("未分类").catch(error => { if (getWorkspaceFailure(error).code !== "EEXIST") throw error; });
     for (const entry of looseMedia) {
       let target = `未分类/${entry.name}`;
       try { await files.rename(entry.path, target); }
-      catch (error) { if ((error as { code?: string }).code !== "EEXIST") throw error; target = `未分类/${crypto.randomUUID()}-${entry.name}`; await files.rename(entry.path, target); }
+      catch (error) { if (getWorkspaceFailure(error).code !== "EEXIST") throw error; target = `未分类/${crypto.randomUUID()}-${entry.name}`; await files.rename(entry.path, target); }
       if (assets.tags[entry.path]) { assets.tags[target] = assets.tags[entry.path]; delete assets.tags[entry.path]; }
       if (assets.metadata[entry.path]) { assets.metadata[target] = assets.metadata[entry.path]; delete assets.metadata[entry.path]; }
     }
@@ -44,6 +47,7 @@ export function ensureAssetFolders() {
 export type BrowserAssetEntry = { name: string; path: string; type: "file" | "directory"; children?: BrowserAssetEntry[] };
 export async function listBrowserAssets(path = ""): Promise<BrowserAssetEntry[]> {
   await ensureAssetFolders();
+  if (!browserWorkspaceMode) return (await studio.listAssets<{ data: { entries: BrowserAssetEntry[] } }>({ params: { path, recursive: true } })).data.data.entries;
   async function collect(folder: string): Promise<BrowserAssetEntry[]> {
     const { entries } = await browserAssetFiles().list(folder);
     return Promise.all(entries.map(async entry => ({ ...entry, ...(entry.type === "directory" ? { children: await collect(entry.path) } : {}) })));

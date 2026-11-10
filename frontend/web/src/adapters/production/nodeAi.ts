@@ -1,5 +1,6 @@
 import { EventSourceParserStream } from "eventsource-parser/stream";
 import type { NodeAiPort, NodeAiHostEvent, NodeMediaPrice } from "@toonflow/nodes-scaffold/nodeAi";
+import { ElMessage } from "element-plus";
 
 async function readResult<T>(response: Response): Promise<T> {
   const result = await response.json();
@@ -40,9 +41,11 @@ export function createNodeAiPort(): NodeAiPort {
       }).then(readResult<NodeMediaPrice | null>);
     },
     async generateMedia(mediaType, input, signal) {
-      return readResult(await fetch("/api/ai/media/generate", {
+      const files = await readResult<{ path: string; mimeType: string; mediaType: typeof mediaType; warning?: string }[]>(await fetch("/api/ai/media/generate", {
         method: "POST", headers: { "Content-Type": "application/json", "x-toonflow-workspace": "1" }, body: JSON.stringify({ ...input, mediaType }), signal,
       }));
+      for (const warning of new Set(files.flatMap(file => file.warning ? [file.warning] : []))) ElMessage({ type: "warning", message: warning, duration: 0, showClose: true });
+      return files;
     },
   };
 }

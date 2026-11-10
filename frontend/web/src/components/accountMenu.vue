@@ -3,10 +3,12 @@
     <el-button class="userCenterButton" text aria-label="用户中心"><icon-user :size="20" /><span class="userCenterText"><strong class="userCenterLabel">用户中心</strong><small class="accountName">{{ currentAccount.name }}</small></span></el-button>
     <template #dropdown><el-dropdown-menu><el-dropdown-item command="settings">外观与设置</el-dropdown-item><el-dropdown-item command="switch">切换账号</el-dropdown-item><el-dropdown-item command="logout">退出登录</el-dropdown-item></el-dropdown-menu></template>
   </el-dropdown>
+  <el-button v-else-if="!prototype.requiresAccount" text aria-label="共享工作区设置" @click="emit('openSettings')"><icon-settings :size="20" /><span>设置</span></el-button>
 </template>
 <script setup lang="ts">
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
+import { prototype } from "@/ports/prototype";
 import { currentAccount, signOutPrototype } from "@/stores/prototypeAccount";
 const router = useRouter();
 const emit = defineEmits<{ openSettings: [] }>();

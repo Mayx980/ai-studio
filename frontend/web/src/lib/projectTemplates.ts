@@ -1,3 +1,5 @@
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
+import { studio } from "@/ports";
 import { curatedCreatorTemplate, curatedCreatorFiles } from "./curatedProject";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
@@ -45,13 +47,12 @@ function validateCanvasSnapshot(contents: Map<string, ArrayBuffer>, project: Tem
   }
 }
 export async function captureTemplateProject(directory: string) {
-  if (!browserWorkspaceMode || !directory.startsWith("browser://")) throw new Error("项目模板目前支持当前浏览器内的项目");
   const files = useWorkspaceFiles(directory), paths = await collectPaths(directory);
   const canvases = await readCanvasFiles(files);
   if (!canvases.length || !canvases.some(canvas => canvas.data.nodes.length)) throw new Error("项目中没有可保存的画布节点");
   const contents = new Map<string, ArrayBuffer>(), manifest: TemplateProject = { files: [], canvases: canvases.map(canvas => canvas.id) };
   const pathSet = new Set(paths);
-  // ACT: 当前浏览器项目规模采用完整文件快照，包含未被当前节点选中的历史素材；排除 Agent 会话与内存凭据。
+  // ACT: 当前项目规模采用完整文件快照，包含未被当前节点选中的历史素材；排除 Agent 会话与内存凭据。
   for (const path of paths) {
     const bytes = await files.read(path);
     if (path.endsWith(".json")) validateReferences(JSON.parse(new TextDecoder().decode(bytes)), pathSet);
@@ -92,9 +93,9 @@ export async function readTemplateProject(template: CreationTemplate) {
   return { contents, project };
 }
 export async function copyTemplateProject(template: CreationTemplate) {
-  if (!browserWorkspaceMode) throw new Error("项目模板复制目前仅支持浏览器项目");
   const { contents, project } = await readTemplateProject(template);
-  const directory = `browser://${crypto.randomUUID()}`, files = useWorkspaceFiles(directory);
+  const directory = browserWorkspaceMode ? `browser://${crypto.randomUUID()}` : (await studio.createWorkspace<{ data: { directory: string } }>({ name: template.name, initializeCanvas: false })).data.data.directory;
+  const files = useWorkspaceFiles(directory);
   const created: string[] = [], directories = new Set<string>();
   try {
     await files.list();
@@ -113,7 +114,7 @@ export async function copyTemplateProject(template: CreationTemplate) {
   } catch (error) {
     let cleanupFailed = false;
     for (const path of [...created, ...[...directories].sort((a, b) => b.length - a.length)]) {
-      await files.remove(path, true).catch(error => { if (error.code !== "ENOENT") cleanupFailed = true; });
+      await files.remove(path, true).catch(error => { if (getWorkspaceFailure(error).code !== "ENOENT") cleanupFailed = true; });
     }
     throw new Error(`${error instanceof Error ? error.message : "复制项目失败"}${cleanupFailed ? "；部分临时文件清理失败，项目未加入列表" : "；未创建可打开的项目"}`);
   }

@@ -1,5 +1,6 @@
 import { studio } from "@/ports";
 import { prototype } from "@/ports/prototype";
+import { loadSharedState, sharedStorage, sharedStoreKeys } from "@/stores/sharedState";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import axios from "axios";
 import { normalizeLocale } from "@toonflow/i18n";
@@ -18,6 +19,7 @@ let applyingSettings = false;
 
 export const settingsStorage = {
   getItem(key: string) {
+    if (!browserWorkspaceMode && sharedStoreKeys.includes(key)) return sharedStorage.getItem(key);
     if (browserWorkspaceMode && localStorage.getItem(key) !== null) return localStorage.getItem(key);
     const stores = settings.value.stores as Record<string, unknown> | undefined;
     if (stores && Object.hasOwn(stores, key)) return JSON.stringify(stores[key]);
@@ -27,6 +29,7 @@ export const settingsStorage = {
     return value;
   },
   setItem(key: string, value: string) {
+    if (!browserWorkspaceMode && sharedStoreKeys.includes(key)) { sharedStorage.setItem(key, value); return; }
     if (browserWorkspaceMode) { localStorage.setItem(key, value); return; }
     settings.value.stores = { ...(settings.value.stores as Record<string, unknown> | undefined), [key]: JSON.parse(value) };
   },
@@ -93,13 +96,13 @@ export const privacySettings = computed(() => {
 });
 
 export type CustomProviderModel = { id: string; label: string; contextWindow?: number; maxOutputTokens?: number };
-export type CustomProvider = { id: string; label: string; icon?: string; version?: string; apiUrl: string; apiKey: string; protocol: string; models: CustomProviderModel[] };
+export type CustomProvider = { id: string; label: string; icon?: string; version?: string; apiUrl: string; apiKey?: string; apiKeyConfigured?: boolean; protocol: string; models: CustomProviderModel[] };
 export const customProviders = computed<CustomProvider[]>(() => Array.isArray(settings.value.customProviders)
   ? settings.value.customProviders.filter((item): item is CustomProvider => !!item && typeof item.id === "string" && typeof item.label === "string" && Array.isArray(item.models)
     && item.models.every((model: CustomProviderModel) => !!model && typeof model.id === "string" && typeof model.label === "string"))
   : []);
 
-export const modelChoices = computed(() => customProviders.value.flatMap(provider => provider.models.map(model => ({
+export const modelChoices = computed(() => customProviders.value.filter(provider => provider.apiKeyConfigured).flatMap(provider => provider.models.map(model => ({
   value: JSON.stringify([provider.id, model.id]), providerId: provider.id, modelId: model.id, label: model.label, contextWindow: model.contextWindow,
 }))));
 
@@ -126,6 +129,7 @@ export async function loadSettings() {
     settings.value = { ...settings.value, ui: { ...ui, theme: "dark", themePreset: "black" } };
     await saveSettings();
   }
+  if (!browserWorkspaceMode) await loadSharedState();
   // 等初始化引发的监听执行完，再允许自动保存。
   await nextTick();
   settingsReady = true;
@@ -136,20 +140,29 @@ export function saveSettings(update?: (current: Record<string, unknown>) => Reco
   const saving = saveQueue.then(async () => {
     const patch = update?.(settings.value);
     if (update && !patch) return false;
-    if (browserWorkspaceMode) {
+    if (browserWorkspaceMode && (!patch || Object.keys(patch).every(key => ["ui", "general", "privacy"].includes(key)))) {
       if (patch) settings.value = { ...settings.value, ...patch };
       const preferences = Object.fromEntries(["ui", "general", "privacy"].filter(key => settings.value[key] !== undefined).map(key => [key, settings.value[key]]));
       localStorage.setItem("aiStudio.preferences", JSON.stringify(preferences));
       return true;
     }
     const requestedNodeMenu = JSON.stringify(((patch?.general ?? settings.value.general) as { nodeMenu?: unknown } | undefined)?.nodeMenu);
-    const { data } = await studio.saveApplicationSettings<{ code: number; data: { customProviders?: CustomProvider[]; mediaProvider?: { id: string }; modelRefreshErrors?: string[]; nodeMenu?: StoredNodeMenuItem[] | null } | null }>({ settings: { ...settings.value, ...patch } }, { headers: { "x-toonflow-workspace": "1" } });
+    const { data } = await studio.saveApplicationSettings<{ code: number; data: { settings: Record<string, unknown>; customProviders?: CustomProvider[]; mediaProvider?: { id: string }; modelRefreshErrors?: string[]; nodeMenu?: StoredNodeMenuItem[] | null } | null }>({ settings: { ...settings.value, ...patch } }, { headers: { "x-toonflow-workspace": "1" } });
     if (data.code !== 200) throw new Error("保存设置失败");
+    if (!data.data?.settings || typeof data.data.settings !== "object" || Array.isArray(data.data.settings)) throw new Error("设置已提交，但未收到脱敏配置，请刷新后继续");
     const providers = data.data?.customProviders;
     if ((patch && Object.hasOwn(patch, "customProviders")) || providers) invalidateNodeModels("language");
     if (patch || providers) {
       applyingSettings = true;
-      try { settings.value = { ...settings.value, ...patch, ...(providers ? { customProviders: providers } : {}) }; }
+      try {
+        const next = { ...settings.value, ...patch };
+        // ACT: 凭据只存在于本次提交参数，Store 使用服务端回读的脱敏配置。
+        for (const key of ["customProviders", "mediaProviderConfigs"]) {
+          if (Object.hasOwn(data.data.settings, key)) next[key] = data.data.settings[key];
+          else delete next[key];
+        }
+        settings.value = next;
+      }
       finally { applyingSettings = false; }
     }
     if (data.data && Object.hasOwn(data.data, "nodeMenu")

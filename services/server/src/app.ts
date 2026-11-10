@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { readFile } from "@toonflow/file";
 import type { Request, Response, NextFunction } from "express";
 import buildRoute from "@/core";
+import { redactMessage } from "@/utils/conf/providerCredentials";
 import { errorFromCause } from "@/lib/responseFormat";
 import desktopRequest from "@/lib/desktop";
 import { getRuntimePlatform } from "@/lib/platform";
@@ -107,8 +108,11 @@ export async function createApp({
   // 错误处理
   app.use((err: Error & { status?: number }, request: Request, response: Response, next: NextFunction) => {
     if (response.headersSent) return next(err);
-    console.error(err);
+    const credentials = conf.get("settings", {});
+    const extra = typeof response.locals.requestApiKey === "string" ? [response.locals.requestApiKey] : [];
+    console.error(redactMessage(err.stack || err.message, credentials, extra));
     const body = errorFromCause(err);
+    body.message = redactMessage(body.message, credentials, extra);
     response.status(body.code).json(body);
   });
 

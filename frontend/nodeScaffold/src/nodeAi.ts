@@ -27,13 +27,13 @@ export type NodeImageRequest = {
   ratio?: string;
   size?: string;
 };
-export type NodeImageResult = { path: string; mimeType: string; mediaType: "image" };
+export type NodeImageResult = { path: string; mimeType: string; mediaType: "image"; warning?: string };
 export type NodeVideoRequest = Omit<MediaGenerationRequest, "size"> & { directory: string; outputDirectory: string };
-export type NodeVideoResult = { path: string; mimeType: string; mediaType: "video" };
+export type NodeVideoResult = { path: string; mimeType: string; mediaType: "video"; warning?: string };
 export type NodeMediaPriceRequest = (NodeImageRequest & { mediaType: "image" }) | (NodeVideoRequest & { mediaType: "video" }) | (NodeAudioRequest & { mediaType: "audio" });
 export type NodeMediaPrice = { price: string; tips: string };
 export type NodeAudioRequest = Pick<MediaGenerationRequest, "providerId" | "modelId" | "prompt" | "images" | "audios" | "voice" | "speed" | "volume" | "pitch" | "language" | "format" | "sampleRate"> & { directory: string; outputDirectory: string };
-export type NodeAudioResult = { path: string; mimeType: string; mediaType: "audio" };
+export type NodeAudioResult = { path: string; mimeType: string; mediaType: "audio"; warning?: string };
 export type NodeAiRequest = {
   providerId: string;
   modelId: string;
@@ -64,7 +64,7 @@ export interface NodeAiPort {
   loadModels(kind: "language" | "media"): Promise<unknown[]>;
   streamText(input: { providerId: string; modelId: string; context: Context; directory?: string; references?: NodeAiRequest["references"] }, signal: AbortSignal): AsyncIterable<NodeAiHostEvent>;
   quoteMedia(input: NodeMediaPriceRequest, signal: AbortSignal): Promise<NodeMediaPrice | null>;
-  generateMedia<T extends "image" | "video" | "audio">(mediaType: T, input: NodeImageRequest | NodeVideoRequest | NodeAudioRequest, signal: AbortSignal): Promise<{ path: string; mimeType: string; mediaType: T }[]>;
+  generateMedia<T extends "image" | "video" | "audio">(mediaType: T, input: NodeImageRequest | NodeVideoRequest | NodeAudioRequest, signal: AbortSignal): Promise<{ path: string; mimeType: string; mediaType: T; warning?: string }[]>;
 }
 
 const aiPortKey = Symbol.for("toonflow.nodeAiPort");
@@ -186,7 +186,12 @@ export function useNodeAi() {
   const adapter = inject<NodeAiAdapter | undefined>("nodeAi", undefined);
   const controller = new AbortController();
   onScopeDispose(() => controller.abort());
-  const requestSignal = (signal?: AbortSignal) => signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
+  return createNodeAi(adapter, controller.signal);
+}
+
+// 非组件宿主复用同一模型协议，生命周期由请求自己的 signal 管理。
+export function createNodeAi(adapter?: NodeAiAdapter, lifecycle = new AbortController().signal) {
+  const requestSignal = (signal?: AbortSignal) => signal ? AbortSignal.any([lifecycle, signal]) : lifecycle;
 
   async function getModels(signal?: AbortSignal) {
     if (adapter) return adapter.enabled() ? adapter.getModels(requestSignal(signal)) : [];

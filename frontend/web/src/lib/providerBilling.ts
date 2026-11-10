@@ -1,7 +1,7 @@
 import { studio, isStudioError, type StudioNoticeFeed } from "@/ports";
 import { computed, onScopeDispose, ref, watch } from "vue";
 import type { ProviderBalance } from "@toonflow/providers";
-import { getTfApiKey } from "@/lib/tf";
+import { getTfApiKey, hasTfApiKey } from "@/lib/tf";
 import { saveSettings, settings } from "@/stores/settings";
 import { useWorkspaceStore } from "@/stores/workspace";
 
@@ -59,7 +59,7 @@ export function refreshProviderBalance(providerId: string, signal?: AbortSignal)
   request.pending = (async () => {
     try {
       await getProviderBalance(providerId, {
-        ...(providerId === "tfRouter" ? { apiKey: tfBalanceApiKey.value } : {}), signal: request.signal,
+        ...(providerId === "tfRouter" && tfBalanceApiKey.value ? { apiKey: tfBalanceApiKey.value } : {}), signal: request.signal,
       });
     } catch (error) {
       if (!request.signal.aborted && providerBalances.value.includes(entry)) {
@@ -105,7 +105,7 @@ export function useProviderBalances() {
       const config = { ...configs?.[provider.id], ...(provider.id === "tfRouter" ? { apiKey: tfBalanceApiKey.value } : {}) };
       const configKey = JSON.stringify(config);
       const previous = previousEntries.get(provider.id);
-      const configured = provider.id !== "tfRouter" || !!tfBalanceApiKey.value;
+      const configured = provider.id === "tfRouter" ? hasTfApiKey() : configs?.[provider.id]?.apiKeyConfigured === true;
       if (previous?.configKey === configKey) {
         Object.assign(previous, { label: provider.label, configured });
         return previous;
@@ -207,7 +207,7 @@ export function useProviderBalances() {
     scheduleRefresh();
   }
   watch(() => providerBalances.value.map(entry => entry.accountId).join(","), scheduleSubscribe);
-  watch(() => JSON.stringify([tfBalanceApiKey.value, settings.value.mediaProviderConfigs]), invalidate, { immediate: true, flush: "sync" });
+  watch(() => JSON.stringify([tfBalanceApiKey.value, hasTfApiKey(), settings.value.mediaProviderConfigs]), invalidate, { immediate: true, flush: "sync" });
   watch(() => workspaceStore.project?.lastOpenedAt, scheduleRefresh);
   const refreshProvider = (event: WindowEventMap["toonflow:plugin-installed"]) => {
     if (event.detail.type === "provider") invalidate();

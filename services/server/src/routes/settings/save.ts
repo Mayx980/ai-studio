@@ -18,11 +18,15 @@ export default router.put("/", validateFields({ settings: z.record(z.string(), z
   path: ["desktopUpdateCustomUrl"], message: "选择自定义更新源前，请先填写有效地址",
 }) }), async (req, res) => {
   u.mcpControl.assertAppRequest(req);
-  const { settings } = req.body;
+  const previousSettings = u.conf.get("settings", {});
+  const settings = u.providerCredentials.prepareSettings(req.body.settings, previousSettings);
   u.removeLegacySettings(settings);
   u.cleanNodeMenuSettings(settings);
-  const previousSettings = u.conf.get("settings", {});
   u.conf.set("settings", settings);
   const [models] = await Promise.all([u.ai.refreshProviderModels(previousSettings), u.mcpRuntime.reloadMcpRuntime()]);
-  res.json(success({ ...models, nodeMenu: u.conf.get("settings.general.nodeMenu") ?? null }, "设置已保存"));
+  res.json(success({
+    ...u.providerCredentials.publicSettings(models, u.conf.get("settings", {})),
+    settings: u.providerCredentials.publicSettings(u.conf.get("settings", {})),
+    nodeMenu: u.conf.get("settings.general.nodeMenu") ?? null,
+  }, "设置已保存"));
 });

@@ -38,6 +38,7 @@ async function notifyDesktopReady(failed = false) {
   : requiresMobileWebViewUpdate
   ? Promise.reject(new Error("当前移动端浏览器内核缺少 AFXEN 所需能力。请更新 AFXEN 和系统浏览器内核；部分系统需要通过系统更新升级。更新完成后，请完全退出并重新打开 AFXEN。"))
   : loadSettings()).then(async () => {
+  await (await import("@/stores/browserGeneration")).loadServerModels();
   app.use(createPinia().use(createPersistedState({ storage: settingsStorage })));
   app.use(router);
   await router.isReady();

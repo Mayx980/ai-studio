@@ -28,18 +28,18 @@
           </span>
         </el-button>
       </div>
-      <div class="sectionLabel">生成数量</div><el-radio-group v-model="count" :disabled="disabled" aria-label="图片生成数量"><el-radio-button v-for="item in 6" :key="item" :value="item">{{ item }}</el-radio-button></el-radio-group>
+      <div class="sectionLabel">生成数量</div><el-radio-group v-model="count" :disabled="disabled" aria-label="图片生成数量"><el-radio-button v-for="item in counts" :key="item" :value="item">{{ item }}</el-radio-button></el-radio-group>
     </div>
   </el-popover>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { imageDimensions, imageClaritySizes } from "@toonflow/node-shared/generationDefaults";
+import { imageClaritySizes } from "@toonflow/node-shared/generationDefaults";
 import { ElButton, ElPopover, ElRadioGroup, ElRadioButton } from "element-plus";
 import { IconChevronDown, IconChevronUp } from "@tabler/icons-vue";
 
-const props = defineProps<{ sizes: string[]; ratios: string[]; disabled?: boolean }>();
+const props = defineProps<{ sizes: string[]; ratios: string[]; counts: number[]; disabled?: boolean }>();
 const settingsVisible = ref(false);
 const count = defineModel<number>("count", { default: 1 });
 const size = defineModel<string>("size", { required: true });
@@ -47,10 +47,10 @@ const ratio = defineModel<string>("ratio", { required: true });
 
 const visibleSizes = computed(() => {
   const sizes = Object.values(imageClaritySizes).flatMap(value => value[ratio.value] && props.sizes.includes(value[ratio.value]!) ? [value[ratio.value]!] : []);
-  return sizes.length ? sizes : imageDimensions[ratio.value] ?? props.sizes;
+  return sizes.length ? sizes : props.sizes;
 });
 function sizeLabel(value: string) { return Object.entries(imageClaritySizes).find(([, sizes]) => sizes[ratio.value] === value)?.[0].toLowerCase() ?? value; }
-const visibleRatios = computed(() => Object.keys(imageDimensions).filter(value => props.ratios.includes(value)));
+const visibleRatios = computed(() => props.ratios);
 watch(ratio, (_, previous) => { const clarity = Object.values(imageClaritySizes).find(value => value[previous] === size.value); const mapped = clarity?.[ratio.value]; if (mapped && visibleSizes.value.includes(mapped)) size.value = mapped; else if (!visibleSizes.value.includes(size.value)) size.value = visibleSizes.value[0]!; });
 function ratioStyle(value: string) {
   const [width = 1, height = 1] = value.split(":").map(Number);

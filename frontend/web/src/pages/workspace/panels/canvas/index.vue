@@ -124,6 +124,7 @@
 </template>
 
 <script setup lang="ts">
+import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { studio, isStudioError } from "@/ports";
 
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
@@ -186,8 +187,9 @@ import { useWorkspaceStore } from "@/stores/workspace";
 import { generalSettings } from "@/stores/settings";
 import { getShortcutBindings, shortcutLabel, shortcutMatches, shortcutPressed } from "@/lib/canvasShortcuts";
 import { waitForControlValue } from "@/lib/mcpControl";
+import type { TextSnapshot } from "@/lib/workspaceFiles";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
-import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
+import { studioCreationMode } from "@/lib/browserWorkspaceFiles";
 import { captureGenerationCanvas, registerGenerationCanvas } from "@/lib/canvasGeneration";
 import anonymousData from "@/lib/anonymousData";
 import { createClipboardMediaFile, dropCanvasFiles, getClipboardMediaFiles, importCanvasFiles, isCanvasFileDrag } from "./canvasDrop";
@@ -210,6 +212,8 @@ const { project } = storeToRefs(useWorkspaceStore());
 const canvasElement = ref<HTMLElement>();
 const flowData = ref<(Node | Edge)[]>([]);
 const canvasId = ref("");
+let canvasSnapshot: TextSnapshot | undefined;
+provide("registerCanvasSnapshot", (snapshot: TextSnapshot) => { canvasSnapshot = snapshot; });
 const nodeMenuRef = ref<InstanceType<typeof nodeMenu>>();
 const canvasMenuRef = ref<InstanceType<typeof canvasMenu>>();
 const canvasControlsRef = ref<InstanceType<typeof canvasControls>>();
@@ -293,7 +297,7 @@ provide("copyNodeToClipboard", async (node: Parameters<typeof copyNodeToClipboar
 provide("retainNodeFiles", true);
 provide("backgroundNodeGeneration", () => {
   const directory = project.value?.directory, path = canvasId.value;
-  if (!browserWorkspaceMode || !directory || !path) return;
+  if (!studioCreationMode || !directory || !path) return;
   return captureGenerationCanvas(directory, path, async () => { saveCanvas.flush(); await saving; await flushing; });
 });
 watch(() => [project.value?.directory, canvasId.value], ([directory, path], _previous, cleanup) => {
@@ -402,7 +406,7 @@ async function importConversationTurn(turn: BrowserConversationImport) {
     const data = browserNodeDefaults(result.kind, result.settings);
     if (!result.settings && result.model) {
       const match = configuredBrowserModels(result.kind).find(model => model.label === result.model || model.modelId === result.model);
-      if (match) { data.model = JSON.stringify([match.id, match.modelId]); data.modelLabel = match.label; }
+      if (match) { data.model = JSON.stringify([match.providerId, match.modelId]); data.modelLabel = match.label; }
     }
     return data;
   });
@@ -456,7 +460,7 @@ async function importConversationTurn(turn: BrowserConversationImport) {
   } catch (error) {
     flow.removeNodes(created);
     await nextTick();
-    const cleanup = await Promise.allSettled(created.map(id => useWorkspaceFiles(directory).remove(`assets/${id}`, true).catch(error => { if (error.code !== "ENOENT") throw error; })));
+    const cleanup = await Promise.allSettled(created.map(id => useWorkspaceFiles(directory).remove(`assets/${id}`, true).catch(error => { if (getWorkspaceFailure(error).code !== "ENOENT") throw error; })));
     if (!signal.aborted) await flushCanvasSave();
     if (cleanup.some(item => item.status === "rejected")) throw new Error("节点创建失败，部分导入副本未能清理；原对话素材已保留，请勿重复导入");
     throw error;
@@ -618,7 +622,8 @@ function documentHandles(node: Node<DocumentNodeData>) {
 async function readDocumentCanvas(directory: string, canvasPath: string, nodeId: string) {
   checkDocumentDirectory(directory);
   const files = useWorkspaceFiles(directory);
-  const canvas = await files.readJson<{ toonflowCanvas?: boolean; nodes?: Node<DocumentNodeData>[] }>(canvasPath);
+  const snapshot = await files.readTextSnapshot(canvasPath);
+  const canvas = JSON.parse(snapshot.text) as { toonflowCanvas?: boolean; nodes?: Node<DocumentNodeData>[] };
   checkDocumentDirectory(directory);
   if (canvas?.toonflowCanvas !== true || !Array.isArray(canvas.nodes)) throw new Error("文件不是有效画布");
   const node = canvas.nodes.find((item) => item && item.id === nodeId);
@@ -636,7 +641,7 @@ async function readDocumentCanvas(directory: string, canvasPath: string, nodeId:
       textPath.split(/[\\/]/).includes(".."))
   )
     throw new Error("文本文件路径必须位于工作区内");
-  return { files, canvas, node, liveNode, textPath };
+  return { files, canvas, node, liveNode, textPath, snapshot };
 }
 
 async function readDocumentNode(directory: string, canvasPath: string, nodeId: string) {
@@ -663,7 +668,7 @@ async function readDocumentNode(directory: string, canvasPath: string, nodeId: s
 async function saveDocumentNode(directory: string, canvasPath: string, nodeId: string, handleId: string, text: string, expectedText?: string) {
   checkDocumentDirectory(directory);
   await flushCanvasSave(async () => {
-    const { files, canvas, node, liveNode, textPath } = await readDocumentCanvas(directory, canvasPath, nodeId);
+    const { files, canvas, node, liveNode, textPath, snapshot } = await readDocumentCanvas(directory, canvasPath, nodeId);
     if (!documentHandles(liveNode ?? node).some((handle) => handle.id === handleId)) throw new Error("文本输出已删除，请重新打开节点");
     if (expectedText !== undefined) {
       const output = (liveNode ?? node).data?.outputs?.[handleId];
@@ -683,13 +688,16 @@ async function saveDocumentNode(directory: string, canvasPath: string, nodeId: s
     }
     canvasMenuRef.value?.syncDocumentNode(canvasPath, nodeId, handleId, text, textPath === undefined);
     if (textPath !== undefined) {
-      await files.write(textPath, text);
+      const textSnapshot = await files.readTextSnapshot(textPath);
+      if (expectedText !== undefined && textSnapshot.text !== expectedText) throw new Error("文档内容已变化，请重新读取后编辑");
+      await files.writeTextSnapshot(textPath, text, textSnapshot);
     } else {
       const data = (node.data ??= {});
       const output = data.outputs?.[handleId];
       if (output?.dataType === "STRING") output.value = text;
       else (data.outputs ??= {})[handleId] = { dataType: "STRING", value: text };
-      await files.writeJson(canvasPath, canvas);
+      const revision = await files.writeTextSnapshot(canvasPath, JSON.stringify(canvas), snapshot);
+      if (canvasId.value === canvasPath && canvasSnapshot) canvasSnapshot.revision = revision;
     }
     checkDocumentDirectory(directory);
   });
@@ -852,10 +860,14 @@ let saveRevision = 0;
 const saveCanvas = debounce((directory: string, fileName: string) => {
   const flow = toObject();
   const revision = saveRevision;
-  // ACT: 同页保存按顺序完成，防止慢请求覆盖后续修改；不处理多个客户端的并发编辑。
+  const snapshot = canvasSnapshot;
+  const text = JSON.stringify({ toonflowCanvas: true, nodes: flow.nodes, edges: flow.edges, viewport: flow.viewport });
+  // ACT: 同页保存串行；跨页面使用最初装载的版本，不重新读取最新版冒充冲突保护。
   saving = saving.then(async () => {
     try {
-      await useWorkspaceFiles(directory).writeJson(fileName, { toonflowCanvas: true, nodes: flow.nodes, edges: flow.edges, viewport: flow.viewport });
+      if (!snapshot) throw new Error("画布尚未载入可保存的版本，请保留当前内容后重新打开");
+      snapshot.revision = await useWorkspaceFiles(directory).writeTextSnapshot(fileName, text, snapshot);
+      snapshot.text = text;
       saveError = undefined;
       canvasSaveError.value = "";
       if (revision === saveRevision) canvasDirty.value = false;

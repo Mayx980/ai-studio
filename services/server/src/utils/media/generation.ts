@@ -1,10 +1,10 @@
 import { t, translateMessage } from "@/lib/i18n";
-import { mkdir, readFile, realpath, stat, unlink } from "@toonflow/file";
+import { mkdir, readFile, realpath, stat } from "@toonflow/file";
 import { join, relative } from "node:path";
 import { mediaProviders, type Provider } from "@toonflow/providers";
 import type { GeneratedMedia, MediaGenerationRequest, MediaModel, MediaReference } from "@toonflow/tools-scaffold/runtime";
 import conf from "@/utils/conf";
-import { getMediaProvider, listMediaProviders, loadMediaProviderSource } from "@/utils/media/provider";
+import { getMediaProvider, getMediaProviderApiKey, listMediaProviders, loadMediaProviderSource } from "@/utils/media/provider";
 import { lockWorkspaceFiles, resolveWorkspacePath, writeWorkspaceFile } from "@/utils/workspace/files";
 import { beginGeneration, getProviderPrice } from "@/utils/media/billing";
 import { detectMimeType, readPriceReference } from "@/utils/media/priceReference";
@@ -32,7 +32,7 @@ function imageOptions(value: unknown, pattern: RegExp) {
 
 export async function listMediaModels(): Promise<MediaModel[]> {
   const installedProviders = await listMediaProviders();
-  return installedProviders.flatMap(provider => provider.models.flatMap(model => {
+  return installedProviders.filter(provider => getMediaProviderApiKey(provider.id) && record(record(conf.get("settings", {}).mediaProviderConfigs)[provider.id]).enabled !== false).flatMap(provider => provider.models.flatMap(model => {
     if (model.type !== "image" && model.type !== "video" && model.type !== "audio") return [];
     const builtIn = (mediaProviders as readonly Provider[]).find(item => item.id === provider.id)?.models.find(item => item.id === model.id);
     return [{
@@ -43,6 +43,7 @@ export async function listMediaModels(): Promise<MediaModel[]> {
       ...(model.type === "image" ? {
         imageSizes: imageOptions(Array.isArray(model.imageSizes) ? model.imageSizes : builtIn?.imageSizes, /^[^\u0000-\u001f\u007f]+$/),
         imageRatios: imageOptions(Array.isArray(model.imageRatios) ? model.imageRatios : builtIn?.imageRatios, /^[1-9]\d{0,3}:[1-9]\d{0,3}$/),
+        imageCounts: Array.isArray(model.imageCounts) ? model.imageCounts.filter((value): value is number => typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 6) : builtIn?.imageCounts ?? [1],
       } : {}),
     } as MediaModel];
   }));
@@ -124,7 +125,7 @@ async function prepareRequest<T>(directory: string | undefined, mediaType: "imag
     type: "audio" as const, model: request.modelId, text: request.prompt, images, audios: await references(request.audios, "audio"),
     voice: request.voice, speed: request.speed, volume: request.volume, pitch: request.pitch, language: request.language, format: request.format, sampleRate: request.sampleRate,
   };
-  if (mediaType === "image") return { type: "image" as const, model: request.modelId, prompt: request.prompt, images, ratio: request.ratio, size: request.size };
+  if (mediaType === "image") return { type: "image" as const, model: request.modelId, prompt: request.prompt, images, ratio: request.ratio, size: request.size, ...(request.n === undefined ? {} : { n: request.n }) };
   return {
     type: "video" as const, model: request.modelId, prompt: request.prompt, images,
     videos: await references(request.videos, "video"), audios: await references(request.audios, "audio"),
@@ -136,8 +137,23 @@ async function prepareRequest<T>(directory: string | undefined, mediaType: "imag
 
 async function configuredProvider(request: MediaGenerationRequest, mediaType: "image" | "video" | "audio", signal?: AbortSignal, directory?: string) {
   const info = await getMediaProvider(request.providerId);
-  if (!info.models.some(model => model.id === request.modelId && model.type === mediaType)) invalid("所选媒体模型不存在或类型不匹配，请重新选择");
+  const model = info.models.find(model => model.id === request.modelId && model.type === mediaType);
+  if (!model) invalid("所选媒体模型不存在或类型不匹配，请重新选择");
+  if (mediaType === "image") {
+    const defaults = (mediaProviders as readonly Provider[]).find(item => item.id === info.id)?.models.find(item => item.id === model.id);
+    const counts = Array.isArray(model.imageCounts) ? model.imageCounts : defaults?.imageCounts ?? [1];
+    if (!counts.includes(request.n ?? 1)) invalid("所选模型不支持当前图片数量，请重新选择");
+    if (request.size && Array.isArray(model.imageSizes) && !model.imageSizes.includes(request.size)) invalid("所选模型不支持当前图片尺寸，请重新选择");
+    if (request.ratio && Array.isArray(model.imageRatios) && !model.imageRatios.includes(request.ratio)) invalid("所选模型不支持当前图片比例，请重新选择");
+  }
+  if (mediaType === "video" && Array.isArray(model.durationResolutionMap)) {
+    const mappings = model.durationResolutionMap as { duration: number[]; resolution: string[] }[];
+    if (!mappings.some(item => (!request.duration || item.duration.includes(request.duration)) && (!request.resolution || item.resolution.some(value => value.toLowerCase() === request.resolution!.toLowerCase())))) invalid("所选模型不支持当前视频时长与清晰度组合，请重新选择");
+  }
+  if (mediaType === "video" && request.mode !== undefined && Array.isArray(model.mode)
+    && !model.mode.some(value => JSON.stringify(value) === JSON.stringify(request.mode))) invalid("所选模型不支持当前参考素材模式，素材已保留");
   const configurations = record(conf.get("settings", {}).mediaProviderConfigs);
+  if (record(configurations[info.id]).enabled === false) invalid("所选媒体供应商已停用，请重新配置");
   return loadMediaProviderSource(info.source, record(configurations[info.id]), signal, undefined, directory);
 }
 
@@ -180,35 +196,36 @@ export async function generateMedia(
   const prepared = await prepareRequest(directory, mediaType, request, readReference, signal);
   signal?.throwIfAborted();
   const finish = beginGeneration(provider);
-  const written: string[] = [];
   const result: GeneratedMedia[] = [];
+  const failures: string[] = [];
   try {
     signal?.throwIfAborted();
     const { type, ...parameters } = prepared;
     const assets = type === "audio" ? await provider.generateAudio!(parameters as AudioRequest)
       : type === "image" ? await provider.generateImage!(parameters as ImageRequest) : await provider.generateVideo!(parameters as VideoRequest);
     if (!Array.isArray(assets) || !assets.length) invalid("供应商未返回生成结果");
-    for (const asset of assets) {
-      signal?.throwIfAborted();
-      const { bytes, mimeType } = await assetBytes(asset, mediaType, signal);
-      signal?.throwIfAborted();
-      const output = await resolveWorkspacePath(directory, outputDirectory, true);
-      const release = lockWorkspaceFiles([output.path]);
+    for (const [index, asset] of assets.entries()) {
       try {
-        await mkdir(output.path, { recursive: true });
-        const file = join(outputDirectory, `${mediaType}${crypto.randomUUID()}.${mediaExtensions[mimeType]}`);
-        const { path } = await resolveWorkspacePath(directory, file);
         signal?.throwIfAborted();
-        await writeWorkspaceFile(path, bytes, true);
-        written.push(path);
-        result.push({ path: relative(directory, path).replace(/\\/g, "/"), mimeType, mediaType });
-      } finally { release(); }
+        const { bytes, mimeType } = await assetBytes(asset, mediaType, signal);
+        signal?.throwIfAborted();
+        const output = await resolveWorkspacePath(directory, outputDirectory, true);
+        const release = lockWorkspaceFiles([output.path]);
+        try {
+          await mkdir(output.path, { recursive: true });
+          const file = join(outputDirectory, `${mediaType}${crypto.randomUUID()}.${mediaExtensions[mimeType]}`);
+          const { path } = await resolveWorkspacePath(directory, file);
+          signal?.throwIfAborted();
+          await writeWorkspaceFile(path, bytes, true);
+          result.push({ path: relative(directory, path).replace(/\\/g, "/"), mimeType, mediaType });
+        } finally { release(); }
+      } catch (cause) {
+        failures.push(`第${index + 1}项：${cause instanceof Error ? cause.message : "素材保存失败"}`);
+        if (signal?.aborted) break;
+      }
     }
-    signal?.throwIfAborted();
+    if (!result.length) throw new Error(failures.join("；") || "没有可保存的生成结果");
+    if (failures.length) result[0]!.warning = `已保存 ${result.length} 项；${failures.join("；")}`;
     return result;
-  } catch (err) {
-    // ACT: 只回滚本次创建的文件，保留目录中已有的节点资源。
-    await Promise.all(written.map(path => unlink(path).catch((error: NodeJS.ErrnoException) => { if (error.code !== "ENOENT") throw error; })));
-    throw err;
   } finally { finish(); }
 }

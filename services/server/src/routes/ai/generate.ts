@@ -59,6 +59,7 @@ const inputSchema = z.object({
 });
 
 export default Router().post("/", validateFields(inputSchema.shape), async (req, res) => {
+  u.mcpControl.assertAppRequest(req);
   const input = inputSchema.parse(req.body, validationOptions());
   const configured = u.ai.getConfiguredModel(input.providerId, input.modelId);
   const controller = new AbortController();
@@ -89,7 +90,7 @@ export default Router().post("/", validateFields(inputSchema.shape), async (req,
       if (message.stopReason === "error" || message.stopReason === "aborted") throw new Error(message.errorMessage || "模型请求失败");
       send({ type: "done", message });
     } catch (error) {
-      send({ type: "error", message: error instanceof Error ? translateError(error) : translateMessage("模型请求失败") });
+      send({ type: "error", message: u.providerCredentials.redactMessage(error instanceof Error ? translateError(error) : translateMessage("模型请求失败"), u.conf.get("settings", {})) });
     } finally {
       res.end();
     }

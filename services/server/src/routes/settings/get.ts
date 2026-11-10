@@ -9,5 +9,5 @@ export default router.get("/", (req, res) => {
   res.set("Cache-Control", "no-store");
   const settings = u.conf.get("settings", {});
   if (u.cleanNodeMenuSettings(settings)) u.conf.set("settings", settings);
-  res.json(success(settings));
+  res.json(success(u.providerCredentials.publicSettings(settings)));
 });
