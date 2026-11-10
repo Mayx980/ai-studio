@@ -111,7 +111,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
     justify-content: flex-start;
     .messageViewport { max-height: none; overflow: visible; }
     .welcomeMessage { padding: 0 16px 6px;
-      .welcomeHeader { gap: 6px; .welcomeIcon { display: none; } h3 { font-size: clamp(24px, 2.2vw, 28px); font-weight: 500; font-style: italic; color: #d5dbe8; letter-spacing: .4px; line-height: 1.3; } }
+      .welcomeHeader { gap: 6px; .welcomeIcon { display: none; } h3 { font-size: clamp(24px, 2.2vw, 28px); font-weight: 500; font-style: italic; color: #f5f7fc; letter-spacing: .4px; line-height: 1.3; } }
     }
     .conversationMode { width: min(320px, calc(100% - 24px)); margin: 4px auto 10px; padding: 2px; border-radius: 999px; background: #424242b3; backdrop-filter: blur(12px); box-shadow: inset 0 1px 0 #ffffff0a;
       .modeButton { height: 36px; padding: 0; border-radius: 999px; color: #f2f2f2; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 14px; font-weight: 400; transition: background 180ms ease, color 180ms ease;
