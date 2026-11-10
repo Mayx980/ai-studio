@@ -120,9 +120,9 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
     :deep(.agent) { width: calc(100% - 128px); max-width: none; }
     :deep(.emptyConversation) {
       .welcomeMessage { padding-bottom: 12px; .welcomeHeader { gap: 12px; .welcomeIcon .brandLogo { width: 144px; } h3 { font-size: 42px; } } }
-      .conversationMode { width: 300px; margin: 4px auto 10px; padding: 5px;
-        .modeButton { height: 28px; padding-left: 13px; padding-right: 40px; font-size: 14px; svg { width: 16px; height: 16px; } }
-        .modeHelp { width: 28px; height: 28px; svg { width: 20px; height: 20px; } }
+      .conversationMode { width: 375px; margin: 5px auto 12.5px; padding: 6.25px;
+        .modeButton { height: 35px; padding-left: 16.25px; padding-right: 50px; font-size: 17.5px; svg { width: 20px; height: 20px; } }
+        .modeHelp { width: 35px; height: 35px; svg { width: 25px; height: 25px; } }
       }
       .simpleInput { border-radius: 20px;
         .simpleReferenceSlots { padding: 12px; .slotCard { width: 56px; height: 56px; border-radius: 8px; svg { width: 24px; height: 24px; } } }
