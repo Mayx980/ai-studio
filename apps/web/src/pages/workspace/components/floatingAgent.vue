@@ -97,7 +97,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
     justify-content: flex-start;
     .messageViewport { max-height: none; overflow: visible; }
     .welcomeMessage { padding: 0 16px 6px;
-      .welcomeHeader { gap: 6px; .welcomeIcon .brandLogo { width: 104px; } h3 { font-size: clamp(24px, 2.2vw, 28px); line-height: 1.3; } }
+      .welcomeHeader { gap: 6px; .welcomeIcon { display: none; } h3 { font-size: clamp(24px, 2.2vw, 28px); line-height: 1.3; } }
     }
     .conversationMode { width: min(300px, calc(100% - 24px)); margin: 4px auto 10px; .modeButton { height: 28px; } }
     .simpleInput { display: flex; flex-wrap: wrap; align-items: stretch; border-radius: 20px;
@@ -119,7 +119,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
   @media(min-width:1100px) {
     :deep(.agent) { width: calc(100% - 128px); max-width: none; }
     :deep(.emptyConversation) {
-      .welcomeMessage { padding-bottom: 12px; .welcomeHeader { gap: 12px; .welcomeIcon .brandLogo { width: 144px; } h3 { font-size: 42px; } } }
+      .welcomeMessage { padding-bottom: 12px; .welcomeHeader { gap: 12px; h3 { font-size: 42px; } } }
       .conversationMode { width: 375px; margin: 5px auto 12.5px; padding: 6.25px;
         .modeButton { height: 35px; padding-left: 16.25px; padding-right: 50px; font-size: 17.5px; svg { width: 20px; height: 20px; } }
         .modeHelp { width: 35px; height: 35px; svg { width: 25px; height: 25px; } }
