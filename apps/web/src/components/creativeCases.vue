@@ -2,7 +2,7 @@
   <section class="creativeCases" :class="{ compact, curated }">
     <div class="caseHeader"><h2>{{ curated ? '创作优选' : '模板中心' }}</h2><el-button text type="primary" @click="professional ? projectPickerOpen = true : openUpload()">{{ professional ? '上传创作优选' : '上传模板' }}</el-button></div>
     <div v-if="!curated" class="caseFilters"><div class="caseCategories"><button v-for="item in categories" :key="item" :aria-pressed="category === item" @click="category = item">{{ item }}</button></div>
-    <form class="templateSearch" role="search" @submit.prevent="searchTemplates"><el-input v-model="query" clearable aria-label="搜索视频模板" placeholder="搜索关键词或描述想要的视频" @input="invalidateSearch"><template #append><el-button nativeType="submit" :loading="searching">搜索</el-button></template></el-input></form></div>
+    <form class="templateSearch" role="search" @submit.prevent="searchTemplates"><el-input v-model="query" clearable aria-label="搜索视频模板" placeholder="请输入搜索内容" @input="invalidateSearch"><template #suffix><el-button class="searchSubmit" text nativeType="submit" :loading="searching" aria-label="搜索模板"><icon-search v-if="!searching" :size="16" /></el-button></template></el-input></form></div>
     <p v-if="searching" role="status" aria-live="polite">正在理解需求并查找相关模板…</p>
     <el-alert v-else-if="searchError || loadError" :title="searchError || loadError" type="error" :closable="false"><el-button text @click="loadError ? loadTemplates() : searchTemplates()">重试</el-button></el-alert>
     <p v-else-if="query.trim() && !rankedIds" role="status">按回车或点击搜索，查找语义相关的模板。</p>
@@ -23,7 +23,7 @@
 </template>
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import { IconCopy, IconVector, IconTrash } from "@tabler/icons-vue";
+import { IconCopy, IconVector, IconTrash, IconSearch } from "@tabler/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useRouter } from "vue-router";
 import { currentAccount } from "@/stores/prototypeAccount";
@@ -201,7 +201,15 @@ async function saveTemplate() {
   .caseHeader { display: flex; justify-content: space-between; align-items: center; h2 { font-size: 19px; margin: 0 0 12px; } }
   .caseFilters { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
   .caseCategories { flex: 1; min-width: 0; display: flex; gap: 20px; overflow: auto; margin-bottom: 0; button { flex: none; border: 0; background: none; padding: 8px 0; color: var(--el-text-color-secondary); cursor: pointer; &[aria-pressed="true"] { color: var(--el-color-primary); border-bottom: 2px solid; } } }
-  .templateSearch { flex: 0 1 340px; min-width: 200px; width: 30%; margin: 0; }
+  .templateSearch { flex: 0 1 340px; min-width: 200px; width: 30%; margin: 0;
+    :deep(.el-input__wrapper) { min-height: 40px; box-sizing: border-box; padding: 0 10px 0 16px; border: 1px solid #484848; border-radius: 999px; background: #181818; box-shadow: none; transition: border-color 180ms ease;
+      &:hover { border-color: #65606d; } &.is-focus { border-color: #9a80d3; }
+    }
+    :deep(.el-input__inner) { color: #e6e3ec; font-size: 13px; &::placeholder { color: #707075; } }
+    .searchSubmit { width: 28px; height: 28px; margin: 0; padding: 0; border: 0; border-radius: 50%; color: #a1a1a6; background: transparent;
+      &:hover, &:focus-visible { color: #b4a1ff; background: #28232e; }
+    }
+  }
   .deleteCard { position: absolute; right: 8px; bottom: 8px; z-index: 2; opacity: 0; pointer-events: none; color: #f2a3aa; background: #28282e; }
   .cardAction { position: absolute; right: 8px; bottom: 46px; z-index: 1; opacity: 0; pointer-events: none; transition: opacity .15s; background: var(--el-bg-color-overlay); color: var(--el-text-color-primary); }
   @media(hover:none) { .deleteCard { opacity: 1; pointer-events: auto; } .cardAction { opacity: 1; pointer-events: auto; } }
