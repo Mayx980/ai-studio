@@ -119,7 +119,7 @@
       <div class="senderActions" :class="{ simpleToolbar: props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple') }">
         <simpleGenerationTools v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" controls="tabs" :lockedKind="lockedGenerationKind" :imageOnly="props.materialEditor && !!props.materialRole && props.materialRole !== 'reference'" :disabled="locked" />
         <browserModelOptions :disabled="locked" :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor && props.materialRole && props.materialRole !== 'reference' ? 'image' : lockedGenerationKind" :prompt="draftPrompt"><template #afterModel><div v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" ref="referenceTabsTarget" class="referenceTabsTarget" /><simpleGenerationTools v-if="props.materialEditor || workspaceStore.creationMode === 'simple'" controls="style" :disabled="locked" /></template></browserModelOptions><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
-        <el-button v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" class="quickMention" text :disabled="locked || !directory" aria-label="提及参考素材" title="提及参考素材" @mousedown.prevent @click="mentionMenuRef?.openMenu()">@</el-button>
+        <el-button v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" class="quickMention" text :disabled="locked || !directory" aria-label="提及参考素材" title="提及参考素材" @mousedown.prevent @click="mentionMenuRef?.openMenu()"><icon-at :size="19" /></el-button>
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
         <referencePicker v-if="!props.creationModes" :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
         <mentionMenu :currentOnly="props.creationModes && workspaceStore.creationMode === 'simple'" :attachments="props.creationModes ? activeDraftAttachments : undefined" @selectAttachment="insertAttachmentMention" :hideTrigger="props.creationModes" ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
@@ -178,7 +178,7 @@ import { computed, inject, nextTick, reactive, ref, shallowRef, watch, type Comp
 import { defaultRangeExtractor, measureElement, observeElementRect, useVirtualizer } from "@tanstack/vue-virtual";
 import axios from "axios";
 import {
-  IconArrowUp, IconArrowDown, IconAtom, IconChevronDown, IconChevronRight, IconCopy,
+  IconAt, IconArrowUp, IconArrowDown, IconAtom, IconChevronDown, IconChevronRight, IconCopy,
   IconCircleDashed, IconPencil, IconX, IconLoader2,
   IconTrash, IconPhoto, IconUsersGroup, IconPaperclip, IconSquarePlus,
 } from "@tabler/icons-vue";

@@ -149,7 +149,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
           .inlineModelSelect { flex-basis: 120px; width: 132px; min-width: 120px; max-width: 160px; .el-select__wrapper { min-height: 32px; } .el-select__selected-item { font-size: 14px; } }
           .referenceModeButton { height: 32px; min-width: 80px; padding: 0 7px; font-size: 14px; }
           .inlineParameter { height: 32px; padding: 0 4px; gap: 4px; font-size: 14px; svg { width: 18px; height: 18px; } }
-          .quickMention { width: 24px; height: 32px; font-size: 22px; }
+          .quickMention { width: 24px; height: 32px; font-size: 22px; svg { width: 18px; height: 18px; } }
           .styleSelect { height: 32px; min-width: 60px; padding: 0 7px; font-size: 14px; svg { width: 16px; height: 16px; } }
           > .sendButton { height: 32px; min-width: 88px; padding: 0 12px; font-size: 15px; svg { width: 16px; height: 16px; } }
         }
