@@ -137,7 +137,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
   }
   .assistantTemplates { width: 100%; max-width: none; margin: 32px 0 0; }
   @media(min-width:1100px) {
-    :deep(.agent) { width: max(min(464px, 100%), calc(100% - 528px)); max-width: none; }
+    :deep(.agent) { width: max(min(464px, 100%), calc(100% - 288px)); max-width: none; }
     :deep(.emptyConversation) {
       .conversationMode .modeButton { font-size: 16px; }
       .welcomeMessage { padding-bottom: 12px; .welcomeHeader { gap: 12px; h3 { font-size: 28px; } } }
