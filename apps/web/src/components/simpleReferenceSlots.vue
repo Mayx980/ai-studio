@@ -1,7 +1,7 @@
 <template>
   <div class="simpleReferenceSlots" aria-label="参考素材">
     <teleport :to="tabsTarget || 'body'" :disabled="!tabsTarget">
-      <el-popover v-if="showFrames" v-model:visible="modeVisible" trigger="click" placement="top-start" :width="180" :showArrow="false" popperClass="referenceModePopover" :disabled="disabled || opening" :hideAfter="0">
+      <el-popover v-if="showFrames" v-model:visible="modeVisible" trigger="click" placement="bottom-start" :fallbackPlacements="['bottom-start', 'bottom-end']" :width="180" :showArrow="false" popperClass="referenceModePopover" :disabled="disabled || opening" :hideAfter="0">
         <template #reference><button class="referenceModeButton" type="button" :disabled="disabled || opening" :aria-expanded="modeVisible" aria-label="参考图模式"><component :is="mode === 'frames' ? IconLayoutColumns : IconPhoto" :size="16" />{{ mode === 'frames' ? '首尾帧' : '参考图' }}<icon-chevron-down :size="13" :style="{ transform: modeVisible ? 'rotate(180deg)' : undefined }" /></button></template>
         <div class="referenceTabs" role="tablist" aria-label="参考素材类型"><button v-for="tab in tabs" :key="tab.value" type="button" role="tab" :aria-selected="mode === tab.value" :disabled="disabled || opening" @click="mode = tab.value; modeVisible = false"><component :is="tab.value === 'frames' ? IconLayoutColumns : IconPhoto" :size="16" /><span>{{ tab.label }}</span><icon-check v-if="mode === tab.value" :size="16" /></button></div>
       </el-popover>
