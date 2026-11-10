@@ -65,7 +65,7 @@ import ffmpegRequired from "@/components/settings/ffmpegRequired.vue";
 import updateBox from "@/components/updateBox.vue";
 import "element-plus/theme-chalk/dark/css-vars.css";
 
-const standaloneWindow = window.parent === window;
+const standaloneWindow = !window.frameElement?.hasAttribute("data-source-editor");
 useMcpControl();
 
 // ACT: TDesign 缺少的语言使用英语基底，聊天控件由应用字典补齐。

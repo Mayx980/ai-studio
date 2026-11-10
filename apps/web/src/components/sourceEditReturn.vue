@@ -26,7 +26,7 @@ import { IconX, IconCheck } from "@tabler/icons-vue";
 import sourceEditorViewport from "@/components/sourceEditorViewport.vue";
 import { sourceWorkspaceUrl } from "@/lib/generationOrigin";
 import { sourceEdit, sourceEditBusy, sourceEditError, restoreSourceEdit, returnFromSourceEdit, sourceEditorMinimized } from "@/stores/sourceEditing";
-if (window.parent === window) restoreSourceEdit();
+if (!window.frameElement?.hasAttribute("data-source-editor")) restoreSourceEdit();
 const sourceUrl = computed(() => {
   const origin = sourceEdit.value?.origin;
   if (!origin) return "";
