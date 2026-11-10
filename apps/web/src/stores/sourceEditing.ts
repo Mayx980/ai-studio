@@ -19,37 +19,45 @@ function save() {
   try { if (sourceEdit.value) sessionStorage.setItem(storageKey, JSON.stringify(sourceEdit.value)); else sessionStorage.removeItem(storageKey); }
   catch { sourceEditError.value = "编辑返回信息保存失败，请保留当前页面。"; }
 }
+function validateSourceEdit(item: SourceEdit) {
+  if (!item || typeof item.name !== "string" || !Number.isFinite(item.startedAt) || typeof item.directory !== "string" || !/^[\w-]+\.json$/.test(item.sessionFile) || typeof item.prompt !== "string" || !Array.isArray(item.attachments) || item.attachments.length > 20 || item.attachments.some((attachment: AgentAttachment) => !attachment || typeof attachment.name !== "string" || typeof attachment.path !== "string" || typeof attachment.mimeType !== "string") || !Number.isInteger(item.index) || !item.attachments[item.index]) throw new Error("invalid");
+  const origin = readGenerationOrigin(item.origin);
+  if (!origin) throw new Error("invalid");
+  item.origin = origin;
+  if (item.parameters && ((typeof item.parameters.kind !== "string" || !["image", "video", "audio", "text"].includes(item.parameters.kind)) || typeof item.parameters.outputKind !== "string" || !["image", "video"].includes(item.parameters.outputKind) || typeof item.parameters.count !== "number" || !Number.isInteger(item.parameters.count) || item.parameters.count < 1 || item.parameters.count > 6)) throw new Error("invalid");
+  if (item.result) {
+    if (typeof item.result.id !== "string" || typeof item.result.path !== "string" || typeof item.result.directory !== "string" || !["image", "video"].includes(item.result.kind)) throw new Error("invalid");
+    const resultOrigin = readGenerationOrigin(item.result.origin);
+    if (!resultOrigin || !sameOrigin(resultOrigin, item.origin)) throw new Error("invalid");
+    item.result.origin = resultOrigin;
+  }
+}
+function sourceEditKey(item: Pick<SourceEdit, "origin">) {
+  const origin = item.origin;
+  return `${storageKey}.${JSON.stringify(origin.type === "canvas" ? [origin.type, origin.directory, origin.canvasPath, origin.nodeId] : [origin.type, origin.directory, origin.sessionFile])}`;
+}
 export function restoreSourceEdit() {
   if (sourceEdit.value) return;
   try {
     const raw = sessionStorage.getItem(storageKey);
     if (!raw) return;
     const item = JSON.parse(raw);
-    if (!item || typeof item.name !== "string" || !Number.isFinite(item.startedAt) || typeof item.directory !== "string" || !/^[\w-]+\.json$/.test(item.sessionFile) || typeof item.prompt !== "string" || !Array.isArray(item.attachments) || item.attachments.length > 20 || item.attachments.some((attachment: AgentAttachment) => !attachment || typeof attachment.name !== "string" || typeof attachment.path !== "string" || typeof attachment.mimeType !== "string") || !Number.isInteger(item.index) || !item.attachments[item.index]) throw new Error("invalid");
-    item.origin = readGenerationOrigin(item.origin);
-    if (!item.origin) throw new Error("invalid");
-    if (item.parameters && ((!["image", "video", "audio", "text"].includes(item.parameters.kind)) || !["image", "video"].includes(item.parameters.outputKind) || !Number.isInteger(item.parameters.count) || item.parameters.count < 1 || item.parameters.count > 6)) throw new Error("invalid");
-    if (item.result) {
-      if (typeof item.result.id !== "string" || typeof item.result.path !== "string" || typeof item.result.directory !== "string" || !["image", "video"].includes(item.result.kind)) throw new Error("invalid");
-      item.result.origin = readGenerationOrigin(item.result.origin);
-      if (!item.result.origin || !sameOrigin(item.result.origin, item.origin)) throw new Error("invalid");
-    }
+    validateSourceEdit(item);
     sourceEdit.value = item;
   } catch { storageReadable = false; sourceEditError.value = "参考素材编辑信息无法恢复，请保留当前浏览器数据。"; }
 }
 export async function startSourceEdit(item: Omit<SourceEdit, "startedAt" | "name">) {
   if (sourceEditBusy.value) return;
   if (!storageReadable) throw new Error("已有编辑返回信息无法恢复，请保留浏览器数据后处理");
-  if (sourceEdit.value) {
-    const context = sourceEdit.value;
-    if (context.directory === item.directory && context.sessionFile === item.sessionFile && context.index === item.index && sameOrigin(context.origin, item.origin)) { sourceEditorMinimized.value = false; return; }
-    throw new Error("请先应用当前编辑结果，或返回原对话");
-  }
+  const previous = sourceEdit.value;
   if (!Number.isInteger(item.index) || !item.attachments[item.index]) throw new Error("原参考素材已移除，请重新选择");
   if (!readGenerationOrigin(item.origin)) throw new Error("缺少可验证的素材来源");
   sourceEditBusy.value = true; sourceEditError.value = "";
   try {
     await validateGenerationOrigin(item.origin);
+    const archived = sessionStorage.getItem(sourceEditKey(item));
+    const resumed = previous && sameOrigin(previous.origin, item.origin) ? previous : archived ? JSON.parse(archived) as SourceEdit : undefined;
+    if (resumed) { validateSourceEdit(resumed); if (!sameOrigin(resumed.origin, item.origin)) throw new Error("来源编辑记录不匹配"); }
     const files = useWorkspaceFiles(item.directory);
     const attachments: AgentAttachment[] = [];
     for (const attachment of item.attachments) {
@@ -58,10 +66,11 @@ export async function startSourceEdit(item: Omit<SourceEdit, "startedAt" | "name
       const { file, ...saved } = attachment;
       attachments.push({ ...saved, path });
     }
+    if (previous) sessionStorage.setItem(sourceEditKey(previous), JSON.stringify(previous));
     sourceEditorMinimized.value = false;
-    sourceEdit.value = { ...item, attachments, name: attachments[item.index]!.name, startedAt: Date.now(), parameters: Object.fromEntries(browserParameterKeys.map(key => [key, browserConfig[key]])), modelSelection: { ...browserModelSelection } };
+    sourceEdit.value = { ...item, attachments, name: attachments[item.index]!.name, startedAt: resumed?.startedAt ?? Date.now(), result: resumed?.result, parameters: Object.fromEntries(browserParameterKeys.map(key => [key, browserConfig[key]])), modelSelection: { ...browserModelSelection } };
     save();
-  } catch (error) { sourceEdit.value = undefined; save(); throw error; }
+  } catch (error) { sourceEdit.value = previous; throw error; }
   finally { sourceEditBusy.value = false; }
 }
 function sameOrigin(a: GenerationOrigin, b: GenerationOrigin) {
@@ -102,6 +111,7 @@ export async function returnFromSourceEdit(apply = false) {
     for (const key of browserParameterKeys) if (context.parameters && typeof context.parameters[key] === typeof browserConfig[key]) Object.assign(browserConfig, { [key]: context.parameters[key] });
     for (const key of ["image", "video", "audio", "text"] as const) if (typeof context.modelSelection?.[key] === "string") browserModelSelection[key] = context.modelSelection[key];
     useWorkspaceStore().pendingAgentDraft = { file: context.sessionFile, prompt: context.prompt, attachments };
+    sessionStorage.removeItem(sourceEditKey(context));
     sourceEdit.value = undefined; save();
   } catch (error) { sourceEditError.value = error instanceof Error ? error.message : "返回原对话失败，原素材已保留"; }
   finally { sourceEditBusy.value = false; }
