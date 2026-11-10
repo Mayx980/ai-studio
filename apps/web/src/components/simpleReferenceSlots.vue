@@ -1,9 +1,9 @@
 <template>
   <div class="simpleReferenceSlots" aria-label="参考素材">
     <teleport :to="tabsTarget || 'body'" :disabled="!tabsTarget">
-      <el-popover v-if="showFrames" v-model:visible="modeVisible" trigger="click" placement="top-start" :width="180" :disabled="disabled || opening" :hideAfter="0">
-        <template #reference><button class="referenceModeButton" type="button" :disabled="disabled || opening" :aria-expanded="modeVisible" aria-label="参考图模式"><icon-photo :size="16" />{{ mode === 'frames' ? '首尾帧' : '参考图' }}<icon-chevron-down :size="13" /></button></template>
-        <div class="referenceTabs" role="tablist" aria-label="参考素材类型"><button v-for="tab in tabs" :key="tab.value" type="button" role="tab" :aria-selected="mode === tab.value" :disabled="disabled || opening" @click="mode = tab.value; modeVisible = false">{{ tab.label }}</button></div>
+      <el-popover v-if="showFrames" v-model:visible="modeVisible" trigger="click" placement="top-start" :width="180" :showArrow="false" popperClass="referenceModePopover" :disabled="disabled || opening" :hideAfter="0">
+        <template #reference><button class="referenceModeButton" type="button" :disabled="disabled || opening" :aria-expanded="modeVisible" aria-label="参考图模式"><component :is="mode === 'frames' ? IconLayoutColumns : IconPhoto" :size="16" />{{ mode === 'frames' ? '首尾帧' : '参考图' }}<icon-chevron-down :size="13" :style="{ transform: modeVisible ? 'rotate(180deg)' : undefined }" /></button></template>
+        <div class="referenceTabs" role="tablist" aria-label="参考素材类型"><button v-for="tab in tabs" :key="tab.value" type="button" role="tab" :aria-selected="mode === tab.value" :disabled="disabled || opening" @click="mode = tab.value; modeVisible = false"><component :is="tab.value === 'frames' ? IconLayoutColumns : IconPhoto" :size="16" /><span>{{ tab.label }}</span><icon-check v-if="mode === tab.value" :size="16" /></button></div>
       </el-popover>
     </teleport>
     <el-tooltip v-for="task in materialWorkspaces.filter(item => !item.ended && !item.applied && item.directory === directory && (!item.request || item.request.owner === owner))" :key="task.id" content="点击可查看任务" :showArrow="false"><button class="materialTaskEntry" type="button" :aria-label="`${task.label} · ${materialStatusLabel(task)}，点击可查看任务`" @click="openTask(task)"><generationTaskRing :size="40" :status="task.status" :kind="task.config.outputKind" /></button></el-tooltip>
@@ -46,7 +46,7 @@
 import { fileGenerationOrigin, fileAssetPath } from "@/lib/generationOrigin";
 import { computed, nextTick, onUnmounted, ref, watch } from "vue";
 import { ClickOutside as vClickOutside, ElMessage, type PopoverInstance } from "element-plus";
-import { IconPlus, IconRefresh, IconX, IconPhoto, IconChevronDown } from "@tabler/icons-vue";
+import { IconPlus, IconRefresh, IconX, IconPhoto, IconChevronDown, IconLayoutColumns, IconCheck } from "@tabler/icons-vue";
 import type { AgentAttachment, ReferenceRole, ReferenceCategory } from "@/components/agent/types";
 import attachmentPreview from "@/components/agent/attachmentPreview.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
@@ -154,6 +154,11 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; for (const task of
   @media(max-width:600px) { flex-wrap: wrap; .referenceDeck, .frameDeck { width: 100%; } }
 }
 .referenceModeButton { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 6px; height: 32px; min-width: 88px; padding: 0 12px; border: 1px solid transparent; border-radius: 12px; color: #f2f2f2; background: transparent; font: 400 13px/1 Arial, sans-serif; white-space: nowrap; cursor: pointer; transition: background 180ms, border-color 180ms; &:hover:enabled, &[aria-expanded="true"] { background: #303030; border-color: transparent; } &:focus-visible { outline: 2px solid #a28ae9; outline-offset: 2px; } &:disabled { opacity: .5; cursor: not-allowed; } }
-.referenceTabs { display: grid; gap: 4px; button { padding: 9px 10px; border: 0; border-radius: 8px; text-align: left; color: var(--el-text-color-secondary); background: transparent; cursor: pointer; font: inherit; font-size: 12px; &[aria-selected="true"] { color: var(--el-color-primary); background: var(--el-fill-color); } &:focus-visible { outline: 1px solid var(--el-color-primary); } } }
+.referenceTabs { display: grid; gap: 4px; button { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 9px 12px; border: 0; border-radius: 8px; text-align: left; color: #f2f2f2; background: #303030; cursor: pointer; font: 400 13px/1 Arial, sans-serif; span { flex: 1; } &:hover, &[aria-selected="true"] { background: #3b3b3b; } &:focus-visible { outline: 1px solid #a28ae9; } } }
+
 .referenceSourceMenu { display: grid; gap: 3px; button { border: 0; border-radius: 6px; padding: 9px 10px; color: var(--el-text-color-primary); background: transparent; font: inherit; font-size: 13px; text-align: left; cursor: pointer; &:hover, &:focus-visible { background: var(--el-fill-color); } } }
+</style>
+
+<style lang="scss">
+.referenceModePopover.el-popover.el-popper { padding: 8px; border: 0; border-radius: 10px; background: #202020; box-shadow: 0 8px 24px #0006; }
 </style>
