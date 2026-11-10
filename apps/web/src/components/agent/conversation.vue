@@ -117,9 +117,9 @@
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
       <div class="senderActions" :class="{ simpleToolbar: props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple') }">
-        <simpleGenerationTools v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" controls="tabs" :imageOnly="props.materialEditor && !!props.materialRole && props.materialRole !== 'reference'" :disabled="locked" />
+        <simpleGenerationTools v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" controls="tabs" :lockedKind="lockedGenerationKind" @select="selectGenerationKind" :imageOnly="props.materialEditor && !!props.materialRole && props.materialRole !== 'reference'" :disabled="locked" />
         <div v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" ref="referenceTabsTarget" class="referenceTabsTarget" />
-        <browserModelOptions :disabled="locked" :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor && props.materialRole && props.materialRole !== 'reference' ? 'image' : undefined" :prompt="draftPrompt"><template #afterModel><simpleGenerationTools v-if="props.materialEditor || workspaceStore.creationMode === 'simple'" controls="style" :disabled="locked" /></template></browserModelOptions><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
+        <browserModelOptions :disabled="locked" :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor && props.materialRole && props.materialRole !== 'reference' ? 'image' : lockedGenerationKind" :prompt="draftPrompt"><template #afterModel><simpleGenerationTools v-if="props.materialEditor || workspaceStore.creationMode === 'simple'" controls="style" :disabled="locked" /></template></browserModelOptions><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <el-button v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" class="quickMention" text :disabled="locked || !directory" aria-label="提及参考素材" title="提及参考素材" @mousedown.prevent @click="mentionMenuRef?.openMenu()">@</el-button>
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
         <referencePicker v-if="!props.creationModes" :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
@@ -186,7 +186,7 @@ import {
 import { ElMessage, ElMessageBox } from "element-plus";
 import { getReadableFileExtension, getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import brandLogo from "@/components/brandLogo.vue";
-import { browserConfig as defaultBrowserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, inferGenerationKind, browserResultFile, type ModelKind, type BrowserConversationImport } from "@/stores/browserGeneration";
+import { browserConfig as defaultBrowserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, browserResultFile, type ModelKind, type BrowserConversationImport } from "@/stores/browserGeneration";
 import professionalCreation from "./professionalCreation.vue";
 import simpleReferenceSlots from "@/components/simpleReferenceSlots.vue";
 import { fileGenerationOrigin } from "@/lib/generationOrigin";
@@ -253,6 +253,24 @@ const creationChoices = [
   { label: "图片", kind: "image" as const, script: false }, { label: "音频", kind: "audio" as const, script: false }, { label: "视频", kind: "video" as const, script: false },
 ];
 const messages = ref<AgentMessage[]>((props.initialSession?.messages ?? []).map(message => ({ ...message })));
+function snapshotMessages(value: AgentMessage[]) {
+  return JSON.parse(JSON.stringify(value.map(message => ({ ...message, streaming: false, attachments: message.attachments?.map(({ file, ...attachment }) => attachment) })))) as AgentMessage[];
+}
+let savedMessages = snapshotMessages(props.initialSession?.messages ?? []);
+const generationKind = ref(props.initialSession?.generationKind);
+const lockedGenerationKind = computed(() => props.creationModes && (props.materialEditor || (sessionMode.value ?? workspaceStore.creationMode) === "simple") ? generationKind.value : undefined);
+watch([() => props.active, lockedGenerationKind, () => browserConfig.outputKind], ([active, kind]) => {
+  if (active && kind) { browserConfig.outputKind = kind; browserConfig.kind = kind; browserConfig.outputChosen = true; }
+}, { immediate: true });
+watch(() => messages.value.flatMap(message => message.browserResultIds ?? []).map(id => generationResults.value.find(result => result.id === id && result.directory === directory)?.kind).find(kind => kind === "image" || kind === "video"), kind => {
+  if (!generationKind.value && (kind === "image" || kind === "video")) generationKind.value = kind;
+}, { immediate: true });
+function selectGenerationKind(kind: "image" | "video") {
+  if (generationKind.value && generationKind.value !== kind) return;
+  generationKind.value = kind;
+  if (directory) void persistBrowserMessages().catch(error => ElMessage.error(error instanceof Error ? error.message : "生成类型保存失败"));
+}
+
 const browserMessages = computed(() => {
   const groups = new Map<string, { id: string; tools: AgentToolCall[] }>();
   let turnId: string | undefined;
@@ -532,7 +550,19 @@ async function persistBrowserMessages() {
       browserSessionFile = session.file;
       emit("session", session.file);
     }
-    await saveBrowserConversation(directory, browserSessionFile, messages.value, sessionMode.value);
+    const pending = snapshotMessages(messages.value);
+    const saved = await saveBrowserConversation(directory, browserSessionFile, pending, sessionMode.value, { generationKind: lockedGenerationKind.value, baseMessages: savedMessages });
+    savedMessages = snapshotMessages(saved.messages);
+    const local = new Map(messages.value.map(message => [message.id, message]));
+    const pendingById = new Map(pending.map(message => [message.id, message]));
+    const currentSnapshots = new Map(snapshotMessages(messages.value).map(message => [message.id, message]));
+    const savedIds = new Set(saved.messages.map(message => message.id));
+    messages.value = [...saved.messages.map(message => {
+      const current = local.get(message.id), sent = pendingById.get(message.id);
+      if (!current) return message;
+      if (JSON.stringify(currentSnapshots.get(message.id)) !== JSON.stringify(sent) || JSON.stringify(message) === JSON.stringify(sent)) return current;
+      return message;
+    }), ...messages.value.filter(message => !savedIds.has(message.id) && !pendingById.has(message.id))];
   });
   browserSaveQueue = save;
   return save;
@@ -625,7 +655,8 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
     if (pending?.creationChoice) pending.creationChoice.resolved = true;
     sessionMode.value ??= workspaceStore.creationMode;
     const professional = !props.materialEditor && sessionMode.value === "professional";
-    const kind = props.materialEditor && props.materialRole && props.materialRole !== "reference" ? "image" : choice?.kind ?? (professional ? explicitGenerationKind(prompt) : props.materialEditor ? browserConfig.outputKind : inferGenerationKind(prompt));
+    if (!professional) generationKind.value ??= props.materialEditor && props.materialRole && props.materialRole !== "reference" ? "image" : browserConfig.outputKind;
+    const kind = professional ? choice?.kind ?? explicitGenerationKind(prompt) : generationKind.value;
     if (props.materialEditor && kind !== "image" && kind !== "video") { ElMessage.warning("自定义素材对话用于生成或编辑图片、视频，请选择图片或视频产物"); return; }
     browserConfig.kind = kind ?? "image";
     browserCancelled = false;
@@ -636,6 +667,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
     if (props.materialEditor) emit("generationState", { status: "queued", taskId });
     let reply: AgentMessage | undefined;
     try {
+      await persistBrowserMessages();
       const files = await Promise.all(attachments.map(async item => item.file ?? new File([await useWorkspaceFiles(directory).read(item.path)], item.name, { type: item.mimeType })));
       if (browserCancelled) throw new Error("已取消等待生成，输入和素材已保留");
       const userId = crypto.randomUUID();
@@ -772,7 +804,7 @@ async function deleteMessage(item: AgentMessage) {
   try {
     if (browserWorkspaceMode) {
       messages.value = messages.value.filter(message => message.id !== item.id && message.replyTo !== item.id);
-      if (directory && props.sessionFile) await saveBrowserConversation(directory, props.sessionFile, messages.value);
+      if (directory && props.sessionFile) await persistBrowserMessages();
       return;
     }
     if (item.entryId || item.replyTo) {

@@ -18,6 +18,7 @@ export async function readBrowserConversation(directory: string, file: string) {
   if (!/^[\w-]+\.json$/.test(file)) throw new Error("对话名称无效");
   const session = await useWorkspaceFiles(directory).readJson<AgentConversation>(`${folder}/${file}`);
   if (session?.file !== file || typeof session.name !== "string" || !Array.isArray(session.messages) || session.messages.some(message => !message || typeof message.id !== "string" || !["user", "assistant"].includes(message.role) || typeof message.content !== "string")) throw new Error("浏览器对话数据无效");
+  if (session.generationKind !== undefined && !["image", "video"].includes(session.generationKind)) throw new Error("对话生成类型记录无效");
   if (session.messages.some(message => message.professional !== undefined && !isProfessionalCreation(message.professional))) throw new Error("专业创作流程数据无效，请保留当前项目并检查对话文件");
   return session;
 }
@@ -29,16 +30,41 @@ export async function listBrowserConversations(directory: string) {
     return { file: entry.name, name: session.name, messageCount: session.messages.length, modified: (session as AgentConversation & { modified?: string }).modified ?? "" };
   })).then(items => items.sort((a, b) => b.modified.localeCompare(a.modified)));
 }
-export async function saveBrowserConversation(directory: string, file: string, messages: AgentMessage[], creationMode?: "simple" | "professional") {
+export async function saveBrowserConversation(directory: string, file: string, messages: AgentMessage[], creationMode?: "simple" | "professional", options?: { generationKind?: "image" | "video"; baseMessages?: AgentMessage[] }) {
   const files = await sessionFiles(directory);
   const path = `${folder}/${file}`;
   const snapshot = await files.readTextSnapshot(path);
   const session = JSON.parse(snapshot.text) as AgentConversation & { modified?: string };
   if (creationMode) session.creationMode = creationMode;
-  session.messages = messages.map(message => ({ ...message, streaming: false, attachments: message.attachments?.map(({ file, ...attachment }) => attachment) }));
+  if (options?.generationKind) {
+    if (session.generationKind && session.generationKind !== options.generationKind) throw new Error("该对话已固定生成类型，请新建对话切换图片或视频生成");
+    session.generationKind = options.generationKind;
+  }
+  const incoming = messages.map(message => ({ ...message, streaming: false, attachments: message.attachments?.map(({ file, ...attachment }) => attachment) }));
+  if (options?.baseMessages) {
+    const baseline = new Map(options.baseMessages.map(message => [message.id, message]));
+    const local = new Map(incoming.map(message => [message.id, message]));
+    const savedIds = new Set(session.messages.map(message => message.id));
+    const equal = (a: AgentMessage, b: AgentMessage) => JSON.stringify({ ...a, streaming: false }) === JSON.stringify({ ...b, streaming: false });
+    session.messages = session.messages.flatMap(saved => {
+      const previous = baseline.get(saved.id), current = local.get(saved.id);
+      if (!previous) return [current ?? saved];
+      if (!current) return [];
+      if (equal(current, previous)) return [saved];
+      if (!equal(saved, previous) && !equal(saved, current)) throw new Error("该消息已在其他窗口修改，请重新打开对话后重试；已有历史仍保留");
+      return [current];
+    });
+    for (const current of incoming) {
+      if (savedIds.has(current.id)) continue;
+      const previous = baseline.get(current.id);
+      if (!previous) session.messages.push(current);
+      else if (!equal(current, previous)) throw new Error("该消息已在其他窗口删除，请重新打开对话后重试");
+    }
+  } else session.messages = incoming;
   if (session.name === "新对话") session.name = messages.find(message => message.role === "user")?.content.slice(0, 80) || session.name;
   session.modified = new Date().toISOString();
   await files.writeTextSnapshot(path, JSON.stringify(session), snapshot);
+  return session;
 }
 export async function renameBrowserConversation(directory: string, file: string, name: string) {
   const files = useWorkspaceFiles(directory);

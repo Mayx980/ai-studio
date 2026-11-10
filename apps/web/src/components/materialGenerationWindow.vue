@@ -6,7 +6,7 @@
       <el-alert v-if="workspace.error" :title="workspace.error" type="warning" :closable="false" />
       <el-alert v-if="loadError" :title="loadError" type="error" :closable="false"><el-button text @click="loadSession">重新打开</el-button></el-alert>
       <p v-if="loading" role="status">正在打开独立生成对话…</p>
-      <conversation v-if="session" :key="session.file" class="materialConversation" :active="!workspace.minimized" :initialSession="session" :initialDraft="initialDraft" :sessionFile="session.file" :disabled="applying || !!workspace.uncertain" creationModes materialEditor :materialDirectory="workspace.directory" :materialLabel="workspace.label" :materialRole="workspace.target.role" @draft="saveDraft" @generationState="updateTask" @applyMaterial="applyMaterial" />
+      <conversation v-if="session" :key="session.file" class="materialConversation" :active="!workspace.minimized" :initialSession="session" :initialDraft="initialDraft" :sessionFile="session.file" :disabled="loading || applying || !!workspace.uncertain" creationModes materialEditor :materialDirectory="workspace.directory" :materialLabel="workspace.label" :materialRole="workspace.target.role" @draft="saveDraft" @generationState="updateTask" @applyMaterial="applyMaterial" />
     </section>
   </transition>
 </template>
