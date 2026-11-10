@@ -117,24 +117,24 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
   }
   .assistantTemplates { width: 100%; max-width: none; margin: 32px 0 0; }
   @media(min-width:1100px) {
-    :deep(.agent) { max-width: 824px; }
+    :deep(.agent) { width: calc(100% - 40px); max-width: none; }
     :deep(.emptyConversation) {
       .welcomeMessage { padding-bottom: 8px; .welcomeHeader { gap: 8px; .welcomeIcon .brandLogo { width: 96px; } h3 { font-size: 28px; } } }
       .conversationMode { width: 300px; margin: 4px auto 10px; padding: 5px;
-        .modeButton { height: 28px; padding-left: 13px; padding-right: 40px; font-size: 12px; svg { width: 16px; height: 16px; } }
+        .modeButton { height: 28px; padding-left: 13px; padding-right: 40px; font-size: 14px; svg { width: 16px; height: 16px; } }
         .modeHelp { width: 28px; height: 28px; svg { width: 20px; height: 20px; } }
       }
       .simpleInput { border-radius: 20px;
         .simpleReferenceSlots { padding: 12px; .slotCard { width: 56px; height: 56px; border-radius: 8px; svg { width: 24px; height: 24px; } } }
-        .senderEditor { min-height: 116px; .chat-rich-text, .chat-placeholder-wrap { font-size: 14px !important; line-height: 24px !important; } }
+        .senderEditor { min-height: 126px; .chat-rich-text, .chat-placeholder-wrap { font-size: 16px !important; line-height: 24px !important; } }
         .senderActions.simpleToolbar { gap: 4px; padding: 8px 12px;
-          .outputTabs button { height: 28px; padding: 0 5px; gap: 4px; font-size: 12px; svg { width: 16px; height: 16px; } }
-          .inlineModelSelect { flex-basis: 120px; width: 132px; min-width: 120px; max-width: 160px; .el-select__wrapper { min-height: 32px; } .el-select__selected-item { font-size: 12px; } }
-          .referenceModeButton { height: 32px; min-width: 80px; padding: 0 7px; font-size: 12px; }
-          .inlineParameter { height: 32px; padding: 0 4px; gap: 4px; font-size: 12px; svg { width: 18px; height: 18px; } }
-          .quickMention { width: 24px; height: 32px; font-size: 20px; }
-          .styleSelect { height: 32px; min-width: 60px; padding: 0 7px; font-size: 12px; svg { width: 16px; height: 16px; } }
-          > .sendButton { height: 32px; min-width: 88px; padding: 0 12px; font-size: 13px; svg { width: 16px; height: 16px; } }
+          .outputTabs button { height: 28px; padding: 0 5px; gap: 4px; font-size: 14px; svg { width: 16px; height: 16px; } }
+          .inlineModelSelect { flex-basis: 120px; width: 132px; min-width: 120px; max-width: 160px; .el-select__wrapper { min-height: 32px; } .el-select__selected-item { font-size: 14px; } }
+          .referenceModeButton { height: 32px; min-width: 80px; padding: 0 7px; font-size: 14px; }
+          .inlineParameter { height: 32px; padding: 0 4px; gap: 4px; font-size: 14px; svg { width: 18px; height: 18px; } }
+          .quickMention { width: 24px; height: 32px; font-size: 22px; }
+          .styleSelect { height: 32px; min-width: 60px; padding: 0 7px; font-size: 14px; svg { width: 16px; height: 16px; } }
+          > .sendButton { height: 32px; min-width: 88px; padding: 0 12px; font-size: 15px; svg { width: 16px; height: 16px; } }
         }
       }
     }
