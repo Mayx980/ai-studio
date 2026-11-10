@@ -30,7 +30,7 @@ const sections = computed(() => [
 ]);
 </script>
 <style scoped lang="scss">
-.studioSidebar { position: fixed; inset: 0 auto 0 0; width: 220px; z-index: 6; display: flex; flex-direction: column; border-right: 0; background: #131313; color: #f2f2f2;
+.studioSidebar { position: fixed; inset: 0 auto 0 0; width: 220px; z-index: 6; display: flex; flex-direction: column; border-right: 0; background: #090909; color: #f2f2f2;
   .sidebarScroll { flex: 1; min-height: 0; padding: 16px 16px 12px; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; &::-webkit-scrollbar { display: none; } }
   .studioBrand { position: relative; display: flex; align-items: center; gap: 8px; padding: 0; height: 32px; margin-bottom: 50px; border: 0; background: transparent; color: inherit; font-size: 26px; font-weight: 700; cursor: pointer; :deep(.fullBrand) { width: 118px; } :deep(.compactBrand) { display: none; } .expandIcon { display: none; } }
   nav { display: grid; gap: 6px; button { display: flex; align-items: center; gap: 12px; min-height: 44px; width: 100%; padding: 10px 12px; border: 0; border-radius: 10px; background: transparent; color: #f2f2f2; font: inherit; font-size: 14px; text-align: left; cursor: pointer; position: relative; isolation: isolate; overflow: hidden; transition: background 180ms ease, color 180ms ease;
@@ -38,7 +38,7 @@ const sections = computed(() => [
       &:hover { background: #ffffff12; color: #f2f2f2; }
       &[aria-current="page"] { background: transparent; color: #b4a1ff; &::after { opacity: 1; } &:hover { background: #ffffff12; } svg { color: #b4a1ff; filter: drop-shadow(0 0 5px #8261ff66); } }
       svg, span { position: relative; z-index: 1; } svg { flex: none; } } }
-  .sidebarFooter { flex: none; padding: 14px 20px; border-top: 1px solid #292b30; background: #131313; :deep(.accountMenu) { width: 100%; } }
+  .sidebarFooter { flex: none; padding: 14px 20px; border-top: 1px solid #292b30; background: #090909; :deep(.accountMenu) { width: 100%; } }
   &.collapsed { width: 68px; .collapseButton { opacity: 0; pointer-events: none; &:focus-visible { opacity: 1; pointer-events: auto; } } .sidebarScroll { padding: 16px 8px 8px; } .studioBrand { width: 100%; height: auto; margin-bottom: 28px; justify-content: center; .expandIcon { position: absolute; inset: 0; margin: auto; color: #f2f2f2; } &:hover, &:focus-visible { :deep(.compactBrand) { visibility: hidden; } .expandIcon { display: block; } } :deep(.fullBrand) { display: none; } :deep(.compactBrand) { display: inline-block; } } nav button { justify-content: center; padding: 10px; span { display: none; } } .sidebarFooter { padding: 12px 8px; :deep(.userCenterLabel), :deep(.accountName) { display: none; } } }
   .collapseButton { position: absolute; top: 19px; right: 12px; display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: #f2f2f2; cursor: pointer; &:hover { background: #292b30; } }
   @media(max-width:700px) { width: 68px; .collapseButton { opacity: 0; pointer-events: none; &:focus-visible { opacity: 1; pointer-events: auto; } } .sidebarScroll { padding: 16px 8px 8px; } .studioBrand { height: auto; margin-bottom: 24px; justify-content: center; :deep(.fullBrand) { display: none; } :deep(.compactBrand) { display: inline-block; } } nav button { justify-content: center; padding: 10px; span { display: none; } } .sidebarFooter { padding: 12px 8px; :deep(.userCenterLabel), :deep(.accountName) { display: none; } } }

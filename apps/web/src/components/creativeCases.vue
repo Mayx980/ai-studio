@@ -202,7 +202,7 @@ async function saveTemplate() {
   .caseFilters { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
   .caseCategories { flex: 1; min-width: 0; display: flex; gap: 20px; overflow: auto; margin-bottom: 0; button { flex: none; border: 0; background: none; padding: 8px 0; color: var(--el-text-color-secondary); cursor: pointer; &[aria-pressed="true"] { color: var(--el-color-primary); border-bottom: 2px solid; } } }
   .templateSearch { flex: 0 1 340px; min-width: 200px; width: 30%; margin: 0;
-    :deep(.el-input__wrapper) { min-height: 40px; box-sizing: border-box; padding: 0 10px 0 16px; border: 1px solid #484848; border-radius: 999px; background: #090909; box-shadow: none; transition: border-color 180ms ease;
+    :deep(.el-input__wrapper) { min-height: 40px; box-sizing: border-box; padding: 0 10px 0 16px; border: 1px solid #484848; border-radius: 999px; background: #131313; box-shadow: none; transition: border-color 180ms ease;
       &:hover { border-color: #65606d; } &.is-focus { border-color: #9a80d3; }
     }
     :deep(.el-input__inner) { color: #e6e3ec; font-size: 13px; &::placeholder { color: #707075; } }

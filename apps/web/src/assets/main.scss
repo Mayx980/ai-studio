@@ -67,7 +67,7 @@ body,
 }
 
 html.dark {
-  --el-bg-color-page: #090909;
+  --el-bg-color-page: #131313;
   --el-bg-color: #202020;
   --el-bg-color-overlay: #262626;
   --el-fill-color: #383b42;
@@ -83,6 +83,6 @@ html.dark {
 html.dark { --agent-input-bg: #1b1b1b; }
 html:not(.dark) { --agent-input-bg: var(--el-bg-color); }
 
-html.dark .home { background-color: #090909; }
-html.dark .studioSidebar, html.dark .studioSidebar .sidebarFooter { background-color: #131313; }
-html.dark .workspacePage, html.dark .vue-flow { background-color: #090909; }
+html.dark .home { background-color: #131313; }
+html.dark .studioSidebar, html.dark .studioSidebar .sidebarFooter { background-color: #090909; }
+html.dark .workspacePage, html.dark .vue-flow { background-color: #131313; }
