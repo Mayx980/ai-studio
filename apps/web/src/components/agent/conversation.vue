@@ -1651,6 +1651,8 @@ watch(() => !props.materialEditor && !props.initialSession?.parentFile && !!work
 
 <style scoped lang="scss">
 .messageInput.simpleInput {
+  border-color: transparent;
+  box-shadow: inset 0 0 2px 1px color-mix(in srgb, var(--el-border-color-light) 50%, transparent), 0 4px 16px rgb(0 0 0 / 8%);
   :deep(.chat-rich-text), :deep(.chat-scroll) { scrollbar-width: none;
     &::-webkit-scrollbar { display: none; width: 0; height: 0; }
   }
