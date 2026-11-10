@@ -115,7 +115,31 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
       }
     }
   }
-  .assistantTemplates { margin-top: 48px; }
+  .assistantTemplates { width: 100%; max-width: none; margin: 32px 0 0; }
+  @media(min-width:1100px) {
+    :deep(.agent) { max-width: 1179px; }
+    :deep(.emptyConversation) {
+      .welcomeMessage { padding-bottom: 8px; .welcomeHeader { gap: 8px; .welcomeIcon .brandLogo { width: 139px; } h3 { font-size: clamp(28px, 2.93vw, 37px); } } }
+      .conversationMode { width: 400px; margin: 6px auto 13px; padding: 5px;
+        .modeButton { height: 38px; padding-left: 13px; padding-right: 40px; font-size: 17px; svg { width: 21px; height: 21px; } }
+        .modeHelp { width: 28px; height: 28px; svg { width: 20px; height: 20px; } }
+      }
+      .simpleInput { border-radius: 26px;
+        .simpleReferenceSlots { padding: 16px; .slotCard { width: 96px; height: 96px; border-radius: 16px; svg { width: 37px; height: 37px; } } }
+        .senderEditor { min-height: 165px; .chat-rich-text, .chat-placeholder-wrap { font-size: 18px !important; line-height: 32px !important; } }
+        .senderActions.simpleToolbar { gap: 5px; padding: 11px 13px;
+          .outputTabs button { height: 35px; padding: 0 8px; gap: 8px; font-size: 17px; svg { width: 21px; height: 21px; } }
+          .inlineModelSelect { flex-basis: 160px; width: 176px; min-width: 160px; max-width: 240px; .el-select__wrapper { min-height: 43px; } .el-select__selected-item { font-size: 17px; } }
+          .referenceModeButton { height: 43px; min-width: 107px; padding: 0 11px; font-size: 17px; }
+          .inlineParameter { height: 43px; padding: 0 7px; gap: 7px; font-size: 17px; svg { width: 25px; height: 25px; } }
+          .quickMention { width: 35px; height: 43px; font-size: 25px; }
+          .styleSelect { height: 43px; min-width: 85px; padding: 0 11px; font-size: 17px; svg { width: 21px; height: 21px; } }
+          > .sendButton { height: 48px; min-width: 107px; padding: 0 16px; font-size: 16px; svg { width: 21px; height: 21px; } }
+        }
+      }
+    }
+    .assistantTemplates :deep(.caseGrid) { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  }
   @media(max-width:700px) {
     :deep(.emptyConversation) {
       .welcomeMessage .welcomeHeader h3 { font-size: 24px; }
