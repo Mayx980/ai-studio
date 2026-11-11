@@ -1637,7 +1637,7 @@ watch(() => !props.materialEditor && !props.initialSession?.parentFile && !!work
 
 <style scoped lang="scss">
 .agentConversation .messageInput .senderActions.simpleToolbar {
-  display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 6px; padding: 10px 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 10px 12px; padding: 10px 12px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
   &::-webkit-scrollbar { display: none; width: 0; height: 0; }
   .referenceTabsTarget { display: flex; flex: none; }
   .materialUpload { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; margin: 0; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #f2f2f2; cursor: pointer;

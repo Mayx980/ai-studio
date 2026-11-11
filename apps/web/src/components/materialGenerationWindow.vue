@@ -133,7 +133,7 @@ async function applyMaterial(file: File) {
   .materialConversation { flex: 1; min-height: 0; overflow: hidden; }
   :deep(.messageInput) { resize: none; }
   :deep(.agentConversation .messageInput .senderActions.simpleToolbar) {
-    flex-wrap: wrap; gap: 6px; overflow: visible; padding: 8px 52px 12px 8px;
+    flex-wrap: wrap; gap: 10px 12px; overflow: visible; padding: 8px 52px 12px 8px;
     .outputTabs { max-width: 100%; button { min-width: 0; padding: 0 8px; } }
     .inlineModelSelect { flex: 1 1 130px; width: auto; min-width: 110px; max-width: 240px; }
     .styleSelect { min-width: 60px; max-width: 110px; padding: 0 8px; > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }

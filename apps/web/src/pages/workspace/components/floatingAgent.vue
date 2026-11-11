@@ -68,7 +68,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
 .agentSidebar.sourceEditor { padding: 0; border: 0; background: #1c1b21;
   .assistantContent { display: flex; height: 100%; min-height: 0; overflow: hidden;
     :deep(.agent) { flex: 1; height: 100%; min-width: 0; min-height: 0; }
-    :deep(.senderActions.simpleToolbar) { flex-wrap: wrap; gap: 6px; overflow: visible;
+    :deep(.senderActions.simpleToolbar) { flex-wrap: wrap; gap: 10px 12px; overflow: visible;
       .inlineModelSelect { flex: 1 1 120px; width: auto; min-width: 100px; max-width: 220px; }
       .outputTabs button { min-width: 0; padding: 0 6px; }
       .inlineParameter { padding: 0 4px; }
@@ -124,7 +124,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
       .simpleReferenceSlots { flex: 0 1 auto; max-width: calc(100% - 220px); padding: 12px; .referenceDeck, .frameDeck { padding: 0; } }
       .senderEditor { flex: 1 1 220px; min-width: 0; min-height: 124px; }
       .draftAttachments, .editingBanner { flex-basis: 100%; }
-      .senderActions.simpleToolbar { flex: 1 0 100%; min-width: 0; box-sizing: border-box; flex-wrap: wrap; gap: 4px; padding: 8px 10px; overflow: visible;
+      .senderActions.simpleToolbar { flex: 1 0 100%; min-width: 0; box-sizing: border-box; flex-wrap: wrap; gap: 10px 12px; padding: 8px 12px; overflow: visible;
         .outputTabs button { min-width: 0; padding: 0 6px; }
         .inlineModelSelect { flex: 1 1 120px; width: 132px; min-width: 120px; max-width: 180px; }
         .referenceModeButton { min-width: 80px; padding: 0 8px; }
@@ -144,7 +144,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
       .simpleInput { border-radius: 20px;
         .simpleReferenceSlots { padding: 12px; .slotCard { width: 56px; height: 56px; border-radius: 8px; svg { width: 24px; height: 24px; } } }
         .senderEditor { min-height: 126px; .chat-rich-text, .chat-placeholder-wrap { font-size: 16px !important; line-height: 24px !important; } }
-        .senderActions.simpleToolbar { gap: 4px; padding: 8px 12px;
+        .senderActions.simpleToolbar { gap: 10px 12px; padding: 8px 12px;
           .outputTabs button { height: 28px; padding: 0 5px; gap: 4px; font-size: 14px; svg { width: 16px; height: 16px; } }
           .inlineModelSelect { flex-basis: 120px; width: 132px; min-width: 120px; max-width: 160px; .el-select__wrapper { min-height: 32px; } .el-select__selected-item { font-size: 14px; } }
           .referenceModeButton { height: 32px; min-width: 80px; padding: 0 7px; font-size: 14px; }
