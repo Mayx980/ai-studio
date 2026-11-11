@@ -3,6 +3,7 @@
     <div class="assetContent">
       <template v-if="module === 'history'">
         <header><h2>生成历史</h2><el-dropdown @command="descending = $event === 'descending'"><el-button text :aria-label="descending ? '时间倒序' : '时间正序'" :title="descending ? '时间倒序' : '时间正序'"><component :is="descending ? IconSortDescending : IconSortAscending" :size="20" /></el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="ascending">时间正序</el-dropdown-item><el-dropdown-item command="descending">时间倒序</el-dropdown-item></el-dropdown-menu></template></el-dropdown></header>
+        <nav class="historyCategories" aria-label="生成历史分类"><button v-for="category in historyCategories" :key="category.value" type="button" :aria-pressed="historyKind === category.value" :disabled="busy" @click="historyKind = category.value; selected = []"><span>{{ category.label }}</span><span class="categoryCount">{{ category.count }}</span></button></nav>
         <el-alert v-if="error" :title="error" type="error" :closable="false" />
         <p v-if="loading" role="status">正在读取生成历史…</p>
         <div v-for="group in groups" :key="group.date" class="historyGroup"><h3>{{ group.date }}</h3><div class="historyGrid"><article v-for="item in group.items" :key="item.key" class="historyCard" :class="{ selected: selected.includes(item.key) }">
@@ -49,13 +50,20 @@ type HistoryItem = { id: string; kind: "image" | "video" | "audio"; path: string
 const workspace = useWorkspaceStore(), router = useRouter();
 const module = ref("history"), descending = ref(true), loading = ref(true), busy = ref(false), error = ref("");
 const items = ref<HistoryItem[]>([]), selected = ref<string[]>([]), preview = ref<HistoryItem>();
+const historyKind = ref<"all" | HistoryItem["kind"]>("all");
+const historyCategories = computed(() => [
+  { value: "all" as const, label: "全部", count: items.value.length },
+  { value: "image" as const, label: "图片", count: items.value.filter(item => item.kind === "image").length },
+  { value: "video" as const, label: "视频", count: items.value.filter(item => item.kind === "video").length },
+  { value: "audio" as const, label: "音频", count: items.value.filter(item => item.kind === "audio").length },
+]);
 const detailActions = [{ value: "newCanvas", label: "新建画布添加", icon: IconSquarePlus }, { value: "canvas", label: "去画布/对话编辑", icon: IconEdit }, { value: "save", label: "保存到个人资产", icon: IconFolderPlus }, { value: "download", label: "下载素材", icon: IconDownload }, { value: "delete", label: "删除历史", icon: IconTrash }] as const;
 async function copyPrompt() { try { await navigator.clipboard.writeText(preview.value?.prompt || ""); ElMessage.success("已复制生成信息"); } catch { ElMessage.error("复制失败，请重试"); } }
 const releases: (() => void)[] = [];
 let disposed = false;
 onBeforeUnmount(() => { disposed = true; releases.forEach(release => release()); });
 const groups = computed(() => {
-  const sorted = [...items.value].sort((a, b) => (descending.value ? -1 : 1) * ((a.createdAt ?? 0) - (b.createdAt ?? 0)));
+  const sorted = items.value.filter(item => historyKind.value === "all" || item.kind === historyKind.value).sort((a, b) => (descending.value ? -1 : 1) * ((a.createdAt ?? 0) - (b.createdAt ?? 0)));
   const result = new Map<string, HistoryItem[]>();
   for (const item of sorted) { const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "未记录时间"; if (!result.has(date)) result.set(date, []); result.get(date)!.push(item); }
   return [...result].map(([date, entries]) => ({ date, items: entries }));
@@ -135,7 +143,17 @@ async function run(action: "canvas" | "newCanvas" | "save" | "download" | "delet
 }
 </script>
 <style scoped lang="scss">
-.assetsPage { display: flex; min-height: calc(100dvh - 64px); gap: 24px; .assetContent { flex: 1; min-width: 0; padding-bottom: 90px; header { display: flex; align-items: center; justify-content: space-between; } h2 { font-size: 18px; } } .assetModules { width: 190px; flex: none; padding: 12px; border-left: 0; background: transparent; button { display: flex; align-items: center; gap: 10px; padding: 10px; width: 100%; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; &[aria-current="page"], &:hover { background: var(--el-fill-color); } span { margin-left: auto; color: var(--el-text-color-secondary); } } } .historyGroup { margin-top: 26px; h3 { font-size: 14px; font-weight: 500; } } .historyGrid { display: flex; flex-wrap: wrap; gap: 12px; } .historyCard { position: relative; width: 140px; height: 140px; border: 2px solid transparent; border-radius: 10px; overflow: hidden; &.selected { border-color: var(--el-color-primary); } .mediaPreview { display: grid; place-items: center; width: 100%; height: 100%; border: 0; padding: 0; background: var(--el-fill-color); color: inherit; cursor: pointer; img, video { width: 100%; height: 100%; object-fit: cover; } } input { position: absolute; top: 6px; left: 6px; accent-color: var(--el-color-primary); width: 17px; height: 17px; cursor: pointer; opacity: 0; } &:hover input, &:focus-within input, &.selected input { opacity: 1; } .hoverActions { position: absolute; bottom: 7px; inset-inline: 7px; display: flex; gap: 4px; opacity: 0; pointer-events: none; .el-button { flex: 1; margin: 0; padding: 6px; background: #222b; color: white; border: 0; backdrop-filter: blur(10px); } } &:hover .hoverActions, &:focus-within .hoverActions { opacity: 1; pointer-events: auto; } } .selectionToolbar { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 36px); z-index: 10; display: flex; align-items: center; gap: 8px; padding: 10px; border: 1px solid var(--el-border-color); border-radius: 14px; background: #272829; box-shadow: 0 8px 28px #0005; overflow-x: auto; white-space: nowrap; font-size: 12px; .el-button { margin: 0; border-color: transparent; background: transparent; color: #cfd3dc; &:hover { background: #ffffff12; border-color: transparent; } } } @media(max-width:800px) { flex-direction: column-reverse; .assetModules { width: auto; display: flex; border-left: 0; } } }
+.assetsPage {
+  .historyCategories { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 20px;
+    button { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 12px; border: 0; border-radius: 999px; color: #b7b7b7; background: transparent; font: inherit; font-size: 13px; cursor: pointer;
+      .categoryCount { color: #8e8e8e; font-size: 12px; }
+      &[aria-pressed="true"] { color: #f2f2f2; background: #333; }
+      &:hover:enabled { background: #ffffff12; }
+      &:focus-visible { outline: 2px solid #a28ae9; outline-offset: 2px; }
+      &:disabled { cursor: wait; }
+    }
+  }
+  display: flex; min-height: calc(100dvh - 64px); gap: 24px; .assetContent { flex: 1; min-width: 0; padding-bottom: 90px; header { display: flex; align-items: center; justify-content: space-between; } h2 { font-size: 18px; } } .assetModules { width: 190px; flex: none; padding: 12px; border-left: 0; background: transparent; button { display: flex; align-items: center; gap: 10px; padding: 10px; width: 100%; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; &[aria-current="page"], &:hover { background: var(--el-fill-color); } span { margin-left: auto; color: var(--el-text-color-secondary); } } } .historyGroup { margin-top: 26px; h3 { font-size: 14px; font-weight: 500; } } .historyGrid { display: flex; flex-wrap: wrap; gap: 12px; } .historyCard { position: relative; width: 140px; height: 140px; border: 2px solid transparent; border-radius: 10px; overflow: hidden; &.selected { border-color: var(--el-color-primary); } .mediaPreview { display: grid; place-items: center; width: 100%; height: 100%; border: 0; padding: 0; background: var(--el-fill-color); color: inherit; cursor: pointer; img, video { width: 100%; height: 100%; object-fit: cover; } } input { position: absolute; top: 6px; left: 6px; accent-color: var(--el-color-primary); width: 17px; height: 17px; cursor: pointer; opacity: 0; } &:hover input, &:focus-within input, &.selected input { opacity: 1; } .hoverActions { position: absolute; bottom: 7px; inset-inline: 7px; display: flex; gap: 4px; opacity: 0; pointer-events: none; .el-button { flex: 1; margin: 0; padding: 6px; background: #222b; color: white; border: 0; backdrop-filter: blur(10px); } } &:hover .hoverActions, &:focus-within .hoverActions { opacity: 1; pointer-events: auto; } } .selectionToolbar { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 36px); z-index: 10; display: flex; align-items: center; gap: 8px; padding: 10px; border: 1px solid var(--el-border-color); border-radius: 14px; background: #272829; box-shadow: 0 8px 28px #0005; overflow-x: auto; white-space: nowrap; font-size: 12px; .el-button { margin: 0; border-color: transparent; background: transparent; color: #cfd3dc; &:hover { background: #ffffff12; border-color: transparent; } } } @media(max-width:800px) { flex-direction: column-reverse; .assetModules { width: auto; display: flex; border-left: 0; } } }
 </style>
 
 <style lang="scss">
