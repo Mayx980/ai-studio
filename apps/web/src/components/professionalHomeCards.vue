@@ -1,6 +1,6 @@
 <template>
   <div class="professionalHomeCards" aria-label="画布项目">
-    <button class="newCanvasCard" type="button" :disabled="busy" @click="createCanvas"><svg class="canvasTrails" viewBox="0 0 240 160" preserveAspectRatio="none" aria-hidden="true"><path v-for="(path, index) in canvasTrails" :key="index" :d="path" pathLength="1" /></svg><span class="canvasIcon"><span class="canvasIconFace canvasPlus"><icon-plus :size="24" /></span><span class="canvasIconFace canvasMark"><img src="/afxenMark.svg" alt="" /></span></span><span class="canvasLabel">新建画布</span></button>
+    <button class="newCanvasCard" type="button" :disabled="busy" @click="createCanvas"><svg class="canvasTrails" viewBox="0 0 240 160" preserveAspectRatio="none" aria-hidden="true"><path v-for="(path, index) in canvasTrails" :key="index" :d="path" pathLength="1" /></svg><span class="canvasIcon"><span class="canvasIconFace canvasPlus"><icon-plus :size="24" /></span><span class="canvasIconFace canvasMark" aria-hidden="true" /></span><span class="canvasLabel">新建画布</span></button>
     <button v-for="project in recentProjects" :key="project.directory" class="recentProjectCard" type="button" :disabled="busy" :aria-label="`打开项目 ${project.name}`" @click="openProject(project)">
       <projectThumbnail :directory="project.directory" />
       <span class="projectCaption"><strong>{{ project.name }}</strong><small>最近编辑 {{ formatTime(project.lastEditedAt ?? project.lastOpenedAt) }}</small></span>
@@ -47,15 +47,16 @@ async function openProject(project: Project) {
     &:disabled { cursor: wait; }
   }
   .newCanvasCard { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-size: 13px; background: radial-gradient(circle, #ffffff16 1px, transparent 1px) 0 0 / 18px 18px, #202020;
-    .canvasTrails { position: absolute; top: -14px; left: 0; width: 100%; height: 100%; pointer-events: none;
+    .canvasTrails { position: absolute; top: -14px; left: 0; width: 100%; height: 100%; pointer-events: none; mask-image: linear-gradient(to right, transparent 0%, #0002 12%, #0008 30%, #000 50%, #0008 70%, #0002 88%, transparent 100%);
       path { fill: none; stroke: #ffffff26; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; transition: stroke-dashoffset 700ms ease 120ms, opacity 220ms ease; }
     }
     .canvasIcon { position: relative; z-index: 1; display: block; width: 34px; height: 34px; perspective: 180px; }
     .canvasIconFace { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 8px; color: #202020; background: #fff; backface-visibility: hidden; transition: transform 480ms ease;
-      img { width: 25px; height: 25px; object-fit: contain; }
     }
     .canvasPlus { transform: rotateY(0deg); }
-    .canvasMark { transform: rotateY(-180deg); }
+    .canvasMark { transform: rotateY(-180deg); background: #202020;
+      &::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: #fff; mask-image: linear-gradient(#000 0 0), url("/afxenMark.svg"); mask-size: 100% 100%, 25px 25px; mask-position: center; mask-repeat: no-repeat; mask-composite: exclude; }
+    }
     .canvasLabel { position: relative; z-index: 1; }
     &:hover:enabled, &:focus-visible { .canvasPlus { transform: rotateY(180deg); } .canvasMark { transform: rotateY(0deg); } .canvasTrails path { stroke-dashoffset: 0; opacity: 1; } }
     @media(prefers-reduced-motion:reduce) { .canvasIconFace, .canvasTrails path { transition: none; } }
