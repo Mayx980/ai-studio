@@ -241,7 +241,7 @@ async function saveTemplate() {
     }
   }
   &.curated { width: 100%; max-width: none; box-sizing: border-box;
-    .caseGrid { display: grid; width: 100%; grid-auto-rows: 1px; grid-auto-flow: dense; gap: 0 6px; align-items: start;
+    .caseGrid { display: grid; width: 100%; grid-template-columns: repeat(auto-fill, 150px); grid-auto-rows: 1px; grid-auto-flow: dense; gap: 0 6px; align-items: start;
       article { width: 100%; min-width: 0; margin: 0; }
       .caseCard { display: block; border-radius: 10px;
         .casePreview { aspect-ratio: auto; height: auto; min-height: 60px; border-radius: inherit; :deep(.templateMedia) { width: 100%; height: auto; object-fit: contain; background: #29292d; } }
