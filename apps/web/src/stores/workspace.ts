@@ -25,6 +25,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const project = ref<Project | null>(null);
   const projectList = ref<Project[]>([]);
   const draftProjects = ref<Project[]>([]);
+  const projectFolders = ref<string[]>([]);
   const lastSimpleDirectory = ref("");
   const tutorialVisited = ref<("image" | "video" | "canvas")[]>([]);
   const canvasTutorialVersion = ref(0);
@@ -140,6 +141,27 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (project.value?.directory === path) project.value = target;
   }
 
+  function createProjectFolder(name: string) {
+    const folder = name.trim();
+    if (!folder || folder.length > 50 || /[\\/\0]/.test(folder) || [".", ".."].includes(folder)) throw new Error("请输入有效文件夹名称（1–50字）");
+    if (projectFolders.value.includes(folder) || projectList.value.some(item => item.folder === folder)) throw new Error("同名文件夹已存在");
+    projectFolders.value.push(folder);
+    return folder;
+  }
+  function renameProjectFolder(folder: string, name: string) {
+    if (folder === name.trim()) return folder;
+    const renamed = createProjectFolder(name);
+    for (const item of projectList.value) if (item.folder === folder) item.folder = renamed;
+    projectFolders.value = projectFolders.value.filter(item => item !== folder);
+    if (project.value?.folder === folder) project.value.folder = renamed;
+    return renamed;
+  }
+  function removeProjectFolder(folder: string) {
+    for (const item of projectList.value) if (item.folder === folder) item.folder = "";
+    projectFolders.value = projectFolders.value.filter(item => item !== folder);
+    if (project.value?.folder === folder) project.value.folder = "";
+  }
+
   function moveProject(path: string, folder: string) {
     const target = projectList.value.find(item => item.directory === path);
     if (!target) throw new Error("项目已不存在");
@@ -173,11 +195,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (project.value?.directory === path) project.value = null;
   }
 
-  return { markProjectEdited, createCanvasEntry, creationMode, project, projectList, draftProjects, lastSimpleDirectory, tutorialVisited, canvasTutorialVersion, completeSimpleProject, archiveSimpleConversation, resumeSimpleConversation, pendingAgentMessage, pendingAgentSession, pendingAgentDraft, pendingCanvasEntry, createProject, openProject, restoreProjectEntry, renameProject, moveProject, duplicateProject, removeProject };
+  return { projectFolders, createProjectFolder, renameProjectFolder, removeProjectFolder, markProjectEdited, createCanvasEntry, creationMode, project, projectList, draftProjects, lastSimpleDirectory, tutorialVisited, canvasTutorialVersion, completeSimpleProject, archiveSimpleConversation, resumeSimpleConversation, pendingAgentMessage, pendingAgentSession, pendingAgentDraft, pendingCanvasEntry, createProject, openProject, restoreProjectEntry, renameProject, moveProject, duplicateProject, removeProject };
 }, {
   persist: {
     key: browserWorkspaceMode ? currentAccount.value?.id === "admin" ? "aiStudio.browserProjects.admin" : "aiStudio.browserProjects" : "toonflow.projectList",
     storage: browserWorkspaceMode ? { getItem: (key: string) => localStorage.getItem(key) ?? (key === "aiStudio.browserProjects" ? settingsStorage.getItem("toonflow.projectList") : null), setItem: (key: string, value: string) => { if (window.parent === window) localStorage.setItem(key, value); } } : settingsStorage,
-    pick: ["project", "projectList", "draftProjects", "lastSimpleDirectory", "creationMode", "tutorialVisited", "canvasTutorialVersion"],
+    pick: ["project", "projectFolders", "projectList", "draftProjects", "lastSimpleDirectory", "creationMode", "tutorialVisited", "canvasTutorialVersion"],
   },
 });

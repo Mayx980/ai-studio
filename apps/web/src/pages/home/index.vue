@@ -18,8 +18,12 @@
       </section>
       <assetsPage v-if="homeSection === 'assets'" />
       <section v-show="homeSection === 'projects'" class="projectList" aria-labelledby="projectListTitle">
-        <div class="sectionHeader"><h2 id="projectListTitle">我的项目</h2><el-input class="projectSearch" v-model="projectSearch" placeholder="按项目名搜索" aria-label="按项目名搜索" clearable style="max-width:240px" /><el-space wrap><el-button v-if="!browserWorkspaceMode" :icon="IconFolderOpen" @click="openProject()">导入项目</el-button><el-button :icon="IconPlus" :disabled="creating || opening" @click="createCanvas()">添加项目</el-button><el-button circle :icon="sortDescending ? IconSortDescending : IconSortAscending" aria-label="切换时间排序" @click="sortDescending = !sortDescending" /><el-radio-group v-model="viewMode" aria-label="项目视图"><el-radio-button value="grid" aria-label="网格视图"><icon-layout-grid :size="16" /></el-radio-button><el-radio-button value="list" aria-label="列表视图"><icon-list :size="16" /></el-radio-button></el-radio-group></el-space></div>
-        <div class="projectItems" :class="{ listView: viewMode === 'list' }"><el-card v-for="project in filteredProjects" :key="project.directory" class="projectCard" shadow="hover" :bodyStyle="{ padding: '0' }"><button class="projectEntry" type="button" :disabled="creating || opening" :aria-label="`打开项目 ${project.name}`" @click="openProject(project)"><projectThumbnail :key="`${project.directory}:${coverVersions[project.directory] ?? 0}`" :directory="project.directory" /><span class="projectInfo"><strong :title="project.name">{{ project.name }}</strong><small>最近编辑 {{ formatTime(project.lastEditedAt ?? project.lastOpenedAt) }}</small></span></button><div class="projectActions"><el-dropdown trigger="click" placement="bottom-end" @command="command => projectAction(project, command)">
+        <div class="sectionHeader"><h2 id="projectListTitle">我的项目</h2><el-input class="projectSearch" v-model="projectSearch" placeholder="按项目名搜索" aria-label="按项目名搜索" clearable style="max-width:240px" /><el-space wrap><el-button v-if="!browserWorkspaceMode" :icon="IconFolderOpen" @click="openProject()">导入项目</el-button><el-button :icon="IconPlus" :disabled="creating || opening" @click="createProjectFolder()">新建文件夹</el-button><el-button circle :icon="sortDescending ? IconSortDescending : IconSortAscending" aria-label="切换时间排序" @click="sortDescending = !sortDescending" /><el-radio-group v-model="viewMode" aria-label="项目视图"><el-radio-button value="grid" aria-label="网格视图"><icon-layout-grid :size="16" /></el-radio-button><el-radio-button value="list" aria-label="列表视图"><icon-list :size="16" /></el-radio-button></el-radio-group></el-space></div>
+        <div v-if="activeFolder" class="folderBreadcrumb"><button type="button" @click="activeFolder = ''" @dragover.prevent @drop.prevent="dropProject($event, '')">我的项目</button><icon-chevron-right :size="16" /><span>{{ activeFolder }}</span></div>
+        <div class="projectItems" :class="{ listView: viewMode === 'list' }">
+          <button class="startCreationCard" type="button" :disabled="creating || opening" @click="createCanvas()"><span class="startCreationCover"><icon-plus :size="24" /><strong>开始创作</strong></span><small>创建新的项目</small></button>
+          <article v-for="folder in visibleFolders" :key="`folder:${folder}`" class="projectFolderCard" :class="{ dragOver: dragFolder === folder }" @dragover.prevent="dragFolder = folder" @dragleave="dragFolder = ''" @drop.prevent="dropProject($event, folder)"><button class="folderEntry" type="button" @click="activeFolder = folder"><icon-folder :size="44" /><strong>{{ folder }}</strong><small>{{ workspaceStore.projectList.filter(item => item.folder === folder).length }} 个项目</small></button><el-dropdown class="folderActions" trigger="click" @command="command => folderAction(folder, command)"><el-button text :aria-label="`文件夹操作 ${folder}`"><icon-dots :size="20" /></el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="rename">重命名</el-dropdown-item><el-dropdown-item command="remove">删除</el-dropdown-item></el-dropdown-menu></template></el-dropdown></article>
+          <el-card v-for="project in filteredProjects" :key="project.directory" class="projectCard" draggable="true" @dragstart="dragProject($event, project)" @dragend="dragFolder = ''" shadow="hover" :bodyStyle="{ padding: '0' }"><button class="projectEntry" type="button" :disabled="creating || opening" :aria-label="`打开项目 ${project.name}`" @click="openProject(project)"><projectThumbnail :key="`${project.directory}:${coverVersions[project.directory] ?? 0}`" :directory="project.directory" /><span class="projectInfo"><strong :title="project.name">{{ project.name }}</strong><small>最近编辑 {{ formatTime(project.lastEditedAt ?? project.lastOpenedAt) }}</small></span></button><div class="projectActions"><el-dropdown trigger="click" placement="bottom-end" @command="command => projectAction(project, command)">
           <el-button text :disabled="creating || opening || projectBusy" :aria-label="`更多项目操作 ${project.name}`" title="更多操作"><icon-dots :size="20" /></el-button>
           <template #dropdown><el-dropdown-menu>
             <el-dropdown-item command="open">打开</el-dropdown-item><el-dropdown-item command="rename">重命名</el-dropdown-item><el-dropdown-item command="cover">修改封面</el-dropdown-item><el-dropdown-item command="copy" :disabled="!browserWorkspaceMode">创建副本</el-dropdown-item><el-dropdown-item v-if="browserWorkspaceMode" command="template">制作模板</el-dropdown-item>
@@ -39,7 +43,7 @@ import { ensureExampleProject } from "@/lib/exampleProjects";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { IconPlus, IconFolderOpen, IconTrash, IconDots, IconChevronRight, IconSortAscending, IconSortDescending, IconFileText, IconMovie, IconPhoto, IconVideo, IconVolume } from "@tabler/icons-vue";
+import { IconPlus, IconFolder, IconFolderOpen, IconTrash, IconDots, IconChevronRight, IconSortAscending, IconSortDescending, IconFileText, IconMovie, IconPhoto, IconVideo, IconVolume } from "@tabler/icons-vue";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { useWorkspaceStore, type Project } from "@/stores/workspace";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
@@ -63,7 +67,10 @@ const homeSection = computed({ get: () => ["create", "templates", "history", "as
 const settingsVisible = ref(false), creating = ref(false), opening = ref(false), sortDescending = ref(true), viewMode = ref("grid"), projectSearch = ref("");
 const templateCenter = ref<InstanceType<typeof creativeCases>>(), relocationPicker = ref<InstanceType<typeof workspacePicker>>();
 const sortedProjects = computed(() => [...workspaceStore.projectList].sort((a, b) => sortDescending.value ? (b.lastEditedAt ?? b.lastOpenedAt) - (a.lastEditedAt ?? a.lastOpenedAt) : (a.lastEditedAt ?? a.lastOpenedAt) - (b.lastEditedAt ?? b.lastOpenedAt)));
-const filteredProjects = computed(() => sortedProjects.value.filter(item => item.name.toLowerCase().includes(projectSearch.value.trim().toLowerCase())));
+const activeFolder = ref("");
+const dragFolder = ref("");
+const filteredProjects = computed(() => sortedProjects.value.filter(item => (item.folder || "") === activeFolder.value && item.name.toLowerCase().includes(projectSearch.value.trim().toLowerCase())));
+const visibleFolders = computed(() => activeFolder.value ? [] : projectFolders.value.filter(folder => folder.toLowerCase().includes(projectSearch.value.trim().toLowerCase())));
 const recentProjects = computed(() => [...workspaceStore.projectList].sort((a, b) => (b.lastEditedAt ?? b.lastOpenedAt) - (a.lastEditedAt ?? a.lastOpenedAt)).slice(0, 4));
 const nodeShortcuts = [{ type: "remote-textNode", label: "文本", icon: IconFileText }, { type: "scriptNode", label: "脚本", icon: IconMovie }, { type: "remote-imageGenerationNode", label: "图片", icon: IconPhoto }, { type: "remote-videoGenerationNode", label: "视频", icon: IconVideo }, { type: "remote-audioGenerationNode", label: "音频", icon: IconVolume }];
 function formatTime(value: number) { return new Date(value).toLocaleString(locale.value, { hour12: false }); }
@@ -72,6 +79,7 @@ async function createCanvas(nodeType?: string) {
   creating.value = true;
   try {
     await workspaceStore.createCanvasEntry(nodeType);
+    if (homeSection.value === "projects" && activeFolder.value && workspaceStore.project) workspaceStore.moveProject(workspaceStore.project.directory, activeFolder.value);
     await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "项目创建失败"); }
   finally { creating.value = false; }
@@ -136,7 +144,7 @@ async function renameProject(project: Project) {
 
 const projectBusy = ref(false), coverInput = ref<HTMLInputElement>(), coverTarget = ref<Project>();
 const coverVersions = ref<Record<string, number>>({});
-const projectFolders = computed(() => [...new Set(workspaceStore.projectList.map(item => item.folder).filter((folder): folder is string => !!folder))]);
+const projectFolders = computed(() => [...new Set([...workspaceStore.projectFolders, ...workspaceStore.projectList.map(item => item.folder).filter((folder): folder is string => !!folder)])]);
 async function projectAction(project: Project, command: string | number | object) {
   if (projectBusy.value) return;
   if (command === "open") return openProject(project);
@@ -154,9 +162,34 @@ async function projectAction(project: Project, command: string | number | object
   finally { projectBusy.value = false; }
 }
 function moveProject(project: Project, folder: string) { workspaceStore.moveProject(project.directory, folder); ElMessage.success(folder ? `已移动至 ${folder}` : "已移动至根文件夹"); }
-async function createProjectFolder(project: Project) {
-  const result = await ElMessageBox.prompt("请输入文件夹名称", "新建文件夹", { confirmButtonText: "创建并移动", cancelButtonText: "取消", inputValidator: value => !!value?.trim() && value.trim().length <= 50 && !/[\\/\0]/.test(value) && ![".", ".."].includes(value.trim()) || "请输入有效文件夹名称（1–50字）" }).catch(() => null);
-  if (result) moveProject(project, result.value.trim());
+async function createProjectFolder(project?: Project) {
+  const result = await ElMessageBox.prompt("请输入文件夹名称", "新建文件夹", { confirmButtonText: "创建", cancelButtonText: "取消", inputValidator: value => !!value?.trim() && value.trim().length <= 50 && !/[\\/\0]/.test(value) && ![".", ".."].includes(value.trim()) || "请输入有效文件夹名称（1–50字）" }).catch(() => null);
+  if (!result) return;
+  try { const folder = workspaceStore.createProjectFolder(result.value); if (project) moveProject(project, folder); }
+  catch (error) { ElMessage.error(error instanceof Error ? error.message : "文件夹创建失败"); }
+}
+async function folderAction(folder: string, command: string | number | object) {
+  try {
+    if (command === "rename") {
+      const result = await ElMessageBox.prompt("请输入文件夹名称", "重命名文件夹", { inputValue: folder, confirmButtonText: "保存", cancelButtonText: "取消" }).catch(() => null);
+      if (result) { const renamed = workspaceStore.renameProjectFolder(folder, result.value); if (activeFolder.value === folder) activeFolder.value = renamed; }
+    } else if (command === "remove") {
+      const confirmed = await ElMessageBox.confirm(`删除文件夹“${folder}”？其中的项目将移回我的项目，项目文件不会被删除。`, "删除文件夹", { confirmButtonText: "删除", cancelButtonText: "取消", type: "warning" }).then(() => true, () => false);
+      if (confirmed) { workspaceStore.removeProjectFolder(folder); if (activeFolder.value === folder) activeFolder.value = ""; }
+    }
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "文件夹操作失败"); }
+}
+function dragProject(event: DragEvent, project: Project) {
+  if (!event.dataTransfer) return;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("application/x-afxen-project", project.directory);
+}
+function dropProject(event: DragEvent, folder: string) {
+  dragFolder.value = "";
+  const directory = event.dataTransfer?.getData("application/x-afxen-project");
+  const project = workspaceStore.projectList.find(item => item.directory === directory);
+  if (!project || folder && !projectFolders.value.includes(folder)) return;
+  moveProject(project, folder);
 }
 async function changeProjectCover(event: Event) {
   const input = event.target as HTMLInputElement, file = input.files?.[0], project = coverTarget.value;
@@ -238,6 +271,19 @@ async function openHistory(item: ConversationHistory) {
     .newCanvasEntry { width: 100%; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; border: 1px solid var(--el-border-color); border-radius: 14px; color: var(--el-text-color-primary); background: radial-gradient(circle, var(--el-border-color) 1px, transparent 1px) 0 0 / 18px 18px, linear-gradient(var(--el-fill-color-extra-light),var(--el-fill-color)); cursor: pointer; strong { font-size: 15px; } .canvasPlus { display: grid; place-items: center; width: 74px; height: 50px; border-radius: 14px; color: var(--el-bg-color); background: var(--el-text-color-primary); } }
     .nodeShortcuts { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 20px; margin: 26px 0 36px; button { display: grid; justify-items: center; gap: 10px; padding: 0; border: 0; background: transparent; color: var(--el-text-color-primary); font: inherit; font-size: 13px; cursor: pointer; span { display: grid; place-items: center; width: 100%; height: 64px; border: 1px solid var(--el-border-color-light); border-radius: 16px; background: var(--el-fill-color-light); } &:hover span { border-color: var(--el-color-primary); } } }
     .recentCards { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 12px; .recentCard { min-width: 0; display: flex; align-items: center; gap: 12px; padding: 6px; border: 1px solid var(--el-border-color-light); border-radius: 18px; background: var(--el-bg-color); color: var(--el-text-color-primary); text-align: left; cursor: pointer; :deep(.projectThumbnail) { flex: none; width: 78px; height: 66px; border-radius: 13px; } > span { display: grid; gap: 9px; min-width: 0; } strong { font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } small { font-size: 10px; color: var(--el-text-color-secondary); } } }
+    .folderBreadcrumb { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; font-size: 13px; button { padding: 6px 8px; border: 0; border-radius: 6px; color: #d9d9df; background: transparent; cursor: pointer; &:hover { background: #ffffff12; } } }
+    .startCreationCard { align-self: start; display: flex; flex-direction: column; gap: 10px; border: 0; padding: 0; background: transparent; color: #eee; text-align: left; cursor: pointer;
+      .startCreationCover { box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; width: 100%; aspect-ratio: 16 / 9; border: 1px solid #505050; border-radius: 12px; background: #292929; svg { color: #929292; } strong { font-size: 13px; font-weight: 400; } }
+      small { padding: 0 2px; color: #aaa; font-size: 12px; }
+      &:hover .startCreationCover { background: #303030; }
+      &:focus-visible { outline: 2px solid #a28ae9; outline-offset: 3px; border-radius: 12px; }
+    }
+    .projectFolderCard { position: relative; align-self: start; border: 1px solid #ffffff12; border-radius: 12px; background: #222; overflow: hidden;
+      .folderEntry { width: 100%; aspect-ratio: 16 / 9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 0; padding: 12px 36px; color: #ddd; background: transparent; cursor: pointer; strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; } small { font-size: 11px; color: #aaa; } }
+      .folderActions { position: absolute; right: 6px; bottom: 6px; .el-button { padding: 4px; color: #ddd; } }
+      &.dragOver { border-color: #a28ae9; background: #30273f; }
+      &:focus-within { outline: 1px solid #a28ae9; }
+    }
     .projectItems { display: grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap: 12px; &.listView { grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); .projectEntry { flex-direction: row; :deep(.projectThumbnail) { width: 80px; height: 96px; } } } .projectCard { &:hover .projectActions, &:focus-within .projectActions { opacity: 1; pointer-events: auto; } position: relative; border: 0; background: transparent; border-radius: 12px; box-shadow: none; } .projectEntry { display: flex; flex-direction: column; width: 100%; border: 0; padding: 0; background: none; color: inherit; text-align: left; cursor: pointer; :deep(.projectThumbnail) { width: 100%; height: auto; aspect-ratio: 16 / 9; } .projectInfo { min-width: 0; padding: 10px 46px 10px 10px; display: grid; gap: 6px; strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } small { font-size: 10px; color: var(--el-text-color-secondary); } } } .projectActions { position: absolute; bottom: 6px; right: 8px; opacity: 0; pointer-events: none; transition: opacity .15s; display: flex; justify-content: flex-end; padding: 2px 6px; .el-button { width: 26px; height: 26px; margin: 0; padding: 0; } } }
     .homeHistory { .historyEntry { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--el-border-color-light); border-radius: 10px; margin: 8px 0; .historyOpen { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; border: 0; background: none; color: inherit; cursor: pointer; span { display: grid; gap: 4px; min-width: 0; } strong { font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } small { font-size: 11px; color: var(--el-text-color-secondary); } } } }
   }
