@@ -222,7 +222,18 @@ async function saveTemplate() {
       .caseName { display: block; padding: 9px 8px; font-size: 13px; font-weight: 600; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     }
   }
-  &.curated { .caseGrid { grid-template-columns: repeat(auto-fill,minmax(240px,280px)); gap: 20px; .caseCard .casePreview { aspect-ratio: 16/10; :deep(.templateMedia) { object-fit: contain; background: #29292d; } } .caseName { padding: 12px 10px; padding-right: 46px; } } .cardAction { bottom: 8px; right: 10px; } &:has(.deleteCard) { .cardAction { right: 50px; } .caseName { padding-right: 90px; } } }
+  &.curated {
+    .caseGrid { display: block; columns: 240px; column-gap: 8px;
+      article { display: inline-block; vertical-align: top; width: 100%; margin: 0 0 8px; break-inside: avoid; }
+      .caseCard { display: block; border-radius: 10px;
+        .casePreview { aspect-ratio: auto; height: auto; min-height: 100px; border-radius: inherit; :deep(.templateMedia) { width: 100%; height: auto; object-fit: contain; background: #29292d; } }
+        .caseName { position: absolute; bottom: 0; left: 0; right: 0; padding: 32px 48px 12px 12px; font-size: 13px; font-weight: 400; color: #fff; background: linear-gradient(transparent, #0009); }
+      }
+    }
+    .cardAction { right: 8px; bottom: 8px; opacity: 1; pointer-events: auto; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px; color: #fff; background: #0005; &:hover, &:focus-visible { background: #ffffff38; } }
+    .deleteCard { top: 8px; bottom: auto; right: 8px; }
+    @media(max-width:600px) { .caseGrid { columns: 150px; column-gap: 6px; article { margin-bottom: 6px; } } }
+  }
   &.compact { margin: 8px 14px; max-height: 200px; overflow: auto; .caseHeader h2 { font-size: 13px; margin: 0; } .caseCategories { margin: 0; } .caseGrid { display: flex; article { flex: 0 0 140px; .caseCard .casePreview { height: 80px; aspect-ratio: auto; } } } }
   @media(max-width:700px) { .caseFilters { flex-wrap: wrap; gap: 8px; .caseCategories { flex-basis: 100%; } .templateSearch { flex-basis: 100%; width: 100%; min-width: 0; } } }
   @media(max-width:420px) { .caseGrid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; } }
