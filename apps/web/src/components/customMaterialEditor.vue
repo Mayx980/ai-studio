@@ -1,6 +1,5 @@
 <template>
   <teleport to="body">
-    <button v-if="activeWindow" class="materialWindowMask" type="button" aria-label="收起自定义素材对话" @click="minimizeMaterialWorkspace(activeWindow)" />
     <materialGenerationWindow v-for="workspace in materialWorkspaces" :key="workspace.id" :workspace="workspace" />
     <nav v-if="availableMaterialWorkspaces.length && !activeMaterialWorkspace" class="materialTasks" aria-label="生成窗口任务">
       <el-tooltip v-for="workspace in availableMaterialWorkspaces" :key="workspace.id" content="点击可查看任务" placement="left" :disabled="draggingId === workspace.id" :showArrow="false"><button type="button" :class="{ dragging: draggingId === workspace.id }" :style="taskPosition(workspace.id)" @pointerdown="startDrag($event, workspace.id)" @pointermove="moveDrag" @pointerup="finishDrag" @pointercancel="finishDrag" @lostpointercapture="finishDrag" @dragstart.prevent :aria-label="`${workspace.label} · ${materialStatusLabel(workspace)}，点击可查看任务`" @click="openTask($event, workspace)"><generationTaskRing :size="56" :status="workspace.status" :kind="workspace.config.outputKind" /></button></el-tooltip>
@@ -9,12 +8,11 @@
   </teleport>
 </template>
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { onBeforeUnmount, ref, watch } from "vue";
 import generationTaskRing from "./generationTaskRing.vue";
 import materialGenerationWindow from "./materialGenerationWindow.vue";
-import { activeMaterialWorkspace, availableMaterialWorkspaces, materialWorkspaces, materialStorageError, materialStatusLabel, minimizeMaterialWorkspace, openMaterialWorkspace, restoreMaterialWorkspaces, type MaterialWorkspace } from "@/stores/materialEditor";
+import { activeMaterialWorkspace, availableMaterialWorkspaces, materialWorkspaces, materialStorageError, materialStatusLabel, openMaterialWorkspace, restoreMaterialWorkspaces, type MaterialWorkspace } from "@/stores/materialEditor";
 restoreMaterialWorkspaces();
-const activeWindow = computed(() => materialWorkspaces.value.find(item => item.id === activeMaterialWorkspace.value && !item.minimized && !item.ended));
 const positions = ref<Record<string, { left: number; top: number }>>({});
 const viewport = ref({ width: window.innerWidth, height: window.innerHeight });
 const draggingId = ref("");
@@ -59,7 +57,6 @@ watch(activeMaterialWorkspace, finishDrag);
 onBeforeUnmount(() => { finishDrag(); window.removeEventListener("resize", updateViewport); });
 </script>
 <style scoped lang="scss">
-.materialWindowMask { position: fixed; z-index: 1900; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: #0007; cursor: default; }
 .materialTasks { position: fixed; right: 20px; bottom: 24px; z-index: 1900; display: flex; flex-direction: column; gap: 8px; max-width: min(360px, calc(100vw - 32px)); max-height: 40dvh; overflow-y: auto; overflow-x: hidden; padding: 4px; box-sizing: border-box;
   button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 64px; height: 64px; border: 0; border-radius: 50%; background: transparent; padding: 4px; cursor: grab; touch-action: none; user-select: none; transition: transform 180ms ease;
     &.dragging { cursor: grabbing; transform: none; transition: none; }

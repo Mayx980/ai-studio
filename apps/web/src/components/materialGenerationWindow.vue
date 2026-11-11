@@ -1,8 +1,8 @@
 <template>
   <transition name="materialWindow">
-    <section v-show="!workspace.minimized" class="materialGenerationWindow" role="dialog" aria-modal="true" :style="windowStyle" :aria-label="`独立生成对话 · ${workspace.label}`">
+    <section v-show="!workspace.minimized" class="materialGenerationWindow" role="dialog" :style="windowStyle" :aria-label="`独立生成对话 · ${workspace.label}`">
       <button v-for="handle in resizeHandles" :key="handle.edge" type="button" class="windowResize" :class="handle.edge" :aria-label="`拖动${handle.label}调整窗口大小`" @pointerdown="startResize($event, handle.edge)" @pointermove="resizeWindow" @pointerup="stopResize" @pointercancel="stopResize" @lostpointercapture="stopResize" @keydown="resizeWithKeyboard($event, handle.edge)" />
-      <header><div><strong>{{ workspace.label }}</strong><small role="status">{{ materialStatusLabel(workspace) }}</small></div><div class="windowActions"><el-tooltip content="新建生成对话" :showArrow="false"><el-button text aria-label="新建生成对话" :disabled="!workspace.request" @click="newWorkspace"><icon-message-plus :size="18" /></el-button></el-tooltip><el-popconfirm title="确认关闭对话吗？" confirmButtonText="确定" cancelButtonText="取消" placement="bottom-end" :width="270" :hideIcon="true" popperClass="materialCloseConfirm" @confirm="endMaterialWorkspace(workspace)"><template #reference><el-button text aria-label="结束对话" title="结束对话"><icon-x :size="18" /></el-button></template></el-popconfirm></div></header>
+      <header><div><strong>{{ workspace.label }}</strong><small role="status">{{ materialStatusLabel(workspace) }}</small></div><div class="windowActions"><el-tooltip content="收起对话" :showArrow="false"><el-button text aria-label="收起自定义素材对话" @click="minimizeMaterialWorkspace(workspace)"><icon-minus :size="18" /></el-button></el-tooltip><el-tooltip content="新建生成对话" :showArrow="false"><el-button text aria-label="新建生成对话" :disabled="!workspace.request" @click="newWorkspace"><icon-message-plus :size="18" /></el-button></el-tooltip><el-popconfirm title="确认关闭对话吗？" confirmButtonText="确定" cancelButtonText="取消" placement="bottom-end" :width="270" :hideIcon="true" popperClass="materialCloseConfirm" @confirm="endMaterialWorkspace(workspace)"><template #reference><el-button text aria-label="结束对话" title="结束对话"><icon-x :size="18" /></el-button></template></el-popconfirm></div></header>
       <el-alert v-if="workspace.error" :title="workspace.error" type="warning" :closable="false" />
       <el-alert v-if="loadError" :title="loadError" type="error" :closable="false"><el-button text @click="loadSession">重新打开</el-button></el-alert>
       <p v-if="loading" role="status">正在打开独立生成对话…</p>
@@ -12,11 +12,11 @@
 </template>
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
-import { IconMessagePlus, IconX } from "@tabler/icons-vue";
+import { IconMessagePlus, IconMinus, IconX } from "@tabler/icons-vue";
 import conversation from "@/components/agent/conversation.vue";
 import { createBrowserConversation, readBrowserConversation } from "@/components/agent/browserConversations";
 import type { AgentConversation, AgentAttachment } from "@/components/agent/types";
-import { createMaterialWorkspace, endMaterialWorkspace, materialStatusLabel, minimizeMaterialWorkspace, saveMaterialWorkspaces, type MaterialWorkspace, type MaterialTaskStatus } from "@/stores/materialEditor";
+import { materialDrawerInsets, createMaterialWorkspace, endMaterialWorkspace, materialStatusLabel, minimizeMaterialWorkspace, saveMaterialWorkspaces, type MaterialWorkspace, type MaterialTaskStatus } from "@/stores/materialEditor";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { browserConfig, restoreBrowserResults } from "@/stores/browserGeneration";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
@@ -41,6 +41,8 @@ const windowBounds = computed(() => {
   const height = Math.min(availableHeight, Math.max(Math.min(360, availableHeight), preferredBounds.value?.height ?? availableHeight));
   return { left: Math.max(margin, Math.min(preferredBounds.value?.left ?? viewport.value.width - margin - width, viewport.value.width - margin - width)), top: Math.max(margin, Math.min(preferredBounds.value?.top ?? margin, viewport.value.height - margin - height)), width, height };
 });
+watch(windowBounds, bounds => { materialDrawerInsets[props.workspace.id] = viewport.value.width - bounds.left; }, { immediate: true });
+onBeforeUnmount(() => { delete materialDrawerInsets[props.workspace.id]; });
 const windowStyle = computed(() => Object.fromEntries(Object.entries(windowBounds.value).map(([key, value]) => [key, `${value}px`])));
 let resizePointer: { id: number; x: number; y: number; edge: string; bounds: WindowBounds; element: HTMLElement } | undefined;
 function applyResize(bounds: WindowBounds, edge: string, dx: number, dy: number) {

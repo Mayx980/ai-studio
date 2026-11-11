@@ -17,6 +17,8 @@ export const materialWorkspaces = ref<MaterialWorkspace[]>([]);
 export const availableMaterialWorkspaces = computed(() => materialWorkspaces.value.filter(item => !item.ended));
 export const materialStorageError = ref("");
 export const activeMaterialWorkspace = ref<string>();
+export const materialDrawerInsets = reactive<Record<string, number>>({});
+export const materialDrawerInset = computed(() => activeMaterialWorkspace.value ? materialDrawerInsets[activeMaterialWorkspace.value] || 0 : 0);
 const storageKey = "afxen.materialWorkspaces";
 let storageReadable = true;
 export function saveMaterialWorkspaces() {

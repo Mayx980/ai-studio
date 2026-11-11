@@ -28,6 +28,7 @@ import { ElMessage } from "element-plus";
 import { useRouter } from "vue-router";
 import agent from "@/components/agent/index.vue";
 import { generationBusy } from "@/stores/browserGeneration";
+import { materialDrawerInset } from "@/stores/materialEditor";
 const router = useRouter();
 const sourceEditor = window.frameElement?.getAttribute("data-source-editor") === "true";
 function navigate(section: string) { if (section === "history") { conversationHistoryOpen.value = !conversationHistoryOpen.value; return; } void router.push({ path: "/home", query: { section } }); }
@@ -52,16 +53,17 @@ function newChat() { if (generationBusy.value || !startNewProject) return; retur
 function newAgent() { return sidebarAction(async () => { await clearGenerationOriginRoute(); await useWorkspaceStore().resumeSimpleConversation(); }); }
 function openRecent(project: Project) { return sidebarAction(async () => { if (!openSidebarProject) throw new Error("工作区尚未就绪"); await openSidebarProject(project.directory); }); }
 const viewportWidth = ref(window.innerWidth), viewportHeight = ref(window.innerHeight), preferredWidth = ref(440);
-const minimumWidth = computed(() => Math.min(320, viewportWidth.value));
-const maximumWidth = computed(() => Math.min(760, viewportWidth.value));
+const availableWidth = computed(() => Math.max(0, viewportWidth.value - materialDrawerInset.value));
+const minimumWidth = computed(() => Math.min(320, availableWidth.value));
+const maximumWidth = computed(() => Math.min(760, availableWidth.value));
 const width = computed(() => Math.max(minimumWidth.value, Math.min(preferredWidth.value, maximumWidth.value)));
-const panelStyle = computed(() => props.expanded ? { left: "0px", top: "0px", width: "100vw", height: "100dvh" } : { right: "0px", top: "0px", width: `${width.value}px`, height: "100dvh" });
+const panelStyle = computed(() => props.expanded ? { left: "0px", top: "0px", width: `${availableWidth.value}px`, height: "100dvh" } : { right: `${materialDrawerInset.value}px`, top: "0px", width: `${width.value}px`, height: "100dvh" });
 let pointer: { id: number; x: number; width: number; element: HTMLElement } | undefined;
 function startResize(event: PointerEvent) { if (event.button !== 0) return; const element = event.currentTarget as HTMLElement; element.setPointerCapture(event.pointerId); pointer = { id: event.pointerId, x: event.clientX, width: width.value, element }; event.preventDefault(); }
 function resize(event: PointerEvent) { if (pointer?.id === event.pointerId) preferredWidth.value = pointer.width + pointer.x - event.clientX; }
 function stopResize() { const previous = pointer; pointer = undefined; if (previous?.element.hasPointerCapture(previous.id)) previous.element.releasePointerCapture(previous.id); }
 function updateViewport() { stopResize(); viewportWidth.value = window.innerWidth; viewportHeight.value = window.innerHeight; }
-watch(() => visible.value && !props.expanded ? width.value : 0, value => emit("resize", value), { immediate: true });
+watch(() => visible.value && !props.expanded ? width.value + materialDrawerInset.value : 0, value => emit("resize", value), { immediate: true });
 window.addEventListener("resize", updateViewport);
 onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updateViewport); });
 </script>
