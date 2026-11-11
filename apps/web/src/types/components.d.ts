@@ -136,6 +136,7 @@ declare module 'vue' {
     MessageMarkdown: typeof import('./../components/messageMarkdown.vue')['default']
     MobileConnect: typeof import('./../components/mobileConnect.vue')['default']
     ModelPopover: typeof import('./../components/modelPopover.vue')['default']
+    NewCanvasCard: typeof import('./../components/newCanvasCard.vue')['default']
     NodeMenuSettings: typeof import('./../components/settings/panels/general/nodeMenuSettings.vue')['default']
     PersonalAssetBrowser: typeof import('./../components/personalAssetBrowser.vue')['default']
     Personalization: typeof import('./../components/settings/panels/personalization.vue')['default']

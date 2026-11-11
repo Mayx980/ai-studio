@@ -1,6 +1,6 @@
 <template>
   <div class="professionalHomeCards" aria-label="画布项目">
-    <button class="newCanvasCard" type="button" :disabled="busy" @click="createCanvas"><svg class="canvasTrails" viewBox="0 0 240 160" preserveAspectRatio="none" aria-hidden="true"><path v-for="(path, index) in canvasTrails" :key="index" :d="path" pathLength="1" /></svg><span class="canvasIcon"><span class="canvasIconFace canvasPlus"><icon-plus :size="24" /></span><span class="canvasIconFace canvasMark" aria-hidden="true" /></span><span class="canvasLabel">新建画布</span></button>
+    <newCanvasCard :disabled="busy" @click="createCanvas" />
     <article v-for="project in recentProjects" :key="project.directory" class="recentProjectCard" :class="{ menuOpen: openMenu === project.directory }">
       <button class="projectOpen" type="button" :disabled="busy" :aria-label="`打开项目 ${project.name}`" @click="openProject(project)"><projectThumbnail :directory="project.directory" /><span class="projectCaption"><strong>{{ project.name }}</strong><small>{{ formatTime(project.lastEditedAt ?? project.lastOpenedAt) }}</small></span></button>
       <el-dropdown class="projectMore" trigger="click" placement="bottom-end" popperClass="recentProjectMenu" @visible-change="value => openMenu = value ? project.directory : ''" @command="command => projectAction(project, command)">
@@ -14,17 +14,15 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { IconPlus, IconDots, IconPencil, IconCopy, IconTrash } from "@tabler/icons-vue";
+import { IconDots, IconPencil, IconCopy, IconTrash } from "@tabler/icons-vue";
+import newCanvasCard from "@/components/newCanvasCard.vue";
 import projectThumbnail from "@/components/projectThumbnail.vue";
 import { useWorkspaceStore, type Project } from "@/stores/workspace";
 const workspace = useWorkspaceStore();
 const router = useRouter();
 const busy = ref(false);
 const openMenu = ref("");
-const canvasTrails = [
-  "M120 80 C76 80 66 30 8 24", "M120 80 C76 80 64 76 8 82", "M120 80 C76 80 66 126 8 134",
-  "M120 80 C164 80 174 30 232 24", "M120 80 C164 80 176 76 232 88", "M120 80 C164 80 174 126 232 134",
-];
+
 const recentProjects = computed(() => [...workspace.projectList].sort((a, b) => (b.lastEditedAt ?? b.lastOpenedAt) - (a.lastEditedAt ?? a.lastOpenedAt)).slice(0, 3));
 function formatTime(value: number) {
   const minutes = Math.max(0, Math.floor((Date.now() - value) / 60000));
@@ -62,26 +60,10 @@ async function openProject(project: Project) {
 </script>
 <style scoped lang="scss">
 .professionalHomeCards { position: absolute; inset: -1px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; visibility: visible;
-  .newCanvasCard, .recentProjectCard { position: relative; min-width: 0; overflow: hidden; border: 1px solid #ffffff0d; border-radius: 16px; padding: 0; color: #f2f2f2; background: #292929; cursor: pointer; text-align: left;
+  .recentProjectCard { position: relative; min-width: 0; overflow: hidden; border: 1px solid #ffffff0d; border-radius: 16px; padding: 0; color: #f2f2f2; background: #292929; cursor: pointer; text-align: left;
     &:hover:enabled { border-color: #ffffff38; }
     &:focus-visible { outline: 2px solid #a28ae9; outline-offset: -3px; }
     &:disabled { cursor: wait; }
-  }
-  .newCanvasCard { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-size: 13px; background: radial-gradient(circle, #ffffff16 1px, transparent 1px) 0 0 / 18px 18px, #202020;
-    .canvasTrails { position: absolute; top: -14px; left: 0; width: 100%; height: 100%; pointer-events: none; mask-image: linear-gradient(to right, transparent 0%, #0002 12%, #0008 30%, #000 50%, #0008 70%, #0002 88%, transparent 100%);
-      path { fill: none; stroke: #ffffff26; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; transition: stroke-dashoffset 700ms ease 120ms, opacity 220ms ease; }
-    }
-    .canvasIcon { position: relative; z-index: 1; display: block; width: 34px; height: 34px; perspective: 180px; }
-    .canvasIconFace { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 8px; color: #202020; background: #fff; backface-visibility: hidden; transition: transform 480ms ease;
-    }
-    .canvasPlus { transform: rotateY(0deg); }
-    .canvasMark { transform: rotateY(-180deg); background: #202020;
-      &::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: #fff; mask-image: linear-gradient(#000 0 0), url("/afxenMark.svg"); mask-size: 100% 100%, 25px 25px; mask-position: center; mask-repeat: no-repeat; mask-composite: exclude; }
-    }
-    .canvasLabel { position: relative; z-index: 1; }
-    &:hover:enabled, &:focus-visible { .canvasPlus { transform: rotateY(180deg); } .canvasMark { transform: rotateY(0deg); } .canvasTrails path { stroke-dashoffset: 0; opacity: 1; } }
-    @media(prefers-reduced-motion:reduce) { .canvasIconFace, .canvasTrails path { transition: none; } }
-
   }
   .recentProjectCard {
     .projectOpen { display: block; position: absolute; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; &:focus-visible { outline: 2px solid #a28ae9; outline-offset: -3px; } }
