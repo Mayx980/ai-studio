@@ -117,8 +117,8 @@
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
       <div class="senderActions" :class="{ simpleToolbar: props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple') }">
-        <simpleGenerationTools v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" controls="tabs" :lockedKind="lockedGenerationKind" :disabled="locked" />
-        <browserModelOptions :disabled="locked" :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor ? 'image' : lockedGenerationKind" :hideCount="props.materialEditor" :prompt="draftPrompt"><template #afterModel><div v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" ref="referenceTabsTarget" class="referenceTabsTarget" /><simpleGenerationTools v-if="props.materialEditor || workspaceStore.creationMode === 'simple'" controls="style" :disabled="locked" /></template></browserModelOptions><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
+        <simpleGenerationTools v-if="props.creationModes && !imageOnlyMaterial && workspaceStore.creationMode === 'simple'" controls="tabs" :lockedKind="lockedGenerationKind" :disabled="locked" />
+        <browserModelOptions :disabled="locked" :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="imageOnlyMaterial ? 'image' : lockedGenerationKind" :hideCount="imageOnlyMaterial" :prompt="draftPrompt"><template #afterModel><div v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" ref="referenceTabsTarget" class="referenceTabsTarget" /><simpleGenerationTools v-if="props.materialEditor || workspaceStore.creationMode === 'simple'" controls="style" :disabled="locked" /></template></browserModelOptions><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <el-button v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" class="quickMention" text :disabled="locked || !directory" aria-label="提及参考素材" title="提及参考素材" @mousedown.prevent @click="mentionMenuRef?.openMenu()"><icon-at :size="19" /></el-button>
         <el-tooltip v-if="props.materialEditor" content="引用" :showArrow="false"><button class="materialUpload" type="button" :disabled="locked" aria-label="引用" @click="attachmentInput?.click()"><icon-paperclip :size="19" /></button></el-tooltip>
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
@@ -230,6 +230,7 @@ const generationModelSelection = inject("generationModelSelection", undefined as
 const props = defineProps<{ active: boolean; initialSession: AgentConversation | null; sessionFile?: string; disabled: boolean; creationModes?: boolean; materialEditor?: boolean; materialDirectory?: string; materialLabel?: string; initialDraft?: { prompt: string; attachments: AgentAttachment[] }; materialRole?: "firstFrame" | "reference" | "middleFrame" | "lastFrame" }>();
 const emit = defineEmits<{ session: [file: string]; sent: [prompt: string]; event: [event: AgentEvent]; applyMaterial: [file: File]; materialBusy: [value: boolean]; draft: [value: { prompt: string; attachments: AgentAttachment[] }]; generationState: [value: { status: "queued" | "generating" | "completed" | "failed"; error?: string; taskId?: string; vendorTaskId?: string; resultIds?: string[] }] }>();
 const workspaceStore = useWorkspaceStore();
+const imageOnlyMaterial = computed(() => props.materialEditor || props.initialSession?.purpose === "material");
 const directory = props.materialDirectory ?? workspaceStore.project?.directory;
 const draftAttachments = ref<AgentAttachment[]>(props.initialDraft?.attachments.map(item => ({ ...item })) ?? []);
 const referenceMode = ref<"reference" | "frames">("reference");
@@ -264,7 +265,7 @@ function snapshotMessages(value: AgentMessage[]) {
 }
 let savedMessages = snapshotMessages(props.initialSession?.messages ?? []);
 const generationKind = ref(props.initialSession?.generationSubmitted || props.initialSession?.messages.some(message => message.role === "user") ? props.initialSession?.generationKind : undefined);
-const lockedGenerationKind = computed(() => props.materialEditor ? "image" : props.creationModes && (sessionMode.value ?? workspaceStore.creationMode) === "simple" ? generationKind.value : undefined);
+const lockedGenerationKind = computed(() => imageOnlyMaterial.value ? "image" : props.creationModes && (sessionMode.value ?? workspaceStore.creationMode) === "simple" ? generationKind.value : undefined);
 watch([() => props.active, lockedGenerationKind, () => browserConfig.outputKind], ([active, kind]) => {
   if (active && kind) { browserConfig.outputKind = kind; browserConfig.kind = kind; browserConfig.outputChosen = true; }
 }, { immediate: true });
@@ -658,14 +659,14 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
     const attachments = [...sourceAttachments, ...(choice?.attachments ?? activeDraftAttachments.value)];
     if (pending?.creationChoice) pending.creationChoice.resolved = true;
     sessionMode.value ??= workspaceStore.creationMode;
-    const professional = !props.materialEditor && sessionMode.value === "professional";
-    if (props.materialEditor) generationKind.value = "image";
+    const professional = !imageOnlyMaterial.value && sessionMode.value === "professional";
+    if (imageOnlyMaterial.value) generationKind.value = "image";
     else if (!professional) generationKind.value ??= browserConfig.outputKind;
     const kind = professional ? choice?.kind ?? explicitGenerationKind(prompt) : generationKind.value;
     browserConfig.kind = kind ?? "image";
     browserCancelled = false;
     browserSubmitting.value = true;
-    const generationConfig = { ...browserConfig, keys: { ...browserConfig.keys } };
+    const generationConfig = { ...browserConfig, keys: { ...browserConfig.keys }, ...(imageOnlyMaterial.value ? { count: 1 } : {}) };
     const generationSelection = generationModelSelection ? { ...generationModelSelection } : undefined;
     const taskId = crypto.randomUUID();
     if (props.materialEditor) emit("generationState", { status: "queued", taskId });
