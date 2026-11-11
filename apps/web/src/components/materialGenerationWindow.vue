@@ -37,7 +37,7 @@ const resizeHandles = [
 const windowBounds = computed(() => {
   const margin = viewport.value.width <= 700 ? 8 : 12;
   const availableWidth = Math.max(1, viewport.value.width - margin * 2), availableHeight = Math.max(1, viewport.value.height - margin * 2);
-  const width = Math.min(availableWidth, Math.max(Math.min(320, availableWidth), preferredBounds.value?.width ?? Math.min(500, availableWidth)));
+  const width = Math.min(availableWidth, Math.max(Math.min(320, availableWidth), preferredBounds.value?.width ?? Math.min(320, availableWidth)));
   const height = Math.min(availableHeight, Math.max(Math.min(360, availableHeight), preferredBounds.value?.height ?? availableHeight));
   return { left: Math.max(margin, Math.min(preferredBounds.value?.left ?? viewport.value.width - margin - width, viewport.value.width - margin - width)), top: Math.max(margin, Math.min(preferredBounds.value?.top ?? margin, viewport.value.height - margin - height)), width, height };
 });
