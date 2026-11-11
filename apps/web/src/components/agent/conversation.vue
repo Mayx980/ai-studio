@@ -117,8 +117,8 @@
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
       <div class="senderActions" :class="{ simpleToolbar: props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple') }">
-        <simpleGenerationTools v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" controls="tabs" :lockedKind="lockedGenerationKind" :imageOnly="props.materialEditor && !!props.materialRole && props.materialRole !== 'reference'" :disabled="locked" />
-        <browserModelOptions :disabled="locked" :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor && props.materialRole && props.materialRole !== 'reference' ? 'image' : lockedGenerationKind" :prompt="draftPrompt"><template #afterModel><div v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" ref="referenceTabsTarget" class="referenceTabsTarget" /><simpleGenerationTools v-if="props.materialEditor || workspaceStore.creationMode === 'simple'" controls="style" :disabled="locked" /></template></browserModelOptions><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
+        <simpleGenerationTools v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" controls="tabs" :lockedKind="lockedGenerationKind" :disabled="locked" />
+        <browserModelOptions :disabled="locked" :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="props.materialEditor ? 'image' : lockedGenerationKind" :hideCount="props.materialEditor" :prompt="draftPrompt"><template #afterModel><div v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" ref="referenceTabsTarget" class="referenceTabsTarget" /><simpleGenerationTools v-if="props.materialEditor || workspaceStore.creationMode === 'simple'" controls="style" :disabled="locked" /></template></browserModelOptions><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <el-button v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" class="quickMention" text :disabled="locked || !directory" aria-label="提及参考素材" title="提及参考素材" @mousedown.prevent @click="mentionMenuRef?.openMenu()"><icon-at :size="19" /></el-button>
         <el-tooltip v-if="props.materialEditor" content="引用" :showArrow="false"><button class="materialUpload" type="button" :disabled="locked" aria-label="引用" @click="attachmentInput?.click()"><icon-paperclip :size="19" /></button></el-tooltip>
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
@@ -264,7 +264,7 @@ function snapshotMessages(value: AgentMessage[]) {
 }
 let savedMessages = snapshotMessages(props.initialSession?.messages ?? []);
 const generationKind = ref(props.initialSession?.generationSubmitted || props.initialSession?.messages.some(message => message.role === "user") ? props.initialSession?.generationKind : undefined);
-const lockedGenerationKind = computed(() => props.creationModes && (props.materialEditor || (sessionMode.value ?? workspaceStore.creationMode) === "simple") ? generationKind.value : undefined);
+const lockedGenerationKind = computed(() => props.materialEditor ? "image" : props.creationModes && (sessionMode.value ?? workspaceStore.creationMode) === "simple" ? generationKind.value : undefined);
 watch([() => props.active, lockedGenerationKind, () => browserConfig.outputKind], ([active, kind]) => {
   if (active && kind) { browserConfig.outputKind = kind; browserConfig.kind = kind; browserConfig.outputChosen = true; }
 }, { immediate: true });
@@ -647,7 +647,7 @@ async function referenceMessageResults(item: AgentMessage) {
 
 async function submitMessage(choice?: { prompt: string; kind: ModelKind; script: boolean; attachments: AgentAttachment[] }) {
   if (locked.value) return;
-  if (props.materialEditor && !browserConfig.enabled) { ElMessage.warning("请先在设置 → API 配置中启用图片或视频模型并填写 Key"); return; }
+  if (props.materialEditor && !browserConfig.enabled) { ElMessage.warning("请先在设置 → API 配置中启用图片模型并填写 Key"); return; }
   if (browserWorkspaceMode && !browserConfig.enabled && workspaceStore.creationMode !== "professional") { ElMessage.warning("请先在设置 → API 配置中启用模型联调并输入 Key"); return; }
   if (props.creationModes && (props.materialEditor || browserWorkspaceMode || browserConfig.enabled)) {
     const input = choice?.prompt ?? sender?.getText() ?? "";
@@ -659,9 +659,9 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
     if (pending?.creationChoice) pending.creationChoice.resolved = true;
     sessionMode.value ??= workspaceStore.creationMode;
     const professional = !props.materialEditor && sessionMode.value === "professional";
-    if (!professional) generationKind.value ??= props.materialEditor && props.materialRole && props.materialRole !== "reference" ? "image" : browserConfig.outputKind;
+    if (props.materialEditor) generationKind.value = "image";
+    else if (!professional) generationKind.value ??= browserConfig.outputKind;
     const kind = professional ? choice?.kind ?? explicitGenerationKind(prompt) : generationKind.value;
-    if (props.materialEditor && kind !== "image" && kind !== "video") { ElMessage.warning("自定义素材对话用于生成或编辑图片、视频，请选择图片或视频产物"); return; }
     browserConfig.kind = kind ?? "image";
     browserCancelled = false;
     browserSubmitting.value = true;

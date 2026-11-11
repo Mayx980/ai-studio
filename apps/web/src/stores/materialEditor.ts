@@ -36,6 +36,7 @@ export function saveMaterialWorkspaces() {
 function workspaceConfig(parameters?: Record<string, unknown>) {
   const config = reactive({ ...browserConfig, keys: browserConfig.keys });
   for (const key of browserParameterKeys) if (parameters && typeof parameters[key] === typeof config[key]) Object.assign(config, { [key]: parameters[key] });
+  Object.assign(config, { kind: "image", outputKind: "image", outputChosen: true, count: 1 });
   return config;
 }
 export function restoreMaterialWorkspaces() {
@@ -73,7 +74,6 @@ export function endMaterialWorkspace(item: MaterialWorkspace) {
 export function createMaterialWorkspace(request: MaterialRequest) {
   const item: MaterialWorkspace = reactive({ id: crypto.randomUUID(), directory: request.directory, label: request.label, target: { ...request.target }, status: "idle", resultIds: [], error: "", prompt: "", attachments: [], minimized: false,
     config: workspaceConfig(), modelSelection: reactive({ ...browserModelSelection }), request });
-  item.config.kind = "image"; item.config.outputKind = "image"; item.config.outputChosen = true;
   materialWorkspaces.value.push(item); openMaterialWorkspace(item); saveMaterialWorkspaces();
   return item;
 }

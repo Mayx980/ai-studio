@@ -14,7 +14,7 @@
           <div class="parameterDetails"><small v-if="kind === 'image'">实际图片尺寸 {{ browserConfig.imageSize.replace('*', ' × ') }}</small><label v-if="kind === 'video' && videoCapability?.audio === 'optional'">生成音频<el-switch v-model="browserConfig.generateAudio" aria-label="生成音频" /></label></div>
         </el-form>
       </el-popover>
-      <el-popover v-model:visible="countVisible" trigger="click" placement="top" :width="220" :showArrow="false" :disabled="controlsDisabled || kind === 'video'" :popperStyle="popoverStyle" popperClass="generationParameters">
+      <el-popover v-if="!hideCount" v-model:visible="countVisible" trigger="click" placement="top" :width="220" :showArrow="false" :disabled="controlsDisabled || kind === 'video'" :popperStyle="popoverStyle" popperClass="generationParameters">
         <template #reference><button class="inlineParameter" type="button" :disabled="controlsDisabled || kind === 'video'" :title="kind === 'video' ? '每次默认生成一条视频' : '生成数量'" :aria-expanded="countVisible" aria-label="生成数量"><icon-layers-subtract :size="19" /><span>{{ generationCount }} {{ kind === 'video' ? '条' : '张' }}</span></button></template>
         <div class="parameterForm"><div class="parameterHeader">生成数量</div><div class="parameterStack"><div class="segmentedOptions" role="group" aria-label="图片生成数量"><button v-for="item in 6" :key="item" type="button" :disabled="controlsDisabled" :aria-pressed="generationCount === item" @click="generationCount = item">{{ item }}</button></div></div></div>
       </el-popover>
@@ -39,7 +39,7 @@ import { computed, inject, ref, watch } from "vue";
 import { browserConfig as defaultBrowserConfig, browserModels, browserModelSelection as defaultBrowserModelSelection, configuredBrowserModels, generationBusy, inferGenerationKind, type ModelKind } from "@/stores/browserGeneration";
 const browserConfig = inject("generationConfig", defaultBrowserConfig);
 const browserModelSelection = inject("generationModelSelection", defaultBrowserModelSelection);
-const props = withDefaults(defineProps<{ belowInput?: boolean; prompt?: string; fixedKind?: ModelKind; disabled?: boolean }>(), { prompt: "" });
+const props = withDefaults(defineProps<{ belowInput?: boolean; prompt?: string; hideCount?: boolean; fixedKind?: ModelKind; disabled?: boolean }>(), { prompt: "" });
 const parametersVisible = ref(false), durationVisible = ref(false);
 const popoverOptions = { modifiers: [{ name: "preventOverflow", options: { padding: 12, altAxis: true, tether: false } }] };
 const countVisible = ref(false);
