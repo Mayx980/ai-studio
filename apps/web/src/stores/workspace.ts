@@ -11,6 +11,7 @@ export type Project = {
   directory: string;
   name: string;
   lastOpenedAt: number;
+  lastEditedAt?: number;
   folder?: string;
   creationMode?: "simple" | "professional";
   historyArchived?: boolean;
@@ -86,6 +87,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     await openProject(directory);
     renameProject(directory, name);
     project.value!.creationMode = mode;
+    markProjectEdited(directory);
     if (mode === "simple") {
       projectList.value = projectList.value.filter(item => item.directory !== directory);
       draftProjects.value.unshift(project.value!); lastSimpleDirectory.value = directory;
@@ -93,6 +95,23 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
     creationMode.value = mode;
     return project.value!;
+  }
+
+  function markProjectEdited(directory: string) {
+    const now = Date.now();
+    for (const item of [...projectList.value, ...draftProjects.value, ...(project.value ? [project.value] : [])]) if (item.directory === directory) item.lastEditedAt = now;
+  }
+  async function createCanvasEntry(nodeType?: string) {
+    const kind = !nodeType ? "canvas" : nodeType === "remote-imageGenerationNode" ? "image" : nodeType === "remote-videoGenerationNode" ? "video" : undefined;
+    if (kind && (kind === "canvas" ? canvasTutorialVersion.value < 1 : !tutorialVisited.value.includes(kind))) {
+      const { openTutorialProject } = await import("@/lib/canvasTutorial");
+      await openTutorialProject(kind);
+    } else {
+      const created = await createProject();
+      created.tutorialEntry = kind ?? "canvas";
+      creationMode.value = "professional";
+      pendingCanvasEntry.value = { directory: created.directory, nodeType };
+    }
   }
 
   function completeSimpleProject(directory: string, name: string) {
@@ -154,7 +173,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (project.value?.directory === path) project.value = null;
   }
 
-  return { creationMode, project, projectList, draftProjects, lastSimpleDirectory, tutorialVisited, canvasTutorialVersion, completeSimpleProject, archiveSimpleConversation, resumeSimpleConversation, pendingAgentMessage, pendingAgentSession, pendingAgentDraft, pendingCanvasEntry, createProject, openProject, restoreProjectEntry, renameProject, moveProject, duplicateProject, removeProject };
+  return { markProjectEdited, createCanvasEntry, creationMode, project, projectList, draftProjects, lastSimpleDirectory, tutorialVisited, canvasTutorialVersion, completeSimpleProject, archiveSimpleConversation, resumeSimpleConversation, pendingAgentMessage, pendingAgentSession, pendingAgentDraft, pendingCanvasEntry, createProject, openProject, restoreProjectEntry, renameProject, moveProject, duplicateProject, removeProject };
 }, {
   persist: {
     key: browserWorkspaceMode ? currentAccount.value?.id === "admin" ? "aiStudio.browserProjects.admin" : "aiStudio.browserProjects" : "toonflow.projectList",

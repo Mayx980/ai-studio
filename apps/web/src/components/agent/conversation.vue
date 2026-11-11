@@ -84,8 +84,9 @@
       <el-icon class="is-loading" aria-hidden="true"><icon-loader-2 :size="14" /></el-icon>
       <span>正在压缩上下文…</span>
     </div>
-    <creationModeSwitch v-if="props.creationModes && !props.materialEditor && !messages.length" v-model="workspaceStore.creationMode" class="conversationMode" />
-    <div class="messageInput" :class="{ draggingAttachments, simpleInput: props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple') }" @dragenter.capture="dragEnterAttachments" @dragover.capture="dragOverAttachments" @dragleave.capture="dragLeaveAttachments" @drop.capture="dropAttachments">
+    <creationModeSwitch v-if="props.creationModes && !props.materialEditor && !messages.length" v-model="homeCreationMode" class="conversationMode" />
+    <div class="messageInput" :class="{ draggingAttachments, professionalHomePreview: showProfessionalHome, simpleInput: props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple') }" @dragenter.capture="dragEnterAttachments" @dragover.capture="dragOverAttachments" @dragleave.capture="dragLeaveAttachments" @drop.capture="dropAttachments">
+      <professionalHomeCards v-if="showProfessionalHome" />
       <div v-if="draggingAttachments" class="attachmentDropHint" role="status">
         <icon-paperclip :size="20" aria-hidden="true" />
         <span>松开添加附件</span>
@@ -172,6 +173,7 @@ import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { createBrowserConversation, saveBrowserConversation } from "./browserConversations";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { templatePromptModel } from "@/lib/creationTemplates";
+import professionalHomeCards from "@/components/professionalHomeCards.vue";
 import creationModeSwitch from "@/components/creationModeSwitch.vue";
 import { locale, t, translate } from "@toonflow/i18n/vue";
 import { computed, inject, nextTick, reactive, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
@@ -252,6 +254,11 @@ const creationChoices = [
   { label: "图片", kind: "image" as const, script: false }, { label: "音频", kind: "audio" as const, script: false }, { label: "视频", kind: "video" as const, script: false },
 ];
 const messages = ref<AgentMessage[]>((props.initialSession?.messages ?? []).map(message => ({ ...message })));
+const selectedHomeMode = inject("homeCreationMode", ref<"simple" | "professional">("simple"));
+const isHomeSelection = computed(() => props.creationModes && !props.materialEditor && !messages.value.length && workspaceStore.creationMode === "simple" && !window.frameElement?.hasAttribute("data-source-editor"));
+const homeCreationMode = computed({ get: () => isHomeSelection.value ? selectedHomeMode.value : workspaceStore.creationMode, set: value => { if (isHomeSelection.value) selectedHomeMode.value = value; else workspaceStore.creationMode = value; } });
+const showProfessionalHome = computed(() => isHomeSelection.value && selectedHomeMode.value === "professional");
+
 function snapshotMessages(value: AgentMessage[]) {
   return JSON.parse(JSON.stringify(value.map(message => ({ ...message, streaming: false, attachments: message.attachments?.map(({ file, ...attachment }) => attachment) })))) as AgentMessage[];
 }
@@ -1656,6 +1663,7 @@ watch(() => !props.materialEditor && !props.initialSession?.parentFile && !!work
   &.emptyDraft, &.is-disabled { background: #333 !important; color: #858585; }
   svg { width: 16px; height: 16px; }
 }
+.messageInput.professionalHomePreview { background: transparent !important; box-shadow: none !important; overflow: visible; resize: none; > :not(.professionalHomeCards) { visibility: hidden; pointer-events: none; } }
 .messageInput.simpleInput {
   border-color: transparent;
   box-shadow: inset 0 0 2px 1px color-mix(in srgb, var(--el-border-color-light) 50%, transparent), 0 4px 16px rgb(0 0 0 / 8%);

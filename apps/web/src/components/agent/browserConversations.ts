@@ -1,3 +1,4 @@
+import { useWorkspaceStore } from "@/stores/workspace";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import type { AgentConversation, AgentMessage } from "./types";
 import { isProfessionalCreation } from "./professionalCreation";
@@ -67,6 +68,7 @@ export async function saveBrowserConversation(directory: string, file: string, m
   if (session.name === "新对话") session.name = messages.find(message => message.role === "user")?.content.slice(0, 80) || session.name;
   session.modified = new Date().toISOString();
   await files.writeTextSnapshot(path, JSON.stringify(session), snapshot);
+  if (JSON.stringify(session.messages) !== JSON.stringify((JSON.parse(snapshot.text) as AgentConversation).messages)) useWorkspaceStore().markProjectEdited(directory);
   return session;
 }
 export async function renameBrowserConversation(directory: string, file: string, name: string) {

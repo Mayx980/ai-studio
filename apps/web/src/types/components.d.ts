@@ -142,6 +142,7 @@ declare module 'vue' {
     PluginMarket: typeof import('./../components/settings/panels/pluginMarket/index.vue')['default']
     Privacy: typeof import('./../components/settings/panels/privacy.vue')['default']
     ProfessionalCreation: typeof import('./../components/agent/professionalCreation.vue')['default']
+    ProfessionalHomeCards: typeof import('./../components/professionalHomeCards.vue')['default']
     ProjectThumbnail: typeof import('./../components/projectThumbnail.vue')['default']
     ReferencePicker: typeof import('./../components/referencePicker.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']

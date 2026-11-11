@@ -8,13 +8,13 @@
       <div ref="assistantContent" class="assistantContent">
         <header v-if="expanded && !sourceEditor" class="assistantHeader"><el-button text :disabled="sidebarOpening || generationBusy" @click="newChat"><icon-message-plus :size="18" />新聊天</el-button><el-button text :aria-expanded="conversationHistoryOpen" @click="conversationHistoryOpen = !conversationHistoryOpen"><icon-history :size="18" />历史对话</el-button></header>
         <agent v-model="visible" creationModes :closable="!expanded"><template #menuActions><el-button v-if="expanded && !sourceEditor" class="enterCanvasButton" text :icon="IconVector" aria-label="进入画布" @click="emit('enterCanvas')">进入画布</el-button></template></agent>
-        <creativeCases v-if="expanded && !sourceEditor" class="assistantTemplates" @apply="applyCase" />
+        <creativeCases v-if="expanded && !sourceEditor" class="assistantTemplates" :curated="homeMode === 'professional'" @apply="applyCase" />
       </div>
     </aside>
   </teleport>
 </template>
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, ref, watch } from "vue";
+import { computed, inject, onBeforeUnmount, provide, ref, watch } from "vue";
 import { IconVector } from "@tabler/icons-vue";
 import agentHistorySidebar from "@/components/agentHistorySidebar.vue";
 import { useWorkspaceStore } from "@/stores/workspace";
@@ -38,6 +38,8 @@ const startNewProject = inject<((mode: "simple" | "professional") => Promise<voi
 const openSidebarProject = inject<((directory: string) => Promise<void>) | undefined>("openSidebarProject", undefined);
 const sidebarOpening = ref(false);
 const assistantContent = ref<HTMLElement>();
+const homeMode = ref<"simple" | "professional">("simple");
+provide("homeCreationMode", homeMode);
 function applyCase(value: TemplateApplication) { emit("applyTemplate", value); assistantContent.value?.scrollTo({ top: 0 }); }
 async function sidebarAction(action: () => Promise<void>) {
   if (sidebarOpening.value) return;
@@ -155,7 +157,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
         }
       }
     }
-    .assistantTemplates :deep(.caseGrid) { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+    .assistantTemplates:not(.curated) :deep(.caseGrid) { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   }
   @media(max-width:700px) {
     :deep(.emptyConversation) {
