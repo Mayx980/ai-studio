@@ -7,7 +7,7 @@
     <el-alert v-else-if="searchError || loadError" :title="searchError || loadError" type="error" :closable="false"><el-button text @click="loadError ? loadTemplates() : searchTemplates()">重试</el-button></el-alert>
     <p v-else-if="query.trim() && !rankedIds" role="status">按回车或点击搜索，查找语义相关的模板。</p>
     <p v-else-if="!visibleCases.length" role="status">{{ query.trim() ? '没有找到相关模板，试试调整描述或分类。' : professional ? '当前分类暂无项目模板，可从“我的项目”制作模板。' : '当前分类暂无视频模板。' }}</p>
-    <div v-else ref="caseGrid" class="caseGrid" :style="curated ? { gridTemplateColumns: `repeat(${masonryColumns}, minmax(0, 1fr))` } : undefined" :aria-busy="searching"><article v-for="item in visibleCases" :key="item.id" @pointerenter="playPreview" @pointerleave="pausePreview" @focusin="playPreview" @focusout="pausePreview"><button class="caseCard" :aria-label="`${curated ? '播放作品' : '查看模板'} ${item.name}`" @click="openPreview(item)"><span class="casePreview"><templateMedia :ref="value => setCardMedia(item.id, value)" :media="item.media" /></span><span class="caseName" :title="item.name">{{ item.name }}</span></button><el-tooltip :content="curated ? '查看创作过程' : '一键同款'"><el-button class="cardAction" circle :icon="curated ? IconVector : IconCopy" :aria-label="`${curated ? '查看创作过程' : '一键同款'} ${item.name}`" :loading="!curated && applying" @click.stop="curated ? openPreview(item, true) : applyTemplate(item, cardMedia.get(item.id))" /></el-tooltip><el-tooltip v-if="currentAccount?.role === 'admin'" content="删除"><el-button class="deleteCard" circle :icon="IconTrash" :aria-label="`删除 ${item.name}`" :loading="removingId === item.id" @click.stop="deleteCard(item)" /></el-tooltip></article></div>
+    <div v-else ref="caseGrid" class="caseGrid" :aria-busy="searching"><article v-for="item in visibleCases" :key="item.id" @pointerenter="playPreview" @pointerleave="pausePreview" @focusin="playPreview" @focusout="pausePreview"><button class="caseCard" :aria-label="`${curated ? '播放作品' : '查看模板'} ${item.name}`" @click="openPreview(item)"><span class="casePreview"><templateMedia :ref="value => setCardMedia(item.id, value)" :media="item.media" /></span><span class="caseName" :title="item.name">{{ item.name }}</span></button><el-tooltip :content="curated ? '查看创作过程' : '一键同款'"><el-button class="cardAction" circle :icon="curated ? IconVector : IconCopy" :aria-label="`${curated ? '查看创作过程' : '一键同款'} ${item.name}`" :loading="!curated && applying" @click.stop="curated ? openPreview(item, true) : applyTemplate(item, cardMedia.get(item.id))" /></el-tooltip><el-tooltip v-if="currentAccount?.role === 'admin'" content="删除"><el-button class="deleteCard" circle :icon="IconTrash" :aria-label="`删除 ${item.name}`" :loading="removingId === item.id" @click.stop="deleteCard(item)" /></el-tooltip></article></div>
     <el-dialog :modelValue="!!preview" :title="preview?.name" class="templateDetail" :class="{ processDetail: professional && previewMode === 'process' }" :fullscreen="professional && previewMode === 'process'" :width="professional && previewMode === 'process' ? 'min(1600px, 98vw)' : 'min(1120px, 96vw)'" alignCenter appendToBody destroyOnClose :closeOnClickModal="!copying" :closeOnPressEscape="!copying" :showClose="!copying" @opened="projectPreview?.fitView()" @update:modelValue="preview = undefined">
       <template v-if="professional" #header="{ titleId, titleClass }"><div v-if="previewMode === 'process'" class="detailHeader"><h3 :id="titleId" :class="titleClass">{{ preview?.name }}</h3><el-button type="primary" :loading="copying" @click="copyProject">复制项目</el-button></div></template>
       <div v-if="preview && professional && previewMode === 'media'" class="workPreview"><div class="workMedia"><templateMedia ref="previewMedia" :media="preview.media" controls autoplay /></div><footer><h3>{{ preview.name }}</h3><el-button plain @click="previewMode = 'process'"><icon-vector :size="17" />查看创作过程</el-button></footer></div>
@@ -84,27 +84,19 @@ const categories = computed(() => ["全部", ...new Set(modeCases.value.map(item
 const categoryCases = computed(() => modeCases.value.filter(item => category.value === "全部" || item.category === category.value));
 const visibleCases = computed(() => !query.value.trim() ? categoryCases.value : rankedIds.value ? rankedIds.value.flatMap(id => categoryCases.value.find(item => item.id === id) ?? []) : []);
 const caseGrid = ref<HTMLElement>();
-const masonryWidth = ref(0);
-const masonryColumns = computed(() => {
-  const baseline = window.innerWidth <= 600 ? 90 : 144;
-  const available = Math.max(1, Math.floor((masonryWidth.value + 8) / (baseline + 8)));
-  return Math.max(1, Math.min(visibleCases.value.length, available) * 2);
-});
 const masonryObserver = new ResizeObserver(entries => {
   for (const entry of entries) {
-    if (entry.target === caseGrid.value) { masonryWidth.value = entry.contentRect.width; continue; }
     const article = (entry.target as HTMLElement).closest("article");
-    if (article) article.style.gridRowEnd = `span ${Math.ceil(entry.target.getBoundingClientRect().height + 8)}`;
+    if (article) article.style.gridRowEnd = `span ${Math.ceil(entry.target.getBoundingClientRect().height + 6)}`;
   }
 });
 watch([caseGrid, professional, visibleCases], () => {
   masonryObserver.disconnect();
-  if (professional.value && caseGrid.value) { masonryWidth.value = caseGrid.value.clientWidth; masonryObserver.observe(caseGrid.value); }
   for (const article of caseGrid.value?.querySelectorAll("article") ?? []) {
     article.style.gridRowEnd = "";
     if (professional.value) {
       const card = article.querySelector<HTMLElement>(".caseCard");
-      if (card) { article.style.gridRowEnd = `span ${Math.ceil(card.getBoundingClientRect().height + 8)}`; masonryObserver.observe(card); }
+      if (card) { article.style.gridRowEnd = `span ${Math.ceil(card.getBoundingClientRect().height + 6)}`; masonryObserver.observe(card); }
     }
   }
 }, { flush: "post" });
@@ -249,7 +241,7 @@ async function saveTemplate() {
     }
   }
   &.curated { width: 100%; max-width: none; box-sizing: border-box;
-    .caseGrid { display: grid; width: 100%; grid-template-columns: repeat(auto-fill, minmax(144px, 1fr)); grid-auto-rows: 1px; grid-auto-flow: dense; gap: 0 8px; align-items: start;
+    .caseGrid { display: grid; width: 100%; grid-auto-rows: 1px; grid-auto-flow: dense; gap: 0 6px; align-items: start;
       article { width: 100%; min-width: 0; margin: 0; }
       .caseCard { display: block; border-radius: 10px;
         .casePreview { aspect-ratio: auto; height: auto; min-height: 60px; border-radius: inherit; :deep(.templateMedia) { width: 100%; height: auto; object-fit: contain; background: #29292d; } }
@@ -259,7 +251,6 @@ async function saveTemplate() {
     .cardAction { right: 8px; bottom: 8px; opacity: 0; pointer-events: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px; color: #fff; background: #0005; &:hover, &:focus-visible { background: #ffffff38; } }
     .deleteCard { top: 8px; bottom: auto; right: 8px; }
     @media(hover:none) { .cardAction { opacity: 1; pointer-events: auto; } }
-    @media(max-width:600px) { .caseGrid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); column-gap: 6px; } }
   }
   &.compact { margin: 8px 14px; max-height: 200px; overflow: auto; .caseHeader h2 { font-size: 13px; margin: 0; } .caseCategories { margin: 0; } .caseGrid { display: flex; article { flex: 0 0 140px; .caseCard .casePreview { height: 80px; aspect-ratio: auto; } } } }
   @media(max-width:700px) { .caseFilters { flex-wrap: wrap; gap: 8px; .caseCategories { flex-basis: 100%; } .templateSearch { flex-basis: 100%; width: 100%; min-width: 0; } } }

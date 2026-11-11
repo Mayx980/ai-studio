@@ -157,7 +157,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
         }
       }
     }
-    .assistantTemplates:not(.curated) :deep(.caseGrid) { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+    .assistantTemplates :deep(.caseGrid) { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   }
   @media(max-width:700px) {
     :deep(.emptyConversation) {
