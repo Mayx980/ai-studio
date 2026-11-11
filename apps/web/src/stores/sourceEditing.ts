@@ -12,7 +12,8 @@ type SourceEdit = { directory: string; sessionFile: string; prompt: string; atta
 export const sourceEdit = shallowRef<SourceEdit>();
 export const sourceEditorMinimized = ref(false);
 export const sourceEditBusy = ref(false), sourceEditError = ref("");
-const storageKey = "afxen.sourceEdit";
+// 来源编辑页也可打开素材来源，返回记录按所在页面隔离，避免覆盖外层对话草稿。
+const storageKey = window.frameElement?.hasAttribute("data-source-editor") ? `afxen.sourceEdit.frame.${encodeURIComponent(window.location.hash)}` : "afxen.sourceEdit";
 let storageReadable = true;
 function save() {
   if (!storageReadable) return;
