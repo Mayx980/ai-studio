@@ -16,6 +16,7 @@ declare module 'vue' {
     Agent: typeof import('./../components/agent/index.vue')['default']
     AgentHistorySidebar: typeof import('./../components/agentHistorySidebar.vue')['default']
     AssetsPage: typeof import('./../components/assetsPage.vue')['default']
+    AssetVideoPreview: typeof import('./../components/assetVideoPreview.vue')['default']
     AttachmentList: typeof import('./../components/agent/attachmentList.vue')['default']
     AttachmentPreview: typeof import('./../components/agent/attachmentPreview.vue')['default']
     BrandLogo: typeof import('./../components/brandLogo.vue')['default']
