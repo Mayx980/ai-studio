@@ -1,7 +1,7 @@
 import { ref, shallowRef } from "vue";
 import type { AgentAttachment } from "@/components/agent/types";
 import type { GenerationRecord } from "@/lib/generationHistory";
-import { generationRecordForPath, readGenerationOrigin, validateGenerationOrigin, type GenerationOrigin } from "@/lib/generationOrigin";
+import { generationRecordForPath, readGenerationOrigin, resolveGenerationOrigin, validateGenerationOrigin, type GenerationOrigin } from "@/lib/generationOrigin";
 import { captureVideoFrame } from "@/lib/videoFrame";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { uploadNodeFile } from "@toonflow/nodes-scaffold/workspaceFiles";
@@ -85,18 +85,18 @@ export function receiveSourceResult(event: Event) {
   if (result) { sourceEdit.value = { ...context, result: { ...result, directory: detail.directory } }; save(); }
 }
 window.addEventListener("afxen:generation-recorded", receiveSourceResult);
-export async function returnFromSourceEdit(apply = false) {
+export async function returnFromSourceEdit(apply = false, selectedResult?: { id: string; path: string; directory: string }) {
   const context = sourceEdit.value;
   if (!context || sourceEditBusy.value) return;
   sourceEditBusy.value = true; sourceEditError.value = "";
   try {
     const attachments = context.attachments.map(item => ({ ...item }));
     if (apply) {
-      const candidate = context.result;
+      const candidate = selectedResult ?? context.result;
       if (!candidate) throw new Error("还没有新的生成结果");
       const saved = await generationRecordForPath(candidate.directory, candidate.path);
-      const origin = readGenerationOrigin(saved?.origin);
-      if (!saved || !["image", "video"].includes(saved.kind) || saved.id !== candidate.id || !origin || !sameOrigin(origin, context.origin) || (saved.createdAt ?? 0) < context.startedAt) throw new Error("无法验证本次编辑结果的来源，原素材已保留");
+      const origin = saved ? await resolveGenerationOrigin(candidate.directory, saved) : undefined;
+      if (!saved || !["image", "video"].includes(saved.kind) || saved.id !== candidate.id || !origin || !sameOrigin(origin, context.origin) || !selectedResult && (saved.createdAt ?? 0) < context.startedAt) throw new Error("无法验证本次编辑结果的来源，原素材已保留");
       const result = { ...saved, directory: candidate.directory, origin };
       let mimeType = result.mimeType || (result.kind === "video" ? "video/mp4" : "image/png");
       let file = new File([await useWorkspaceFiles(result.directory).read(result.path)], result.name || result.path.split("/").at(-1)!, { type: mimeType });

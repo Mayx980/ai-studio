@@ -9,12 +9,12 @@
           <header class="sourceEditorHeader">
             <div><strong :title="sourceEdit?.name">{{ sourceEdit?.name }}</strong><small>{{ sourceEdit?.origin.type === 'canvas' ? '编辑来源画布' : '编辑来源对话' }}</small></div>
             <div class="sourceEditorActions">
-              <el-tooltip v-if="sourceEdit?.result" content="应用最新生成结果并替换原素材" :showArrow="false"><el-button type="primary" :loading="sourceEditBusy" aria-label="应用编辑结果" @click="returnFromSourceEdit(true)"><icon-check :size="16" />应用</el-button></el-tooltip>
+              <el-tooltip v-if="sourceEdit?.origin.type === 'canvas' && sourceEdit.result" content="应用最新生成结果并替换原素材" :showArrow="false"><el-button type="primary" :loading="sourceEditBusy" aria-label="应用编辑结果" @click="returnFromSourceEdit(true)"><icon-check :size="16" />应用</el-button></el-tooltip>
               <el-button text :disabled="sourceEditBusy" aria-label="关闭来源编辑" @click="returnFromSourceEdit()"><icon-x :size="18" /></el-button>
             </div>
           </header>
           <p v-if="sourceEditError" class="sourceEditorError" role="alert">{{ sourceEditError }}</p>
-          <sourceEditorViewport :src="url" />
+          <sourceEditorViewport :src="url" :applyEnabled="sourceUrl === url && sourceEdit?.origin.type === 'conversation'" />
         </section>
       </transition>
     </template>
