@@ -2,7 +2,7 @@
   <section v-if="results.length || (browserConfig.enabled && showStatus)" class="browserModelResults" aria-label="真实模型联调">
     <p v-if="showStatus && generationBusy" role="status">正在调用 {{ selectedBrowserModel.label }}，请保持页面打开。</p>
     <el-alert v-if="showStatus && generationError" :title="generationError" type="error" :closable="false" />
-    <article v-for="item in results" :key="item.id" class="generatedResult">
+    <article v-for="item in results" :key="item.id" class="generatedResult" :class="{ compactMediaActions: mediaActions && item.kind === 'image' }">
       <p v-if="item.kind === 'text'" class="generatedText">{{ item.text }}</p>
       <img v-else-if="item.kind === 'image'" :src="item.url" alt="真实模型生成图片，点击放大" role="button" tabindex="0" @click="preview = item" @keydown.enter="preview = item" @keydown.space.prevent="preview = item" />
       <video :ref="value => setVideo(item.id, value)" v-else-if="item.kind === 'video'" :src="item.url" controls playsinline preload="metadata" tabindex="0" aria-label="生成视频，点击放大" @click="preview = item; ($event.currentTarget as HTMLVideoElement).pause()" @keydown.enter="preview = item" />
@@ -90,5 +90,5 @@ async function referenceResult(item: Result) {
 </script>
 
 <style scoped lang="scss">
-.browserModelResults { padding: 12px; max-height: 45vh; overflow: auto; scrollbar-width: none; &::-webkit-scrollbar { display: none; } .resultActions { display: flex; align-items: center; gap: 8px; } .generatedResult { img, video { cursor: zoom-in; } margin-top: 12px; img, video { display: block; max-width: 100%; max-height: 260px; border-radius: 12px; } audio { width: 100%; } .generatedText { white-space: pre-wrap; line-height: 1.7; } } }
+.browserModelResults { padding: 12px; max-height: 45vh; overflow: auto; scrollbar-width: none; &::-webkit-scrollbar { display: none; } .resultActions { display: flex; align-items: center; gap: 8px; } .generatedResult { &.compactMediaActions { width: fit-content; max-width: 100%; .resultActions { contain: inline-size; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; margin-top: 4px; .el-button { justify-self: center; width: 28px; min-width: 0; max-width: 100%; height: 28px; padding: 0; margin: 0; :deep(svg) { max-width: 100%; } } } } img, video { cursor: zoom-in; } margin-top: 12px; img, video { display: block; max-width: 100%; max-height: 260px; border-radius: 12px; } audio { width: 100%; } .generatedText { white-space: pre-wrap; line-height: 1.7; } } }
 </style>
