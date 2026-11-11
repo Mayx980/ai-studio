@@ -228,28 +228,26 @@ async function saveTemplate() {
       &:hover, &:focus-visible { color: #b4a1ff; background: #28232e; }
     }
   }
-  .deleteCard { position: absolute; right: 8px; bottom: 8px; z-index: 2; opacity: 0; pointer-events: none; color: #f2a3aa; background: #28282e; }
-  .cardAction { position: absolute; right: 8px; bottom: 46px; z-index: 1; opacity: 0; pointer-events: none; transition: opacity .15s; background: var(--el-bg-color-overlay); color: var(--el-text-color-primary); }
+  .deleteCard { position: absolute; right: 8px; top: 8px; z-index: 2; opacity: 0; pointer-events: none; color: #f2a3aa; background: #28282e; }
+  .cardAction { position: absolute; right: 8px; bottom: 8px; z-index: 1; opacity: 0; pointer-events: none; transition: opacity .15s; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px; color: #fff; background: #0005; &:hover, &:focus-visible { background: #ffffff38; } }
   @media(hover:none) { .deleteCard { opacity: 1; pointer-events: auto; } .cardAction { opacity: 1; pointer-events: auto; } }
   .caseGrid { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 6px; article { min-width: 0; position: relative; &:hover .cardAction, &:focus-within .cardAction, &:hover .deleteCard, &:focus-within .deleteCard { opacity: 1; pointer-events: auto; } &:hover .caseCard::after { opacity: 1; } }
-    .caseCard { position: relative; width: 100%; padding: 0; border: 0; border-radius: 10px; overflow: hidden; text-align: left; color: var(--el-text-color-primary); background: var(--el-bg-color); cursor: pointer;
+    .caseCard { display: block; position: relative; width: 100%; padding: 0; border: 0; border-radius: 10px; overflow: hidden; text-align: left; color: var(--el-text-color-primary); background: var(--el-bg-color); cursor: pointer;
       &::after { content: ""; position: absolute; inset: 0; background: rgba(100,100,100,.25); opacity: 0; pointer-events: none; transition: opacity .15s; }
       &:hover::after { opacity: 1; }
       &:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
-      .casePreview { display: block; width: 100%; aspect-ratio: 9/13; border-radius: 12px; overflow: hidden; background: var(--el-fill-color-light); }
-      .caseName { display: block; padding: 9px 8px; font-size: 13px; font-weight: 600; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .casePreview { position: relative; display: block; width: 100%; aspect-ratio: 9/13; border-radius: 12px; overflow: hidden; background: var(--el-fill-color-light); }
+      .caseName { position: absolute; bottom: 0; left: 0; right: 0; display: block; padding: 32px 48px 12px 12px; font-size: 13px; font-weight: 400; line-height: 20px; color: #fff; background: linear-gradient(transparent, #0009); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     }
   }
+  &:not(.curated) .casePreview :deep(.templateMedia) { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   &.curated { width: 100%; max-width: none; box-sizing: border-box;
     .caseGrid { display: grid; width: 100%; grid-template-columns: repeat(auto-fill, 135px); grid-auto-rows: 1px; grid-auto-flow: dense; gap: 0 6px; align-items: start;
       article { width: 100%; min-width: 0; margin: 0; }
       .caseCard { display: block; border-radius: 10px;
         .casePreview { aspect-ratio: auto; height: auto; min-height: 60px; border-radius: inherit; :deep(.templateMedia) { width: 100%; height: auto; object-fit: contain; background: #29292d; } }
-        .caseName { position: absolute; bottom: 0; left: 0; right: 0; padding: 32px 48px 12px 12px; font-size: 13px; font-weight: 400; color: #fff; background: linear-gradient(transparent, #0009); }
       }
     }
-    .cardAction { right: 8px; bottom: 8px; opacity: 0; pointer-events: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px; color: #fff; background: #0005; &:hover, &:focus-visible { background: #ffffff38; } }
-    .deleteCard { top: 8px; bottom: auto; right: 8px; }
     @media(hover:none) { .cardAction { opacity: 1; pointer-events: auto; } }
   }
   &.compact { margin: 8px 14px; max-height: 200px; overflow: auto; .caseHeader h2 { font-size: 13px; margin: 0; } .caseCategories { margin: 0; } .caseGrid { display: flex; article { flex: 0 0 140px; .caseCard .casePreview { height: 80px; aspect-ratio: auto; } } } }
