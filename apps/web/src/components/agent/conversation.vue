@@ -56,7 +56,7 @@
                 </div>
               </template>
             </chat-item>
-            <div v-if="!item.streaming" class="messageActions">
+            <div v-if="!item.streaming && !(sourceConversation && item.role === 'assistant' && !item.professional && hasApplicableMaterial(item))" class="messageActions">
               <template v-if="editingId === item.id">
                 <el-button text size="small" :disabled="busy || deletingId !== undefined" @click="cancelEdit"><icon-x :size="14" />取消</el-button>
                 <span class="editingHint">正在下方编辑</span>
@@ -123,7 +123,7 @@
         <el-tooltip v-if="props.materialEditor" content="引用" :showArrow="false"><button class="materialUpload" type="button" :disabled="locked" aria-label="引用" @click="attachmentInput?.click()"><icon-upload :size="19" /></button></el-tooltip>
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
         <referencePicker v-if="!props.creationModes" :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
-        <mentionMenu :currentOnly="props.creationModes && workspaceStore.creationMode === 'simple'" :attachments="props.creationModes ? activeDraftAttachments : undefined" @selectAttachment="insertAttachmentMention" :hideTrigger="props.creationModes" ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
+        <mentionMenu :currentOnly="sourceConversation || props.creationModes && workspaceStore.creationMode === 'simple'" :attachmentsOnly="sourceConversationScope" :currentLabel="sourceConversationScope ? '当前对话' : undefined" :attachments="mentionAttachments" @selectAttachment="insertAttachmentMention" :hideTrigger="props.creationModes" ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
         <skillMenu v-if="!browserWorkspaceMode && !browserConfig.enabled" ref="skillMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="skillQuery" :editor="senderElement" @select="selectSkill" @dismiss="skillQuery = undefined" />
         <el-popover
           v-if="!props.creationModes"
@@ -190,7 +190,7 @@ import brandLogo from "@/components/brandLogo.vue";
 import { browserConfig as defaultBrowserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, browserResultFile, type ModelKind, type BrowserConversationImport } from "@/stores/browserGeneration";
 import professionalCreation from "./professionalCreation.vue";
 import simpleReferenceSlots from "@/components/simpleReferenceSlots.vue";
-import { fileGenerationOrigin } from "@/lib/generationOrigin";
+import { fileGenerationOrigin, rememberFileOrigin } from "@/lib/generationOrigin";
 import { startSourceEdit } from "@/stores/sourceEditing";
 import generationTaskRing from "@/components/generationTaskRing.vue";
 import simpleGenerationTools from "@/components/simpleGenerationTools.vue";
@@ -231,6 +231,7 @@ const props = defineProps<{ active: boolean; initialSession: AgentConversation |
 const emit = defineEmits<{ session: [file: string]; sent: [prompt: string]; event: [event: AgentEvent]; applyMaterial: [file: File]; materialBusy: [value: boolean]; draft: [value: { prompt: string; attachments: AgentAttachment[] }]; generationState: [value: { status: "queued" | "generating" | "completed" | "failed"; error?: string; taskId?: string; vendorTaskId?: string; resultIds?: string[] }] }>();
 const workspaceStore = useWorkspaceStore();
 const sourceConversation = window.frameElement?.getAttribute("data-source-editor") === "true";
+const sourceConversationScope = sourceConversation && new URLSearchParams(window.location.hash.split("?")[1] || "").get("sourceType") === "conversation";
 const imageOnlyMaterial = computed(() => props.materialEditor || props.initialSession?.purpose === "material");
 const directory = props.materialDirectory ?? workspaceStore.project?.directory;
 const draftAttachments = ref<AgentAttachment[]>(props.initialDraft?.attachments.map(item => ({ ...item })) ?? []);
@@ -256,6 +257,17 @@ const creationChoices = [
   { label: "图片", kind: "image" as const, script: false }, { label: "音频", kind: "audio" as const, script: false }, { label: "视频", kind: "video" as const, script: false },
 ];
 const messages = ref<AgentMessage[]>((props.initialSession?.messages ?? []).map(message => ({ ...message })));
+const mentionAttachments = computed(() => {
+  if (!sourceConversationScope) return props.creationModes ? activeDraftAttachments.value : undefined;
+  const attachments = [...activeDraftAttachments.value];
+  const resultIds = new Set(messages.value.flatMap(message => message.browserResultIds ?? []));
+  const outputs: AgentAttachment[] = generationResults.value.filter(result => result.directory === directory && resultIds.has(result.id) && ["image", "video"].includes(result.kind)).map(result => ({ name: result.file?.name || result.path?.split("/").at(-1) || (result.kind === "image" ? "生成图片.png" : "生成视频.mp4"), path: result.path || "", mimeType: result.file?.type || (result.kind === "image" ? "image/png" : "video/mp4"), file: result.file, origin: result.origin }));
+  for (const attachment of [...messages.value.flatMap(message => message.attachments ?? []), ...outputs]) {
+    if (!/^(image|video)\//.test(attachment.mimeType)) continue;
+    if (!attachments.some(item => attachment.path && item.path === attachment.path || attachment.file && item.file === attachment.file)) attachments.push(attachment);
+  }
+  return attachments;
+});
 const selectedHomeMode = inject("homeCreationMode", ref<"simple" | "professional">("simple"));
 const isHomeSelection = computed(() => props.creationModes && !props.materialEditor && !messages.value.length && workspaceStore.creationMode === "simple" && !window.frameElement?.hasAttribute("data-source-editor"));
 const homeCreationMode = computed({ get: () => isHomeSelection.value ? selectedHomeMode.value : workspaceStore.creationMode, set: value => { if (isHomeSelection.value) selectedHomeMode.value = value; else workspaceStore.creationMode = value; } });
@@ -492,6 +504,13 @@ async function insertAttachmentMention(attachment: AgentAttachment) {
   const instance = sender;
   if (!instance || locked.value) return;
   try {
+    if (sourceConversationScope && !draftAttachments.value.includes(attachment)) {
+      const count = draftAttachments.value.length;
+      const file = attachment.file ?? new File([await useWorkspaceFiles(directory).read(attachment.path)], attachment.name, { type: attachment.mimeType });
+      addAttachments([rememberFileOrigin(file, attachment.origin, attachment.assetPath)]);
+      if (draftAttachments.value.length === count) return;
+      attachment = draftAttachments.value.at(-1)!;
+    }
     if (mentionPosition?.node.instance.$el.isConnected) mentionPosition.node.instance.focus(mentionPosition.node.offset);
     else instance.focus("last");
     if (mentionPosition?.remove) await instance.backspace(-mentionPosition.remove);

@@ -52,12 +52,12 @@ import { useMentionSources, type MentionAsset, type MentionNode, type MentionOut
 import attachmentPreview from "./attachmentPreview.vue";
 import mentionThumbnail from "./mentionThumbnail.vue";
 
-const props = defineProps<{ currentOnly?: boolean; attachments?: AgentAttachment[]; hideTrigger?: boolean; directory?: string; active: boolean; disabled: boolean; query?: string; editor?: HTMLElement; currentCanvasId?: string }>();
+const props = defineProps<{ currentOnly?: boolean; attachmentsOnly?: boolean; currentLabel?: string; attachments?: AgentAttachment[]; hideTrigger?: boolean; directory?: string; active: boolean; disabled: boolean; query?: string; editor?: HTMLElement; currentCanvasId?: string }>();
 const emit = defineEmits<{ select: [mentions: AgentMention[]]; dismiss: []; open: []; selectAttachment: [attachment: AgentAttachment] }>();
 const sources = useMentionSources(() => props.directory);
 const listId = useId();
-const scopes = [{ id: "current", get name() { return translate("当前画布"); } }, { id: "other", get name() { return translate("其他画布"); } }, { id: "assets", get name() { return translate("全局素材"); } }] as const;
-const visibleScopes = computed(() => props.currentOnly ? scopes.filter(item => item.id === "current") : scopes);
+const scopes = [{ id: "current", get name() { return props.currentLabel || translate("当前画布"); } }, { id: "other", get name() { return translate("其他画布"); } }, { id: "assets", get name() { return translate("全局素材"); } }] as const;
+const visibleScopes = computed(() => (props.currentOnly || props.attachmentsOnly) ? scopes.filter(item => item.id === "current") : scopes);
 type MentionScope = typeof scopes[number]["id"];
 type MentionRow = { id: string; name: string; kind: "canvas" | "node" | "output" | "file" | "directory" | "attachment"; available: boolean; description: string; dataType?: string; thumbnail?: { url: string; mimeType: string }; outputCount: number };
 const typeLabels: Record<string, string> = { STRING: "文本", INT: "整数", FLOAT: "数字", BOOLEAN: "布尔值", IMAGE: "图片", MASK: "遮罩", VIDEO: "视频", AUDIO: "音频", FILE: "文件" };
@@ -85,7 +85,7 @@ const popupHeight = ref(400);
 const popupElement = ref<HTMLElement>();
 const popupStyle = ref<CSSProperties>({});
 const clickOutsideExclude = computed(() => [props.editor, popupElement.value]);
-const canvasId = computed(() => scope.value === "current" ? props.currentCanvasId ?? sources.currentCanvasId() : selectedCanvas.value?.id);
+const canvasId = computed(() => props.attachmentsOnly ? undefined : scope.value === "current" ? props.currentCanvasId ?? sources.currentCanvasId() : selectedCanvas.value?.id);
 const listingCanvases = computed(() => scope.value === "other" && !selectedCanvas.value);
 const searchText = computed(() => search.value.trim().toLocaleLowerCase());
 const filteredCanvases = computed(() => canvases.value.filter(item => item.id !== (props.currentCanvasId ?? sources.currentCanvasId()) && `${item.name} ${item.id}`.toLocaleLowerCase().includes(searchText.value)));
@@ -98,8 +98,9 @@ const rows = computed<MentionRow[]>(() => {
     description: item.type === "directory" ? translate("文件夹") : typeLabels[item.dataType ?? ""] ?? translate("文件"), outputCount: 0 }));
   const uploaded: MentionRow[] = (props.attachments ?? []).flatMap((attachment, index) => {
     const name = attachment.referenceName || attachment.name;
-    return `${name} ${attachment.name}`.toLocaleLowerCase().includes(searchText.value) ? [{ id: String(index), name, kind: "attachment", available: true, description: "输入框素材", dataType: attachment.mimeType.split("/")[0], outputCount: 1 }] : [];
+    return `${name} ${attachment.name}`.toLocaleLowerCase().includes(searchText.value) ? [{ id: String(index), name, kind: "attachment", available: true, description: props.attachmentsOnly ? "对话素材" : "输入框素材", dataType: attachment.mimeType.split("/")[0], outputCount: 1 }] : [];
   });
+  if (props.attachmentsOnly) return uploaded;
   return [...uploaded, ...nodes.value.map(item => ({ ...item, kind: "node" as const, dataType: item.dataType?.toLocaleLowerCase(), description: typeLabels[item.dataType ?? ""] ?? translate("节点"), outputCount: item.outputCount }))];
 });
 const listVirtualizer = useVirtualizer<HTMLDivElement, HTMLButtonElement>(computed(() => ({
@@ -113,8 +114,8 @@ const listVirtualizer = useVirtualizer<HTMLDivElement, HTMLButtonElement>(comput
 const visibleRows = computed(() => listVirtualizer.value.getVirtualItems().map(item => ({ row: rows.value[item.index]!, index: item.index, start: item.start })));
 const hasMore = computed(() => !listingCanvases.value && !selectedNode.value && !!nextCursor.value);
 const breadcrumb = computed(() => selectedNode.value ? [selectedCanvas.value?.name ?? translate("当前画布"), selectedNode.value.name].join(" / ") : selectedCanvas.value?.name ?? assetPath.value);
-const searchPlaceholder = computed(() => selectedNode.value ? "搜索该节点的输出" : listingCanvases.value ? "搜索其他画布" : scope.value === "assets" ? "搜索素材" : "搜索节点名称或 ID");
-const emptyText = computed(() => scope.value === "current" && !canvasId.value ? translate("打开画布后即可提及节点输出") : search.value ? translate("没有找到匹配的内容") : selectedNode.value ? translate("该节点暂无可用输出") : listingCanvases.value ? translate("暂无其他画布") : scope.value === "assets" ? translate("暂无素材") : translate("当前画布暂无节点"));
+const searchPlaceholder = computed(() => props.attachmentsOnly ? "搜索当前对话素材" : selectedNode.value ? "搜索该节点的输出" : listingCanvases.value ? "搜索其他画布" : scope.value === "assets" ? "搜索素材" : "搜索节点名称或 ID");
+const emptyText = computed(() => props.attachmentsOnly ? search.value ? "没有找到匹配的素材" : "当前对话暂无可引用素材" : scope.value === "current" && !canvasId.value ? translate("打开画布后即可提及节点输出") : search.value ? translate("没有找到匹配的内容") : selectedNode.value ? translate("该节点暂无可用输出") : listingCanvases.value ? translate("暂无其他画布") : scope.value === "assets" ? translate("暂无素材") : translate("当前画布暂无节点"));
 let requestController: AbortController | undefined;
 let selectionController: AbortController | undefined;
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -153,6 +154,7 @@ async function loadList(append = false) {
   loading.value = true;
   loadError.value = "";
   try {
+    if (props.attachmentsOnly) return;
     if (listingCanvases.value) {
       const result = await sources.canvases(controller.signal);
       if (controller.signal.aborted) return;
@@ -326,7 +328,7 @@ watch([visible, () => props.editor], ([open, editor], _previous, onCleanup) => {
   });
 }, { flush: "post" });
 watch(visible, (value, previous) => { if (value && !previous && props.attachments?.length) changeScope("current"); });
-watch([visible, scope, canvasId, selectedNode, assetPath, () => props.directory], () => {
+watch([visible, scope, canvasId, selectedNode, assetPath, () => props.directory, () => props.attachmentsOnly], () => {
   clearTimeout(searchTimer);
   requestController?.abort();
   selectionController?.abort();

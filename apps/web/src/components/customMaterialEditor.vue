@@ -1,7 +1,7 @@
 <template>
   <teleport to="body">
     <materialGenerationWindow v-for="workspace in materialWorkspaces" :key="workspace.id" :workspace="workspace" />
-    <nav v-if="availableMaterialWorkspaces.length && !activeMaterialWorkspace" class="materialTasks" aria-label="生成窗口任务">
+    <nav v-if="!sourceEditor && availableMaterialWorkspaces.length && !activeMaterialWorkspace" class="materialTasks" aria-label="生成窗口任务">
       <el-tooltip v-for="workspace in availableMaterialWorkspaces" :key="workspace.id" content="点击可查看任务" placement="left" :disabled="draggingId === workspace.id" :showArrow="false"><button type="button" :class="{ dragging: draggingId === workspace.id }" :style="taskPosition(workspace.id)" @pointerdown="startDrag($event, workspace.id)" @pointermove="moveDrag" @pointerup="finishDrag" @pointercancel="finishDrag" @lostpointercapture="finishDrag" @dragstart.prevent :aria-label="`${workspace.label} · ${materialStatusLabel(workspace)}，点击可查看任务`" @click="openTask($event, workspace)"><generationTaskRing :size="56" :status="workspace.status" :kind="workspace.config.outputKind" /></button></el-tooltip>
     </nav>
     <el-alert v-if="materialStorageError" class="materialStorageError" :title="materialStorageError" type="error" :closable="false" />
@@ -12,6 +12,7 @@ import { onBeforeUnmount, ref, watch } from "vue";
 import generationTaskRing from "./generationTaskRing.vue";
 import materialGenerationWindow from "./materialGenerationWindow.vue";
 import { activeMaterialWorkspace, availableMaterialWorkspaces, materialWorkspaces, materialStorageError, materialStatusLabel, openMaterialWorkspace, restoreMaterialWorkspaces, type MaterialWorkspace } from "@/stores/materialEditor";
+const sourceEditor = window.frameElement?.hasAttribute("data-source-editor") === true;
 restoreMaterialWorkspaces();
 const positions = ref<Record<string, { left: number; top: number }>>({});
 const viewport = ref({ width: window.innerWidth, height: window.innerHeight });
