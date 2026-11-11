@@ -46,7 +46,7 @@
                   </template>
                   <attachmentList v-if="item.attachments?.length" :attachments="item.attachments" :directory="directory" />
                   <div v-if="item.role === 'user'" class="messageText"><mentionContent :content="item.content" :mentions="item.mentions" :directory="directory" /></div>
-                  <browserModelResults :ref="value => setMessageResults(item.id, value)" v-if="item.browserResultIds?.length && !item.professional" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showCanvas="false" @enterCanvas="addMessageToCanvas(item)" :showReference="false" :framePosition="props.materialRole && props.materialRole !== 'reference' ? props.materialRole === 'lastFrame' ? 'last' : 'first' : undefined" :disabled="locked" @busy="setMaterialBusy" @apply="emit('applyMaterial', $event)" @reference="referenceGeneratedFile" />
+                  <browserModelResults :ref="value => setMessageResults(item.id, value)" v-if="item.browserResultIds?.length && !item.professional" :directory="directory" :resultIds="item.browserResultIds" :showStatus="false" :showCanvas="false" @enterCanvas="resultId => addMessageToCanvas(item, resultId)" @remove="removeMessageResult(item, $event)" :mediaActions="sourceConversation && item.role === 'assistant'" :showReference="false" :framePosition="props.materialRole && props.materialRole !== 'reference' ? props.materialRole === 'lastFrame' ? 'last' : 'first' : undefined" :disabled="locked" @busy="setMaterialBusy" @apply="emit('applyMaterial', $event)" @reference="referenceGeneratedFile" />
                   <professionalCreation v-if="item.professional && directory" :state="item.professional" :sourceSessionFile="browserSessionFile" :directory="directory" :stopToken="professionalStopToken" :attachments="messages.find(message => message.id === item.replyTo)?.attachments ?? []" :disabled="props.disabled || busy || browserSubmitting || deletingId !== undefined" @busy="professionalBusy = $event" @change="saveProfessionalProgress" @results="item.browserResultIds = $event" />
                   <div v-if="item.creationChoice && !item.creationChoice.resolved" class="creationChoices" role="group" aria-label="选择创作内容">
                     <p>{{ item.creationChoice.needsDetails ? "请先补充创作主体或用途，再确认要生成的内容。" : "你希望生成哪种内容？确认后我会在画布搭建节点和连线。" }}</p>
@@ -230,6 +230,7 @@ const generationModelSelection = inject("generationModelSelection", undefined as
 const props = defineProps<{ active: boolean; initialSession: AgentConversation | null; sessionFile?: string; disabled: boolean; creationModes?: boolean; materialEditor?: boolean; materialDirectory?: string; materialLabel?: string; initialDraft?: { prompt: string; attachments: AgentAttachment[] }; materialRole?: "firstFrame" | "reference" | "middleFrame" | "lastFrame" }>();
 const emit = defineEmits<{ session: [file: string]; sent: [prompt: string]; event: [event: AgentEvent]; applyMaterial: [file: File]; materialBusy: [value: boolean]; draft: [value: { prompt: string; attachments: AgentAttachment[] }]; generationState: [value: { status: "queued" | "generating" | "completed" | "failed"; error?: string; taskId?: string; vendorTaskId?: string; resultIds?: string[] }] }>();
 const workspaceStore = useWorkspaceStore();
+const sourceConversation = window.frameElement?.getAttribute("data-source-editor") === "true";
 const imageOnlyMaterial = computed(() => props.materialEditor || props.initialSession?.purpose === "material");
 const directory = props.materialDirectory ?? workspaceStore.project?.directory;
 const draftAttachments = ref<AgentAttachment[]>(props.initialDraft?.attachments.map(item => ({ ...item })) ?? []);
@@ -597,17 +598,17 @@ function messageText(item: AgentMessage) {
   const state = item.professional;
   return [state.prompt, ...state.questions.map(question => `${question.label}：${question.answer}`), ...[...state.plans, ...state.scripts, ...state.prompts].map(option => `${option.title}\n${option.content}`)].join("\n\n");
 }
-async function addMessageToCanvas(item: AgentMessage) {
+async function addMessageToCanvas(item: AgentMessage, resultId?: string) {
   if (locked.value || !importMessageResult || !directory) return;
   browserSubmitting.value = true;
   try {
-    const results = generationResults.value.filter(result => item.browserResultIds?.includes(result.id) && result.directory === directory);
-    const text = messageText(item);
+    const results = generationResults.value.filter(result => item.browserResultIds?.includes(result.id) && result.directory === directory && (!resultId || result.id === resultId));
+    const text = resultId ? "" : messageText(item);
     if (!results.length && !text) throw new Error("这条消息还没有可加入画布的内容");
     if (results.length && results.every(result => result.kind === "image" || result.kind === "video") && importConversationTurn) {
       const source = messages.value.find(message => message.id === item.replyTo);
       const references = await Promise.all((source?.attachments ?? []).filter(attachment => /^(image|video)\//.test(attachment.mimeType)).map(async attachment => ({ file: attachment.file ?? new File([await useWorkspaceFiles(directory).read(attachment.path)], attachment.name, { type: attachment.mimeType }), label: attachment.referenceName || (attachment.referenceRole === "firstFrame" ? "首帧" : attachment.referenceRole === "lastFrame" ? "尾帧" : attachment.name), role: attachment.referenceRole })));
-      await importConversationTurn({ id: `${browserSessionFile || "conversation"}/${item.id}`, directory, request: source?.content || results[0]!.prompt || "", references, results });
+      await importConversationTurn({ id: `${browserSessionFile || "conversation"}/${item.id}${resultId ? `/${resultId}` : ""}`, directory, request: source?.content || results[0]!.prompt || "", references, results });
       return;
     }
     for (const result of results) await importMessageResult(await browserResultFile(result), directory);
@@ -801,6 +802,19 @@ async function restoreEditingDraft() {
 async function cancelEdit() {
   if (busy.value || deletingId.value !== undefined) return;
   await restoreEditingDraft();
+}
+
+async function removeMessageResult(item: AgentMessage, resultId: string) {
+  if (locked.value || remoteRunning.value || !item.browserResultIds?.includes(resultId)) return;
+  const previous = item.browserResultIds;
+  deletingId.value = item.id;
+  try {
+    item.browserResultIds = previous.filter(id => id !== resultId);
+    await persistBrowserMessages();
+  } catch (error) {
+    item.browserResultIds = previous;
+    ElMessage.error(error instanceof Error ? error.message : "删除素材失败");
+  } finally { deletingId.value = undefined; }
 }
 
 async function deleteMessage(item: AgentMessage) {

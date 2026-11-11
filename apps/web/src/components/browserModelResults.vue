@@ -8,8 +8,9 @@
       <video :ref="value => setVideo(item.id, value)" v-else-if="item.kind === 'video'" :src="item.url" controls playsinline preload="metadata" tabindex="0" aria-label="生成视频，点击放大" @click="preview = item; ($event.currentTarget as HTMLVideoElement).pause()" @keydown.enter="preview = item" />
       <audio v-else :src="item.url" controls />
       <div class="resultActions">
-        <el-tooltip v-if="showCanvas && (conversationCanvas || importResult)" :content="conversationCanvas ? '进入画布' : '加入画布'"><el-button text circle type="primary" :disabled="importing || disabled" :aria-label="conversationCanvas ? '进入画布' : '加入画布'" @click="conversationCanvas ? emit('enterCanvas') : addToCanvas(item)"><icon-square-plus :size="17" /></el-button></el-tooltip>
-        <el-button v-if="showReference && item.kind !== 'text'" text circle :disabled="importing || disabled" aria-label="引用素材" title="引用到输入框" @click="referenceResult(item)"><icon-paperclip :size="17" /></el-button>
+        <el-tooltip v-if="(showReference || mediaActions && ['image', 'video'].includes(item.kind)) && item.kind !== 'text'" content="引用到输入框"><el-button text circle :disabled="importing || disabled" aria-label="引用到输入框" @click="referenceResult(item)"><icon-paperclip :size="17" /></el-button></el-tooltip>
+        <el-tooltip v-if="mediaActions && ['image', 'video'].includes(item.kind) || showCanvas && (conversationCanvas || importResult)" :content="mediaActions || conversationCanvas ? '进入画布' : '加入画布'"><el-button text circle type="primary" :disabled="importing || disabled" :aria-label="mediaActions || conversationCanvas ? '进入画布' : '加入画布'" @click="mediaActions ? emit('enterCanvas', item.id) : conversationCanvas ? emit('enterCanvas') : addToCanvas(item)"><icon-square-plus :size="17" /></el-button></el-tooltip>
+        <el-tooltip v-if="mediaActions && ['image', 'video'].includes(item.kind)" content="删除"><el-button text circle :disabled="importing || disabled" aria-label="删除素材" @click="emit('remove', item.id)"><icon-trash :size="17" /></el-button></el-tooltip>
       </div>
     </article>
     <imageViewer v-if="preview?.kind === 'image' && preview.url" :urlList="[preview.url]" @close="preview = undefined" />
@@ -19,14 +20,14 @@
 
 <script setup lang="ts">
 import { rememberFileOrigin } from "@/lib/generationOrigin";
-import { IconPaperclip, IconSquarePlus } from "@tabler/icons-vue";
+import { IconPaperclip, IconSquarePlus, IconTrash } from "@tabler/icons-vue";
 import { computed, inject, onBeforeUnmount, ref } from "vue";
 import { ElMessage, ElDialog } from "element-plus";
 import imageViewer from "@toonflow/node-shared/imageViewer";
 import { captureVideoFrame } from "@/lib/videoFrame";
 import { browserConfig, generationBusy, generationError, generationResults, selectedBrowserModel, browserResultFile } from "@/stores/browserGeneration";
-const props = withDefaults(defineProps<{ directory?: string; resultIds?: string[]; showStatus?: boolean; disabled?: boolean; showCanvas?: boolean; conversationCanvas?: boolean; showReference?: boolean; framePosition?: "first" | "last" }>(), { showCanvas: true, showStatus: true, showReference: true });
-const emit = defineEmits<{ enterCanvas: []; reference: [file: File]; apply: [file: File]; busy: [value: boolean] }>();
+const props = withDefaults(defineProps<{ directory?: string; resultIds?: string[]; showStatus?: boolean; disabled?: boolean; showCanvas?: boolean; conversationCanvas?: boolean; showReference?: boolean; mediaActions?: boolean; framePosition?: "first" | "last" }>(), { showCanvas: true, showStatus: true, showReference: true });
+const emit = defineEmits<{ enterCanvas: [resultId?: string]; remove: [resultId: string]; reference: [file: File]; apply: [file: File]; busy: [value: boolean] }>();
 const importResult = inject<((file: File, directory: string) => Promise<void>) | undefined>("importBrowserResult", undefined);
 const importing = ref(false);
 const results = computed(() => generationResults.value.filter(item => item.directory === props.directory && (!props.resultIds || props.resultIds.includes(item.id))));
