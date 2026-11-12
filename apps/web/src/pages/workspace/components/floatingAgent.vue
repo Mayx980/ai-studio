@@ -6,8 +6,8 @@
       <div v-if="!expanded && !sourceEditor" class="resizeHandle" role="separator" aria-label="调整对话侧栏宽度" aria-orientation="vertical" :aria-valuemin="minimumWidth" :aria-valuemax="maximumWidth" :aria-valuenow="width" tabindex="0" @pointerdown="startResize" @pointermove="resize" @pointerup="stopResize" @pointercancel="stopResize" @lostpointercapture="stopResize" @keydown.left.prevent="preferredWidth = width + 16" @keydown.right.prevent="preferredWidth = width - 16" />
       <el-tooltip v-if="!expanded && !sourceEditor" content="关闭" placement="left" :showArrow="false"><el-button class="closeAgent" text circle aria-label="关闭侧边栏" @click="visible = false"><icon-x :size="18" /></el-button></el-tooltip>
       <div ref="assistantContent" class="assistantContent">
-        <header v-if="expanded && !sourceEditor" class="assistantHeader"><el-button text :disabled="sidebarOpening || generationBusy" @click="newChat"><icon-message-plus :size="18" />新聊天</el-button><el-button text :aria-expanded="conversationHistoryOpen" @click="conversationHistoryOpen = !conversationHistoryOpen"><icon-history :size="18" />历史对话</el-button></header>
-        <agent v-model="visible" creationModes :closable="!expanded"><template #menuActions><el-button v-if="expanded && !sourceEditor" class="enterCanvasButton" text :icon="IconVector" aria-label="进入画布" @click="emit('enterCanvas')">进入画布</el-button></template></agent>
+        <header v-if="expanded && !sourceEditor" class="assistantHeader"><el-button text :disabled="sidebarOpening || generationBusy" @click="newChat"><icon-message-plus :size="18" />新聊天</el-button><div class="historyActions"><el-button text :aria-expanded="conversationHistoryOpen" @click="conversationHistoryOpen = !conversationHistoryOpen"><icon-history :size="18" />历史对话</el-button><button v-if="homeMode === 'simple'" class="materialChatButton" :class="{ generating: materialGenerating }" type="button" :disabled="sidebarOpening" :aria-busy="materialGenerating" aria-label="自定义素材对话" :title="materialGenerating ? '自定义素材正在生成，点击查看对话' : '打开自定义素材对话'" @click="agentRef?.openCustomMaterial()"><brandLogo compact aria-hidden="true" /><span>与 AI 对话</span></button></div></header>
+        <agent ref="agentRef" v-model="visible" creationModes :closable="!expanded"><template #menuActions><el-button v-if="expanded && !sourceEditor" class="enterCanvasButton" text :icon="IconVector" aria-label="进入画布" @click="emit('enterCanvas')">进入画布</el-button></template></agent>
         <creativeCases v-if="expanded && !sourceEditor" class="assistantTemplates" :curated="homeMode === 'professional'" @apply="applyCase" />
       </div>
     </aside>
@@ -27,8 +27,9 @@ import type { Project } from "@/stores/workspace";
 import { ElMessage } from "element-plus";
 import { useRouter } from "vue-router";
 import agent from "@/components/agent/index.vue";
+import brandLogo from "@/components/brandLogo.vue";
 import { generationBusy } from "@/stores/browserGeneration";
-import { materialDrawerInset } from "@/stores/materialEditor";
+import { materialDrawerInset, availableMaterialWorkspaces } from "@/stores/materialEditor";
 const router = useRouter();
 const sourceEditor = window.frameElement?.getAttribute("data-source-editor") === "true";
 function navigate(section: string) { if (section === "history") { conversationHistoryOpen.value = !conversationHistoryOpen.value; return; } void router.push({ path: "/home", query: { section } }); }
@@ -39,6 +40,8 @@ const startNewProject = inject<((mode: "simple" | "professional") => Promise<voi
 const openSidebarProject = inject<((directory: string) => Promise<void>) | undefined>("openSidebarProject", undefined);
 const sidebarOpening = ref(false);
 const assistantContent = ref<HTMLElement>();
+const agentRef = ref<InstanceType<typeof agent>>();
+const materialGenerating = computed(() => availableMaterialWorkspaces.value.some(item => item.directory === useWorkspaceStore().project?.directory && item.status === "generating"));
 const homeMode = ref<"simple" | "professional">("simple");
 provide("homeCreationMode", homeMode);
 function applyCase(value: TemplateApplication) { emit("applyTemplate", value); assistantContent.value?.scrollTo({ top: 0 }); }
@@ -83,7 +86,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
 </style>
 
 <style scoped lang="scss">
-.assistantContent { height: 100%; min-width: 0; .assistantHeader { display: flex; justify-content: flex-end; align-items: center; gap: 8px; min-height: 36px; .el-button { gap: 6px; } } }
+.assistantContent { height: 100%; min-width: 0; .assistantHeader { display: flex; justify-content: flex-end; align-items: flex-start; gap: 8px; min-height: 36px; .el-button { gap: 6px; } } }
 .agentSidebar.expanded:not(.materialSplit) { background: #131313; padding: 24px 24px 24px 254px; isolation: isolate;
   &::before, &::after { content: ""; position: absolute; top: 0; left: calc(230px + (100% - 230px) / 2); transform: translateX(-50%); width: min(1400px, calc(100% - 270px)); height: 480px; z-index: -1; pointer-events: none; mask-image: linear-gradient(to right, transparent 0%, #0001 10%, #0004 20%, #0009 30%, #000e 40%, #000 50%, #000e 60%, #0009 70%, #0004 80%, #0001 90%, transparent 100%), radial-gradient(ellipse at 50% 0%, #000 0%, #000e 20%, #0009 42%, #0003 64%, transparent 86%); mask-composite: intersect; }
   &::before { background: radial-gradient(ellipse at 30% 10%, #00b8ffff 0%, #008ff5cc 25%, #0061e666 42%, transparent 58%), radial-gradient(ellipse at 70% 10%, #932bffff 0%, #7020f5cc 25%, #5016d666 42%, transparent 58%); }
@@ -180,4 +183,19 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
     .assistantContent :deep(.agentConversation .messageInput) { margin-left: 23px; margin-right: 27px; width: calc(100% - 50px); max-width: calc(100% - 50px); }
   }
 }
+</style>
+
+<style scoped lang="scss">
+.assistantHeader {
+  .historyActions { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .materialChatButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 120px; height: 36px; padding: 0 12px; border: 1px solid #ffffff0b; border-radius: 999px; background: #202020; color: #fff; font: inherit; font-size: 13px; white-space: nowrap; cursor: pointer; box-shadow: inset 0 1px 0 #ffffff08, 0 2px 8px #0003;
+    :deep(.brandLogo.compact) { width: 18px; height: 18px; }
+    &:hover:enabled { background: #2b2b2b; }
+    &:focus-visible { outline: 2px solid #b4a1ff; outline-offset: 2px; }
+    &:disabled { opacity: .5; cursor: wait; }
+    &.generating :deep(.brandLogo) { animation: materialLogoFlip 1.4s ease-in-out infinite; }
+  }
+}
+@keyframes materialLogoFlip { from { transform: perspective(100px) rotateY(0deg); } to { transform: perspective(100px) rotateY(360deg); } }
+@media(prefers-reduced-motion:reduce) { .assistantHeader .materialChatButton.generating :deep(.brandLogo) { animation: none; } }
 </style>

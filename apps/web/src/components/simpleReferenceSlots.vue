@@ -6,7 +6,6 @@
         <div class="referenceTabs" role="tablist" aria-label="参考素材类型"><button v-for="tab in tabs" :key="tab.value" type="button" role="tab" :aria-selected="mode === tab.value" :disabled="disabled || opening" @click="mode = tab.value; modeVisible = false"><component :is="tab.value === 'frames' ? IconLayoutColumns : IconPhoto" :size="16" /><span>{{ tab.label }}</span><icon-check v-if="mode === tab.value" :size="16" /></button></div>
       </el-popover>
     </teleport>
-    <el-tooltip v-for="task in materialWorkspaces.filter(item => !item.ended && !item.applied && item.directory === directory && (!item.request || item.request.owner === owner))" :key="task.id" content="点击可查看任务" :showArrow="false"><button class="materialTaskEntry" type="button" :aria-label="`${task.label} · ${materialStatusLabel(task)}，点击可查看任务`" @click="openTask(task)"><generationTaskRing :size="40" :status="task.status" :kind="task.config.outputKind" /></button></el-tooltip>
     <input ref="fileInput" type="file" :accept="target.role === 'firstFrame' || target.role === 'lastFrame' ? 'image/*' : 'image/*,video/*'" :multiple="['reference', 'middleFrame'].includes(target.role) && !replacing" hidden :disabled="disabled || opening" @change="selectFiles" />
     <div v-if="mode === 'reference'" class="referenceDeck" aria-label="参考图片">
       <button v-if="!referenceImages.length" class="slotCard" type="button" :disabled="disabled || opening" aria-label="添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="28" /></button>
@@ -51,8 +50,7 @@ import type { AgentAttachment, ReferenceRole, ReferenceCategory } from "@/compon
 import attachmentPreview from "@/components/agent/attachmentPreview.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import { IconPencil } from "@tabler/icons-vue";
-import generationTaskRing from "./generationTaskRing.vue";
-import { materialEditorState, materialWorkspaces, materialStatusLabel, openMaterialWorkspace, type MaterialTarget, type MaterialWorkspace } from "@/stores/materialEditor";
+import { materialEditorState, materialWorkspaces, openMaterialWorkspace, type MaterialTarget, type MaterialWorkspace } from "@/stores/materialEditor";
 const emit = defineEmits<{ edit: [attachment: AgentAttachment] }>();
 const props = withDefaults(defineProps<{ showFrames?: boolean; tabsTarget?: HTMLElement; directory?: string; disabled?: boolean; ensureDirectory?: () => Promise<string | undefined> }>(), { showFrames: true });
 const attachments = defineModel<AgentAttachment[]>({ required: true });
@@ -67,7 +65,7 @@ const tabs = computed(() => ([{ value: "reference", label: "参考图" }, { valu
 watch(() => props.showFrames, show => { if (!show) mode.value = "reference"; }, { immediate: true, flush: "sync" });
 const frames = [{ role: "firstFrame", label: "首帧" }, { role: "lastFrame", label: "尾帧" }] as const;
 const groups = [{ value: "character", label: "角色" }, { value: "prop", label: "道具" }, { value: "scene", label: "背景" }, { value: "other", label: "其他" }] as const;
-const sources = [{ value: "local", label: "从本地上传" }, { value: "assets", label: "从个人资产库上传" }, { value: "custom", label: "自定义素材" }];
+const sources = [{ value: "local", label: "从本地上传" }, { value: "assets", label: "从个人资产库上传" }];
 const expandedReference = ref(false);
 let hoverTimer: ReturnType<typeof setTimeout> | undefined;
 function expandReference() { clearTimeout(hoverTimer); expandedReference.value = true; }
@@ -103,6 +101,15 @@ function applyFiles(files: File[], destination = target.value, replacement = rep
   else attachments.value = [...retained, ...added];
   replacing.value = undefined;
 }
+function openCustomMaterial() {
+  const tasks = materialWorkspaces.value.filter(item => !item.ended && item.directory === props.directory && (!item.request || item.request.owner === owner));
+  const task = tasks.findLast(item => item.status === "queued" || item.status === "generating") ?? tasks.at(-1);
+  if (task) { openTask(task); return; }
+  target.value = { role: "reference", category: "other" };
+  replacing.value = undefined;
+  void chooseSource("custom");
+}
+defineExpose({ openCustomMaterial });
 function openTask(task: MaterialWorkspace) {
   if (task.ended || task.directory !== props.directory) return;
   if (!task.request) task.request = { owner, directory: task.directory, label: task.label, target: task.target, apply: file => applyFiles([file], task.target) };
@@ -134,7 +141,6 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; for (const task of
   .referenceCard.editableReference .replaceReference { inset: auto; left: 7px; top: 22px; margin: 0; width: 26px; height: 26px; }
   .frameSlot .editFrame { position: absolute; right: 2px; top: 2px; display: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; color: white; background: #18151dd9; cursor: pointer; }
   .frameSlot:hover .editFrame, .frameSlot:focus-within .editFrame { display: grid; place-items: center; }
-  .materialTaskEntry { flex: none; align-self: center; display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; padding: 4px; border: 0; border-radius: 50%; background: transparent; cursor: pointer; &:hover { filter: brightness(1.15); } &:focus-visible { outline: 2px solid #ab8aff; outline-offset: -1px; } }
   display: flex; justify-content: flex-start; align-items: flex-start; gap: 12px; padding: 8px 12px 14px; min-width: 0;
 
   .referenceDeck, .frameDeck { display: flex; justify-content: flex-start; align-items: flex-start; gap: 10px; min-width: 0; flex-wrap: wrap; padding: 4px 10px 8px 0; }

@@ -111,7 +111,7 @@
         @lostpointercapture="stopSenderResize"
         @keydown.up.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) + 16)"
         @keydown.down.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) - 16)" />
-      <simpleReferenceSlots v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" v-model:mode="referenceMode" :showFrames="browserConfig.outputKind === 'video'" :tabsTarget="referenceTabsTarget" :directory="directory" :disabled="locked" @edit="editReferenceAttachment" />
+      <simpleReferenceSlots ref="referenceSlotsRef" v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" v-model:mode="referenceMode" :showFrames="browserConfig.outputKind === 'video'" :tabsTarget="referenceTabsTarget" :directory="directory" :disabled="locked" @edit="editReferenceAttachment" />
       <attachmentList v-if="unassignedAttachments.length" class="draftAttachments" numbered :attachments="unassignedAttachments" :directory="directory" removable restorable :disabled="locked" @remove="removeVisibleAttachment($event)" @restore="restoreVisibleAttachment" />
       <div ref="senderElement" class="senderEditor" @pointerdown.capture="inputStarted = true" @input.capture="inputStarted = true" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
@@ -237,6 +237,7 @@ const directory = props.materialDirectory ?? workspaceStore.project?.directory;
 const draftAttachments = ref<AgentAttachment[]>(props.initialDraft?.attachments.map(item => ({ ...item })) ?? []);
 const referenceMode = ref<"reference" | "frames">("reference");
 const referenceTabsTarget = ref<HTMLElement>();
+const referenceSlotsRef = ref<InstanceType<typeof simpleReferenceSlots>>();
 const activeDraftAttachments = computed(() => !props.creationModes || props.materialEditor || workspaceStore.creationMode !== "simple" ? draftAttachments.value : draftAttachments.value.filter(item => !item.referenceRole || (referenceMode.value === "reference" ? item.referenceRole === "reference" : item.referenceRole !== "reference")));
 const unassignedAttachments = computed(() => props.creationModes && !props.materialEditor && workspaceStore.creationMode === "simple" ? draftAttachments.value.filter(item => !item.referenceRole) : draftAttachments.value);
 function removeVisibleAttachment(index: number) { const item = unassignedAttachments.value[index]; draftAttachments.value = draftAttachments.value.filter(value => value !== item); }
@@ -464,7 +465,7 @@ function receiveEvent(event: AgentEvent) {
   applyEvent(event);
 }
 
-defineExpose({ receiveEvent });
+defineExpose({ receiveEvent, openCustomMaterial: () => referenceSlotsRef.value?.openCustomMaterial() });
 
 function getDraftContent() {
   return sender?.getModel().map((line, lineIndex) => line.map((tag, tagIndex) => {

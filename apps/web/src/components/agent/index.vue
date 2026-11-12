@@ -74,6 +74,7 @@ const initialized = ref(false);
 let requestId = 0;
 let nextConversationKey = 0;
 const conversationRefs = new Map<number, InstanceType<typeof conversation>>();
+defineExpose({ openCustomMaterial: () => conversationRefs.get(conversationKey.value)?.openCustomMaterial() });
 const pendingEvents = new Map<number, AgentEvent[]>();
 
 function showConversation(session: AgentConversation | null, activate = true) {
