@@ -2,7 +2,6 @@
   <div class="workspaceMenu">
       <div class="menuContent">
 
-        <el-button v-if="workspaceStore.creationMode === 'professional'" class="toolButton" text :icon="IconMessages" aria-label="返回对话" title="返回对话" @click="workspaceStore.creationMode = 'simple'" />
         <el-button class="toolButton" text aria-label="退出项目" title="退出项目" @click="exitVisible = true">
           <icon-logout :size="18" aria-hidden="true" />
         </el-button>
@@ -26,14 +25,12 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { useWorkspaceStore } from "@/stores/workspace";
-import { IconMessages, IconLogout, IconSettings } from "@tabler/icons-vue";
+import { IconLogout, IconSettings } from "@tabler/icons-vue";
 import { hasDesktopUpdate } from "@/stores/desktopUpdate";
 
 const emit = defineEmits<{ openSettings: [] }>();
 const router = useRouter();
 const route = useRoute();
-const workspaceStore = useWorkspaceStore();
 const exitVisible = ref(false);
 const leaving = ref(false);
 
