@@ -9,23 +9,23 @@
     <input ref="fileInput" type="file" :accept="target.role === 'firstFrame' || target.role === 'lastFrame' ? 'image/*' : 'image/*,video/*'" :multiple="['reference', 'middleFrame'].includes(target.role) && !replacing" hidden :disabled="disabled || opening" @change="selectFiles" />
     <div v-if="mode === 'reference'" class="referenceDeck" aria-label="参考图片">
       <button v-if="!referenceImages.length" class="slotCard" type="button" :disabled="disabled || opening" aria-label="添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="28" /></button>
-      <div v-for="(attachment, index) in referenceImages" :key="index" class="referenceCard" :class="{ editableReference: !!(attachment.origin || attachment.assetPath), lastReference: index === referenceImages.length - 1, expandedReference: index === referenceImages.length - 1 && expandedReference }" @mouseenter="expandReference" @mouseleave="collapseReference" @focusin="expandReference" @focusout="collapseReference">
+      <div v-for="(attachment, index) in referenceImages" :key="index" class="referenceCard" :class="{ editableReference: canEditSource(attachment), lastReference: index === referenceImages.length - 1, expandedReference: index === referenceImages.length - 1 && expandedReference }" @mouseenter="expandReference" @mouseleave="collapseReference" @focusin="expandReference" @focusout="collapseReference">
         <attachmentPreview :attachment="attachment" :directory="directory" />
         <span class="referenceLabel">{{ referenceLabel(attachment, index) }}</span>
         <el-tooltip content="替换图片"><button class="replaceReference" type="button" :disabled="disabled || opening" :aria-label="`替换${referenceLabel(attachment, index)}`" @click="openMenu($event, { role: 'reference', category: attachment.referenceCategory || 'character' }, attachment)"><icon-refresh :size="22" /></button></el-tooltip>
-        <el-tooltip v-if="attachment.origin || attachment.assetPath" :content="attachment.origin ? '编辑来源' : '外部上传素材没有生成来源'" :showArrow="false"><button class="editReference" type="button" :disabled="disabled || opening || !attachment.origin" aria-label="编辑参考素材来源" @click="emit('edit', attachment)"><icon-pencil :size="22" /></button></el-tooltip>
+        <el-tooltip v-if="canEditSource(attachment)" content="编辑来源" :showArrow="false"><button class="editReference" type="button" :disabled="disabled || opening" aria-label="编辑参考素材来源" @click="emit('edit', attachment)"><icon-pencil :size="22" /></button></el-tooltip>
         <button class="removeReference" type="button" :disabled="disabled || opening" :aria-label="`移除${referenceLabel(attachment, index)}`" title="移除图片" @click="remove(attachment)"><icon-x :size="14" /></button>
         <button v-if="index === referenceImages.length - 1" class="addNextReference" type="button" :disabled="disabled || opening" aria-label="继续添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="22" /></button>
       </div>
     </div>
     <div v-else class="frameDeck" aria-label="首尾帧图片">
       <template v-for="(frame, index) in frames" :key="frame.role">
-        <template v-if="index"><div v-for="(attachment, middleIndex) in middleFrames" :key="attachment.name + attachment.path" class="frameSlot"><attachmentPreview :attachment="attachment" :directory="directory" removable :disabled="disabled" @remove="remove(attachment)" /><span class="frameLabel">{{ middleFrameLabel(attachment, middleIndex) }}</span><el-tooltip content="替换图片"><button class="replaceFrame" type="button" :disabled="disabled || opening" :aria-label="`替换${middleFrameLabel(attachment, middleIndex)}`" @click="openMenu($event, { role: 'middleFrame', category: 'other' }, attachment)"><icon-refresh :size="22" /></button></el-tooltip><el-tooltip v-if="attachment.origin || attachment.assetPath" :content="attachment.origin ? '编辑来源' : '外部上传素材没有生成来源'" :showArrow="false"><button class="editFrame" type="button" :disabled="disabled || opening || !attachment.origin" aria-label="编辑参考素材来源" @click="emit('edit', attachment)"><icon-pencil :size="16" /></button></el-tooltip></div><el-tooltip content="添加中间帧"><button class="frameDivider" type="button" aria-label="添加中间帧" :disabled="disabled || opening" @click="openMenu($event, { role: 'middleFrame', category: 'other' })"><span>···</span><icon-plus :size="16" /></button></el-tooltip></template>
+        <template v-if="index"><div v-for="(attachment, middleIndex) in middleFrames" :key="attachment.name + attachment.path" class="frameSlot"><attachmentPreview :attachment="attachment" :directory="directory" removable :disabled="disabled" @remove="remove(attachment)" /><span class="frameLabel">{{ middleFrameLabel(attachment, middleIndex) }}</span><el-tooltip content="替换图片"><button class="replaceFrame" type="button" :disabled="disabled || opening" :aria-label="`替换${middleFrameLabel(attachment, middleIndex)}`" @click="openMenu($event, { role: 'middleFrame', category: 'other' }, attachment)"><icon-refresh :size="22" /></button></el-tooltip><el-tooltip v-if="canEditSource(attachment)" content="编辑来源" :showArrow="false"><button class="editFrame" type="button" :disabled="disabled || opening" aria-label="编辑参考素材来源" @click="emit('edit', attachment)"><icon-pencil :size="16" /></button></el-tooltip></div><el-tooltip content="添加中间帧"><button class="frameDivider" type="button" aria-label="添加中间帧" :disabled="disabled || opening" @click="openMenu($event, { role: 'middleFrame', category: 'other' })"><span>···</span><icon-plus :size="16" /></button></el-tooltip></template>
         <div class="frameSlot">
           <template v-if="frameAttachment(frame.role)">
             <attachmentPreview :attachment="frameAttachment(frame.role)!" :directory="directory" removable :disabled="disabled" @remove="remove(frameAttachment(frame.role)!)" />
             <el-tooltip content="替换图片"><button class="replaceFrame" type="button" :disabled="disabled || opening" :aria-label="`替换${frame.label}图片`" @click="openMenu($event, { role: frame.role }, frameAttachment(frame.role))"><icon-refresh :size="22" /></button></el-tooltip>
-            <el-tooltip v-if="frameAttachment(frame.role)?.origin || frameAttachment(frame.role)?.assetPath" :content="frameAttachment(frame.role)?.origin ? '编辑来源' : '外部上传素材没有生成来源'" :showArrow="false"><button class="editFrame" type="button" :disabled="disabled || opening || !frameAttachment(frame.role)?.origin" aria-label="编辑参考素材来源" @click="emit('edit', frameAttachment(frame.role)!)"><icon-pencil :size="16" /></button></el-tooltip>
+            <el-tooltip v-if="canEditSource(frameAttachment(frame.role))" content="编辑来源" :showArrow="false"><button class="editFrame" type="button" :disabled="disabled || opening" aria-label="编辑参考素材来源" @click="emit('edit', frameAttachment(frame.role)!)"><icon-pencil :size="16" /></button></el-tooltip>
             <button class="frameLabel" type="button" :disabled="disabled || opening" :aria-label="`替换${frame.label}`" @click="openMenu($event, { role: frame.role })">{{ frame.label }}</button>
           </template>
           <button v-else class="slotCard" type="button" :disabled="disabled || opening" :aria-label="frame.label" @click="openMenu($event, { role: frame.role })"><icon-plus :size="24" /><span>{{ frame.label }}</span></button>
@@ -42,7 +42,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { fileGenerationOrigin, fileAssetPath } from "@/lib/generationOrigin";
+import { fileGenerationOrigin, fileAssetPath, validateGenerationOrigin } from "@/lib/generationOrigin";
 import { computed, nextTick, onUnmounted, ref, watch } from "vue";
 import { ClickOutside as vClickOutside, ElMessage, type PopoverInstance } from "element-plus";
 import { IconPlus, IconRefresh, IconX, IconPhoto, IconChevronDown, IconLayoutColumns, IconCheck } from "@tabler/icons-vue";
@@ -54,6 +54,21 @@ import { materialEditorState, materialWorkspaces, openMaterialWorkspace, type Ma
 const emit = defineEmits<{ edit: [attachment: AgentAttachment] }>();
 const props = withDefaults(defineProps<{ showFrames?: boolean; tabsTarget?: HTMLElement; directory?: string; disabled?: boolean; ensureDirectory?: () => Promise<string | undefined> }>(), { showFrames: true });
 const attachments = defineModel<AgentAttachment[]>({ required: true });
+const editableOrigins = ref(new Set<string>());
+watch([() => props.directory, () => attachments.value.map(item => item.origin)], async (_, __, onCleanup) => {
+  let cancelled = false;
+  onCleanup(() => { cancelled = true; });
+  editableOrigins.value = new Set();
+  const origins = new Map(attachments.value.filter(item => item.origin).map(item => [JSON.stringify(item.origin), item.origin!]));
+  const valid = await Promise.all([...origins].map(async ([key, origin]) => {
+    try { await validateGenerationOrigin(origin); return key; }
+    catch { return ""; }
+  }));
+  if (!cancelled) editableOrigins.value = new Set(valid.filter(Boolean));
+}, { immediate: true, deep: true });
+function canEditSource(attachment?: AgentAttachment) {
+  return !!attachment?.origin && editableOrigins.value.has(JSON.stringify(attachment.origin));
+}
 const modeVisible = ref(false);
 const mode = defineModel<"reference" | "frames">("mode", { default: "reference" });
 let active = true;

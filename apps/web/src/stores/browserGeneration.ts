@@ -87,6 +87,8 @@ export async function restoreBrowserResults(directory: string) {
     if (generationResults.value.some(result => result.id === item.id && result.directory === directory)) continue;
     const type = item.mimeType?.startsWith(`${item.kind}/`) ? item.mimeType : `${item.kind}/${item.kind === "video" ? "mp4" : item.kind === "audio" ? "mpeg" : "png"}`;
     const file = new File([await files.read(item.path)], item.name || item.path.split("/").at(-1)!, { type });
+    // 文件读取期间其他窗口可能已恢复同一记录，写入前再次核对。
+    if (generationResults.value.some(result => result.id === item.id && result.directory === directory)) continue;
     generationResults.value.push({ ...item, settings: readGenerationSettings(item.settings), origin: readGenerationOrigin(item.origin), directory, file, url: URL.createObjectURL(file) });
   }
 }

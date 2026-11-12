@@ -31,7 +31,10 @@ const props = withDefaults(defineProps<{ directory?: string; resultIds?: string[
 const emit = defineEmits<{ enterCanvas: [resultId?: string]; remove: [resultId: string]; reference: [file: File]; apply: [file: File]; busy: [value: boolean] }>();
 const importResult = inject<((file: File, directory: string) => Promise<void>) | undefined>("importBrowserResult", undefined);
 const importing = ref(false);
-const results = computed(() => generationResults.value.filter(item => item.directory === props.directory && (!props.resultIds || props.resultIds.includes(item.id))));
+const results = computed(() => {
+  const matches = generationResults.value.filter(item => item.directory === props.directory && (!props.resultIds || props.resultIds.includes(item.id)));
+  return [...new Map(matches.map(item => [item.id, item])).values()];
+});
 type Result = (typeof generationResults.value)[number];
 const preview = ref<Result>();
 const applyingId = ref("");
