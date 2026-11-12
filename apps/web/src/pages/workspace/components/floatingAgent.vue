@@ -111,11 +111,17 @@ onBeforeUnmount(() => { finishMaterialDrag(); stopResize(); window.removeEventLi
 .agentSidebar.sourceEditor { padding: 0; border: 0; background: #1c1b21;
   .assistantContent { display: flex; height: 100%; min-height: 0; overflow: hidden;
     :deep(.agent) { flex: 1; height: 100%; min-width: 0; min-height: 0; }
-    :deep(.senderActions.simpleToolbar) { flex-wrap: wrap; gap: 10px 12px; padding-bottom: 52px; overflow: visible;
-      .inlineModelSelect { flex: 1 1 120px; width: auto; min-width: 100px; max-width: 220px; }
+    :deep(.senderActions.simpleToolbar) { display: grid; grid-template-columns: minmax(0, 1fr) 32px 32px 32px; align-items: center; gap: 10px 8px; padding-bottom: 12px; overflow: visible;
+      .inlineModelSelect { grid-column: 1 / 4; grid-row: 1; width: 100%; min-width: 0; max-width: none; }
+      .styleSelect { grid-column: 4; grid-row: 1; width: 32px; min-width: 32px; height: 32px; padding: 0; font-size: 0; color: #00b7ff; > span { gap: 0; } }
+      .outputTabs, .referenceTabsTarget { grid-column: 1 / -1; }
+      .referenceTabsTarget:empty { display: none; }
       .outputTabs button { min-width: 0; padding: 0 6px; }
       .inlineParameter { padding: 0 4px; }
-      > .sendButton { position: absolute; right: 12px; bottom: 12px; height: 28px; min-width: 60px; margin: 0; padding: 0 8px; }
+      .formatParameter { grid-column: 1; grid-row: 2; justify-content: flex-start; min-width: 0; height: 32px; padding: 0; gap: 5px; font-size: 12px; }
+      .quickMention { grid-column: 2; grid-row: 2; width: 32px; height: 32px; }
+      .materialUpload { grid-column: 3; grid-row: 2; }
+      > .sendButton { position: absolute; right: 12px; bottom: 12px; margin: 0; }
     }
   }
 }
