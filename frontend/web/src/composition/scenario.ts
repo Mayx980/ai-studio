@@ -1,3 +1,4 @@
+import "@/lib/browserCrypto";
 import { configureStudioPort } from "@/ports";
 import { createScenarioPort, scenarioNames } from "@/scenarios/studio";
 import { configureNodeAiPort } from "@toonflow/nodes-scaffold/nodeAi";
