@@ -46,7 +46,7 @@ function sourceBounds(url: string): WindowBounds {
   const preferred = preferredBounds.value[url];
   const margin = viewport.value.width <= 700 ? 8 : 12;
   const availableWidth = Math.max(1, viewport.value.width - margin * 2), availableHeight = Math.max(1, viewport.value.height - margin * 2);
-  const width = Math.min(availableWidth, Math.max(Math.min(320, availableWidth), preferred?.width ?? Math.min(url.includes("sourceType=canvas") ? 1100 : 500, availableWidth)));
+  const width = Math.min(availableWidth, Math.max(Math.min(320, availableWidth), preferred?.width ?? Math.min(url.includes("sourceType=canvas") ? 1100 : 320, availableWidth)));
   const height = Math.min(availableHeight, Math.max(Math.min(360, availableHeight), preferred?.height ?? availableHeight));
   return { left: Math.max(margin, Math.min(preferred?.left ?? viewport.value.width - margin - width, viewport.value.width - margin - width)), top: Math.max(margin, Math.min(preferred?.top ?? margin, viewport.value.height - margin - height)), width, height };
 }
@@ -90,7 +90,7 @@ onBeforeUnmount(() => { stopResize(); window.removeEventListener("resize", updat
 </script>
 <style scoped lang="scss">
 .sourceEditorMask { position: fixed; z-index: 1908; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; background: #0007; cursor: default; }
-.sourceEditorWindow { position: fixed; z-index: 1909; top: 12px; right: 12px; bottom: 12px; width: min(500px, calc(100vw - 24px)); display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; border: 1px solid #494052; border-radius: 18px; background: #1c1b21; box-shadow: -12px 12px 48px #0006;
+.sourceEditorWindow { position: fixed; z-index: 1909; top: 12px; right: 12px; bottom: 12px; width: min(320px, calc(100vw - 24px)); display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; border: 1px solid #494052; border-radius: 18px; background: #1c1b21; box-shadow: -12px 12px 48px #0006;
   &.resizing :deep(iframe) { pointer-events: none; }
   .sourceResize { position: absolute; z-index: 5; border: 0; padding: 0; margin: 0; background: transparent; touch-action: none;
     &.left, &.right { top: 12px; bottom: 12px; width: 7px; cursor: ew-resize; }
