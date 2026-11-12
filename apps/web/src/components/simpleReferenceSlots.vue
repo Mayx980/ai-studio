@@ -65,7 +65,7 @@ const tabs = computed(() => ([{ value: "reference", label: "参考图" }, { valu
 watch(() => props.showFrames, show => { if (!show) mode.value = "reference"; }, { immediate: true, flush: "sync" });
 const frames = [{ role: "firstFrame", label: "首帧" }, { role: "lastFrame", label: "尾帧" }] as const;
 const groups = [{ value: "character", label: "角色" }, { value: "prop", label: "道具" }, { value: "scene", label: "背景" }, { value: "other", label: "其他" }] as const;
-const sources = [{ value: "local", label: "从本地上传" }, { value: "assets", label: "从个人资产库上传" }];
+const sources = [{ value: "local", label: "从本地上传" }, { value: "assets", label: "从个人资产库上传" }, { value: "custom", label: "自定义素材" }];
 const expandedReference = ref(false);
 let hoverTimer: ReturnType<typeof setTimeout> | undefined;
 function expandReference() { clearTimeout(hoverTimer); expandedReference.value = true; }
