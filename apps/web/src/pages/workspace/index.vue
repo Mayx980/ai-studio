@@ -75,7 +75,7 @@ import { generateBrowserText, browserNodeAi } from "@/lib/browserNodeAi";
 import { browserConfig, browserResultFile, resolveBrowserModel, additionalBrowserModels, type ProfessionalCanvas, type BeginBrowserWorkflow, type BrowserConversationImport } from "@/stores/browserGeneration";
 import { computed, defineAsyncComponent, nextTick, onMounted, onScopeDispose, provide, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
-import { clearGenerationOriginRoute, openGenerationOrigin } from "@/lib/generationOrigin";
+import { clearGenerationOriginRoute, openGenerationOrigin, openCreationPage } from "@/lib/generationOrigin";
 import axios from "axios";
 import { IconPointer, IconHandStop, IconPlus, IconHelp } from "@tabler/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
@@ -174,6 +174,7 @@ async function startNewProject(mode: "simple" | "professional") {
   } finally { startingProject = false; }
 }
 provide("startNewProject", startNewProject);
+provide("openCreationPage", async () => { await flushSave(); await openCreationPage(router); });
 provide("openSidebarProject", async (directory: string, mode?: "simple") => {
   await flushSave();
   await clearGenerationOriginRoute(router);

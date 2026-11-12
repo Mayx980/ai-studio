@@ -35,7 +35,7 @@
 
 <script setup lang="ts">
 import { useRouter } from "vue-router";
-import { clearGenerationOriginRoute } from "@/lib/generationOrigin";
+import { openCreationPage } from "@/lib/generationOrigin";
 import brandLogo from "@/components/brandLogo.vue";
 import workspaceMenu from "@/pages/workspace/components/workspaceMenu.vue";
 import axios from "axios";
@@ -61,9 +61,7 @@ const router = useRouter();
 async function openCreation() {
   try {
     await props.flushSave();
-    await clearGenerationOriginRoute(router);
-    await workspaceStore.resumeSimpleConversation();
-    await router.push({ path: "/workspace", query: { returnSection: "create" } });
+    await openCreationPage(router);
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "创作页打开失败"); }
 }
 const sourceEditor = window.frameElement?.getAttribute("data-source-editor") === "true";

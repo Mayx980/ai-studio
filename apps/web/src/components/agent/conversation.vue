@@ -731,7 +731,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       if (props.materialEditor && success && (outputKind === "image" || outputKind === "video")) { browserConfig.outputKind = outputKind; browserConfig.outputChosen = true; }
       const text = results.filter(item => item.kind === "text").map(item => item.text).join("\n\n");
       if (text) { reply.content = text; reply.parts = [{ id: crypto.randomUUID(), type: "text", content: text }]; }
-      if (success && directory && props.creationModes && !props.materialEditor) workspaceStore.completeSimpleProject(directory, prompt);
+      if (success && directory && props.creationModes && !props.materialEditor) workspaceStore.completeProject(directory, prompt);
       if (props.materialEditor && success) emit("generationState", { status: "completed", taskId, resultIds: reply.browserResultIds });
       if (!success) throw new Error(browserCancelled ? "已停止发送，输入已保留。" : generationError.value);
     } catch (error) {

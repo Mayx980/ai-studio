@@ -80,3 +80,17 @@ export async function clearGenerationOriginRoute(router: Router) {
   const { sourceType, sourceDirectory, source, canvasPath, ...query } = route.query;
   await router.replace({ path: route.path, query });
 }
+
+export async function openCreationPage(router: Router) {
+  if (window.frameElement?.hasAttribute("data-source-editor")) {
+    const request: { completion?: Promise<void> } = {};
+    window.dispatchEvent(new CustomEvent("afxen:open-creation", { detail: request }));
+    if (!request.completion) throw new Error("创作页入口尚未就绪，请稍后重试");
+    await request.completion;
+    return;
+  }
+  await clearGenerationOriginRoute(router);
+  const { useWorkspaceStore } = await import("@/stores/workspace");
+  await useWorkspaceStore().resumeSimpleConversation();
+  await router.push({ path: "/workspace", query: { returnSection: "create" } });
+}

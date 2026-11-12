@@ -3,10 +3,20 @@
 </template>
 <script setup lang="ts">
 import { onBeforeUnmount, watch } from "vue";
+import { useRouter } from "vue-router";
+import { openCreationPage } from "@/lib/generationOrigin";
 import { browserConfig, browserModelSelection, additionalBrowserModels, type BrowserModelConnection } from "@/stores/browserGeneration";
 import { receiveSourceResult, returnFromSourceEdit, sourceEdit, sourceEditBusy, sourceEditError } from "@/stores/sourceEditing";
 const props = defineProps<{ src: string; applyEnabled?: boolean }>();
+const router = useRouter();
 let sourceWindow: Window | null = null;
+function openCreation(event: Event) {
+  const request = (event as CustomEvent<{ completion?: Promise<void> }>).detail;
+  request.completion = (async () => {
+    if (sourceEdit.value) await returnFromSourceEdit();
+    await openCreationPage(router);
+  })();
+}
 function syncSourceModels() {
   const connection: BrowserModelConnection = {
     enabled: browserConfig.enabled, endpoint: browserConfig.endpoint, keys: { ...browserConfig.keys },
@@ -26,14 +36,17 @@ function applySourceImage(event: Event) {
   })();
 }
 function bindSourceWindow(event: Event) {
+  sourceWindow?.removeEventListener("afxen:open-creation", openCreation);
   sourceWindow?.removeEventListener("afxen:generation-recorded", receiveSourceResult);
   sourceWindow?.removeEventListener("afxen:apply-source-image", applySourceImage);
   sourceWindow = (event.target as HTMLIFrameElement).contentWindow;
+  sourceWindow?.addEventListener("afxen:open-creation", openCreation);
   sourceWindow?.addEventListener("afxen:generation-recorded", receiveSourceResult);
   sourceWindow?.addEventListener("afxen:apply-source-image", applySourceImage);
   syncSourceModels();
 }
 onBeforeUnmount(() => {
+  sourceWindow?.removeEventListener("afxen:open-creation", openCreation);
   sourceWindow?.removeEventListener("afxen:generation-recorded", receiveSourceResult);
   sourceWindow?.removeEventListener("afxen:apply-source-image", applySourceImage);
 });

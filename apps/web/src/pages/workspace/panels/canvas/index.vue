@@ -878,7 +878,9 @@ const saveCanvas = debounce((directory: string, fileName: string) => {
   saving = saving.then(async () => {
     try {
       await useWorkspaceFiles(directory).writeJson(fileName, { toonflowCanvas: true, nodes: flow.nodes, edges: flow.edges, viewport: flow.viewport });
-      useWorkspaceStore().markProjectEdited(directory);
+      const workspace = useWorkspaceStore();
+      if (flow.nodes.length) workspace.completeProject(directory, workspace.project?.directory === directory ? workspace.project.name : "");
+      workspace.markProjectEdited(directory);
       saveError = undefined;
       canvasSaveError.value = "";
       if (revision === saveRevision) canvasDirty.value = false;

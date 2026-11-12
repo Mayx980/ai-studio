@@ -37,6 +37,7 @@
   </el-container>
 </template>
 <script setup lang="ts">
+import { openCreationPage } from "@/lib/generationOrigin";
 import { locale } from "@toonflow/i18n/vue";
 import axios from "axios";
 import { ensureExampleProject } from "@/lib/exampleProjects";
@@ -93,8 +94,7 @@ async function startAgent() {
   if (creating.value || opening.value) return;
   creating.value = true;
   try {
-    await workspaceStore.resumeSimpleConversation();
-    await router.push({ path: "/workspace", query: { returnSection: homeSection.value } });
+    await openCreationPage(router);
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "新建对话失败"); }
   finally { creating.value = false; }
 }

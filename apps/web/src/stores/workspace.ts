@@ -41,6 +41,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       if (!path.trim()) throw new Error("项目标识不能为空");
       signal?.throwIfAborted();
       const existing = [...projectList.value, ...draftProjects.value].find(item => item.directory === previousDirectory || item.directory === path);
+      draftProjects.value = draftProjects.value.filter(item => item.creationMode !== "professional" || item.directory === path);
       project.value = { ...existing, directory: path, name: existing?.name || (path.startsWith("browser:") ? "未命名项目" : path.split(/[\\/]/).filter(Boolean).at(-1)!) || "未命名项目", lastOpenedAt: Date.now() };
       if (!draftProjects.value.some(item => item.directory === path)) projectList.value = [project.value, ...projectList.value.filter(item => item.directory !== previousDirectory && item.directory !== path)];
       if (project.value.creationMode === "simple" && !project.value.historyArchived) lastSimpleDirectory.value = path;
@@ -89,9 +90,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     renameProject(directory, name);
     project.value!.creationMode = mode;
     markProjectEdited(directory);
+    projectList.value = projectList.value.filter(item => item.directory !== directory);
+    draftProjects.value.unshift(project.value!);
     if (mode === "simple") {
-      projectList.value = projectList.value.filter(item => item.directory !== directory);
-      draftProjects.value.unshift(project.value!); lastSimpleDirectory.value = directory;
+      lastSimpleDirectory.value = directory;
       archiveSimpleConversation(previousSimpleDirectory);
     }
     creationMode.value = mode;
@@ -115,7 +117,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
-  function completeSimpleProject(directory: string, name: string) {
+  function completeProject(directory: string, name: string) {
     const target = [...projectList.value, ...draftProjects.value].find(item => item.directory === directory);
     if (!target) return;
     if (target.name === "未命名项目") target.name = name.trim().slice(0, 80) || target.name;
@@ -195,7 +197,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (project.value?.directory === path) project.value = null;
   }
 
-  return { projectFolders, createProjectFolder, renameProjectFolder, removeProjectFolder, markProjectEdited, createCanvasEntry, creationMode, project, projectList, draftProjects, lastSimpleDirectory, tutorialVisited, canvasTutorialVersion, completeSimpleProject, archiveSimpleConversation, resumeSimpleConversation, pendingAgentMessage, pendingAgentSession, pendingAgentDraft, pendingCanvasEntry, createProject, openProject, restoreProjectEntry, renameProject, moveProject, duplicateProject, removeProject };
+  return { projectFolders, createProjectFolder, renameProjectFolder, removeProjectFolder, markProjectEdited, createCanvasEntry, creationMode, project, projectList, draftProjects, lastSimpleDirectory, tutorialVisited, canvasTutorialVersion, completeProject, archiveSimpleConversation, resumeSimpleConversation, pendingAgentMessage, pendingAgentSession, pendingAgentDraft, pendingCanvasEntry, createProject, openProject, restoreProjectEntry, renameProject, moveProject, duplicateProject, removeProject };
 }, {
   persist: {
     key: browserWorkspaceMode ? currentAccount.value?.id === "admin" ? "aiStudio.browserProjects.admin" : "aiStudio.browserProjects" : "toonflow.projectList",
