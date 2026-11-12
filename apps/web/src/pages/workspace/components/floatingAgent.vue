@@ -111,11 +111,11 @@ onBeforeUnmount(() => { finishMaterialDrag(); stopResize(); window.removeEventLi
 .agentSidebar.sourceEditor { padding: 0; border: 0; background: #1c1b21;
   .assistantContent { display: flex; height: 100%; min-height: 0; overflow: hidden;
     :deep(.agent) { flex: 1; height: 100%; min-width: 0; min-height: 0; }
-    :deep(.senderActions.simpleToolbar) { flex-wrap: wrap; gap: 10px 12px; overflow: visible;
+    :deep(.senderActions.simpleToolbar) { flex-wrap: wrap; gap: 10px 12px; padding-bottom: 52px; overflow: visible;
       .inlineModelSelect { flex: 1 1 120px; width: auto; min-width: 100px; max-width: 220px; }
       .outputTabs button { min-width: 0; padding: 0 6px; }
       .inlineParameter { padding: 0 4px; }
-      > .sendButton { position: static; height: 28px; min-width: 60px; margin: 0; padding: 0 8px; }
+      > .sendButton { position: absolute; right: 12px; bottom: 12px; height: 28px; min-width: 60px; margin: 0; padding: 0 8px; }
     }
   }
 }
