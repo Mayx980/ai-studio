@@ -104,7 +104,7 @@ async function run(action: "canvas" | "newCanvas" | "save" | "download" | "delet
       const item = targets[0]!;
       const origin = await resolveGenerationOrigin(item.directory, item);
       if (!origin) throw new Error("该历史素材未记录可验证的生成来源，原素材仍保留");
-      await openGenerationOrigin(origin);
+      await openGenerationOrigin(origin, router);
       return;
     }
     if (action === "save") {

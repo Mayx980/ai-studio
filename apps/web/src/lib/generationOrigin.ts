@@ -1,3 +1,4 @@
+import type { Router } from "vue-router";
 import { z } from "@toonflow/nodes-scaffold/nodeTools";
 import useWorkspaceFiles from "./workspaceFiles";
 import type { GenerationRecord } from "./generationHistory";
@@ -62,9 +63,8 @@ export function generationOriginQuery(origin: GenerationOrigin) {
 export function sourceWorkspaceUrl(origin: GenerationOrigin) {
   return `${window.location.pathname}#/workspace?${new URLSearchParams(generationOriginQuery(origin))}`;
 }
-export async function openGenerationOrigin(value: GenerationOrigin, embedded = false) {
+export async function openGenerationOrigin(value: GenerationOrigin, router: Router, embedded = false) {
   const origin = await validateGenerationOrigin(value);
-  const { default: router } = await import("@/router");
   if (!embedded) { await router.push({ path: "/source", query: generationOriginQuery(origin) }); return; }
   const { useWorkspaceStore } = await import("@/stores/workspace");
   const workspace = useWorkspaceStore();
@@ -74,8 +74,7 @@ export async function openGenerationOrigin(value: GenerationOrigin, embedded = f
   else workspace.pendingAgentSession = { directory: origin.directory, file: origin.sessionFile };
   await router.push({ path: "/workspace", query: generationOriginQuery(origin) });
 }
-export async function clearGenerationOriginRoute() {
-  const { default: router } = await import("@/router");
+export async function clearGenerationOriginRoute(router: Router) {
   const route = router.currentRoute.value;
   if (!route.query.sourceType) return;
   const { sourceType, sourceDirectory, source, canvasPath, ...query } = route.query;

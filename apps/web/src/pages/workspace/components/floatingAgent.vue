@@ -54,7 +54,7 @@ async function sidebarAction(action: () => Promise<void>) {
   finally { sidebarOpening.value = false; }
 }
 function newChat() { if (generationBusy.value || !startNewProject) return; return sidebarAction(async () => { await startNewProject("simple"); }); }
-function newAgent() { return sidebarAction(async () => { await clearGenerationOriginRoute(); await useWorkspaceStore().resumeSimpleConversation(); }); }
+function newAgent() { return sidebarAction(async () => { await clearGenerationOriginRoute(router); await useWorkspaceStore().resumeSimpleConversation(); }); }
 function openRecent(project: Project) { return sidebarAction(async () => { if (!openSidebarProject) throw new Error("工作区尚未就绪"); await openSidebarProject(project.directory); }); }
 const viewportWidth = ref(window.innerWidth), viewportHeight = ref(window.innerHeight), preferredWidth = ref(440);
 const availableWidth = computed(() => Math.max(0, viewportWidth.value - materialDrawerInset.value));

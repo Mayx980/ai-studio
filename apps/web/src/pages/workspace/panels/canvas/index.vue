@@ -778,6 +778,13 @@ function createEmptyNode(type: string) {
 async function prepareTutorial() {
   await waitUntilReady();
   if (!props.active || props.settingsVisible || !flow.getNodes.value.length) return;
+  if (project.value?.tutorial) {
+    const frames = flow.getNodes.value.filter(node => node.type === "remote-imageNode" && /^新手教学 · 10秒人像剧情 · (当前帧|首帧|尾帧)$/.test(String(node.data?.label ?? "")));
+    if (frames.length) {
+      await canvasHistory.batch(async () => flow.removeNodes(frames.map(node => node.id)));
+      await flushCanvasSave();
+    }
+  }
   const steps = createCanvasTutorialSteps(flow.getNodes.value, flow.getEdges.value);
   await flow.fitView({ padding: .2 });
   const single = flow.getNodes.value.find(node => ["singleImage", "singleVideo"].includes(node.data?.canvasTutorial));

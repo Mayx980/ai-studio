@@ -100,7 +100,7 @@ async function fileFor(item: Entry) { return new File([await browserAssetFiles()
 async function editOrigin(item: Entry) {
   if (busy.value) return;
   busy.value = true;
-  try { const origin = readGenerationOrigin(assets.metadata[item.path]?.origin); if (!origin) throw new Error("该素材没有生成来源"); await openGenerationOrigin(origin); }
+  try { const origin = readGenerationOrigin(assets.metadata[item.path]?.origin); if (!origin) throw new Error("该素材没有生成来源"); await openGenerationOrigin(origin, router); }
   catch (cause) { failure(cause); } finally { busy.value = false; }
 }
 async function addToCanvas(items: Entry[]) {

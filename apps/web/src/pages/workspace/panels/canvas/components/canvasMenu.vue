@@ -3,7 +3,7 @@
     <el-button class="sidebarCollapse" text :aria-expanded="!sidebarCollapsed" :aria-label="sidebarCollapsed ? '展开画布侧栏' : '折叠画布侧栏'" :title="sidebarCollapsed ? '展开侧栏' : '折叠侧栏'" @click="sidebarCollapsed = !sidebarCollapsed"><icon-layout-sidebar :size="17" /></el-button>
     <el-card class="canvasMenu" shadow="never" :bodyStyle="{ padding: '3px 6px' }">
       <div class="menuContent">
-        <router-link class="canvasBrand" :to="{ path: '/home', query: { section: 'create' } }" aria-label="AFXEN 首页" title="返回首页"><brandLogo /></router-link>
+        <button class="canvasBrand" type="button" aria-label="AFXEN 创作" title="返回创作" @click="openCreation"><brandLogo /></button>
         <div class="projectHeader"><el-input v-model="projectNameDraft" class="workspaceNameInput" :style="{ '--workspaceName': JSON.stringify(projectNameDraft || ' ') }" size="small" :title="browserWorkspaceMode ? '当前浏览器' : directory" :disabled="!workspaceStore.project" aria-label="项目名称"
           @keydown.stop @keydown.enter="saveProjectName" @keydown.esc.prevent="projectNameDraft = workspaceName" @blur="saveProjectName" /><workspaceMenu @openSettings="openWorkspaceSettings?.()" /></div>
 
@@ -34,7 +34,8 @@
 </template>
 
 <script setup lang="ts">
-import { RouterLink } from "vue-router";
+import { useRouter } from "vue-router";
+import { clearGenerationOriginRoute } from "@/lib/generationOrigin";
 import brandLogo from "@/components/brandLogo.vue";
 import workspaceMenu from "@/pages/workspace/components/workspaceMenu.vue";
 import axios from "axios";
@@ -56,6 +57,15 @@ const props = defineProps<{
 }>();
 const openWorkspaceSettings = inject<(() => void) | undefined>("openWorkspaceSettings", undefined);
 const workspaceStore = useWorkspaceStore();
+const router = useRouter();
+async function openCreation() {
+  try {
+    await props.flushSave();
+    await clearGenerationOriginRoute(router);
+    await workspaceStore.resumeSimpleConversation();
+    await router.push({ path: "/workspace", query: { returnSection: "create" } });
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "创作页打开失败"); }
+}
 const sourceEditor = window.frameElement?.getAttribute("data-source-editor") === "true";
 const sidebarCollapsed = ref(sourceEditor && window.innerWidth < 700);
 function adaptSourceSidebar() { if (window.innerWidth < 700) sidebarCollapsed.value = true; }
@@ -924,7 +934,7 @@ defineExpose({ getCanvases, peekCanvases, initialized, addCanvas, switchCanvas, 
 <style scoped lang="scss">
 .canvasMenuPanel.vue-flow__panel {
   .sidebarCollapse { position: absolute; top: 12px; right: 8px; z-index: 2; width: 28px; height: 28px; padding: 0; margin: 0; color: var(--el-text-color-secondary); border: 0; background: transparent; &:hover { background: var(--el-fill-color); } }
-  .canvasBrand { display: flex; align-items: center; width: 100%; min-height: 28px; margin-bottom: 8px; padding-right: 32px; box-sizing: border-box; :deep(.brandLogo) { width: 112px; } &:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; } }
+  .canvasBrand { display: flex; align-items: center; width: 100%; min-height: 28px; margin-bottom: 8px; padding: 0 32px 0 0; border: 0; background: transparent; cursor: pointer; box-sizing: border-box; :deep(.brandLogo) { width: 112px; } &:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; } }
   .projectHeader { padding-right: 32px; box-sizing: border-box; }
   &.sidebarCollapsed { width: 44px; .canvasMenu, .menuExtension { display: none; } .sidebarCollapse { right: 8px; } }
 }
