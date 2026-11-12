@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 112" fill="none">
+  <defs>
+    <linearGradient id="folderBack" x1="100" y1="0" x2="100" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#383838"/>
+      <stop offset="1" stop-color="#242424"/>
+    </linearGradient>
+    <linearGradient id="folderFront" x1="100" y1="0" x2="100" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#484848"/>
+      <stop offset=".28" stop-color="#3b3b3b"/>
+      <stop offset=".8" stop-color="#202020"/>
+      <stop offset="1" stop-color="#1c1c1c"/>
+    </linearGradient>
+    <linearGradient id="folderEdge" x1="100" y1="0" x2="100" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#fff" stop-opacity=".03"/>
+    </linearGradient>
+  </defs>
+  <rect x=".5" y=".5" width="199" height="111" rx="12" fill="url(#folderBack)"/>
+  <path d="M.5 12.5A12 12 0 0 1 12.5.5H57.5c3.6 0 5.5.9 8.2 3.2L79 15.1c2.5 2.2 4.4 2.9 8 2.9h100.5a12 12 0 0 1 12 12v69.5a12 12 0 0 1-12 12h-175a12 12 0 0 1-12-12Z" fill="url(#folderFront)" stroke="url(#folderEdge)"/>
+  <path d="M87 19h100.5a11 11 0 0 1 11 11" stroke="#fff" stroke-opacity=".04"/>
+</svg>
