@@ -112,7 +112,7 @@
         @keydown.up.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) + 16)"
         @keydown.down.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) - 16)" />
       <simpleReferenceSlots :hideAdd="sourceConversationScope" ref="referenceSlotsRef" v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" v-model:mode="referenceMode" :showFrames="browserConfig.outputKind === 'video'" :tabsTarget="referenceTabsTarget" :directory="directory" :disabled="locked" @edit="editReferenceAttachment" />
-      <attachmentList v-if="unassignedAttachments.length" class="draftAttachments" numbered :attachments="unassignedAttachments" :directory="directory" removable restorable :disabled="locked" @remove="removeVisibleAttachment($event)" @restore="restoreVisibleAttachment" />
+      <attachmentList v-if="unassignedAttachments.length" class="draftAttachments" :class="{ materialReferences: props.materialEditor }" numbered :attachments="unassignedAttachments" :directory="directory" removable restorable :disabled="locked" @remove="removeVisibleAttachment($event)" @restore="restoreVisibleAttachment" />
       <div ref="senderElement" class="senderEditor" @pointerdown.capture="inputStarted = true" @input.capture="inputStarted = true" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
@@ -1546,6 +1546,8 @@ watch(() => !props.materialEditor && !props.initialSession?.parentFile && !!work
     .draftAttachments {
       .thumbnailItem { width: 68px; height: 68px; }
       padding: 12px 12px 0;
+      &.materialReferences .attachmentItem:has(.referenceIndex) { height: 68px; }
+      &.materialReferences .referenceIndex { inset: auto 0 0; display: flex; align-items: center; justify-content: center; height: 33.333%; padding: 0; border-radius: 0 0 10px 10px; font-size: 12px; font-weight: 500; color: #fff; background: rgba(82, 86, 90, .72); }
     }
 
     .senderEditor .chat-placeholder-wrap {
