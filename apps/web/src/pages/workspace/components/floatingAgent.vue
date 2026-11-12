@@ -226,14 +226,25 @@ onBeforeUnmount(() => { finishMaterialDrag(); stopResize(); window.removeEventLi
   .historyActions { display: flex; flex-direction: column; align-items: center; gap: 8px; }
   .materialChatSlot { display: block; width: 120px; height: 36px; }
   .materialChatButton { touch-action: none; user-select: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 120px; height: 36px; padding: 0 12px; border: 1px solid #ffffff0b; border-radius: 999px; background: #202020; color: #fff; font: inherit; font-size: 13px; white-space: nowrap; cursor: grab; box-shadow: inset 0 1px 0 #ffffff08, 0 2px 8px #0003;
-    :deep(.brandLogo.compact) { width: 18px; height: 18px; }
+    :deep(.brandLogo.compact) { position: relative; width: 18px; height: 18px; }
     &.dragging { cursor: grabbing; }
     &:hover:enabled { background: #2b2b2b; }
     &:focus-visible { outline: 2px solid #b4a1ff; outline-offset: 2px; }
     &:disabled { opacity: .5; cursor: wait; }
-    &.generating :deep(.brandLogo) { animation: materialLogoFlip 1.4s ease-in-out infinite; }
+    &.generating {
+      :deep(.brandLogo) { animation: materialEnergyPulse 2.6s ease-in-out infinite; }
+      :deep(.brandLogo::before) { content: ""; position: absolute; inset: -5px; border-radius: 50%; background: radial-gradient(circle, #9370ff66, #498aff22 45%, transparent 72%); pointer-events: none; animation: materialEnergyHalo 2.6s ease-in-out infinite; }
+      :deep(.brandLogo::after) { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, #aa79ff66 40%, #e4dcff 48%, #83eaff 52%, transparent 66%); background-size: 300% 100%; mask: url("/afxenMark.svg") center / contain no-repeat; pointer-events: none; animation: materialGradientFlow 2.6s ease-in-out infinite; }
+    }
   }
 }
-@keyframes materialLogoFlip { from { transform: perspective(100px) rotateY(0deg); } to { transform: perspective(100px) rotateY(360deg); } }
-@media(prefers-reduced-motion:reduce) { .assistantHeader .materialChatButton.generating :deep(.brandLogo) { animation: none; } }
+@keyframes materialEnergyPulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 1px #8060ff44); } 50% { transform: scale(1.09); filter: drop-shadow(0 0 4px #8c6cffaa); } }
+@keyframes materialEnergyHalo { 0%, 100% { transform: scale(.8); opacity: .3; } 50% { transform: scale(1.25); opacity: .85; } }
+@keyframes materialGradientFlow { 0% { background-position: 140% 50%; opacity: 0; } 20%, 75% { opacity: .9; } 100% { background-position: -40% 50%; opacity: 0; } }
+@media(prefers-reduced-motion:reduce) {
+  .assistantHeader .materialChatButton.generating {
+    :deep(.brandLogo) { animation: none; }
+    :deep(.brandLogo::before), :deep(.brandLogo::after) { animation: none; content: none; }
+  }
+}
 </style>
