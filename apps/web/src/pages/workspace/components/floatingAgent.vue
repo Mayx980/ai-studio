@@ -6,7 +6,7 @@
       <div v-if="!expanded && !sourceEditor" class="resizeHandle" role="separator" aria-label="调整对话侧栏宽度" aria-orientation="vertical" :aria-valuemin="minimumWidth" :aria-valuemax="maximumWidth" :aria-valuenow="width" tabindex="0" @pointerdown="startResize" @pointermove="resize" @pointerup="stopResize" @pointercancel="stopResize" @lostpointercapture="stopResize" @keydown.left.prevent="preferredWidth = width + 16" @keydown.right.prevent="preferredWidth = width - 16" />
       <el-tooltip v-if="!expanded && !sourceEditor" content="关闭" placement="left" :showArrow="false"><el-button class="closeAgent" text circle aria-label="关闭侧边栏" @click="visible = false"><icon-x :size="18" /></el-button></el-tooltip>
       <div ref="assistantContent" class="assistantContent">
-        <header v-if="expanded && !sourceEditor" class="assistantHeader"><el-button text :disabled="sidebarOpening || generationBusy" @click="newChat"><icon-message-plus :size="18" />新聊天</el-button><div class="historyActions"><el-button text :aria-expanded="conversationHistoryOpen" @click="conversationHistoryOpen = !conversationHistoryOpen"><icon-history :size="18" />历史对话</el-button><button v-if="homeMode === 'simple'" class="materialChatButton" :class="{ generating: materialGenerating }" type="button" :disabled="sidebarOpening" :aria-busy="materialGenerating" aria-label="自定义素材对话" :title="materialGenerating ? '自定义素材正在生成，点击查看对话' : '打开自定义素材对话'" @click="agentRef?.openCustomMaterial()"><brandLogo compact aria-hidden="true" /><span>与 AI 对话</span></button></div></header>
+        <header v-if="expanded && !sourceEditor" class="assistantHeader"><el-button text :disabled="sidebarOpening || generationBusy" @click="newChat"><icon-message-plus :size="18" />新聊天</el-button><div class="historyActions"><el-button text :aria-expanded="conversationHistoryOpen" @click="conversationHistoryOpen = !conversationHistoryOpen"><icon-history :size="18" />历史对话</el-button><button v-if="homeMode === 'simple' && materialEntryVisible" class="materialChatButton" :class="{ generating: materialGenerating }" type="button" :disabled="sidebarOpening" :aria-busy="materialGenerating" aria-label="自定义素材对话" :title="materialGenerating ? '自定义素材正在生成，点击查看对话' : '打开自定义素材对话'" @click="agentRef?.openCustomMaterial()"><brandLogo compact aria-hidden="true" /><span>与 AI 对话</span></button></div></header>
         <agent ref="agentRef" v-model="visible" creationModes :closable="!expanded"><template #menuActions><el-button v-if="expanded && !sourceEditor" class="enterCanvasButton" text :icon="IconVector" aria-label="进入画布" @click="emit('enterCanvas')">进入画布</el-button></template></agent>
         <creativeCases v-if="expanded && !sourceEditor" class="assistantTemplates" :curated="homeMode === 'professional'" @apply="applyCase" />
       </div>
@@ -29,7 +29,7 @@ import { useRouter } from "vue-router";
 import agent from "@/components/agent/index.vue";
 import brandLogo from "@/components/brandLogo.vue";
 import { generationBusy } from "@/stores/browserGeneration";
-import { materialDrawerInset, availableMaterialWorkspaces } from "@/stores/materialEditor";
+import { materialDrawerInset, availableMaterialWorkspaces, materialWorkspaces } from "@/stores/materialEditor";
 const router = useRouter();
 const sourceEditor = window.frameElement?.getAttribute("data-source-editor") === "true";
 function navigate(section: string) { if (section === "history") { conversationHistoryOpen.value = !conversationHistoryOpen.value; return; } void router.push({ path: "/home", query: { section } }); }
@@ -41,6 +41,7 @@ const openSidebarProject = inject<((directory: string) => Promise<void>) | undef
 const sidebarOpening = ref(false);
 const assistantContent = ref<HTMLElement>();
 const agentRef = ref<InstanceType<typeof agent>>();
+const materialEntryVisible = computed(() => !materialWorkspaces.value.findLast(item => item.directory === useWorkspaceStore().project?.directory)?.ended);
 const materialGenerating = computed(() => availableMaterialWorkspaces.value.some(item => item.directory === useWorkspaceStore().project?.directory && item.status === "generating"));
 const homeMode = ref<"simple" | "professional">("simple");
 provide("homeCreationMode", homeMode);
