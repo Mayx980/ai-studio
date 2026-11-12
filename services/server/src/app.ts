@@ -106,12 +106,17 @@ export async function createApp({
   app.use(express.static(webRoot));
 
   // 错误处理
-  app.use((err: Error & { status?: number }, request: Request, response: Response, next: NextFunction) => {
+  app.use((err: Error & { status?: number; code?: string }, request: Request, response: Response, next: NextFunction) => {
     if (response.headersSent) return next(err);
     const credentials = conf.get("settings", {});
     const extra = typeof response.locals.requestApiKey === "string" ? [response.locals.requestApiKey] : [];
-    console.error(redactMessage(err.stack || err.message, credentials, extra));
     const body = errorFromCause(err);
+    // ACT: 文件探测和重复建目录由客户端处理，保留错误响应；其它异常仍记录脱敏堆栈。
+    const missingFile = err.code === "ENOENT" && body.code === 404 && request.method === "GET"
+      && ["/api/assets/read", "/api/workspaces/files/read", "/api/workspaces/files/list"].includes(request.path);
+    const existingDirectory = err.code === "EEXIST" && body.code === 409 && request.method === "POST"
+      && request.path === "/api/workspaces/files/mkdir";
+    if (!missingFile && !existingDirectory) console.error(redactMessage(err.stack || err.message, credentials, extra));
     body.message = redactMessage(body.message, credentials, extra);
     response.status(body.code).json(body);
   });
