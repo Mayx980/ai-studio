@@ -41,7 +41,7 @@ export async function refreshMobileConnection() {
       }
       if (data.mode !== "local" && data.mode !== "remote") throw new Error("设备连接状态无效，请重试");
       mobileConnection.value = data;
-      if (!isMobile && data.mode === "local") {
+      if (deviceConnectionSupported.value && !isMobile && data.mode === "local") {
         try {
           const { data: body } = await studio.loadDeviceConnections<{ code?: number; data?: { enabled?: boolean; hubEnabled?: boolean } }>({ headers: { "x-toonflow-mobile-link": "1" }, signal: request.signal });
           if (body.code !== 200) throw new Error("无法读取共享状态，请重试");
@@ -57,7 +57,7 @@ export async function refreshMobileConnection() {
     } finally {
       clearTimeout(requestTimeout);
       connectionRequest = undefined;
-      if (!document.hidden) connectionTimer = setTimeout(() => { void refreshMobileConnection().catch(() => {}); }, 5000);
+      if (deviceConnectionSupported.value && !document.hidden) connectionTimer = setTimeout(() => { void refreshMobileConnection().catch(() => {}); }, 5000);
     }
   })();
   return connectionRequest;
