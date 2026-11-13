@@ -9,4 +9,4 @@
 
 共享实例创作复用当前服务：`studioState.json` 保存有版本的项目/资产索引，工作区保存在 `data/workspaces/`，全局库固定为 `data/assets/` 和 `data/templates/`；目录从 `settings.json` 所在的数据根定位，不依赖工作目录。精确读写、Key 脱敏与冲突规则见 [Contract](../contracts/readme.md)，系统边界见 [architecture](../architecture/readme.md)。
 
-独立账号修订的内部方案见 [accountIsolation](server/designs/accountIsolation.md)，认证和数据规则见 [accounts](../contracts/data/accounts.md)。这是 Issue #7 待审计划的候选，不表示上文共享 Server 已改为用户隔离；实现时须同时核对配置、文件、模型缓存、任务及全部旁路。
+独立账号修订的内部方案见 [accountIsolation](server/designs/accountIsolation.md)，认证和数据规则见 [accounts](../contracts/data/accounts.md)。这是 Issue #7 待审计划的候选，不表示上文共享 Server 已改为用户隔离；本轮新增 MySQL 服务的方案见 [数据库合同](../contracts/data/database.md) 和 [运行设计](../ops/database.md)；实现时须同时核对 SQL 事务/版本、配置、文件、模型缓存、任务及全部旁路，不将旧 JSON 作为数据库故障回退。
