@@ -505,7 +505,13 @@ async function insertAttachmentMention(attachment: AgentAttachment) {
     if (mentionPosition?.node.instance.$el.isConnected) mentionPosition.node.instance.focus(mentionPosition.node.offset);
     else instance.focus("last");
     if (mentionPosition?.remove) await instance.backspace(-mentionPosition.remove);
-    await instance.setMention({ id: `attachment${draftAttachments.value.indexOf(attachment)}`, name: attachment.referenceName || attachment.name });
+    const id = `attachment${draftAttachments.value.indexOf(attachment)}`;
+    const existingTags = new Set(instance.chatElement.richText.querySelectorAll('[data-set-richtype="richMention"]'));
+    await instance.setMention({ id, name: attachment.referenceName || attachment.name });
+    instance.focus("last");
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    const tag = [...instance.chatElement.richText.querySelectorAll('[data-set-richtype="richMention"]')].find(element => !existingTags.has(element));
+    if (tag && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) tag.animate([{ boxShadow: "0 0 0 2px var(--el-color-primary)", backgroundColor: "var(--el-color-primary-light-9)" }, { boxShadow: "0 0 0 0 transparent", backgroundColor: "transparent" }], { duration: 850, easing: "ease-out" });
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "引用素材失败"); }
   finally { mentionQuery.value = undefined; mentionPosition = undefined; }
 }

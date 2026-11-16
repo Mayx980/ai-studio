@@ -1,5 +1,5 @@
 <template>
-  <div class="thumbnailItem" :class="{ fileAttachment: !isMedia }">
+  <div ref="thumbnailElement" class="thumbnailItem" :class="{ fileAttachment: !isMedia }">
     <template v-if="isText">
       <button class="textAttachmentButton" type="button" :title="attachment.name" :aria-label="`预览 ${attachment.name}`" @click="textPreviewVisible = true">
         <icon-file-text :size="18" />
@@ -16,16 +16,23 @@
       tabindex="0"
       role="button"
       :aria-label="`预览 ${attachment.name}`"
-      @click="imagePreviewVisible = true"
-      @keydown.enter.prevent="imagePreviewVisible = true"
-      @keydown.space.prevent="imagePreviewVisible = true">
+      @click="!hoverPreview && (imagePreviewVisible = true)"
+      @keydown.enter.prevent="!hoverPreview && (imagePreviewVisible = true)"
+      @keydown.space.prevent="!hoverPreview && (imagePreviewVisible = true)">
       <template #error><icon-photo :size="20" /></template>
     </el-image>
-    <button v-else-if="attachment.mimeType.startsWith('video/')" class="thumbnailButton" type="button" :title="attachment.name" :aria-label="`预览 ${attachment.name}`" :disabled="!thumbnailUrl" @click="videoPreviewVisible = true">
+    <button v-else-if="attachment.mimeType.startsWith('video/')" class="thumbnailButton" type="button" :title="attachment.name" :aria-label="`预览 ${attachment.name}`" :disabled="!thumbnailUrl" @click="!hoverPreview && (videoPreviewVisible = true)">
       <video v-if="thumbnailUrl" :src="thumbnailUrl" preload="metadata" muted playsinline aria-hidden="true" @loadedmetadata="showVideoCover" />
       <icon-video class="videoIcon" :size="16" />
     </button>
     <div v-else class="fileAttachmentCard" :title="attachment.name"><icon-file-text :size="18" /><span>{{ attachment.name }}</span></div>
+    <span v-if="hoverPreview && videoDuration" class="videoDuration">{{ videoDuration }}</span>
+    <el-popover v-if="hoverPreview && thumbnailUrl" trigger="hover" virtualTriggering :virtualRef="thumbnailElement" placement="right" :showAfter="250" :width="240" :showArrow="false" :popperStyle="{ zIndex: 3100 }">
+      <div class="attachmentHoverPreview">
+        <video v-if="attachment.mimeType.startsWith('video/')" :src="thumbnailUrl" preload="metadata" muted playsinline @loadedmetadata="showVideoCover" /><img v-else :src="thumbnailUrl" :alt="attachment.name" />
+        <span>{{ attachment.referenceName || attachment.name }}<template v-if="videoDuration"> · {{ videoDuration }}</template></span>
+      </div>
+    </el-popover>
     <el-tooltip v-if="restorable" content="还原到输入框" placement="bottom"><el-button class="restoreAttachment" text circle size="small" :disabled="disabled" aria-label="还原到输入框" @click="emit('restore')"><icon-arrow-back-up :size="14" /></el-button></el-tooltip>
     <el-button v-if="removable" class="removeAttachment" circle :disabled="disabled" :aria-label="`移除 ${attachment.name}`" title="移除附件" @click="emit('remove')"><icon-x :size="10" /></el-button>
     <imageViewer v-if="imagePreviewVisible && thumbnailUrl" :urlList="[thumbnailUrl]" @close="imagePreviewVisible = false" />
@@ -47,7 +54,7 @@ import useWorkspaceFiles from "@/lib/workspaceFiles";
 import type { AgentAttachment } from "./types";
 import { readTextAttachment } from "./textAttachments";
 
-const props = defineProps<{ attachment: AgentAttachment; directory?: string; removable?: boolean; restorable?: boolean; disabled?: boolean }>();
+const props = defineProps<{ attachment: AgentAttachment; directory?: string; removable?: boolean; restorable?: boolean; disabled?: boolean; hoverPreview?: boolean }>();
 const emit = defineEmits<{ remove: []; restore: [] }>();
 const isText = computed(() => props.attachment.mimeType === "text/plain");
 const isMedia = computed(() => /^(image|video)\//.test(props.attachment.mimeType));
@@ -58,14 +65,20 @@ const textError = ref("");
 const imagePreviewVisible = ref(false);
 const videoPreviewVisible = ref(false);
 const thumbnailUrl = ref("");
+const thumbnailElement = ref<HTMLElement>();
+const videoDuration = ref("");
 function showVideoCover(event: Event) {
   const video = event.target as HTMLVideoElement;
+  if (Number.isFinite(video.duration) && video.duration > 0) {
+    const seconds = Math.floor(video.duration);
+    videoDuration.value = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  }
   if (video.duration > 0) video.currentTime = Math.min(0.1, video.duration / 2);
 }
 
 watch(() => [props.directory, props.attachment.file, props.attachment.path, props.attachment.mimeType] as const, async ([directory, file, path, mimeType], _previous, onCleanup) => {
   videoPreviewVisible.value = false; imagePreviewVisible.value = false;
-  thumbnailUrl.value = "";
+  thumbnailUrl.value = ""; videoDuration.value = "";
   if (!/^(image|video)\//.test(mimeType)) return;
   let cancelled = false;
   let release = () => {};
@@ -107,6 +120,7 @@ watch([textPreviewVisible, () => props.attachment, () => props.directory], async
 
 <style scoped lang="scss">
 .thumbnailItem {
+  .videoDuration { position: absolute; bottom: 1px; right: 1px; padding: 0 2px; border-radius: 3px; background: #000b; color: white; font-size: 9px; line-height: 13px; pointer-events: none; }
   position: relative;
   flex-shrink: 0;
   width: 38px;
@@ -213,5 +227,12 @@ watch([textPreviewVisible, () => props.attachment, () => props.directory], async
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font: inherit;
+}
+</style>
+
+<style scoped lang="scss">
+.attachmentHoverPreview { display: flex; flex-direction: column; gap: 8px;
+  img, video { width: 100%; max-height: 240px; object-fit: contain; border-radius: 8px; }
+  span { font-size: 12px; overflow-wrap: anywhere; }
 }
 </style>

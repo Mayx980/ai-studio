@@ -4,20 +4,21 @@
     <teleport to="body">
       <div v-if="visible" ref="popupElement" class="mentionMenu mentionOverlay" :style="popupStyle" @keydown.capture="handleKeydown">
         <el-card class="mentionPopup" shadow="always" :bodyStyle="{ padding: '0', maxHeight: `${Math.max(0, popupHeight - 2)}px` }" :style="{ maxHeight: `${popupHeight}px` }">
-          <div class="mentionHeader"><strong>选择参考素材</strong><div class="mentionScopes" aria-label="素材范围"><button v-for="item in visibleScopes" :key="item.id" type="button" :class="{ selected: scope === item.id }" :aria-pressed="scope === item.id" @click="changeScope(item.id)">{{ item.name }}</button></div><el-button text circle size="small" aria-label="关闭素材选择" @click="closeMenu"><icon-x :size="14" /></el-button></div>
+          <div class="mentionHeader"><strong>选择参考素材</strong><div class="mentionScopes" aria-label="素材范围"><button v-for="item in visibleScopes" :key="item.id" type="button" :class="{ selected: scope === item.id }" :aria-pressed="scope === item.id" @click="changeScope(item.id)">{{ item.name }}<span v-if="attachmentsOnly"> · {{ mediaAttachments.length }}个素材</span></button></div><el-button text circle size="small" aria-label="关闭素材选择" @click="closeMenu"><icon-x :size="14" /></el-button></div>
           <div v-if="selectedNode || selectedCanvas || assetPath" class="mentionBreadcrumb">
             <el-button text circle size="small" aria-label="返回上一级" @click="goBack"><icon-chevron-left :size="15" /></el-button>
             <span :title="breadcrumb">{{ breadcrumb }}</span>
           </div>
           <div class="mentionSearch"><el-input v-model="search" clearable :placeholder="searchPlaceholder" aria-label="搜索素材名称"><template #prefix><icon-search :size="15" /></template></el-input></div>
+          <div v-if="showTypeFilters" class="mentionFilters" role="group" aria-label="素材类型"><button v-for="filter in mediaFilters" :key="filter.value" type="button" :class="{ selected: mediaFilter === filter.value }" :aria-pressed="mediaFilter === filter.value" @mousedown.prevent @click="mediaFilter = filter.value">{{ filter.label }}</button></div>
           <el-scrollbar ref="listScrollbar" class="mentionScroll" :maxHeight="`${Math.max(0, popupHeight - chromeHeight)}px`">
             <div :id="listId" class="mentionList" role="listbox" aria-label="可引用素材" :aria-busy="loading || selecting" :aria-multiselectable="!!selectedNode">
               <div v-if="loading && !rows.length" class="mentionStatus" role="status">正在加载…</div>
               <div v-else-if="loadError && !rows.length" class="mentionStatus" role="alert"><span>{{ loadError }}</span><el-button text type="primary" size="small" @click="loadList()">重试</el-button></div>
               <div v-else-if="!rows.length" class="mentionStatus" role="status">{{ emptyText }}</div>
               <div class="mentionRows" :style="{ height: `${listVirtualizer.getTotalSize()}px` }">
-                <button v-for="{ row, index, start } in visibleRows" :id="`${listId}-${index}`" :key="`${row.kind}-${row.id}`" class="mentionItem" :style="{ transform: `translateY(${start}px)` }" :class="{ active: index === activeIndex, unavailable: !row.available, checked: row.kind === 'output' && selectedOutputs.includes(row.id) }" type="button" role="option" :aria-selected="row.kind === 'output' ? selectedOutputs.includes(row.id) : index === activeIndex" :aria-disabled="!row.available || selecting" :aria-posinset="index + 1" :aria-setsize="rows.length" :title="row.name" @mouseenter="activeIndex = index" @mousedown.prevent @click="chooseRow(row)">
-                  <attachmentPreview v-if="row.kind === 'attachment' && attachments?.[Number(row.id)]" class="uploadedThumbnail" :attachment="attachments[Number(row.id)]!" :directory="directory" /><mentionThumbnail v-else class="materialThumbnail" :thumbnail="row.thumbnail" :directory="directory" :globalAsset="row.kind === 'file'"><component :is="row.kind === 'canvas' ? IconVector : row.kind === 'directory' ? IconFolder : row.dataType === 'image' || row.dataType === 'mask' ? IconPhoto : row.dataType === 'video' ? IconVideo : row.dataType === 'audio' ? IconMusic : row.dataType ? IconFileText : IconBox" :size="18" /></mentionThumbnail>
+                <button v-for="{ row, index, start } in visibleRows" :id="`${listId}-${index}`" :key="`${row.kind}-${row.id}`" class="mentionItem" :style="{ transform: `translateY(${start}px)` }" :class="{ active: keyboardNavigation && index === activeIndex, unavailable: !row.available, checked: row.kind === 'output' && selectedOutputs.includes(row.id) }" type="button" role="option" :aria-selected="row.kind === 'output' ? selectedOutputs.includes(row.id) : index === activeIndex" :aria-disabled="!row.available || selecting" :aria-posinset="index + 1" :aria-setsize="rows.length" :title="row.name" @mouseenter="keyboardNavigation = false; activeIndex = index" @mousedown.prevent @click="chooseRow(row)">
+                  <attachmentPreview v-if="row.kind === 'attachment' && attachments?.[Number(row.id)]" class="uploadedThumbnail" hoverPreview :attachment="attachments[Number(row.id)]!" :directory="directory" /><mentionThumbnail v-else class="materialThumbnail" :thumbnail="row.thumbnail" :directory="directory" :globalAsset="row.kind === 'file'"><component :is="row.kind === 'canvas' ? IconVector : row.kind === 'directory' ? IconFolder : row.dataType === 'image' || row.dataType === 'mask' ? IconPhoto : row.dataType === 'video' ? IconVideo : row.dataType === 'audio' ? IconMusic : row.dataType ? IconFileText : IconBox" :size="18" /></mentionThumbnail>
                   <span class="mentionContent"><span class="mentionName">{{ row.name }}</span><span v-if="row.description" class="mentionDescription">{{ row.description }}</span></span>
                   <span v-if="!row.available" class="mentionState">{{ row.kind === 'file' ? '不支持' : '暂无输出' }}</span>
                   <span v-else-if="row.kind === 'output'" class="mentionCheck" :class="{ selected: selectedOutputs.includes(row.id) }"><icon-check v-if="selectedOutputs.includes(row.id)" :size="12" /></span>
@@ -72,13 +73,20 @@ const selectedNode = ref<MentionNode>();
 const selectedOutputs = ref<string[]>([]);
 const assetPath = ref("");
 const activeIndex = ref(0);
+const keyboardNavigation = ref(false);
+const mediaFilter = ref("all");
+const mediaFilters = [{ value: "all", label: "全部" }, { value: "image", label: "图片" }, { value: "video", label: "视频" }];
+const mediaAttachments = computed(() => (props.attachments ?? []).filter(item => /^(image|video)\//.test(item.mimeType)));
+const showTypeFilters = computed(() => props.attachmentsOnly && mediaAttachments.value.length >= 5 && mediaAttachments.value.some(item => item.mimeType.startsWith("image/")) && mediaAttachments.value.some(item => item.mimeType.startsWith("video/")));
+watch(showTypeFilters, show => { if (!show) mediaFilter.value = "all"; });
 const listScrollbar = ref<ScrollbarInstance>();
 const nextCursor = ref<string>();
 const loading = ref(false);
 const loadError = ref("");
 const selecting = ref(false);
 const selectionError = ref("");
-const popupHeight = ref(320);
+const maximumPopupHeight = 440;
+const popupHeight = ref(maximumPopupHeight);
 const chromeHeight = ref(104);
 const triggerElement = ref<HTMLElement>();
 const popupElement = ref<HTMLElement>();
@@ -95,7 +103,7 @@ function mediaReferenceName(name: string, dataType: string | undefined, index: n
   if (dataType === "video") return `视频${index + 1}`;
   return name;
 }
-const rows = computed<MentionRow[]>(() => {
+const unfilteredRows = computed<MentionRow[]>(() => {
   const mediaCounts = new Map<string, number>();
   function referenceName(name: string, dataType?: string, preferredName?: string) {
     const key = dataType ?? "";
@@ -130,6 +138,7 @@ const rows = computed<MentionRow[]>(() => {
     return { ...item, name, kind: "node" as const, dataType, description: name !== item.name ? `${type} · ${item.name}` : type, outputCount: item.outputCount };
   })];
 });
+const rows = computed(() => unfilteredRows.value.filter(row => !showTypeFilters.value || mediaFilter.value === "all" || row.dataType === mediaFilter.value));
 const listVirtualizer = useVirtualizer<HTMLDivElement, HTMLButtonElement>(computed(() => ({
   count: rows.value.length,
   getScrollElement: () => listScrollbar.value?.wrapRef ?? null,
@@ -142,7 +151,7 @@ const visibleRows = computed(() => listVirtualizer.value.getVirtualItems().map(i
 const hasMore = computed(() => !listingCanvases.value && !selectedNode.value && !!nextCursor.value);
 const breadcrumb = computed(() => selectedNode.value ? [selectedCanvas.value?.name ?? translate("当前画布"), selectedNode.value.name].join(" / ") : selectedCanvas.value?.name ?? assetPath.value);
 const searchPlaceholder = computed(() => listingCanvases.value ? "搜索画布名称" : "搜索素材名称");
-const emptyText = computed(() => props.attachmentsOnly ? search.value ? "没有找到匹配的素材" : `${props.currentLabel || "当前对话"}暂无可引用素材` : scope.value === "current" && !canvasId.value ? translate("打开画布后即可提及节点输出") : search.value ? translate("没有找到匹配的内容") : selectedNode.value ? translate("该节点暂无可用输出") : listingCanvases.value ? translate("暂无其他画布") : scope.value === "assets" ? translate("暂无素材") : translate("当前画布暂无节点"));
+const emptyText = computed(() => props.attachmentsOnly ? search.value ? "未找到匹配素材" : mediaAttachments.value.length ? "该类型暂无素材" : "请先添加图片或视频，再使用 @ 引用" : scope.value === "current" && !canvasId.value ? translate("打开画布后即可提及节点输出") : search.value ? translate("没有找到匹配的内容") : selectedNode.value ? translate("该节点暂无可用输出") : listingCanvases.value ? translate("暂无其他画布") : scope.value === "assets" ? translate("暂无素材") : translate("当前画布暂无节点"));
 let requestController: AbortController | undefined;
 let selectionController: AbortController | undefined;
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -313,6 +322,7 @@ function handleKeydown(event: KeyboardEvent): boolean {
     void chooseRow(rows.value[activeIndex.value]!);
     return true;
   }
+  keyboardNavigation.value = true;
   const direction = event.key === "ArrowDown" ? 1 : -1;
   for (let step = 1; step <= rows.value.length; step++) {
     const index = (activeIndex.value + direction * step + rows.value.length) % rows.value.length;
@@ -327,7 +337,7 @@ function handleKeydown(event: KeyboardEvent): boolean {
 
 watch(() => props.query, query => { if (query !== undefined) { triggerElement.value = undefined; search.value = query; } });
 watch(visible, open => {
-  if (open) emit("open");
+  if (open) { keyboardNavigation.value = true; mediaFilter.value = "all"; emit("open"); }
   else buttonVisible.value = false;
 });
 watch([visible, () => props.editor, triggerElement], ([open, editor], _previous, onCleanup) => {
@@ -337,7 +347,7 @@ watch([visible, () => props.editor, triggerElement], ([open, editor], _previous,
   const dialog = editorElement.closest<HTMLElement>('[role="dialog"]');
   let caretOffset: { left: number; top: number; height: number } | undefined;
   function updatePopupPosition() {
-    const chrome = popupElement.value?.querySelectorAll<HTMLElement>(".mentionHeader, .mentionSearch, .mentionBreadcrumb, .mentionFooter, .mentionError");
+    const chrome = popupElement.value?.querySelectorAll<HTMLElement>(".mentionHeader, .mentionSearch, .mentionFilters, .mentionBreadcrumb, .mentionFooter, .mentionError");
     if (chrome?.length) chromeHeight.value = [...chrome].reduce((height, element) => height + element.getBoundingClientRect().height, 2);
     const inputBounds = input.getBoundingClientRect();
     let anchor = triggerElement.value?.isConnected ? triggerElement.value.getBoundingClientRect() : undefined;
@@ -358,13 +368,13 @@ watch([visible, () => props.editor, triggerElement], ([open, editor], _previous,
     }
     const above = Math.max(0, anchor.top - 20);
     const below = Math.max(0, window.innerHeight - anchor.bottom - 20);
-    const openBelow = below >= 320 || below >= above;
+    const openBelow = below >= maximumPopupHeight || below >= above;
     const available = openBelow ? below : above;
     const dialogBounds = dialog?.getBoundingClientRect();
     const leftBoundary = Math.max(12, (dialogBounds?.left ?? 0) + 12);
     const rightBoundary = Math.min(window.innerWidth - 12, (dialogBounds?.right ?? window.innerWidth) - 12);
     const width = Math.min(360, Math.max(0, rightBoundary - leftBoundary));
-    popupHeight.value = Math.min(320, available);
+    popupHeight.value = Math.min(maximumPopupHeight, available);
     popupStyle.value = {
       width: `${width}px`,
       left: `${Math.max(leftBoundary, Math.min(anchor.left, rightBoundary - width))}px`,
@@ -400,12 +410,12 @@ watch([visible, scope, canvasId, selectedNode, assetPath, () => props.directory,
   canvases.value = [];
   selectedOutputs.value = [];
   nextCursor.value = undefined;
-  if (!visible.value) return;
+  if (!visible.value || props.attachmentsOnly) return;
   loading.value = true;
   searchTimer = setTimeout(() => void loadList(), search.value ? 180 : 0);
 }, { immediate: true });
 watch(search, () => {
-  if (!visible.value || listingCanvases.value || selectedNode.value) return;
+  if (!visible.value || props.attachmentsOnly || listingCanvases.value || selectedNode.value) return;
   clearTimeout(searchTimer);
   requestController?.abort();
   selectionController?.abort();
@@ -464,7 +474,7 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
     overflow: hidden;
     overscroll-behavior: contain;
     :deep(.el-card__body) { display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; }
-    .mentionHeader, .mentionSearch, .mentionScopes, .mentionBreadcrumb, .mentionFooter, .mentionError { flex-shrink: 0; }
+    .mentionHeader, .mentionSearch, .mentionFilters, .mentionScopes, .mentionBreadcrumb, .mentionFooter, .mentionError { flex-shrink: 0; }
     .mentionScroll { flex: 1; min-height: 0; }
     color: var(--el-text-color-primary);
 
@@ -501,6 +511,13 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
       span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     }
     .mentionSearch { padding: 0 9px 7px; }
+    .mentionFilters { display: flex; gap: 6px; padding: 0 9px 7px;
+      button { border: 0; border-radius: 8px; padding: 4px 10px; background: transparent; color: var(--el-text-color-secondary); font: inherit; font-size: 12px; cursor: pointer;
+        &:hover { background: var(--el-fill-color-light); }
+        &.selected { color: var(--el-color-primary); background: var(--el-fill-color-light); }
+        &:focus-visible { outline: 1px solid var(--el-color-primary); }
+      }
+    }
     .mentionList {
       padding: 0 5px 5px;
 
@@ -527,7 +544,8 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
           font: inherit;
           cursor: pointer;
 
-          &.active, &:focus-visible { background: var(--el-fill-color-light); }
+          &:hover { background: var(--el-fill-color-light); }
+          &.active, &:focus-visible { outline: 1px solid var(--el-color-primary); outline-offset: -1px; }
           &.checked { background: var(--el-color-primary-light-9); }
           &.unavailable { opacity: 0.5; cursor: not-allowed; }
           .mentionContent {
