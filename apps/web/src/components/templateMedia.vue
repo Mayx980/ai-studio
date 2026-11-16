@@ -1,5 +1,5 @@
 <template>
-  <video v-if="url && media.mimeType.startsWith('video/')" ref="video" class="templateMedia" :src="url" :controls="controls" :autoplay="autoplay" :muted="!controls" playsinline :loop="!controls" preload="metadata" @error="failed = true" @loadeddata="failed = false" @loadedmetadata="readDuration" />
+  <video v-if="url && media.mimeType.startsWith('video/')" ref="video" class="templateMedia" :src="url" :controls="controls" :autoplay="autoplay" :muted="!controls" playsinline :loop="!controls" preload="metadata" @error="failed = true" @loadeddata="failed = false" />
   <img v-else-if="url" class="templateMedia" :src="url" :alt="media.name" loading="lazy" @load="failed = false" @error="failed = true" />
   <span v-if="failed" class="mediaError" role="alert">素材无法预览，请检查文件格式或重新上传</span>
 </template>
@@ -9,13 +9,6 @@ import { captureVideoFrame } from "@/lib/videoFrame";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { isPublicTemplateMedia, templateDirectory, type TemplateMedia } from "@/lib/creationTemplates";
 const props = defineProps<{ media: TemplateMedia; controls?: boolean; autoplay?: boolean }>();
-const emit = defineEmits<{ duration: [value: string] }>();
-function readDuration(event: Event) {
-  const duration = (event.target as HTMLVideoElement).duration;
-  if (!Number.isFinite(duration) || duration <= 0) return;
-  const seconds = Math.floor(duration);
-  emit("duration", `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`);
-}
 const url = ref(""), failed = ref(false), video = ref<HTMLVideoElement>();
 watch(() => props.media, async (media, _previous, cleanup) => {
   url.value = ""; failed.value = false;

@@ -10,12 +10,11 @@
     <p v-else-if="!visibleCases.length" role="status">{{ query.trim() ? '没有找到相关模板，试试调整描述或分类。' :  '当前分类暂无模板。' }}</p>
     <div v-else class="caseGrid" :aria-busy="searching">
       <article v-for="item in visibleCases" :key="item.id" @pointerenter="playPreview" @pointerleave="pausePreview" @focusin="playPreview" @focusout="pausePreview">
-        <button class="caseCard" :aria-label="`查看模板 ${item.name}`" @click="openPreview(item)"><span class="casePreview"><templateMedia :ref="value => setCardMedia(item.id, value)" :media="item.media" @duration="value => mediaDurations[item.id] = value" /><span v-if="mediaDurations[item.id]" class="caseDuration">{{ mediaDurations[item.id] }}</span></span><span class="caseName" :title="item.name">{{ item.name }}</span></button>
+        <button class="caseCard" :aria-label="`查看模板 ${item.name}`" @click="openPreview(item)"><span class="casePreview"><templateMedia :ref="value => setCardMedia(item.id, value)" :media="item.media" /></span><span class="caseName" :title="item.name">{{ item.name }}</span></button>
         <div class="caseActions">
           <el-tooltip v-if="item.applicationTemplate" :content="professional ? '一键同款 · 将进入简单模式' : '一键同款'"><el-button class="mainAction" type="primary" :loading="applying" @click.stop="applyTemplate(item.applicationTemplate, cardMedia.get(item.id))">一键同款<span v-if="professional" class="modeDestination">简单模式</span></el-button></el-tooltip>
           <el-button v-if="item.processTemplate" class="mainAction" type="primary" @click.stop="openPreview(item, true)">查看创作过程</el-button>
         </div>
-        <el-tooltip v-if="item.processTemplate" :content="professional ? '一键复制' : '一键复制 · 将进入专业模式'"><el-button class="copyTemplateAction" :icon="IconCopy" :aria-label="`一键复制 ${item.name}`" :loading="copying" @click.stop="copyProject(item.processTemplate)">一键复制<span v-if="!professional" class="modeDestination">专业模式</span></el-button></el-tooltip>
         <el-tooltip v-if="currentAccount?.role === 'admin'" content="删除"><el-button class="deleteCard" circle :icon="IconTrash" :aria-label="`删除 ${item.name}`" :loading="removingId === item.id" @click.stop="deleteCard(item)" /></el-tooltip>
       </article>
     </div>
@@ -23,7 +22,7 @@
       <template v-if="preview?.processTemplate" #header="{ titleId, titleClass }"><div v-if="previewMode === 'process'" class="detailHeader"><h3 :id="titleId" :class="titleClass">{{ preview?.name }}</h3><el-button type="primary" :loading="copying" @click="copyProject()">一键复制<span v-if="!professional"> · 专业模式</span></el-button></div></template>
       <div v-if="preview && preview.processTemplate && previewMode === 'media'" class="workPreview"><div class="workMedia"><templateMedia ref="previewMedia" :media="preview.media" controls autoplay /></div><footer><h3>{{ preview.name }}</h3><el-button v-if="preview.applicationTemplate" type="primary" :loading="applying" @click="applyPreview">一键同款<span v-if="professional"> · 简单模式</span></el-button><el-button type="primary" @click="previewMode = 'process'"><icon-vector :size="17" />查看创作过程</el-button></footer></div>
       <templateProjectPreview ref="projectPreview" v-else-if="preview?.processTemplate" :template="preview.processTemplate" />
-      <div v-else-if="preview" class="detailLayout"><div class="detailMedia"><templateMedia ref="previewMedia" :media="preview.media" controls /></div><div class="detailContent"><h3>创作详情</h3><p class="templatePrompt">{{ preview.prompt }}</p><p class="templateParameters">{{ preview.modelId || '当前模型' }} ｜ {{ preview.ratio || '当前比例' }} ｜ {{ preview.resolution || preview.imageSize || '当前清晰度' }}<span v-if="preview.duration"> ｜ {{ preview.duration }}秒</span></p><el-button type="primary" :loading="applying" @click="applyPreview">一键同款</el-button></div></div>
+      <div v-else-if="preview" class="detailLayout"><div class="detailMedia"><templateMedia ref="previewMedia" :media="preview.media" controls /></div><div class="detailContent"><h3>创作详情</h3><p class="templatePrompt">{{ preview.prompt }}</p><p class="templateParameters">{{ preview.modelId || '当前模型' }} ｜ {{ preview.ratio || '当前比例' }} ｜ {{ preview.resolution || preview.imageSize || '当前清晰度' }}</p><el-button type="primary" :loading="applying" @click="applyPreview">一键同款</el-button></div></div>
     </el-dialog>
     <el-dialog v-model="projectPickerOpen" title="选择项目" width="min(640px, 94vw)" appendToBody><div class="projectChoices"><el-button v-for="project in workspace.projectList" :key="project.directory" @click="projectPickerOpen = false; openUpload(project)">{{ project.name }}</el-button></div></el-dialog>
     <el-dialog v-model="uploadOpen" :title="sourceProject ? '制作项目模板' : '上传个人模板'" :closeOnClickModal="!saving" :closeOnPressEscape="!saving" :showClose="!saving" width="min(640px, 94vw)" alignCenter appendToBody destroyOnClose class="templateUpload">
@@ -34,7 +33,7 @@
 </template>
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, toRefs, watch } from "vue";
-import { IconCopy, IconVector, IconTrash, IconSearch } from "@tabler/icons-vue";
+import { IconVector, IconTrash, IconSearch } from "@tabler/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useRouter } from "vue-router";
 import { currentAccount } from "@/stores/prototypeAccount";
@@ -53,7 +52,6 @@ const emit = defineEmits<{ apply: [value: TemplateApplication] }>();
 const workspace = useWorkspaceStore(), router = useRouter();
 const professional = computed(() => !!props.curated);
 const root = ref<HTMLElement>();
-const mediaDurations = reactive<Record<string, string>>({});
 type TemplateCard = CreationTemplate & { applicationTemplate?: CreationTemplate; processTemplate?: CreationTemplate };
 const projectPreview = ref<InstanceType<typeof templateProjectPreview>>();
 const cardMedia = new Map<string, InstanceType<typeof templateMedia>>();
@@ -267,13 +265,11 @@ async function saveTemplate() {
     }
   }
   .deleteCard { position: absolute; left: 8px; top: 8px; z-index: 2; opacity: 0; pointer-events: none; color: #f2a3aa; background: #28282e; }
-  .copyTemplateAction { position: absolute; top: 8px; right: 8px; width: auto; height: 28px; margin: 0; padding: 0 8px; font-size: 11px; :deep(> span) { gap: 4px; } .modeDestination { opacity: .8; } color: #fff; background: #0008; border: 0; opacity: 0; pointer-events: none; }
   .caseActions { position: absolute; bottom: 42px; left: 8px; right: 8px; display: flex; flex-wrap: wrap; gap: 6px; opacity: 0; pointer-events: none; transition: opacity 150ms;
     .mainAction { flex: 1; height: auto; min-height: 28px; margin: 0; padding: 6px; font-size: 12px; :deep(> span) { flex-wrap: wrap; gap: 3px; } .modeDestination { font-size: 10px; opacity: .85; } }
   }
-  .caseDuration { position: absolute; right: 8px; top: 8px; padding: 2px 5px; border-radius: 4px; background: #0009; color: #fff; font-size: 11px; }
-  @media(hover:none) { .deleteCard, .copyTemplateAction, .caseActions { opacity: 1; pointer-events: auto; } }
-  .caseGrid { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 8px; article { min-width: 0; position: relative; &:hover .caseActions, &:focus-within .caseActions, &:hover .copyTemplateAction, &:focus-within .copyTemplateAction, &:hover .deleteCard, &:focus-within .deleteCard { opacity: 1; pointer-events: auto; } &:hover .caseCard::after { opacity: 1; } &:hover .caseDuration, &:focus-within .caseDuration { top: 42px; } }
+  @media(hover:none) { .deleteCard, .caseActions { opacity: 1; pointer-events: auto; } }
+  .caseGrid { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 8px; article { min-width: 0; position: relative; &:hover .caseActions, &:focus-within .caseActions, &:hover .deleteCard, &:focus-within .deleteCard { opacity: 1; pointer-events: auto; } &:hover .caseCard::after { opacity: 1; } }
     .caseCard { display: block; position: relative; width: 100%; padding: 0; border: 0; border-radius: 10px; overflow: hidden; text-align: left; color: var(--el-text-color-primary); background: var(--el-bg-color); cursor: pointer;
       &::after { content: ""; position: absolute; inset: 0; background: rgba(100,100,100,.25); opacity: 0; pointer-events: none; transition: opacity .15s; }
       &:hover::after { opacity: 1; }
