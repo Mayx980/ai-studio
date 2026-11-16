@@ -1,20 +1,17 @@
 <template>
   <div v-click-outside:[clickOutsideExclude]="closeMenu" class="mentionMenu" @keydown.capture="handleKeydown">
-    <el-button v-if="!hideTrigger" class="mentionButton" text circle :disabled="disabled" :aria-expanded="visible" :aria-controls="listId" aria-label="提及节点输出或素材" title="提及节点输出或素材" @mousedown.prevent @click="visible ? closeMenu() : openMenu()"><icon-at :size="16" /></el-button>
+    <el-button v-if="!hideTrigger" class="mentionButton" text circle :disabled="disabled" :aria-expanded="visible" :aria-controls="listId" aria-label="选择参考素材" title="选择参考素材" @mousedown.prevent @click="visible ? closeMenu() : openMenu()"><icon-at :size="16" /></el-button>
     <teleport to="body">
       <div v-if="visible" ref="popupElement" class="mentionMenu mentionOverlay" :style="popupStyle" @keydown.capture="handleKeydown">
         <el-card class="mentionPopup" shadow="always" :bodyStyle="{ padding: '0' }" :style="{ maxHeight: `${popupHeight}px` }">
-          <div class="mentionHeader"><strong>提及输出与素材</strong><el-button text circle size="small" aria-label="关闭提及" @click="closeMenu"><icon-x :size="14" /></el-button></div>
-          <div class="mentionScopes" aria-label="提及来源">
-            <button v-for="item in visibleScopes" :key="item.id" type="button" :class="{ selected: scope === item.id }" :aria-pressed="scope === item.id" @click="changeScope(item.id)">{{ item.name }}</button>
-          </div>
+          <div class="mentionHeader"><strong>选择参考素材</strong><div class="mentionScopes" aria-label="素材范围"><button v-for="item in visibleScopes" :key="item.id" type="button" :class="{ selected: scope === item.id }" :aria-pressed="scope === item.id" @click="changeScope(item.id)">{{ item.name }}</button></div><el-button text circle size="small" aria-label="关闭素材选择" @click="closeMenu"><icon-x :size="14" /></el-button></div>
           <div v-if="selectedNode || selectedCanvas || assetPath" class="mentionBreadcrumb">
             <el-button text circle size="small" aria-label="返回上一级" @click="goBack"><icon-chevron-left :size="15" /></el-button>
             <span :title="breadcrumb">{{ breadcrumb }}</span>
           </div>
-          <div class="mentionSearch"><el-input v-model="search" clearable :placeholder="searchPlaceholder" aria-label="搜索提及内容"><template #prefix><icon-search :size="15" /></template></el-input></div>
+          <div class="mentionSearch"><el-input v-model="search" clearable :placeholder="searchPlaceholder" aria-label="搜索素材名称"><template #prefix><icon-search :size="15" /></template></el-input></div>
           <el-scrollbar ref="listScrollbar" class="mentionScroll" :maxHeight="`${Math.max(90, popupHeight - (selectedNode || selectedCanvas || assetPath ? 218 : 188))}px`">
-            <div :id="listId" class="mentionList" role="listbox" aria-label="可提及内容" :aria-busy="loading || selecting" :aria-multiselectable="!!selectedNode">
+            <div :id="listId" class="mentionList" role="listbox" aria-label="可引用素材" :aria-busy="loading || selecting" :aria-multiselectable="!!selectedNode">
               <div v-if="loading && !rows.length" class="mentionStatus" role="status">正在加载…</div>
               <div v-else-if="loadError && !rows.length" class="mentionStatus" role="alert"><span>{{ loadError }}</span><el-button text type="primary" size="small" @click="loadList()">重试</el-button></div>
               <div v-else-if="!rows.length" class="mentionStatus" role="status">{{ emptyText }}</div>
@@ -30,7 +27,7 @@
               <el-button v-if="hasMore && !loadError" class="mentionMore" text :loading="loading" :disabled="selecting" @click="loadMore">加载更多</el-button>
             </div>
           </el-scrollbar>
-          <div class="mentionFooter"><span>{{ selectedNode ? `已选 ${selectedOutputs.length} 项` : '↑ ↓ 选择 · Enter 确认 · Esc 关闭' }}</span><el-button v-if="selectedNode" type="primary" size="small" :loading="selecting" :disabled="!selectedOutputs.length" @click="confirmOutputs">插入引用</el-button><span v-else-if="selecting">正在插入…</span></div>
+          <div class="mentionFooter"><span>{{ selectedNode ? `已选 ${selectedOutputs.length} 项` : '↑↓选择 Enter引用 Esc关闭' }}</span><el-button v-if="selectedNode" type="primary" size="small" :loading="selecting" :disabled="!selectedOutputs.length" @click="confirmOutputs">插入引用</el-button><span v-else-if="selecting">正在插入…</span></div>
           <div v-if="selectionError" class="mentionError" role="alert">{{ selectionError }}</div>
         </el-card>
       </div>
@@ -90,18 +87,46 @@ const listingCanvases = computed(() => scope.value === "other" && !selectedCanva
 const searchText = computed(() => search.value.trim().toLocaleLowerCase());
 const filteredCanvases = computed(() => canvases.value.filter(item => item.id !== (props.currentCanvasId ?? sources.currentCanvasId()) && `${item.name} ${item.id}`.toLocaleLowerCase().includes(searchText.value)));
 const filteredOutputs = computed(() => outputs.value.filter(item => `${item.name} ${item.preview}`.toLocaleLowerCase().includes(searchText.value)));
+function mediaReferenceName(name: string, dataType: string | undefined, index: number) {
+  if (!/\.[a-z0-9]+$/i.test(name)) return name;
+  if (dataType === "image" || dataType === "mask") return `图${index + 1}`;
+  if (dataType === "video") return `视频${index + 1}`;
+  return name;
+}
 const rows = computed<MentionRow[]>(() => {
+  const mediaCounts = new Map<string, number>();
+  function referenceName(name: string, dataType?: string, preferredName?: string) {
+    const key = dataType ?? "";
+    const index = mediaCounts.get(key) ?? 0;
+    mediaCounts.set(key, index + 1);
+    return preferredName || mediaReferenceName(name, dataType, index);
+  }
   if (listingCanvases.value) return filteredCanvases.value.map(item => ({ ...item, kind: "canvas", available: true, description: translate("画布"), outputCount: 0 }));
-  if (selectedNode.value) return filteredOutputs.value.map(item => ({ ...item, kind: "output", dataType: item.dataType.toLocaleLowerCase(), description: typeLabels[item.dataType] ?? translate("数据"), outputCount: 0 }));
-  if (scope.value === "assets") return assets.value.map(item => ({ ...item, id: item.path, kind: item.type, available: item.type === "directory" || !!item.dataType, dataType: item.dataType?.toLocaleLowerCase(),
-    thumbnail: ["IMAGE", "MASK", "VIDEO"].includes(item.dataType ?? "") ? { url: item.path, mimeType: mentionAssetType(item.path).mimeType } : undefined,
-    description: item.type === "directory" ? translate("文件夹") : typeLabels[item.dataType ?? ""] ?? translate("文件"), outputCount: 0 }));
+  if (selectedNode.value) return filteredOutputs.value.map(item => {
+    const dataType = item.dataType.toLocaleLowerCase(), name = referenceName(item.name, dataType);
+    const type = typeLabels[item.dataType] ?? translate("数据");
+    return { ...item, name, kind: "output", dataType, description: name !== item.name ? `${type} · ${item.name}` : type, outputCount: 0 };
+  });
+  if (scope.value === "assets") return assets.value.map(item => {
+    const dataType = item.dataType?.toLocaleLowerCase();
+    const name = item.type === "directory" ? item.name : referenceName(item.name, dataType);
+    const type = item.type === "directory" ? translate("文件夹") : typeLabels[item.dataType ?? ""] ?? translate("文件");
+    return { ...item, name, id: item.path, kind: item.type, available: item.type === "directory" || !!item.dataType, dataType,
+      thumbnail: ["IMAGE", "MASK", "VIDEO"].includes(item.dataType ?? "") ? { url: item.path, mimeType: mentionAssetType(item.path).mimeType } : undefined,
+      description: name !== item.name ? `${type} · ${item.name}` : type, outputCount: 0 };
+  });
   const uploaded: MentionRow[] = (props.attachments ?? []).flatMap((attachment, index) => {
-    const name = attachment.referenceName || attachment.name;
-    return `${name} ${attachment.name}`.toLocaleLowerCase().includes(searchText.value) ? [{ id: String(index), name, kind: "attachment", available: true, description: props.attachmentsOnly ? "对话素材" : "输入框素材", dataType: attachment.mimeType.split("/")[0], outputCount: 1 }] : [];
+    const dataType = attachment.mimeType.split("/")[0];
+    const name = referenceName(attachment.name, dataType, attachment.referenceName);
+    return `${name} ${attachment.name}`.toLocaleLowerCase().includes(searchText.value) ? [{ id: String(index), name, kind: "attachment", available: true, description: name !== attachment.name ? `${dataType === "video" ? "视频" : dataType === "image" ? "图片" : "素材"} · ${attachment.name}` : props.attachmentsOnly ? "对话素材" : "输入框素材", dataType, outputCount: 1 }] : [];
   });
   if (props.attachmentsOnly) return uploaded;
-  return [...uploaded, ...nodes.value.map(item => ({ ...item, kind: "node" as const, dataType: item.dataType?.toLocaleLowerCase(), description: typeLabels[item.dataType ?? ""] ?? translate("节点"), outputCount: item.outputCount }))];
+  return [...uploaded, ...nodes.value.map(item => {
+    const dataType = item.dataType?.toLocaleLowerCase();
+    const name = referenceName(item.name, dataType);
+    const type = typeLabels[item.dataType ?? ""] ?? translate("节点");
+    return { ...item, name, kind: "node" as const, dataType, description: name !== item.name ? `${type} · ${item.name}` : type, outputCount: item.outputCount };
+  })];
 });
 const listVirtualizer = useVirtualizer<HTMLDivElement, HTMLButtonElement>(computed(() => ({
   count: rows.value.length,
@@ -114,7 +139,7 @@ const listVirtualizer = useVirtualizer<HTMLDivElement, HTMLButtonElement>(comput
 const visibleRows = computed(() => listVirtualizer.value.getVirtualItems().map(item => ({ row: rows.value[item.index]!, index: item.index, start: item.start })));
 const hasMore = computed(() => !listingCanvases.value && !selectedNode.value && !!nextCursor.value);
 const breadcrumb = computed(() => selectedNode.value ? [selectedCanvas.value?.name ?? translate("当前画布"), selectedNode.value.name].join(" / ") : selectedCanvas.value?.name ?? assetPath.value);
-const searchPlaceholder = computed(() => props.attachmentsOnly ? "搜索当前对话素材" : selectedNode.value ? "搜索该节点的输出" : listingCanvases.value ? "搜索其他画布" : scope.value === "assets" ? "搜索素材" : "搜索节点名称或 ID");
+const searchPlaceholder = computed(() => listingCanvases.value ? "搜索画布名称" : "搜索素材名称");
 const emptyText = computed(() => props.attachmentsOnly ? search.value ? "没有找到匹配的素材" : "当前对话暂无可引用素材" : scope.value === "current" && !canvasId.value ? translate("打开画布后即可提及节点输出") : search.value ? translate("没有找到匹配的内容") : selectedNode.value ? translate("该节点暂无可用输出") : listingCanvases.value ? translate("暂无其他画布") : scope.value === "assets" ? translate("暂无素材") : translate("当前画布暂无节点"));
 let requestController: AbortController | undefined;
 let selectionController: AbortController | undefined;
@@ -407,16 +432,16 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
     overscroll-behavior: contain;
     color: var(--el-text-color-primary);
 
-    .mentionHeader { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px 0; font-size: 13px; }
+    .mentionHeader { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 7px 10px; font-size: 13px; strong { white-space: nowrap; } > .el-button { margin-left: auto; } }
     .mentionScopes {
       display: flex;
-      gap: 3px;
-      padding: 6px 9px;
+      gap: 8px;
+      padding: 0;
 
       button {
-        flex: 1;
+        flex: none;
         min-width: 0;
-        padding: 6px 2px;
+        padding: 0;
         border: 0;
         border-radius: 5px;
         background: transparent;
@@ -426,7 +451,7 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
         white-space: nowrap;
         cursor: pointer;
 
-        &.selected { background: var(--el-color-primary-light-9); color: var(--el-color-primary); }
+        &.selected { color: var(--el-color-primary); }
         &:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: -2px; }
       }
     }
@@ -498,7 +523,7 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
       }
       .mentionMore { width: 100%; font-size: 12px; }
     }
-    .mentionFooter { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 34px; padding: 5px 10px; border-top: 1px solid var(--el-border-color-lighter); color: var(--el-text-color-secondary); font-size: 11px; }
+    .mentionFooter { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 24px; padding: 3px 10px; color: var(--el-text-color-secondary); font-size: 11px; }
     .mentionError { padding: 0 10px 8px; color: var(--el-color-danger); font-size: 12px; overflow-wrap: anywhere; }
   }
 }
