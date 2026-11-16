@@ -12,7 +12,7 @@
       <article v-for="item in visibleCases" :key="item.id" @pointerenter="playPreview" @pointerleave="pausePreview" @focusin="playPreview" @focusout="pausePreview">
         <button class="caseCard" :aria-label="`查看模板 ${item.name}`" @click="openPreview(item)"><span class="casePreview"><templateMedia :ref="value => setCardMedia(item.id, value)" :media="item.media" /></span><span class="caseName" :title="item.name">{{ item.name }}</span></button>
         <div class="caseActions">
-          <el-tooltip v-if="item.applicationTemplate" :content="professional ? '一键同款 · 将进入简单模式' : '一键同款'"><el-button class="mainAction" type="primary" :loading="applying" @click.stop="applyTemplate(item.applicationTemplate, cardMedia.get(item.id))">一键同款<span v-if="professional" class="modeDestination">简单模式</span></el-button></el-tooltip>
+          <el-tooltip v-if="item.applicationTemplate" :content="professional ? '一键同款 · 将进入简单模式' : '一键同款'"><el-button class="mainAction" type="primary" :loading="applying" @click.stop="applyTemplate(item.applicationTemplate, cardMedia.get(item.id))">一键同款</el-button></el-tooltip>
           <el-button v-if="item.processTemplate" class="mainAction" type="primary" @click.stop="openPreview(item, true)">查看创作过程</el-button>
         </div>
         <el-tooltip v-if="currentAccount?.role === 'admin'" content="删除"><el-button class="deleteCard" circle :icon="IconTrash" :aria-label="`删除 ${item.name}`" :loading="removingId === item.id" @click.stop="deleteCard(item)" /></el-tooltip>
@@ -20,7 +20,7 @@
     </div>
     <el-dialog :modelValue="!!preview" :title="preview?.name" class="templateDetail" :class="{ processDetail: !!preview?.processTemplate && previewMode === 'process' }" :fullscreen="!!preview?.processTemplate && previewMode === 'process'" :width="!!preview?.processTemplate && previewMode === 'process' ? 'min(1600px, 98vw)' : 'min(1120px, 96vw)'" alignCenter appendToBody destroyOnClose :closeOnClickModal="!copying" :closeOnPressEscape="!copying" :showClose="!copying" @opened="projectPreview?.fitView()" @update:modelValue="preview = undefined">
       <template v-if="preview?.processTemplate" #header="{ titleId, titleClass }"><div v-if="previewMode === 'process'" class="detailHeader"><h3 :id="titleId" :class="titleClass">{{ preview?.name }}</h3><el-button type="primary" :loading="copying" @click="copyProject()">一键复制<span v-if="!professional"> · 专业模式</span></el-button></div></template>
-      <div v-if="preview && preview.processTemplate && previewMode === 'media'" class="workPreview"><div class="workMedia"><templateMedia ref="previewMedia" :media="preview.media" controls autoplay /></div><footer><h3>{{ preview.name }}</h3><el-button v-if="preview.applicationTemplate" type="primary" :loading="applying" @click="applyPreview">一键同款<span v-if="professional"> · 简单模式</span></el-button><el-button type="primary" @click="previewMode = 'process'"><icon-vector :size="17" />查看创作过程</el-button></footer></div>
+      <div v-if="preview && preview.processTemplate && previewMode === 'media'" class="workPreview"><div class="workMedia"><templateMedia ref="previewMedia" :media="preview.media" controls autoplay /></div><footer><h3>{{ preview.name }}</h3><el-button v-if="preview.applicationTemplate" type="primary" :loading="applying" @click="applyPreview">一键同款</el-button><el-button type="primary" @click="previewMode = 'process'"><icon-vector :size="17" />查看创作过程</el-button></footer></div>
       <templateProjectPreview ref="projectPreview" v-else-if="preview?.processTemplate" :template="preview.processTemplate" />
       <div v-else-if="preview" class="detailLayout"><div class="detailMedia"><templateMedia ref="previewMedia" :media="preview.media" controls /></div><div class="detailContent"><h3>创作详情</h3><p class="templatePrompt">{{ preview.prompt }}</p><p class="templateParameters">{{ preview.modelId || '当前模型' }} ｜ {{ preview.ratio || '当前比例' }} ｜ {{ preview.resolution || preview.imageSize || '当前清晰度' }}</p><el-button type="primary" :loading="applying" @click="applyPreview">一键同款</el-button></div></div>
     </el-dialog>
@@ -266,7 +266,7 @@ async function saveTemplate() {
   }
   .deleteCard { position: absolute; left: 8px; top: 8px; z-index: 2; opacity: 0; pointer-events: none; color: #f2a3aa; background: #28282e; }
   .caseActions { position: absolute; bottom: 42px; left: 8px; right: 8px; display: flex; flex-wrap: wrap; gap: 6px; opacity: 0; pointer-events: none; transition: opacity 150ms;
-    .mainAction { flex: 1; height: auto; min-height: 28px; margin: 0; padding: 6px; font-size: 12px; :deep(> span) { flex-wrap: wrap; gap: 3px; } .modeDestination { font-size: 10px; opacity: .85; } }
+    .mainAction { flex: 1; height: auto; min-height: 28px; margin: 0; padding: 6px; font-size: 12px; :deep(> span) { flex-wrap: wrap; gap: 3px; } }
   }
   @media(hover:none) { .deleteCard, .caseActions { opacity: 1; pointer-events: auto; } }
   .caseGrid { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 8px; article { min-width: 0; position: relative; &:hover .caseActions, &:focus-within .caseActions, &:hover .deleteCard, &:focus-within .deleteCard { opacity: 1; pointer-events: auto; } &:hover .caseCard::after { opacity: 1; } }
