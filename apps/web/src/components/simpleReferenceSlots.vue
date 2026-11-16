@@ -7,15 +7,18 @@
       </el-popover>
     </teleport>
     <input ref="fileInput" type="file" :accept="target.role === 'firstFrame' || target.role === 'lastFrame' ? 'image/*' : 'image/*,video/*'" :multiple="['reference', 'middleFrame'].includes(target.role) && !replacing" hidden :disabled="disabled || opening" @change="selectFiles" />
+    <el-tooltip v-if="!hideAdd && minimizedMaterial" :content="materialHint" :showArrow="false">
+      <button class="slotCard materialChatButton" :class="{ generating: minimizedMaterial.status === 'generating' }" type="button" :disabled="disabled || opening" :aria-label="materialHint" :aria-busy="minimizedMaterial.status === 'generating'" @click="openTask(minimizedMaterial)"><brandLogo compact aria-hidden="true" /></button>
+    </el-tooltip>
     <div v-if="mode === 'reference'" class="referenceDeck" aria-label="参考图片">
-      <button v-if="!hideAdd && !referenceImages.length" class="slotCard" type="button" :disabled="disabled || opening" aria-label="添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="28" /></button>
+      <button v-if="!hideAdd && !minimizedMaterial && !referenceImages.length" class="slotCard" type="button" :disabled="disabled || opening" aria-label="添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="28" /></button>
       <div v-for="(attachment, index) in referenceImages" :key="index" class="referenceCard" :class="{ editableReference: canEditSource(attachment), lastReference: index === referenceImages.length - 1, expandedReference: index === referenceImages.length - 1 && expandedReference }" @mouseenter="expandReference" @mouseleave="collapseReference" @focusin="expandReference" @focusout="collapseReference">
         <attachmentPreview :attachment="attachment" :directory="directory" />
         <span class="referenceLabel">{{ referenceLabel(attachment, index) }}</span>
         <el-tooltip content="替换图片"><button class="replaceReference" type="button" :disabled="disabled || opening" :aria-label="`替换${referenceLabel(attachment, index)}`" @click="openMenu($event, { role: 'reference', category: attachment.referenceCategory || 'character' }, attachment)"><icon-refresh :size="22" /></button></el-tooltip>
         <el-tooltip v-if="canEditSource(attachment)" content="编辑来源" :showArrow="false"><button class="editReference" type="button" :disabled="disabled || opening" aria-label="编辑参考素材来源" @click="emit('edit', attachment)"><icon-pencil :size="22" /></button></el-tooltip>
         <button class="removeReference" type="button" :disabled="disabled || opening" :aria-label="`移除${referenceLabel(attachment, index)}`" title="移除图片" @click="remove(attachment)"><icon-x :size="14" /></button>
-        <button v-if="!hideAdd && index === referenceImages.length - 1" class="addNextReference" :title="referenceLimitReached ? '最多添加10个参考图片/视频' : undefined" type="button" :disabled="disabled || opening" aria-label="继续添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="22" /></button>
+        <button v-if="!hideAdd && !minimizedMaterial && index === referenceImages.length - 1" class="addNextReference" :title="referenceLimitReached ? '最多添加10个参考图片/视频' : undefined" type="button" :disabled="disabled || opening" aria-label="继续添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="22" /></button>
       </div>
     </div>
     <div v-else class="frameDeck" aria-label="首尾帧图片">
@@ -47,10 +50,11 @@ import { computed, nextTick, onUnmounted, ref, watch } from "vue";
 import { ClickOutside as vClickOutside, ElMessage, type PopoverInstance } from "element-plus";
 import { IconPlus, IconRefresh, IconX, IconPhoto, IconChevronDown, IconLayoutColumns, IconCheck } from "@tabler/icons-vue";
 import type { AgentAttachment, ReferenceRole, ReferenceCategory } from "@/components/agent/types";
+import brandLogo from "@/components/brandLogo.vue";
 import attachmentPreview from "@/components/agent/attachmentPreview.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import { IconPencil } from "@tabler/icons-vue";
-import { materialEditorState, materialWorkspaces, openMaterialWorkspace, type MaterialTarget, type MaterialWorkspace } from "@/stores/materialEditor";
+import { materialEditorState, materialWorkspaces, openMaterialWorkspace, materialStatusLabel, type MaterialTarget, type MaterialWorkspace } from "@/stores/materialEditor";
 const emit = defineEmits<{ edit: [attachment: AgentAttachment] }>();
 const props = withDefaults(defineProps<{ hideAdd?: boolean; showFrames?: boolean; tabsTarget?: HTMLElement; directory?: string; disabled?: boolean; ensureDirectory?: () => Promise<string | undefined> }>(), { showFrames: true });
 const attachments = defineModel<AgentAttachment[]>({ required: true });
@@ -73,6 +77,11 @@ const modeVisible = ref(false);
 const mode = defineModel<"reference" | "frames">("mode", { default: "reference" });
 let active = true;
 const owner = Symbol(), fileInput = ref<HTMLInputElement>(), assetsOpen = ref(false), opening = ref(false);
+const minimizedMaterial = computed(() => {
+  const task = materialWorkspaces.value.findLast(item => !item.ended && item.directory === props.directory && (!item.request || item.request.owner === owner));
+  return task?.minimized ? task : undefined;
+});
+const materialHint = computed(() => minimizedMaterial.value ? `自定义素材 · ${materialStatusLabel(minimizedMaterial.value)}，点击打开对话` : "打开自定义素材对话");
 const target = ref<MaterialTarget>({ role: "reference" }), replacing = ref<AgentAttachment>();
 const menuVisible = ref(false), menuStage = ref<"category" | "source">("category"), menuAnchor = ref<HTMLElement>(), sourcePopover = ref<PopoverInstance>();
 const menuExcludes = computed(() => [menuAnchor.value, sourcePopover.value?.popperRef?.contentRef]);
@@ -162,6 +171,15 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; for (const task of
   display: flex; justify-content: flex-start; align-items: flex-start; gap: 12px; padding: 8px 12px 14px; min-width: 0;
 
   .referenceDeck, .frameDeck { display: flex; justify-content: flex-start; align-items: flex-start; gap: 10px; min-width: 0; flex-wrap: wrap; padding: 4px 10px 8px 0; }
+
+  .materialChatButton {
+    :deep(.brandLogo.compact) { position: relative; width: 28px; height: 28px; }
+    &.generating {
+      :deep(.brandLogo) { animation: materialEnergyPulse 2.6s ease-in-out infinite; }
+      :deep(.brandLogo::before) { content: ""; position: absolute; inset: -5px; border-radius: 50%; background: radial-gradient(circle, #9370ff66, #498aff22 45%, transparent 72%); pointer-events: none; animation: materialEnergyHalo 2.6s ease-in-out infinite; }
+      :deep(.brandLogo::after) { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, #aa79ff66 40%, #e4dcff 48%, #83eaff 52%, transparent 66%); background-size: 300% 100%; mask: url("/afxenMark.svg") center / contain no-repeat; pointer-events: none; animation: materialGradientFlow 2.6s ease-in-out infinite; }
+    }
+  }
   .slotCard { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 72px; height: 72px; border: 0; border-radius: 12px; background: #2d343a; color: var(--el-text-color-primary); cursor: pointer; font-size: 12px; &:disabled { opacity: .5; cursor: default; } &:hover { background: var(--el-fill-color); } }
   .referenceCard { position: relative; width: 72px; height: 72px; :deep(.thumbnailItem), :deep(.thumbnailImage), :deep(.thumbnailButton) { width: 72px; height: 72px; } :deep(.thumbnailImage) { border: 0; border-radius: 12px; }
     .referenceLabel { position: absolute; inset: auto 0 0; height: 33.333%; display: flex; align-items: center; justify-content: center; background: rgba(82,86,90,.85); color: white; font-size: 11px; border-radius: 0 0 12px 12px; pointer-events: none; }
@@ -185,4 +203,16 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; for (const task of
 
 <style lang="scss">
 .referenceModePopover.el-popover.el-popper { padding: 8px; border: 0; border-radius: 10px; background: var(--agent-input-bg, #1b1b1b); box-shadow: 0 8px 24px #0006; }
+</style>
+
+<style scoped lang="scss">
+@keyframes materialEnergyPulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 1px #8060ff44); } 50% { transform: scale(1.09); filter: drop-shadow(0 0 4px #8c6cffaa); } }
+@keyframes materialEnergyHalo { 0%, 100% { transform: scale(.8); opacity: .3; } 50% { transform: scale(1.25); opacity: .85; } }
+@keyframes materialGradientFlow { 0% { background-position: 140% 50%; opacity: 0; } 20%, 75% { opacity: .9; } 100% { background-position: -40% 50%; opacity: 0; } }
+@media(prefers-reduced-motion:reduce) {
+  .materialChatButton.generating {
+    :deep(.brandLogo) { animation: none; }
+    :deep(.brandLogo::before), :deep(.brandLogo::after) { animation: none; content: none; }
+  }
+}
 </style>
