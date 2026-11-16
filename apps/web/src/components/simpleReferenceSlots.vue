@@ -15,7 +15,7 @@
         <el-tooltip content="替换图片"><button class="replaceReference" type="button" :disabled="disabled || opening" :aria-label="`替换${referenceLabel(attachment, index)}`" @click="openMenu($event, { role: 'reference', category: attachment.referenceCategory || 'character' }, attachment)"><icon-refresh :size="22" /></button></el-tooltip>
         <el-tooltip v-if="canEditSource(attachment)" content="编辑来源" :showArrow="false"><button class="editReference" type="button" :disabled="disabled || opening" aria-label="编辑参考素材来源" @click="emit('edit', attachment)"><icon-pencil :size="22" /></button></el-tooltip>
         <button class="removeReference" type="button" :disabled="disabled || opening" :aria-label="`移除${referenceLabel(attachment, index)}`" title="移除图片" @click="remove(attachment)"><icon-x :size="14" /></button>
-        <button v-if="!hideAdd && index === referenceImages.length - 1" class="addNextReference" type="button" :disabled="disabled || opening" aria-label="继续添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="22" /></button>
+        <button v-if="!hideAdd && index === referenceImages.length - 1" class="addNextReference" :title="referenceLimitReached ? '最多添加10个参考图片/视频' : undefined" type="button" :disabled="disabled || opening" aria-label="继续添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="22" /></button>
       </div>
     </div>
     <div v-else class="frameDeck" aria-label="首尾帧图片">
@@ -86,6 +86,7 @@ let hoverTimer: ReturnType<typeof setTimeout> | undefined;
 function expandReference() { clearTimeout(hoverTimer); expandedReference.value = true; }
 function collapseReference() { clearTimeout(hoverTimer); hoverTimer = setTimeout(() => { if (!menuVisible.value) expandedReference.value = false; }, 500); }
 const middleFrames = computed(() => attachments.value.filter(item => item.referenceRole === "middleFrame"));
+const referenceLimitReached = computed(() => attachments.value.filter(item => /^(image|video)\//.test(item.mimeType)).length >= 10);
 const referenceImages = computed(() => attachments.value.filter(item => item.referenceRole === "reference"));
 watch(attachments, value => { if (props.showFrames && value.some(item => item.referenceRole === "firstFrame" || item.referenceRole === "lastFrame") && !value.some(item => item.referenceRole === "reference")) mode.value = "frames"; }, { immediate: true });
 function frameAttachment(role: ReferenceRole) { return attachments.value.find(item => item.referenceRole === role); }
@@ -95,6 +96,7 @@ function remove(attachment: AgentAttachment) { attachments.value = attachments.v
 function closeMenu() { menuVisible.value = false; collapseReference(); }
 function openMenu(event: MouseEvent, destination: MaterialTarget, attachment?: AgentAttachment) {
   if (props.disabled || opening.value) return;
+  if (referenceLimitReached.value && !attachment && (["reference", "middleFrame"].includes(destination.role) || !frameAttachment(destination.role))) { ElMessage.warning("最多添加10个参考图片/视频"); return; }
   menuAnchor.value = event.currentTarget as HTMLElement; target.value = destination; replacing.value = attachment;
   menuStage.value = destination.role === "reference" && !destination.category ? "category" : "source"; menuVisible.value = true;
 }
@@ -110,7 +112,7 @@ function applyFiles(files: File[], destination = target.value, replacement = rep
   const selected = ["reference", "middleFrame"].includes(destination.role) && !replacement ? valid : valid.slice(0, 1);
   const replacementIndex = replacement ? retained.indexOf(replacement) : -1;
   if (replacement && replacementIndex < 0) throw new Error("原参考图已移除，请重新选择");
-  if (retained.filter(item => item.mimeType.startsWith("image/")).length + selected.filter(file => file.type.startsWith("image/")).length - (replacement?.mimeType.startsWith("image/") ? 1 : 0) > 10) throw new Error("最多添加10个图片");
+  if (retained.filter(item => /^(image|video)\//.test(item.mimeType)).length + selected.filter(file => /^(image|video)\//.test(file.type)).length - (replacement && /^(image|video)\//.test(replacement.mimeType) ? 1 : 0) > 10) throw new Error("最多添加10个参考图片/视频");
   if (retained.length + selected.length - (replacement ? 1 : 0) > 20) throw new Error("每条消息最多添加20个附件");
   const added = selected.map((file, index) => ({ name: file.name, path: "", mimeType: file.type, file, origin: fileGenerationOrigin(file), assetPath: fileAssetPath(file), referenceRole: destination.role, referenceCategory: destination.category, referenceName: replacement?.referenceName || (destination.role === "middleFrame" ? `中间帧${lastNumber + index + 1}` : group ? `${group.label}${lastNumber + index + 1}` : undefined) }));
   if (replacement) { const result = [...retained]; result.splice(replacementIndex, 1, ...added); attachments.value = result; }

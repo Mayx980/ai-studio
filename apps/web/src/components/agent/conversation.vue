@@ -678,6 +678,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
     const prompt = pending?.creationChoice ? `${pending.creationChoice.prompt}\n补充要求：${input}` : input;
     const sourceAttachments = pending ? messages.value.find(item => item.id === pending.replyTo)?.attachments ?? [] : [];
     const attachments = [...sourceAttachments, ...(choice?.attachments ?? activeDraftAttachments.value)];
+    if (attachments.filter(item => /^(image|video)\//.test(item.mimeType)).length > 10) { ElMessage.warning("最多添加10个参考图片/视频"); return; }
     if (pending?.creationChoice) pending.creationChoice.resolved = true;
     sessionMode.value ??= workspaceStore.creationMode;
     const professional = !imageOnlyMaterial.value && sessionMode.value === "professional";
@@ -1167,8 +1168,8 @@ function addAttachments(files: File[], fromMaterialResult = false) {
       ElMessage.warning("文本附件不能超过 400000 字节");
       continue;
     }
-    if (mimeType.startsWith("image/") && draftAttachments.value.filter(item => item.mimeType.startsWith("image/")).length >= 10) {
-      ElMessage.warning("最多添加10个图片");
+    if (/^(image|video)\//.test(mimeType) && draftAttachments.value.filter(item => /^(image|video)\//.test(item.mimeType)).length >= 10) {
+      ElMessage.warning("最多添加10个参考图片/视频");
       break;
     }
     if (draftAttachments.value.length >= 20) {
