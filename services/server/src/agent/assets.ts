@@ -9,6 +9,7 @@ import { queryMentionAssets } from "./mentionFiles";
 import { mentionAssetType } from "./mentionSources";
 import { getDocumentMimeType } from "@/lib/documentFormats";
 import { readDocument } from "@/utils/documents";
+import { readWorkspaceFile, statWorkspaceFile } from "@/utils/workspace/files";
 
 async function readWorkspaceSource(cwd: string, path: string, signal?: AbortSignal) {
   const directory = await realpath(cwd);
@@ -17,10 +18,10 @@ async function readWorkspaceSource(cwd: string, path: string, signal?: AbortSign
   const release = lockWorkspaceFiles([source.path]);
   try {
     signal?.throwIfAborted();
-    const info = await lstat(source.path);
+    const info = await statWorkspaceFile(source.path);
     if (!info.isFile()) throw new Error("来源必须是当前工作区内的普通文件");
     if (info.size > 100 * 1024 * 1024) throw new Error("素材文件不能超过 100 MB");
-    const content = await readFile(source.path, { signal });
+    const content = await readWorkspaceFile(source.path, signal);
     if (content.byteLength > 100 * 1024 * 1024) throw new Error("素材文件不能超过 100 MB");
     return content;
   } finally { release(); }

@@ -9,6 +9,7 @@ import axios from "axios";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import type { AgentAttachment } from "@/components/agent/types";
 import { currentAccount } from "@/stores/prototypeAccount";
+import { accountsRequired, currentUser } from "@/stores/accounts";
 
 export type Project = {
   directory: string;
@@ -173,5 +174,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     key: browserWorkspaceMode ? currentAccount.value?.id === "admin" ? "aiStudio.browserProjects.admin" : "aiStudio.browserProjects" : "toonflow.projectList",
     storage: browserWorkspaceMode ? { getItem: (key: string) => localStorage.getItem(key) ?? (key === "aiStudio.browserProjects" ? settingsStorage.getItem("toonflow.projectList") : null), setItem: (key: string, value: string) => localStorage.setItem(key, value) } : settingsStorage,
     pick: ["project", "projectList", "draftProjects", "lastSimpleDirectory"],
-  }, { key: "afxen.creationPreferences", storage: localStorage, pick: ["creationMode", "tutorialVisited", "canvasTutorialVersion"] }],
+  }, { key: "afxen.creationPreferences", storage: {
+    getItem: key => localStorage.getItem(accountsRequired.value ? `${key}.${currentUser.value!.id}` : key),
+    setItem: (key, value) => localStorage.setItem(accountsRequired.value ? `${key}.${currentUser.value!.id}` : key, value),
+  }, pick: ["creationMode", "tutorialVisited", "canvasTutorialVersion"] }],
 });

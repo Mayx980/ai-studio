@@ -21,7 +21,7 @@ export async function setEnabled(name: string, enabled: boolean) {
   const disabledSkills = new Set(conf.get("disabledSkills", []));
   if (enabled) disabledSkills.delete(name);
   else disabledSkills.add(name);
-  conf.set("disabledSkills", [...disabledSkills]);
+  await conf.set("disabledSkills", [...disabledSkills]);
 }
 
 async function verifyRoot() {
@@ -87,7 +87,7 @@ export async function uninstall(name: string) {
   }
   // ACT: 非标准目录布局仅删除主文件，保留可能与其他技能共享的目录。
   await rm(isDirectorySkill ? baseDir : mainTarget, { recursive: isDirectorySkill });
-  conf.set("disabledSkills", conf.get("disabledSkills", []).filter(item => item !== name));
+  await conf.set("disabledSkills", conf.get("disabledSkills", []).filter(item => item !== name));
 }
 
 export async function locate(name: string, path?: string) {

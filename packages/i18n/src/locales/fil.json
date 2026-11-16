@@ -2639,5 +2639,6 @@
   "画布平移": "Pag-pan ng canvas",
   "框选节点": "Pumili ng mga node gamit ang kahon",
   "追加选择": "Idagdag sa napili",
-  "追加选择只绑定修饰键，例如 Ctrl 或 Meta。": "Mga modifier key lamang, gaya ng Ctrl o Meta, ang maaaring italaga sa pagdagdag sa napili."
+  "追加选择只绑定修饰键，例如 Ctrl 或 Meta。": "Mga modifier key lamang, gaya ng Ctrl o Meta, ang maaaring italaga sa pagdagdag sa napili.",
+  "密码操作过多，请稍后再试": "Masyadong maraming operasyon sa password. Pakisubukan muli sa ibang pagkakataon."
 }

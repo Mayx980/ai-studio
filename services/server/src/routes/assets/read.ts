@@ -16,10 +16,10 @@ export default router.get("/", validateFields({ path: z.string().min(1).max(4096
   const root = await u.assets.getAssetsDirectory(library);
   const { directory, path } = await u.workspaceFile.resolveWorkspacePath(root, req.query.path as string);
   u.workspaceFile.protectWorkspaceRoot(directory, path);
-  if (!(await lstat(path)).isFile()) throw Object.assign(new Error("只能读取文件"), { status: 400 });
+  if (!(await u.workspaceFile.statWorkspaceFile(path)).isFile()) throw Object.assign(new Error("只能读取文件"), { status: 400 });
   if (req.query.snapshot === "true") {
     const maxBytes = req.query.maxBytes === undefined ? 20 * 1024 * 1024 : Number(req.query.maxBytes);
-    if ((await lstat(path)).size > maxBytes) throw Object.assign(new Error("文件超过本次文本读取的大小限制"), { status: 413 });
+    if ((await u.workspaceFile.statWorkspaceFile(path)).size > maxBytes) throw Object.assign(new Error("文件超过本次文本读取的大小限制"), { status: 413 });
     const { content, revision } = await u.assets.readAssetFile(req.query.path as string, undefined, library);
     if (content.length > maxBytes) throw Object.assign(new Error("文件超过本次文本读取的大小限制"), { status: 413 });
     res.set("Cache-Control", "no-store").json(success({ ...decodeText(content), revision }));

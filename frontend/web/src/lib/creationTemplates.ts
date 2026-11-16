@@ -10,11 +10,11 @@ import { imageClaritySizes, imageDimensions } from "@toonflow/node-shared/genera
 
 export type TemplateMedia = { directory?: string; path: string; mimeType: string; name: string };
 export type TemplateProject = { files: { path: string; sha256: string }[]; canvases: string[] };
-export type TemplateReview = { authorId: "admin" | "user" | "shared"; status: "pending" | "approved" | "rejected"; reason?: string; reviewedAt?: string };
+export type TemplateReview = { authorId: string; status: "pending" | "approved" | "rejected"; reason?: string; reviewedAt?: string };
 export type CreationTemplate = { sourceDirectory?: string; id: string; name: string; category: string; prompt: string; media: TemplateMedia; references: TemplateMedia[]; kind: "image" | "video"; modelId?: string; ratio?: string; resolution?: string; imageSize?: string; duration?: number; project?: TemplateProject; review?: TemplateReview };
 export type TemplateApplication = { prompt: string; references: File[]; template?: CreationTemplate };
 export const templateDirectory = browserWorkspaceMode ? "browser://personalTemplates" : "studio://templates";
-export const canManageTemplates = computed(() => !prototype.requiresAccount || currentAccount.value?.role === "admin");
+export const canManageTemplates = computed(() => !browserWorkspaceMode || !prototype.requiresAccount || currentAccount.value?.role === "admin");
 const personal = ref<CreationTemplate[]>([]);
 const removedTemplateIds = ref<string[]>([]);
 export function templateIsRemoved(item: CreationTemplate) { return removedTemplateIds.value.includes(item.id) || item.id === "creatorRecommendationProject" || (item.name === "达人种草" && item.kind === "image" && (item.media.name === "项目编排.png" || item.media.path.endsWith("/preview.png"))); }
@@ -35,7 +35,7 @@ function parseTemplates(text: string): CreationTemplate[] {
   if (!Array.isArray(values) || values.some(value => !value || typeof value.id !== "string" || typeof value.name !== "string" || typeof value.prompt !== "string" || typeof value.category !== "string" || !["image", "video"].includes(value.kind) || !value.media || typeof value.media.path !== "string" || typeof value.media.mimeType !== "string" || typeof value.media.name !== "string" || (value.duration !== undefined && (!Number.isInteger(value.duration) || value.duration < 3 || value.duration > 30)) || ["modelId", "ratio", "resolution", "imageSize"].some(key => value[key] !== undefined && typeof value[key] !== "string") || !Array.isArray(value.references) || value.references.some((item: TemplateMedia) => !item || typeof item.path !== "string" || typeof item.mimeType !== "string" || typeof item.name !== "string"))) throw new Error("模板数据无效，请保留当前内容并检查服务端模板文件");
   for (const value of values) {
     if (!value.review) value.review = { authorId: "user", status: "pending" };
-    if (!["admin", "user", "shared"].includes(value.review.authorId) || !["pending", "approved", "rejected"].includes(value.review.status) || (value.review.reason !== undefined && typeof value.review.reason !== "string")) throw new Error("模板审核信息无效");
+    if (typeof value.review.authorId !== "string" || !value.review.authorId || !["pending", "approved", "rejected"].includes(value.review.status) || (value.review.reason !== undefined && typeof value.review.reason !== "string")) throw new Error("模板审核信息无效");
   }
   return values;
 }
@@ -111,7 +111,7 @@ export async function saveCreationTemplate(template: Omit<CreationTemplate, "id"
       }
     }
     if (prototype.requiresAccount && currentAccount.value !== account) throw new Error("账号已切换，请重新提交");
-    const value: CreationTemplate = { ...template, kind: media.mimeType.startsWith("video/") ? "video" : "image", id, media, references: images, review: { authorId: account?.id ?? "shared", status: prototype.requiresAccount ? "pending" : "approved" }, ...(projectSnapshot ? { project: projectSnapshot.project } : {}) };
+    const value: CreationTemplate = { ...template, kind: media.mimeType.startsWith("video/") ? "video" : "image", id, media, references: images, review: { authorId: account?.id ?? "shared", status: browserWorkspaceMode && prototype.requiresAccount ? "pending" : "approved" }, ...(projectSnapshot ? { project: projectSnapshot.project } : {}) };
     const snapshot = await files.readTextSnapshot("templates.json").catch(error => { if (getWorkspaceFailure(error).code !== "ENOENT") throw error; return undefined; });
     const next = [value, ...(snapshot ? parseTemplates(snapshot.text) : [])];
     if (snapshot) await files.writeTextSnapshot("templates.json", JSON.stringify(next), snapshot); else await files.writeJson("templates.json", next, true);

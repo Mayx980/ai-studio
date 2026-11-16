@@ -29,7 +29,7 @@ export default Router().delete("/", validateFields({ name: u.extPlugins.extNameS
     await unlink(markerPath).catch((error: NodeJS.ErrnoException) => { if (error.code !== "ENOENT") throw error; });
     const configs = u.conf.get("extConfigs", {});
     delete configs[name];
-    u.conf.set("extConfigs", configs);
+    await u.conf.set("extConfigs", configs);
     res.json(success(null, "文件扩展已卸载"));
   } finally { release(); }
 });

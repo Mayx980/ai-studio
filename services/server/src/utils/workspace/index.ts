@@ -4,6 +4,7 @@ import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import conf from "@/utils/conf";
 import { getMobileLinkConfig, isMobileLinkRequest } from "@/utils/mobileLink";
 import { getRuntimePlatform } from "@/lib/platform";
+import { userRoot, usesAccounts, authorizePath } from "@/utils/accounts/context";
 
 export function isLocalWorkspaceRequest(req: Request) {
   if (isMobileLinkRequest(req)) return false;
@@ -17,12 +18,14 @@ export function isLocalWorkspaceRequest(req: Request) {
 
 export async function resolveWorkspace(req: Request, path: string) {
   if (!isAbsolute(path)) throw Object.assign(new Error("工作目录必须是绝对路径"), { status: 400 });
+  if (usesAccounts()) authorizePath(resolve(path));
   const directory = await realpath(path).catch((err: NodeJS.ErrnoException) => {
     if (err.code === "ENOENT" || err.code === "ENOTDIR") throw Object.assign(new Error("工作目录不存在，请重新选择文件夹"), { status: 404 });
     throw err;
   });
   if (!(await stat(directory)).isDirectory()) throw Object.assign(new Error("工作目录不是文件夹，请重新选择"), { status: 404 });
-  if (getRuntimePlatform().local && isLocalWorkspaceRequest(req)) return directory;
+  if (!usesAccounts() && getRuntimePlatform().local && isLocalWorkspaceRequest(req)) return directory;
+  if (usesAccounts()) authorizePath(directory);
 
   if (isMobileLinkRequest(req)) {
     for (const root of getMobileLinkConfig().directories) {
@@ -31,7 +34,7 @@ export async function resolveWorkspace(req: Request, path: string) {
     }
   }
 
-  const root = await realpath(resolve(dirname(conf.path), "workspaces")).catch((err: NodeJS.ErrnoException) => {
+  const root = await realpath(resolve(userRoot(), "workspaces")).catch((err: NodeJS.ErrnoException) => {
     if (err.code === "ENOENT") return null;
     throw err;
   });

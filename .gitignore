@@ -32,3 +32,5 @@ Thumbs.db
 *.keychain-db
 .tmp/
 /frontend/preview/runtime/
+/secrets/
+/dbRuntime/

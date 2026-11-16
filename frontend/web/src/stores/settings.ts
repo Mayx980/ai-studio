@@ -9,13 +9,16 @@ import { ElMessage } from "element-plus";
 import { invalidateNodeModels } from "@toonflow/nodes-scaffold/nodeAi";
 import { canvasShortcutFields, defaultCanvasShortcuts, getShortcutBindings, isShortcutAllowed, normalizeShortcut, type CanvasShortcuts } from "@/lib/canvasShortcuts";
 import { normalizeNodeMenu, type StoredNodeMenuItem } from "@toonflow/server/nodeMenu";
+import { accountsRequired } from "./accounts";
 import "element-plus/es/components/message/style/css";
 
 export const settings = ref<Record<string, unknown>>({});
 // ACT: 页面在 loadSettings 完成后才挂载，加载标记仅保留在设置初始化与自动保存内部。
 let settingsReady = false;
 let saveQueue = Promise.resolve();
+let lastSettingsSave: Promise<unknown> = Promise.resolve();
 let applyingSettings = false;
+let settingsRevision: number | undefined;
 
 export const settingsStorage = {
   getItem(key: string) {
@@ -122,7 +125,10 @@ export async function loadSettings() {
       }
     } catch { throw new Error("浏览器外观设置损坏，请清除此项设置后重试；项目数据未改动"); }
   }
-  settings.value = { ...data.data, ...preferences };
+  const { settingsRevision: revision, ...saved } = data.data;
+  if (accountsRequired.value && (!Number.isSafeInteger(revision) || revision < 1)) throw new Error("个人设置版本无效，请刷新重试");
+  settingsRevision = revision;
+  settings.value = { ...saved, ...preferences };
   const ui = settings.value.ui && typeof settings.value.ui === "object" && !Array.isArray(settings.value.ui) ? settings.value.ui as Record<string, unknown> : {};
   if (browserWorkspaceMode && ui.themePreset !== "black") {
     // ACT: 本轮将已有原型切为黑色一次，后续手动选择浅色／跟随系统仍然保留。
@@ -147,9 +153,11 @@ export function saveSettings(update?: (current: Record<string, unknown>) => Reco
       return true;
     }
     const requestedNodeMenu = JSON.stringify(((patch?.general ?? settings.value.general) as { nodeMenu?: unknown } | undefined)?.nodeMenu);
-    const { data } = await studio.saveApplicationSettings<{ code: number; data: { settings: Record<string, unknown>; customProviders?: CustomProvider[]; mediaProvider?: { id: string }; modelRefreshErrors?: string[]; nodeMenu?: StoredNodeMenuItem[] | null } | null }>({ settings: { ...settings.value, ...patch } }, { headers: { "x-toonflow-workspace": "1" } });
+    const { data } = await studio.saveApplicationSettings<{ code: number; data: { settings: Record<string, unknown>; settingsRevision?: number; customProviders?: CustomProvider[]; mediaProvider?: { id: string }; modelRefreshErrors?: string[]; nodeMenu?: StoredNodeMenuItem[] | null } | null }>({ settings: { ...settings.value, ...patch }, ...(accountsRequired.value ? { expectedRevision: settingsRevision } : {}) }, { headers: { "x-toonflow-workspace": "1" } });
     if (data.code !== 200) throw new Error("保存设置失败");
     if (!data.data?.settings || typeof data.data.settings !== "object" || Array.isArray(data.data.settings)) throw new Error("设置已提交，但未收到脱敏配置，请刷新后继续");
+    if (accountsRequired.value && (!Number.isSafeInteger(data.data.settingsRevision) || data.data.settingsRevision! < 1)) throw new Error("设置已提交，但未收到有效版本，请刷新后继续");
+    settingsRevision = data.data.settingsRevision;
     const providers = data.data?.customProviders;
     if ((patch && Object.hasOwn(patch, "customProviders")) || providers) invalidateNodeModels("language");
     if (patch || providers) {
@@ -186,9 +194,12 @@ export function saveSettings(update?: (current: Record<string, unknown>) => Reco
     if (data.data?.modelRefreshErrors?.length) ElMessage.warning(`API Key 已保存，部分模型获取失败：${data.data.modelRefreshErrors.join("；")}`);
     return true;
   });
+  lastSettingsSave = saving;
   saveQueue = saving.then(() => {}, () => {});
   return saving;
 }
+
+export async function flushSettings() { await nextTick(); await lastSettingsSave; }
 
 watch(settings, () => {
   if (!settingsReady || applyingSettings) return;

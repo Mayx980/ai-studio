@@ -6,6 +6,7 @@ import type { SkillContext, SkillLocation, SkillScope } from "@toonflow/tools-sc
 import conf from "@/utils/conf";
 import { directory, isEnabled } from "@/utils/skills/files";
 import { isWithin, lockWorkspaceFiles, resolveWorkspacePath, writeWorkspaceFile } from "@/utils/workspace/files";
+import { requireAdmin } from "@/utils/accounts/context";
 
 export function loadAgentSkills(cwd: string, scope?: SkillScope) {
   if (scope !== undefined && scope !== "workspace" && scope !== "global") throw new Error("技能范围无效");
@@ -26,19 +27,21 @@ export function loadAgentSkills(cwd: string, scope?: SkillScope) {
 export function createSkillContext(cwd: string): SkillContext {
   const skillScope = (filePath: string): SkillScope => isWithin(join(cwd, "skill"), filePath) ? "workspace" : "global";
 
-  async function locate(request: SkillLocation, create = false) {
+  async function locate(request: SkillLocation, create = false, writing = false) {
     const scope = create ? request.scope ?? "workspace" : request.scope;
     const skill = loadAgentSkills(cwd, scope).skills.find(skill => skill.name === request.name);
     if (!skill && !create) throw new Error(t`技能不存在：${request.name}`);
     if (!skill && (request.name.length > 64 || !/^[a-z][a-zA-Z0-9]*$/.test(request.name))) throw new Error("新技能名称必须为不超过 64 字符的小驼峰");
     const targetScope = scope ?? skillScope(skill!.filePath);
+    if (targetScope === "global" && writing) requireAdmin();
+    const systemRead = targetScope === "global" && !writing;
     const root = await realpath(targetScope === "workspace" ? cwd : dirname(conf.path));
-    const { path: scopeDirectory } = await resolveWorkspacePath(root, targetScope === "workspace" ? "skill" : "skills", true);
+    const { path: scopeDirectory } = await resolveWorkspacePath(root, targetScope === "workspace" ? "skill" : "skills", true, systemRead);
     const baseDirectory = skill?.baseDir ?? join(scopeDirectory, request.name);
     if (!isWithin(scopeDirectory, baseDirectory)) throw new Error("技能目录超出指定范围");
-    const { path: skillDirectory } = await resolveWorkspacePath(scopeDirectory, relative(scopeDirectory, baseDirectory), true);
+    const { path: skillDirectory } = await resolveWorkspacePath(scopeDirectory, relative(scopeDirectory, baseDirectory), true, systemRead);
     const path = request.path ?? (skill ? basename(skill.filePath) : "SKILL.md");
-    const { path: target } = await resolveWorkspacePath(skillDirectory, path, true);
+    const { path: target } = await resolveWorkspacePath(skillDirectory, path, true, systemRead);
     const filePath = relative(skillDirectory, target).split(sep).join("/");
     if (!skill && filePath !== "SKILL.md") throw new Error("请先创建技能的 SKILL.md，再添加参考资料");
     return { name: request.name, scope: targetScope, path: filePath, target, manifest: basename(target).toLowerCase() === "skill.md" || target === skill?.filePath };
@@ -46,7 +49,7 @@ export function createSkillContext(cwd: string): SkillContext {
 
   async function write(request: SkillLocation & { content: string }, create: boolean, signal?: AbortSignal) {
     signal?.throwIfAborted();
-    const { target, manifest, ...document } = await locate(request, create);
+    const { target, manifest, ...document } = await locate(request, create, true);
     if (manifest) {
       const { frontmatter } = parseFrontmatter(request.content);
       if (frontmatter.name !== request.name || typeof frontmatter.description !== "string" || !frontmatter.description.trim()) {

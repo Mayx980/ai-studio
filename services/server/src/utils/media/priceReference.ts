@@ -1,34 +1,17 @@
+import { detectMimeType } from "./mime";
+export { detectMimeType } from "./mime";
 import { open, stat, withFileAccess } from "@toonflow/file";
 import type { ProviderPriceReference } from "@toonflow/providers";
 import type { MediaReference } from "@toonflow/tools-scaffold/runtime";
 import conf from "@/utils/conf";
+import { lookup, withLocalFile } from "@/utils/mediaStorage/files";
+import { relative } from "node:path";
 import { getStatus } from "@/utils/ffmpeg";
 import { resolveWorkspacePath } from "@/utils/workspace/files";
 
 const references = new Map<string, { revision: string; expires: number; value: Promise<ProviderPriceReference> }>();
 let probeStatus: { config: string; expires: number; value: Promise<string | null> } | undefined;
 
-export function detectMimeType(bytes: Uint8Array, fallback: string) {
-  const header = Buffer.from(bytes.buffer, bytes.byteOffset, Math.min(bytes.byteLength, 16));
-  const text = header.toString("ascii");
-  const mimeType = fallback.split(";")[0].trim().toLowerCase();
-  if (header.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return "image/png";
-  if (header[0] === 255 && header[1] === 216 && header[2] === 255) return "image/jpeg";
-  if (/^GIF8[79]a/.test(text)) return "image/gif";
-  if (text.startsWith("RIFF") && text.slice(8, 12) === "WEBP") return "image/webp";
-  if (text.startsWith("RIFF") && text.slice(8, 12) === "WAVE") return "audio/wav";
-  if (text.startsWith("fLaC")) return "audio/flac";
-  if (text.startsWith("OggS")) return mimeType.startsWith("video/") ? "video/ogg" : mimeType === "audio/opus" ? "audio/opus" : "audio/ogg";
-  if (header[0] === 0xff && (header[1]! & 0xf6) === 0xf0) return "audio/aac";
-  if (text.startsWith("ID3") || (header[0] === 0xff && (header[1]! & 0xe0) === 0xe0 && (header[1]! & 0x06) !== 0)) return "audio/mpeg";
-  if (text.slice(4, 8) === "ftyp") {
-    if (/avif|avis/.test(text.slice(8))) return "image/avif";
-    if (/^M4[AB] $/.test(text.slice(8, 12)) || mimeType.startsWith("audio/")) return "audio/mp4";
-    return text.slice(8, 12) === "qt  " ? "video/quicktime" : "video/mp4";
-  }
-  if (header.subarray(0, 4).equals(Buffer.from([26, 69, 223, 163]))) return mimeType.startsWith("audio/") ? "audio/webm" : "video/webm";
-  return ({ "image/jpg": "image/jpeg", "audio/mp3": "audio/mpeg", "audio/x-wav": "audio/wav", "audio/wave": "audio/wav", "audio/x-flac": "audio/flac" } as Record<string, string>)[mimeType] ?? mimeType;
-}
 
 async function waitForMetadata<T>(value: Promise<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return value;
@@ -87,6 +70,9 @@ async function probeMedia(path: string, mediaType: string, config: string, signa
 async function loadPriceReference(cwd: string, reference: MediaReference, mediaType: string, signal?: AbortSignal): Promise<ProviderPriceReference> {
   signal?.throwIfAborted();
   const { path } = await resolveWorkspacePath(cwd, reference.path);
+  if ((await lookup(path))?.storageKind === "oss") {
+    return withLocalFile(path, local => loadPriceReference(cwd, { ...reference, path: relative(cwd, local) }, mediaType, signal), signal);
+  }
   signal?.throwIfAborted();
   const info = await stat(path);
   signal?.throwIfAborted();

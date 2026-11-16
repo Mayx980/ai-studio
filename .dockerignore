@@ -24,6 +24,13 @@ services/updateServer/build
 **/.env.*
 **/*.log
 **/*.tsbuildinfo
+ops/db/.local
+ops/db/.runtime
+ops/db/database.dev.yaml
+ops/db/database.test.yaml
+ops/db/database.prod.yaml
+ops/db/database.json
+secrets
 **/*.p12
 **/*.pfx
 **/*.p8
@@ -33,3 +40,5 @@ services/updateServer/build
 **/*.keychain-db
 .DS_Store
 Thumbs.db
+
+dbRuntime

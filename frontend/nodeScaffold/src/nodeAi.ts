@@ -17,6 +17,7 @@ export type NodeMediaModel = Omit<MediaModel, "mode"> & {
   mode?: (string | string[])[];
 };
 export type NodeImageRequest = {
+  destination?: { canvas: string; nodeId: string };
   n?: number;
   directory: string;
   providerId: string;
@@ -28,11 +29,11 @@ export type NodeImageRequest = {
   size?: string;
 };
 export type NodeImageResult = { path: string; mimeType: string; mediaType: "image"; warning?: string };
-export type NodeVideoRequest = Omit<MediaGenerationRequest, "size"> & { directory: string; outputDirectory: string };
+export type NodeVideoRequest = Omit<MediaGenerationRequest, "size"> & { directory: string; outputDirectory: string; destination?: NodeImageRequest["destination"] };
 export type NodeVideoResult = { path: string; mimeType: string; mediaType: "video"; warning?: string };
 export type NodeMediaPriceRequest = (NodeImageRequest & { mediaType: "image" }) | (NodeVideoRequest & { mediaType: "video" }) | (NodeAudioRequest & { mediaType: "audio" });
 export type NodeMediaPrice = { price: string; tips: string };
-export type NodeAudioRequest = Pick<MediaGenerationRequest, "providerId" | "modelId" | "prompt" | "images" | "audios" | "voice" | "speed" | "volume" | "pitch" | "language" | "format" | "sampleRate"> & { directory: string; outputDirectory: string };
+export type NodeAudioRequest = Pick<MediaGenerationRequest, "providerId" | "modelId" | "prompt" | "images" | "audios" | "voice" | "speed" | "volume" | "pitch" | "language" | "format" | "sampleRate"> & { directory: string; outputDirectory: string; destination?: NodeImageRequest["destination"] };
 export type NodeAudioResult = { path: string; mimeType: string; mediaType: "audio"; warning?: string };
 export type NodeAiRequest = {
   providerId: string;
@@ -184,9 +185,20 @@ async function requestModel(input: NodeAiRequest, context: Context, model: Model
 
 export function useNodeAi() {
   const adapter = inject<NodeAiAdapter | undefined>("nodeAi", undefined);
+  const capture = inject<(() => { key: string } | undefined) | undefined>("backgroundNodeGeneration", undefined);
   const controller = new AbortController();
   onScopeDispose(() => controller.abort());
-  return createNodeAi(adapter, controller.signal);
+  const ai = createNodeAi(adapter, controller.signal);
+  function destination<T extends NodeImageRequest | NodeVideoRequest | NodeAudioRequest>(input: T): T {
+    const key = capture?.()?.key;
+    const nodeId = /^assets\/([^/]+)$/.exec(input.outputDirectory)?.[1];
+    if (!key || !nodeId) return input;
+    const [directory, canvas] = JSON.parse(key) as [string, string];
+    return directory === input.directory ? { ...input, destination: { canvas, nodeId } } : input;
+  }
+  return { ...ai, generateImage: (input: NodeImageRequest, signal?: AbortSignal) => ai.generateImage(destination(input), signal),
+    generateVideo: (input: NodeVideoRequest, signal?: AbortSignal) => ai.generateVideo(destination(input), signal),
+    generateAudio: (input: NodeAudioRequest, signal?: AbortSignal) => ai.generateAudio(destination(input), signal) };
 }
 
 // 非组件宿主复用同一模型协议，生命周期由请求自己的 signal 管理。

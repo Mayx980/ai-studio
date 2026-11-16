@@ -4,6 +4,8 @@ import { build, createFfmpeg, downloadSources, getToolStatus, installFfmpeg, tar
 import type { DownloadState, FfmpegMode, SourceId } from "@toonflow/ffmpeg";
 import conf from "@/utils/conf";
 import { getRuntimePlatform } from "@/lib/platform";
+import { usesAccounts } from "@/utils/accounts/context";
+import { createMediaFactory } from "./files";
 
 export { executeRemoteFfmpeg } from "@toonflow/ffmpeg";
 
@@ -32,7 +34,7 @@ export async function createWorkspaceFfmpeg(cwd: string, signal?: AbortSignal) {
   const ffmpeg = createFfmpeg(cwd);
   ffmpeg.setFfmpegPath(tools.ffmpeg.path);
   ffmpeg.setFfprobePath(tools.ffprobe.path);
-  return ffmpeg;
+  return usesAccounts() ? createMediaFactory(ffmpeg, cwd, signal) : ffmpeg;
 }
 
 export function getProgress() {

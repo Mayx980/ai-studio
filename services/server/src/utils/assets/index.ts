@@ -5,6 +5,8 @@ import { z } from "zod";
 import conf from "@/utils/conf";
 import { copyWorkspaceFile, isWithin, lockWorkspaceFiles, protectWorkspaceRoot, renameWorkspaceFile, resolveWorkspacePath, writeWorkspaceFile } from "@/utils/workspace/files";
 import { mentionAssetType, type MentionAsset, type MentionQuery } from "@/agent/mentionSources";
+import { readWorkspaceFile, statWorkspaceFile, listWorkspaceFiles, removeWorkspaceFile } from "@/utils/workspace/files";
+import { userRoot } from "@/utils/accounts/context";
 
 const maxAssetBytes = 100 * 1024 * 1024;
 type AssetSearch = { key: string; directory: string; offset: number; touched: number; busy: boolean; iterator: AsyncGenerator<MentionAsset>;
@@ -15,7 +17,8 @@ export const librarySchema = z.enum(["assets", "templates"]);
 export type AssetLibrary = z.infer<typeof librarySchema>;
 
 export async function getAssetsDirectory(library: AssetLibrary = "assets") {
-  const { path: directory } = await resolveWorkspacePath(dirname(conf.path), librarySchema.parse(library));
+  await mkdir(userRoot(), { recursive: true });
+  const { path: directory } = await resolveWorkspacePath(userRoot(), librarySchema.parse(library));
   try { return await realpath(directory); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -32,10 +35,10 @@ async function resolveAssetPath(path: string, library: AssetLibrary = "assets") 
 }
 
 async function readAssetContents(path: string, signal?: AbortSignal) {
-  const info = await lstat(path);
+  const info = await statWorkspaceFile(path);
   if (!info.isFile()) throw Object.assign(new Error("只能读取普通素材文件"), { status: 400 });
   if (info.size > maxAssetBytes) throw Object.assign(new Error("素材文件不能超过 100 MB"), { status: 413 });
-  const content = await readFile(path, { signal });
+  const content = await readWorkspaceFile(path, signal);
   if (content.byteLength > maxAssetBytes) throw Object.assign(new Error("素材文件不能超过 100 MB"), { status: 413 });
   return content;
 }
@@ -78,12 +81,12 @@ export async function createAssetDirectory(path: string, library: AssetLibrary =
 
 export async function moveAsset(path: string, target: string, library: AssetLibrary = "assets") {
   const source = await resolveAssetPath(path, library);
-  if ((await lstat(source.path)).isFile()) requireMediaFolder(target, library);
+  if ((await statWorkspaceFile(source.path)).isFile()) requireMediaFolder(target, library);
   const destination = await resolveAssetPath(target, library);
   destination.path = resolve(dirname(destination.path), basename(resolve(destination.directory, target)));
   const release = lockWorkspaceFiles([source.path, destination.path]);
   try {
-    if ((await lstat(source.path)).isDirectory()) {
+    if ((await statWorkspaceFile(source.path)).isDirectory()) {
       if (relative(source.path, destination.path) !== "" && isWithin(source.path, destination.path)) {
         throw new Error("不能把素材文件夹移动到自身的子目录");
       }
@@ -98,13 +101,12 @@ export async function removeAsset(path: string, recursive = false, library: Asse
   const target = await resolveAssetPath(path, library);
   const release = lockWorkspaceFiles([target.path]);
   try {
-    const info = await lstat(target.path);
+    const info = await statWorkspaceFile(target.path);
     if (info.isDirectory()) {
       await closeAssetSearches(target.path);
-      if (recursive) await rm(target.path, { recursive: true });
-      else await rmdir(target.path);
+      await removeWorkspaceFile(target.path, recursive);
     }
-    else if (info.isFile()) await unlink(target.path);
+    else if (info.isFile()) await removeWorkspaceFile(target.path);
     else throw new Error("只能删除普通素材文件或空文件夹");
   } finally { release(); }
 }
@@ -118,7 +120,7 @@ function requireMediaFolder(path: string, library: AssetLibrary) {
 
 export async function copyAssetFile(path: string, target: string, library: AssetLibrary = "assets") {
   const source = await resolveAssetPath(path, library);
-  if ((await lstat(source.path)).isFile()) requireMediaFolder(target, library);
+  if ((await statWorkspaceFile(source.path)).isFile()) requireMediaFolder(target, library);
   const destination = await resolveAssetPath(target, library);
   const release = lockWorkspaceFiles([source.path, destination.path]);
   try { await copyWorkspaceFile(source.path, destination.path); }
@@ -156,8 +158,8 @@ async function closeAssetSearches(path: string) {
 async function* walkAssets(directory: string, path: string, recursive: boolean, depth = 0): AsyncGenerator<MentionAsset> {
   if (depth > 64) return;
   const resolved = await resolveWorkspacePath(directory, path);
-  const entries = await opendir(resolved.path);
-  for await (const entry of entries) {
+  const entries = await listWorkspaceFiles(resolved.path);
+  for (const entry of entries) {
     if (!entry.isFile() && !entry.isDirectory()) continue;
     const relativePath = path && path !== "." ? `${path}/${entry.name}` : entry.name;
     yield { name: entry.name, path: relativePath, type: entry.isDirectory() ? "directory" : "file",

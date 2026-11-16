@@ -1,15 +1,13 @@
 # 构建与运行
 
-在仓库根目录准备 Bun 1.3.14 及工作区依赖后，执行 `bun run build:server`。该脚本调用 `ops/buildStandalone.ts`，构建节点、工具、编辑器插件、Web、Server、MCP，并复制供应商和技能到根 `build/`。随后 `bun run start:server` 运行构建版，默认访问 `http://localhost:3000`。
+仓库根目录准备Bun 1.3.14和工作区依赖后，执行 `bun run build:server`，产物在 `build/`。聚合构建包含节点、工具、编辑器、Web、Server、MCP以及 `build/server/createAdmin.js`；构建不初始化数据库或接管资料。
 
-容器入口为 `ops/Dockerfile` 和 `ops/compose.yaml`。在根目录执行 `docker compose -f ops/compose.yaml up --build`，构建上下文仍为仓库根；容器数据卷和端口沿用现有配置。容器构建、上线、签名、桌面和移动打包需要对应环境与独立操作，未执行时不声称通过。
+- [多用户部署](database.md)：Compose、原卷复用、连接及加密密钥、结构初始化、管理员接管、健康与恢复。
+- [公司HTTP云存储](storage.md)：后填配置、网络、模型允许地址、媒体及云对象保留。
+- [数据库运维](db/runbook.md)：当前版本独立操作包，不需要Skill。
+- [源码手册](../docs/sourceDevelopment.md)：源码运行、平台依赖与现有检查。
+- [更新服务](../services/updateServer/readme.md)：独立更新制品服务。
 
-平台准备、安装包、更新制品及发布命令的唯一详细说明见[源码手册](../docs/sourceDevelopment.md)与[更新服务](../services/updateServer/readme.md)。`.github/workflows/` 保留上游配置，在本 GitLab 项目不自动执行；本次不增加 GitLab CI 或生产部署。
+`ops/compose.yaml`默认单个应用和内部MySQL，无Caddy、无新增Go服务、不改APISIX。必须显式选现有数据卷及填写配置，不能直接沿用旧版“up即共享匿名可用”的步骤。未配置数据库/schema/密钥/OSS时健康失败，不自动建表或回退JSON。
 
-## 独立账号与数据库运行方案候选（尚未实现）
-
-本轮按人工要求把无数据库候选改为独立 MySQL 服务；具体服务、卷、最小权限、接管、健康、备份恢复和固定命名例外见 [database](database.md)。该方案尚待本版 Plan 审阅，当前 Compose/镜像没有新增数据库，不能按文档宣称已可运行。
-
-目标保留现有应用 HTTP 端口、appData 和 APISIX 转发，仅增加内部数据库及独立 mysqlData 卷。数据库保存账号/会话及用户业务元数据；本轮新媒体拟接公司HTTP云存储，旧媒体与画布/对话/模板JSON仍在原卷；首个管理员通过受控本地入口接管旧资料。实际镜像、初始化、同版本运维和目标机命令待实现并验证后给出，本次不连接环境数据库或部署。
-
-公司HTTP云存储的候选配置、网络、备份和删除缺口见 [storage](storage.md)。服务地址和bucket由部署人员后填，支持配置文件及环境变量；不新增Go服务、不改APISIX或自动迁移旧媒体。当前Compose仍无这些配置，实现/联调完成前不宣称可用。
+本轮未在目标机部署、连接数据库/OSS或进行生产操作。桌面、移动打包和签名在对应平台验证；`.github/workflows/`保留上游资料，不新增GitLab CI或测试入口。

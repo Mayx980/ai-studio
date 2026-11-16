@@ -2,7 +2,7 @@ import { t } from "@/lib/i18n";
 import { listMediaModels, generateMedia } from "@/utils/media/generation";
 import { createWorkspaceFfmpeg } from "@/utils/ffmpeg";
 import { createBrowserContext } from "@/utils/browser";
-import { importImage } from "@/utils/workspace/chatImages";
+import { importImage, fetchPublicResource } from "@/utils/workspace/chatImages";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { access, constants, copyFile, lstat, mkdir, readFile, readdir, rm, rmdir, stat, withFileAccess } from "@toonflow/file";
 import {
@@ -16,6 +16,8 @@ import { listTools, loadTool, validateToolConfig } from "@/utils/plugins/tools";
 import { createSkillContext } from "@/agent/skills";
 import { createAssetContext } from "@/agent/assets";
 import { readDocument } from "@/utils/documents";
+import { readWorkspaceFile, statWorkspaceFile, listWorkspaceFiles, copyWorkspaceFile, removeWorkspaceFile } from "@/utils/workspace/files";
+import { withLocalFile } from "@/utils/mediaStorage/files";
 
 export function createAgentToolContext(cwd: string, config: Record<string, unknown> = {}, canvas?: CanvasContext, question?: QuestionContext, workspaceAvailable = true): ToolContext {
   const skillsDirectory = join(dirname(conf.path), "skills");
@@ -24,7 +26,7 @@ export function createAgentToolContext(cwd: string, config: Record<string, unkno
     requireWorkspace();
     const absolute = resolve(cwd, path);
     const root = readOnly && isWithin(skillsDirectory, absolute) ? skillsDirectory : cwd;
-    return (await resolveWorkspacePath(root, relative(root, absolute), true)).path;
+    return (await resolveWorkspacePath(root, relative(root, absolute), true, readOnly && root === skillsDirectory)).path;
   };
   const withWritePaths = async (paths: string[], operation: (targets: string[]) => Promise<void>) => {
     const targets = await Promise.all(paths.map(path => resolvePath(path)));
@@ -34,13 +36,17 @@ export function createAgentToolContext(cwd: string, config: Record<string, unkno
   };
   const files: ToolFiles = {
     importImage: url => { requireWorkspace(); return importImage(cwd, url); },
-    readFile: async (path, readOnly = false) => readFile(await resolvePath(path, readOnly)),
-    access: async (path, readOnly = false) => access(await resolvePath(path, readOnly)),
-    stat: async (path, readOnly = false) => stat(await resolvePath(path, readOnly)),
-    readdir: async (path, readOnly = false) => readdir(await resolvePath(path, readOnly)),
+    readFile: async (path, readOnly = false) => {
+      const target = await resolvePath(path, readOnly);
+      return readOnly && isWithin(skillsDirectory, target) ? readFile(target) : readWorkspaceFile(target);
+    },
+    access: async (path, readOnly = false) => { await statWorkspaceFile(await resolvePath(path, readOnly)); },
+    // ACT: SDK需要完整原生Stats时仅物化临时文件；云对象不伪造POSIX设备、inode或权限字段。
+    stat: async (path, readOnly = false) => withLocalFile(await resolvePath(path, readOnly), local => stat(local)),
+    readdir: async (path, readOnly = false) => (await listWorkspaceFiles(await resolvePath(path, readOnly))).map(entry => entry.name),
     detectImageMimeType: async (path, readOnly = false) => {
       const target = await resolvePath(path, readOnly);
-      return withFileAccess([target], "read", () => detectSupportedImageMimeTypeFromFile(target));
+      return withLocalFile(target, local => withFileAccess([local], "read", () => detectSupportedImageMimeTypeFromFile(local)));
     },
     writeFile: (path, content, exclusive = false) => withWritePaths([path], async ([target]) => {
       await writeWorkspaceFile(target, content, exclusive);
@@ -63,15 +69,14 @@ export function createAgentToolContext(cwd: string, config: Record<string, unkno
     }),
     remove: (path, recursive = false) => withWritePaths([path], async ([target]) => {
       protectWorkspaceRoot(cwd, target);
-      if ((await lstat(target)).isDirectory() && !recursive) await rmdir(target);
-      else await rm(target, { recursive });
+      await removeWorkspaceFile(target, recursive);
     }),
     copyFile: (path, target, exclusive = false) => withWritePaths([path, target], async ([source, destination]) => {
-      await copyFile(source, destination, exclusive ? constants.COPYFILE_EXCL : 0);
+      await copyWorkspaceFile(source, destination);
     }),
   };
   return {
-    cwd, config, files, resolvePath, writeFile: files.writeFile, canvas, question,
+    cwd, config, files, resolvePath, writeFile: files.writeFile, canvas, question, fetch: fetchPublicResource,
     skills: workspaceAvailable ? createSkillContext(cwd) : undefined, assets: workspaceAvailable ? createAssetContext(cwd) : undefined,
     browser: createBrowserContext(cwd),
     ffmpeg: signal => { requireWorkspace(); return createWorkspaceFfmpeg(cwd, signal); },

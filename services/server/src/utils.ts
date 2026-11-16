@@ -4,8 +4,13 @@ import * as singleAgent from "@/utils/singleAgent";
 import * as desktop from "@/utils/desktop";
 import * as providerDebug from "@/utils/media/debug";
 import * as mediaGeneration from "@/utils/media/generation";
+import * as mediaTasks from "@/utils/media/tasks";
 import * as mediaProvider from "@/utils/media/provider";
 import * as mediaBilling from "@/utils/media/billing";
+import * as mediaStorage from "@/utils/mediaStorage";
+import * as database from "@/utils/database";
+import * as databaseSecrets from "@/utils/database/secrets";
+import * as accounts from "@/utils/accounts";
 import * as ffmpeg from "@/utils/ffmpeg";
 import * as pluginInstall from "@/utils/plugins/install";
 import conf, { cleanNodeMenuSettings, removeLegacySettings } from "@/utils/conf";
@@ -38,8 +43,13 @@ export default {
   desktop,
   providerDebug,
   mediaGeneration,
+  mediaTasks,
   mediaProvider,
   mediaBilling,
+  mediaStorage,
+  database,
+  databaseSecrets,
+  accounts,
   ffmpeg,
   pluginInstall,
   conf,

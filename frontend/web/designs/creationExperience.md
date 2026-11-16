@@ -489,9 +489,9 @@ Qwen 3.0／2.1 图像模型按[厂商异步协议](https://help.aliyun.com/zh/mo
 
 画布旁的非全屏 Agent 侧栏右上角增加关闭图标及“关闭”提示，顶部预留操作空间，避免覆盖对话正文。点击只更新既有可见状态收起侧栏，不销毁会话或新建对话；底部 Agent 入口可重新展开。全屏简单模式和自定义素材分屏沿用现有入口。
 
-## 正式账号接入候选（Issue #7 Plan 待审）
+## 正式账号接入（Issue #7 已确认实施）
 
-依据 [note 131174](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_131174)，正式 Server 改为独立登录；本节替代原型的演示账号及共享版“无需账号”的适用部分，尚未实现。认证协议和资料归属见 [accounts](../../../contracts/data/accounts.md)。
+依据 [note 131174](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_131174)，正式 Server 改为独立登录；本节替代原型的演示账号及共享版“无需账号”的适用部分，已接入本版源码，真实环境验收尚未执行。认证协议和资料归属见 [accounts](../../../contracts/data/accounts.md)。
 
 复用现有 `/login`、AFXEN 品牌、主题和 Element Plus 组件，把演示账号单选换成用户名/密码表单；支持 Enter、密码自动填充/粘贴、显示密码、提交中防重复及可访问的行内错误，不添加社交登录、注册或新品牌页面。登录先于设置/项目/模型加载，失效转登录页而不是“启动失败”。
 

@@ -20,7 +20,7 @@ export default router.put("/", validateFields({ directory: z.string().min(1).max
   try {
     const bytes = encodeText(req.body ?? Buffer.alloc(0), req.query.encoding as TextEncoding | undefined);
     if (req.query.expectedRevision) {
-      const previous = await readFile(path).catch(error => {
+      const previous = await u.workspaceFile.readWorkspaceFile(path).catch(error => {
         if (error.code === "ENOENT") throw Object.assign(new Error("文件已被删除或移动，未覆盖磁盘内容"), { status: 409, code: "ESTALE" });
         throw error;
       });

@@ -36,7 +36,8 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent, shallowRef } from "vue";
+import { computed, defineAsyncComponent, shallowRef } from "vue";
+import { accountsRequired, isAdministrator } from "@/stores/accounts";
 import { hasDesktopUpdate } from "@/stores/desktopUpdate";
 import {
   IconPalette,
@@ -50,7 +51,7 @@ import {
   IconUserCog,
 } from "@tabler/icons-vue";
 
-const settingsPanels = [
+const allPanels = [
   { id: "ui", label: "外观", icon: IconPalette, component: defineAsyncComponent(() => import("./panels/ui.vue")) },
   { id: "api", label: "API 配置", icon: IconKey, component: defineAsyncComponent(() => import("@/components/serverApiSettings.vue")) },
   { id: "general", label: "常规配置", icon: IconSettings, component: defineAsyncComponent(() => import("./panels/general/index.vue")) },
@@ -73,7 +74,8 @@ const settingsPanels = [
   { id: "developer", label: "开发者选项", icon: IconCode, component: defineAsyncComponent(() => import("./panels/developer/index.vue")) },
   { id: "about", label: "关于", icon: IconInfoCircle, component: defineAsyncComponent(() => import("./panels/about.vue")) },
 ];
-const activePanel = shallowRef(settingsPanels[0]!);
+const settingsPanels = computed(() => allPanels.filter(item => !accountsRequired.value || item.id !== "mcp" && (!["pluginMarket", "developer"].includes(item.id) || isAdministrator.value)));
+const activePanel = shallowRef(allPanels[0]!);
 const visible = defineModel<boolean>({ default: false });
 </script>
 

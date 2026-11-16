@@ -20,15 +20,17 @@
 
 所有代码单元采用 `project_observed`；保留 Bun、TypeScript、Vue、Express 和现有依赖，不因工具默认值切换包管理器。Preview 的项目适配和未支持的 Docker 路径见[运行说明](../frontend/previewGuide.md)。
 
-AFXEN 页面沿用人工合入的原型交互，正式组装改为共享 Server：工作区保存项目/画布/会话和生成素材，固定全局库保存资产与模板，共享索引独立以 revision 更新。实例级模型凭据由 Server 保存，普通读取只返回配置状态；供应商调用与结果下载在 Server 执行。具体协议见 [studio](../contracts/data/studio.md) 和 [settings](../contracts/data/settings.md)。
+AFXEN页面沿用已合入原型交互，正式Web由Bun/Express提供真实账号与按用户隔离的数据边界。现有server拥有SQL元数据、文件卷和公司HTTP媒体存储的业务职责；MySQL及OSS是基础设施依赖，不另造本仓源码实体。独立数据库协议目标见 [NFR](nfr.md)。
 
-访问同一实例的浏览器共享同一数据边界，没有生产账号、个人隔离或可信管理员权限。旧浏览器业务数据保留，不自动导入；首次教学和视图等偏好仍可在当前浏览器记录。单进程文件锁和版本校验阻止过期快照覆盖，不提供实时协作或持久任务队列。
+用户配置与加密模型凭据、项目/库/媒体索引存MySQL；画布、对话和模板正文保持原JSON，新媒体以SQL映射指向云对象。原共享资料经本地显式接管归初始管理员，旧文件只读保留；新账号使用独立用户根。浏览器业务数据不自动导入或清除。具体合同见 [accounts](../contracts/data/accounts.md)、[database](../contracts/data/database.md) 和 [mediaStorage](../contracts/data/mediaStorage.md)。
+
+部署仍为一个可写应用实例；文件协调、SDK会话和后台任务在进程内，不承诺多副本写入或持久任务队列。模型请求只使用所属用户配置，任务与结果保留发起owner。已接受媒体请求不因切画布/HTTP断开而自动停止，显式停止保留原权限校验。
 
 ## 服务与页面通信矩阵
 
 | 调用方（页面） | 被调方（服务） | 关系 | 认证边界 | Contract identity |
 | --- | --- | --- | --- | --- |
-| `web` | `server` | HTTP 查询、命令与事件流 | 保留现有工作区授权及应用来源校验；本次不新增账号 | [settings](../contracts/data/settings.md)，其余接口见现有 [routes](../services/server/src/routes) |
+| `web` | `server` | HTTP 查询、命令与事件流 | opaque Session、CSRF、页面身份一致性及用户根授权；原生local保留本机边界 | [settings](../contracts/data/settings.md)，其余接口见现有 [routes](../services/server/src/routes) |
 
 ## 服务间通信与事件矩阵
 
@@ -45,8 +47,14 @@ AFXEN 页面沿用人工合入的原型交互，正式组装改为共享 Server�
 
 | 数据域 | 唯一归属 Entity | Contract identity | 说明 |
 | --- | --- | --- | --- |
-| 应用配置、共享创作索引与工作区文件 | `server` | [settings](../contracts/data/settings.md) | 维持进程级单例、数据目录和路径边界 |
-| 更新文件 | `updateserver` | [updateArtifacts](../contracts/data/updateArtifacts.md) | 仅服务既有发布器产生的普通文件 |
+| 账号、会话、个人配置/凭据、项目/库/媒体元数据 | `server` | [database](../contracts/data/database.md) | 唯一SQL业务owner，MySQL为其内部部署依赖 |
+
+## 文件与制品归属
+
+| 文件范围 | 唯一归属 Entity | Contract identity | 说明 |
+| --- | --- | --- | --- |
+| 画布、对话、模板正文、旧媒体与可信插件 | `server` | [studio](../contracts/data/studio.md) | 原文件格式和单进程冲突边界保留；新媒体按云存储合同 |
+| 更新文件 | `updateserver` | [updateArtifacts](../contracts/data/updateArtifacts.md) | 仅既有发布器的普通制品，不使用本次业务SQL |
 
 ## 跨实体关系
 
@@ -58,21 +66,12 @@ AFXEN 页面沿用人工合入的原型交互，正式组装改为共享 Server�
 
 配置和文件冲突协调均为单进程；不承诺多进程并发写同一工作区。生成调用仍由真实供应商能力决定，不自动付费重试，不将 Scenario 的可达性作为模型成功证据。统一文件操作继续使用 `@toonflow/file`，完整快照显式原子保存；软件测试仍由软测承担。
 
-## 独立账号修订目标（待计划确认，未实现）
+## 安全与兼容边界
 
-[note 131174](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_131174) 将上述实例共享目标替换为用户隔离。独立账号仍使用 `web`、`server`；本轮 [note 131340](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_131340) 进一步要求新增数据库服务，候选由 Compose 部署 MySQL 8.4 LTS，不新增独立认证服务或伪造数据库源码实体。当前代码仍按上文共享边界运行；以下目标须经本版 Plan 确认和实现验证，不因写入架构文档自动生效。
+Web先取得真实会话再初始化个人业务Store。所有个人API、媒体和事件流验证身份及owner；普通用户不能安装、编辑或调试服务端可执行扩展。多用户standalone不挂载未绑定用户的外部MCP/A2A和设备互联入口，原生宿主通过明确local参数保留原流程。仅伪造header不能切回local。
 
-| 边界 | 目标 |
-| --- | --- |
-| 页面到 Server | 真实账号会话先于业务数据初始化；所有个人 API、媒体与事件流由服务端核对身份及归属，修改/生成防 CSRF |
-| 用户资料 | 账号/会话、个人配置和项目/资产/模板/媒体索引存数据库；新媒体拟接公司HTTP云存储，旧媒体及画布/对话/模板JSON留原卷；模型配置及 Key 只供所属用户调用，不随通用读取回传 |
-| 原共享资料 | 文件原位归初始管理员，索引和配置经显式事务接管入库；不覆盖原 JSON，不双写；新用户从空资料开始 |
-| 实例资源 | 账号记录、可信插件代码和宿主设置由 Server 保管；普通用户不具备服务端任意代码/文件操作权限 |
-| 异步执行 | 任务、Agent、缓存及订阅绑定用户，结果固定回写发起用户的原项目；不承诺重启后的任务恢复 |
-| 外部旁路 | 多用户 standalone 不开放未绑定用户的 MCP/A2A/设备互联监听；原生本机模式保留明确的启动边界，不以 HTTP header 绕过登录 |
+公司HTTP OSS没有鉴权，部署侧限制其可达范围；浏览器只访问AFXEN授权媒体代理。模型出站使用供应商和运维登记的base，公共网页下载校验DNS并固定公网IP，避免普通工具绕过内网存储。FFmpeg仅接受受控文件与当前编辑参数，临时物化云输入；输出发布成功后才报告成功。可信部署管理员及其安装代码仍在信任边界内，不宣称能防御恶意宿主。
 
-候选采用 MySQL 8.4 LTS/InnoDB 与 Bun SQL；协议兼容目标 mysql 8.4 尚待本版人工确认，批准后才写入 NFR。SQL 数据域由现有 server 唯一负责，部署数据库是其基础设施依赖；精确数据范围见 [database](../contracts/data/database.md)，运维材料及固定命名例外见 [运行方案](../ops/database.md)。文件写入继续单进程，保留版本冲突保护，不能因数据库存在扩多个写实例。没有跨用户实时协作或分享，也不把可信服务器管理员纳入抵御恶意宿主的隔离承诺。
+系统conf单例保留实例资源配置；个人配置由请求上下文消费数据库，不每用户再建conf。启动缺上下文不借用管理员Key；缺数据库、schema、密钥或OSS配置明确失败，不自动建立、降级或回退JSON。数据、字段及错误在相应Contract维护；内部实现见 [accountIsolation](../services/server/designs/accountIsolation.md)。
 
-账号及兼容数据规则见 [accounts](../contracts/data/accounts.md)，服务内部实现设计见 [accountIsolation](../services/server/designs/accountIsolation.md)，既有协议的修订见 [studio](../contracts/data/studio.md) 与 [settings](../contracts/data/settings.md)。所有设计仅对应本次范围，旧业务验收仍按 PRD 保留。
-
-本轮云存储修订保留 Bun 后端，复用公司既有无鉴权 HTTP storage；AFXEN 负责当前用户授权及同源媒体代理，外部存储地址只从部署配置读取。实际网络隔离是用户资料保密的前提，不以隐藏 URL 代替。精确协议、缺少的物理删除/签名链接能力及仍待确认的提议见 [mediaStorage](../contracts/data/mediaStorage.md)，配置与恢复见 [storage](../ops/storage.md)。该段为待审目标，不表示当前共享代码已接入云存储。
+Compose及运维见 [database](../ops/database.md)、[storage](../ops/storage.md)。本轮只交付源码与材料，未执行环境连接、资料接管、部署或生产操作。真实模型、双账号、恢复和原生平台验证按实际结果交接。

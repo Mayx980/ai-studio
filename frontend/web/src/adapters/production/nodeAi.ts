@@ -1,6 +1,7 @@
 import { EventSourceParserStream } from "eventsource-parser/stream";
 import type { NodeAiPort, NodeAiHostEvent, NodeMediaPrice } from "@toonflow/nodes-scaffold/nodeAi";
 import { ElMessage } from "element-plus";
+import { authenticatedFetch } from "./accounts";
 
 async function readResult<T>(response: Response): Promise<T> {
   const result = await response.json();
@@ -11,10 +12,10 @@ async function readResult<T>(response: Response): Promise<T> {
 export function createNodeAiPort(): NodeAiPort {
   return {
     loadModels(kind) {
-      return fetch(kind === "language" ? "/api/ai/models" : "/api/ai/media/models", { cache: "no-store" }).then(readResult<unknown[]>);
+      return authenticatedFetch(kind === "language" ? "/api/ai/models" : "/api/ai/media/models", { cache: "no-store" }).then(readResult<unknown[]>);
     },
     async *streamText(input, signal) {
-      const response = await fetch("/api/ai/generate", {
+      const response = await authenticatedFetch("/api/ai/generate", {
         method: "POST", headers: { "Content-Type": "application/json", "x-toonflow-workspace": "1" },
         body: JSON.stringify(input), signal,
       });
@@ -36,16 +37,22 @@ export function createNodeAiPort(): NodeAiPort {
       }
     },
     quoteMedia(input, signal) {
-      return fetch("/api/ai/media/price", {
+      return authenticatedFetch("/api/ai/media/price", {
         method: "POST", headers: { "Content-Type": "application/json", "x-toonflow-workspace": "1" }, body: JSON.stringify(input), signal,
       }).then(readResult<NodeMediaPrice | null>);
     },
     async generateMedia(mediaType, input, signal) {
-      const files = await readResult<{ path: string; mimeType: string; mediaType: typeof mediaType; warning?: string }[]>(await fetch("/api/ai/media/generate", {
-        method: "POST", headers: { "Content-Type": "application/json", "x-toonflow-workspace": "1" }, body: JSON.stringify({ ...input, mediaType }), signal,
-      }));
-      for (const warning of new Set(files.flatMap(file => file.warning ? [file.warning] : []))) ElMessage({ type: "warning", message: warning, duration: 0, showClose: true });
-      return files;
+      const requestId = crypto.randomUUID();
+      const stop = () => { void authenticatedFetch("/api/ai/media/stop", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requestId }) }).catch(() => {}); };
+      signal.throwIfAborted();
+      signal.addEventListener("abort", stop, { once: true });
+      try {
+        const files = await readResult<{ path: string; mimeType: string; mediaType: typeof mediaType; warning?: string }[]>(await authenticatedFetch("/api/ai/media/generate", {
+          method: "POST", headers: { "Content-Type": "application/json", "x-toonflow-workspace": "1" }, body: JSON.stringify({ ...input, mediaType, requestId }), signal,
+        }));
+        for (const warning of new Set(files.flatMap(file => file.warning ? [file.warning] : []))) ElMessage({ type: "warning", message: warning, duration: 0, showClose: true });
+        return files;
+      } finally { signal.removeEventListener("abort", stop); }
     },
   };
 }

@@ -2639,5 +2639,6 @@
   "画布平移": "Di chuyển khung vẽ",
   "框选节点": "Chọn nút bằng khung",
   "追加选择": "Thêm vào vùng chọn",
-  "追加选择只绑定修饰键，例如 Ctrl 或 Meta。": "Thêm vào vùng chọn chỉ nhận phím bổ trợ, chẳng hạn Ctrl hoặc Meta."
+  "追加选择只绑定修饰键，例如 Ctrl 或 Meta。": "Thêm vào vùng chọn chỉ nhận phím bổ trợ, chẳng hạn Ctrl hoặc Meta.",
+  "密码操作过多，请稍后再试": "Có quá nhiều thao tác mật khẩu. Vui lòng thử lại sau."
 }

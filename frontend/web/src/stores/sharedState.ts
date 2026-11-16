@@ -1,6 +1,7 @@
 import { studio } from "@/ports";
 import { nextTick } from "vue";
 import { ElMessage } from "element-plus";
+import { accountsRequired, currentUser } from "./accounts";
 
 export const sharedStoreKeys = ["toonflow.projectList", "aiStudio.assetTags"];
 type SharedState = { revision: string; stores: Record<string, unknown> };
@@ -34,11 +35,21 @@ export async function loadSharedState() {
 export const sharedStorage = {
   getItem(key: string) {
     if (!loaded) throw new Error("共享创作索引尚未加载");
+    if (accountsRequired.value && key === "toonflow.projectList") {
+      const state = Object.hasOwn(stores, key) ? stores[key] : {};
+      const view = sessionStorage.getItem(`afxenProjectView.${currentUser.value!.id}`);
+      return JSON.stringify({ ...(state as object), ...(view ? JSON.parse(view) : { project: null, lastSimpleDirectory: "" }) });
+    }
     return Object.hasOwn(stores, key) ? JSON.stringify(stores[key]) : null;
   },
   setItem(key: string, value: string) {
     if (!loaded || !sharedStoreKeys.includes(key)) throw new Error("共享存储键无效或尚未加载");
-    const next: unknown = JSON.parse(value);
+    const next = JSON.parse(value);
+    if (accountsRequired.value && key === "toonflow.projectList") {
+      sessionStorage.setItem(`afxenProjectView.${currentUser.value!.id}`, JSON.stringify({ project: next.project ?? null, lastSimpleDirectory: next.lastSimpleDirectory ?? "" }));
+      delete next.project;
+      delete next.lastSimpleDirectory;
+    }
     if (Object.hasOwn(stores, key) && JSON.stringify(stores[key]) === JSON.stringify(next)) return;
     stores = { ...stores, [key]: next };
     const requested = structuredClone(stores);

@@ -20,6 +20,7 @@
 8. **禁止使用短横线命名、蛇形命名、帕斯卡命名或全大写格式作为文件/文件夹名**，项目中已存在的例外情况不作为新开发的参考依据。
 9. **组件文件名同样严格遵循小驼峰规则**，例如 `tabHeader.ts`、`splitPane.ts`、`loginForm.ts`，禁止使用 `TabHeader.ts` 或 `tab-header.ts` 这类格式。
    - Issue #7 工程接入的限定例外：工具固定要求的 `facts/code-units/` 和 `uiux_manifest.md` 保留规定名称；此例外不适用于其他新文件、目录或组件。
+   - Issue #7 数据库工具限定例外（notes 131807、131814）：`ops/db/db-ops`、`ops/db/README.md`、`ops/db/.gitignore`、`ops/db/database.template.yaml`、`ops/db/fixed-files.json`、`ops/db/lib/db_ops.py`、`ops/db/operations/check.input.schema.json`、`ops/db/profiles/mysql-8.4.json`、固定本地 `ops/db/.runtime/`、`ops/db/.local/`、`ops/db/database.dev.yaml`、`ops/db/database.test.yaml`、`ops/db/database.prod.yaml`，以及 `ops/db/operations/table_check.py`、`ops/db/operations/table_check.input.schema.json`、`ops/db/operations/table_check.example.json` 保留工具固定名称。仅限这些精确路径，其余新增源码与文件仍小驼峰。
 10. **自有组件（项目内自己编写的组件）的文件名、本地绑定名和模板标签必须使用小驼峰**，例如 `showBox.vue`、`import showBox from "./showBox.vue"`、`<showBox />`，不得使用 `<show-box />`。
 11. **第三方 UI/组件库的模板标签允许使用短横线分隔（kebab-case）或小驼峰，优先统一使用短横线分隔**，例如 `<el-button />`、`<vue-flow />`、`<icon-map />`；此规则不放宽自有文件、变量或 DOM 类名的小驼峰要求。
 12. **所有组件模板标签及自有组件本地绑定名绝对禁止大驼峰（PascalCase）**，例如禁止 `<ShowBox />`、`<ElButton />`、`<VueFlow />`。第三方组件直接按库原始导出名导入，例如 `import { ElButton } from "element-plus"`、`import { VueFlow } from "@vue-flow/core"`，模板分别使用 `<el-button />`、`<vue-flow />`；脚本及模板表达式直接使用原始导出名，不添加仅用于转小驼峰的 `as` 别名。类型名、库导出名及工具自动生成的声明不属于模板标签，不手工改写自动生成文件。
@@ -174,6 +175,7 @@ services/server/
 
 - `conf` 只在 `src/utils/conf/index.ts` 初始化，通过 `src/utils.ts` 统一导出，接口使用 `u.conf`。不要在每个接口或每次请求中创建实例。
 - 配置统一存为数据目录下的 `settings.json`，保持 `configName: "settings"`、`configFileMode: 0o600`。开发环境使用仓库根目录 `data/`，该目录必须被 Git 忽略；生产环境使用安装目录下的 `data/`，不再使用默认用户配置目录。
+  - Issue #7 已确认的多用户Web采用SQL个人配置和加密凭据，原生local及实例资源仍复用该conf单例；请求上下文读取个人配置，缺上下文不借用管理员数据。具体分工见 [账号隔离设计](services/server/designs/accountIsolation.md) 与 [数据库合同](contracts/data/database.md)，不另建个人conf或故障回退JSON。
 - 启动入口通过 `createApp` 在路由加载前确定 `TOONFLOW_DATA_DIR`，读写必须使用同一目录。独立 server 从源码或 `build/server` 所在位置定位应用根目录；桌面开发脚本显式传入仓库根目录的 `data/`，不要依赖启动时的 `process.cwd()`。
 - Windows 桌面使用实际安装根目录的 `data/`（与可更新的 `app/` 同级），macOS 使用 `.app` 所在目录的 `data/`。不要写入可被更新替换的程序资源或应用包内部。
 - 当前保存接口接收 `{ settings: { ... } }`，使用 `z.record(z.string(), z.json())` 校验设置对象；完整覆盖保存，读取时返回 `settings`，未保存时返回 `{}`。

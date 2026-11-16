@@ -1,6 +1,6 @@
-# 服务端用户隔离候选
+# 服务端用户隔离设计
 
-本设计服务于 Issue #7 独立账号修订，尚未实现，需与 [Plan](../../../.wf-prod/plans/issue-7/plan.md) 一并确认。系统与数据规则分别见 [architecture](../../../architecture/architecture.md)、[accounts](../../../contracts/data/accounts.md)。遵循项目 AGENTS 的 Bun/Express、统一文件入口和单进程边界，不引入服务框架；本轮按人工要求增加 MySQL，数据事务见 [database](../../../contracts/data/database.md)。
+本设计服务于 Issue #7 独立账号修订，已接入源码，真实环境未联调，需与 [Plan](../../../.wf-prod/plans/issue-7/plan.md) 一并确认。系统与数据规则分别见 [architecture](../../../architecture/architecture.md)、[accounts](../../../contracts/data/accounts.md)。遵循项目 AGENTS 的 Bun/Express、统一文件入口和单进程边界，不引入服务框架；本轮按人工要求增加 MySQL，数据事务见 [database](../../../contracts/data/database.md)。
 
 ## 配置、路径与异步归属
 
@@ -34,10 +34,12 @@ Agent 会话、singleAgent 会话、question/canvas bridge、事件流和任务 
 
 用户模型 Key 按数据库合同加密入库，连接及根加密密钥从受限 secret 文件取得；缺密钥必须停止读取，不自动换钥或覆盖旧密文。旧 JSON 接管成功后只作来源备份，所有运行元数据从数据库读取，不双写。文件写入与 SQL 发布分两步，补偿只处理本次独占未发布对象，失败不删已有资料。
 
-## 公司HTTP媒体存储修订候选
+## 公司HTTP媒体存储修订设计
 
 在现有 `utils/` 下拟新增 `mediaStorage/`，用Bun原生fetch/FormData消费 [mediaStorage](../../../contracts/data/mediaStorage.md)；只统一媒体内容读写，不全局替换文件原语、不引入Go服务或gRPC依赖。配置启动时从文件/环境读取，普通用户不能改服务地址或bucket。
 
 现有工作区/资产逻辑入口解析当前用户、逻辑路径与SQL媒体记录：新oss内容走HTTP，旧local记录保留统一文件入口和realpath边界；云端失败不能改走本地。生成结果、参考读取、图片编辑、音视频/FFmpeg、Agent文件工具、历史、个人资产及项目/模板复制的等价读写都需纳入影响核对，禁止只替换页面上传。FFmpeg和SDK实际需要文件时，仅物化受限临时文件，捕获原用户/项目，完成或失败后按明确边界清理，不建立第二份持久内容来源。
 
 媒体读取在服务端授权后代理，保留Range、正确MIME、取消和资源释放；部分上游200 JSON错误不能作为成功媒体处理。独占新对象先上传，SQL事务成功后发布；物理删除及签名能力不能由同名Go方法推断。当前没有云端联调或实现证据，完整消费者核对、缺失能力与失败验证纳入本轮Tasks。
+
+当前实现使用 `utils/accounts` 的请求上下文、真实Cookie与会话撤销，实例conf单例在多用户请求内读写SQL个人配置，缺上下文不回退管理员。媒体任务捕获服务端上下文，以原owner和目录保存；页面身份不一致拒绝、长连接失权关闭。多用户FFmpeg使用受控参数及临时文件，模型出站使用运维允许base，避免普通配置绕过无鉴权OSS。部署管理员及其安装的代码仍是可信主体。

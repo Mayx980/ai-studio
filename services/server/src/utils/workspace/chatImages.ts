@@ -4,8 +4,11 @@ import { lookup } from "node:dns/promises";
 import { request, type ClientRequest, type IncomingMessage } from "node:http";
 import { request as requestSecure } from "node:https";
 import { BlockList, isIP } from "node:net";
-import { mkdir, realpath, stat } from "@toonflow/file";
-import { lockWorkspaceFiles, resolveWorkspacePath, writeWorkspaceFile } from "@/utils/workspace/files";
+import { Readable } from "node:stream";
+import { usesAccounts } from "@/utils/accounts/context";
+import { requireConfiguration } from "@/utils/mediaStorage/config";
+import { mkdir, realpath } from "@toonflow/file";
+import { lockWorkspaceFiles, resolveWorkspacePath, writeWorkspaceFile, statWorkspaceFile } from "@/utils/workspace/files";
 
 const maxImageSize = 20 * 1024 * 1024;
 const imageFormats = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif", "image/avif": "avif", "image/bmp": "bmp" };
@@ -34,13 +37,18 @@ function remoteAddress(value: string) {
   let url: URL;
   try { url = new URL(value); } catch { return invalid("图片地址无效，请使用完整的 HTTP/HTTPS 地址"); }
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) invalid("图片仅支持不含账号密码的 HTTP/HTTPS 地址");
+  if (usesAccounts()) {
+    let storageOrigin: string | undefined;
+    try { storageOrigin = new URL(requireConfiguration().baseUrl).origin; } catch { /* 未配置OSS不借用默认地址。 */ }
+    if (url.origin === storageOrigin) invalid("不能通过公开下载入口读取实例存储", 403);
+  }
   const host = url.hostname.replace(/^\[|\]$/g, "");
   if (isIP(host) && !isPublicAddress(host)) invalid("不能下载本机、内网或特殊网络地址的图片", 403);
   url.hash = "";
   return url;
 }
 
-function requestImage(url: URL, signal: AbortSignal) {
+function requestImage(url: URL, signal: AbortSignal, headers: Record<string, string> = { Accept: "image/avif,image/webp,image/png,image/jpeg,image/gif,image/bmp" }) {
   return new Promise<IncomingMessage>((resolve, reject) => {
     let outgoing: ClientRequest | undefined;
     let incoming: IncomingMessage | undefined;
@@ -70,7 +78,7 @@ function requestImage(url: URL, signal: AbortSignal) {
       // ACT: 固定已校验 IP，保留原 Host 和 TLS 证书域名；Bun 的 request signal 不保证及时结束，改为显式销毁并 reject。
       outgoing = (url.protocol === "https:" ? requestSecure : request)(connection, {
         method: "GET", agent: false, servername: hostname,
-        headers: { Host: url.host, Accept: "image/avif,image/webp,image/png,image/jpeg,image/gif,image/bmp" },
+        headers: { ...headers, Host: url.host },
       }, response => {
         incoming = response;
         response.once("close", cleanup);
@@ -83,6 +91,24 @@ function requestImage(url: URL, signal: AbortSignal) {
     })().catch(error => { cleanup(); reject(error); });
   });
 }
+
+// 公共网页工具复用图片下载的DNS校验和固定IP连接，不能经工具读取内网OSS。
+export const fetchPublicResource = Object.assign(async (input: Parameters<typeof fetch>[0], options?: RequestInit) => {
+  if (!usesAccounts()) return fetch(input, options);
+  const url = remoteAddress(input instanceof Request ? input.url : String(input));
+  let storageOrigin: string | undefined;
+  try { storageOrigin = new URL(requireConfiguration().baseUrl).origin; } catch { /* 缺OSS配置不影响公开网页读取。 */ }
+  if (url.origin === storageOrigin || (options?.method ?? "GET") !== "GET" || options?.body || input instanceof Request && input.method !== "GET") invalid("网页工具只读取公共GET地址", 403);
+  const signal = options?.signal ?? AbortSignal.timeout(30000);
+  const headers = Object.fromEntries(new Headers(options?.headers));
+  for (const key of Object.keys(headers)) if (!["accept", "user-agent"].includes(key)) delete headers[key];
+  const incoming = await requestImage(url, signal, headers);
+  const responseHeaders = new Headers();
+  for (const [key, value] of Object.entries(incoming.headers)) if (value !== undefined) responseHeaders.set(key, Array.isArray(value) ? value.join(", ") : value);
+  const empty = [204, 205, 304].includes(incoming.statusCode ?? 0);
+  if (empty) incoming.destroy();
+  return new Response(empty ? null : Readable.toWeb(incoming) as ReadableStream<Uint8Array>, { status: incoming.statusCode ?? 502, headers: responseHeaders });
+}, { preconnect: () => {} }) as typeof fetch;
 
 function imageMimeType(bytes: Buffer): keyof typeof imageFormats {
   if (bytes.length >= 24 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) && bytes.toString("ascii", 12, 16) === "IHDR") return "image/png";
@@ -144,7 +170,7 @@ export async function importImage(cwd: string, value: string) {
     for (const [mimeType, extension] of Object.entries(imageFormats)) {
       const path = `${outputDirectory}/${hash}.${extension}`;
       const cached = await resolveWorkspacePath(directory, path, true);
-      const info = await stat(cached.path).catch((error: NodeJS.ErrnoException) => { if (error.code === "ENOENT") return null; throw error; });
+      const info = await statWorkspaceFile(cached.path).catch((error: NodeJS.ErrnoException) => { if (error.code === "ENOENT") return null; throw error; });
       if (info?.isFile() && info.size > 0 && info.size <= maxImageSize) return { path, mimeType };
     }
     const signal = AbortSignal.timeout(30000);

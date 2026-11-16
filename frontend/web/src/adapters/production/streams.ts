@@ -1,5 +1,6 @@
 import { StudioError } from "@/ports";
 import { EventSourceParserStream } from "eventsource-parser/stream";
+import { authenticatedFetch } from "./accounts";
 
 async function requireStream(response: Response) {
   if (!response.ok) {
@@ -11,7 +12,7 @@ async function requireStream(response: Response) {
 }
 
 export async function openEvents<T>(url: string, options: RequestInit, signal: AbortSignal, format: "lines" | "events" = "lines"): Promise<AsyncIterable<T>> {
-  const response = await fetch(url, options);
+  const response = await authenticatedFetch(url, options);
   await requireStream(response);
   return readEvents<T>(response, signal, format);
 }

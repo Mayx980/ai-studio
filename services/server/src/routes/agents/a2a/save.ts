@@ -23,6 +23,6 @@ export default Router().put("/", validateFields({
   const previous = u.a2aSettings.getA2aSettings();
   const token = previous.token.length >= 32 ? previous.token : enabled ? randomBytes(32).toString("hex") : "";
   const settings = { enabled, directory, providerId, modelId, thinkingLevel, token };
-  u.conf.set("a2a", settings);
+  await u.conf.set("a2a", settings);
   res.set("Cache-Control", "no-store").json(success({ ...settings, token: token || undefined, url: u.a2aSettings.getA2aUrl(req) }));
 });

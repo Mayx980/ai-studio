@@ -17,7 +17,7 @@ export default router.get("/", validateFields({ library: u.assets.librarySchema.
   async function listEntries(path: string, depth = 0): Promise<AssetEntry[]> {
     // ACT: 原型资产树最多返回一万项；大规模库应增加业务分页，不截断并冒充完整结果。
     if (depth > 64) throw Object.assign(new Error("素材文件夹层级过深"), { status: 413 });
-    const entries = await readdir(path, { withFileTypes: true });
+    const entries = await u.workspaceFile.listWorkspaceFiles(path);
     const items: AssetEntry[] = [];
     for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name, "zh-CN", { numeric: true }))) {
       if (!entry.isDirectory() && !entry.isFile()) continue;

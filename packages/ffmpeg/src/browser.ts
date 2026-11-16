@@ -9,6 +9,10 @@ const chainNames = new Set<string>(chainMethods);
 const runNames = new Set<string>(runMethods);
 const queryNames = new Set<string>(queryMethods);
 type Listener = (...args: any[]) => void;
+export type FfmpegTransport = (input: BrowserFfmpegRequest, signal?: AbortSignal) => Promise<Response>;
+const transportKey = Symbol.for("toonflow.ffmpegTransport");
+const transportHost = globalThis as typeof globalThis & { [transportKey]?: FfmpegTransport };
+export function configureFfmpegTransport(transport: FfmpegTransport) { transportHost[transportKey] = transport; }
 
 function snapshot<T>(value: T): T {
   return JSON.parse(JSON.stringify(value, (_key, item) => {
@@ -30,10 +34,9 @@ function remoteError(value: unknown) {
 }
 
 async function request(input: BrowserFfmpegRequest, signal?: AbortSignal) {
-  const response = await fetch("/api/ffmpeg/execute", {
-    method: "POST", headers: { "Content-Type": "application/json", "x-toonflow-workspace": "1" },
-    body: JSON.stringify(input), signal,
-  });
+  const transport = transportHost[transportKey];
+  if (!transport) throw new Error("FFmpeg传输宿主尚未配置");
+  const response = await transport(input, signal);
   if (!response.ok) throw remoteError(await response.json());
   return response;
 }

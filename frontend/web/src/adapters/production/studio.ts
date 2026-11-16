@@ -3,6 +3,13 @@ import { locale } from "@toonflow/i18n/vue";
 import { StudioError, type StudioPort, type StudioResponse, type StudioNoticeFeed, type HostConnection } from "@/ports";
 import { loadToolComponent } from "@toonflow/tool-client";
 import { readEvents, openEvents } from "./streams";
+import { identityHeaders, identitySignal, identityFailed, authenticatedFetch, accountMediaSource } from "./accounts";
+import { accountsRequired } from "@/stores/accounts";
+import type { FfmpegTransport } from "@toonflow/nodes-scaffold/nodeFfmpeg";
+
+export const requestFfmpeg: FfmpegTransport = (input, signal) => authenticatedFetch("/api/ffmpeg/execute", {
+  method: "POST", headers: { "Content-Type": "application/json", "x-toonflow-workspace": "1" }, body: JSON.stringify(input), signal,
+});
 
 const applicationClient = axios.create({ headers: { "x-toonflow-workspace": "1" } });
 const marketplaceClient = axios.create({ baseURL: "https://api.toonflow.net" });
@@ -11,8 +18,19 @@ const workspaceClient = axios.create({ baseURL: "/api/workspaces/files", headers
 for (const client of [axios, applicationClient, workspaceClient]) {
   client.interceptors.request.use(config => {
     const url = new URL(client.getUri(config), window.location.href);
-    if (url.origin === window.location.origin && url.pathname.startsWith("/api/")) config.headers.set("Accept-Language", locale.value);
+    if (url.origin === window.location.origin && url.pathname.startsWith("/api/")) {
+      config.headers.set("Accept-Language", locale.value);
+      for (const [key, value] of Object.entries(identityHeaders())) config.headers.set(key, value);
+      config.signal = identitySignal(config.signal as AbortSignal | undefined);
+    }
     return config;
+  });
+  client.interceptors.response.use(response => {
+    if (response.config.headers.get("x-afxen-user")) identityHeaders();
+    return response;
+  }, cause => {
+    if (axios.isAxiosError(cause) && cause.response?.status === 401) identityFailed();
+    return Promise.reject(cause);
   });
 }
 
@@ -39,10 +57,10 @@ async function request<T>(client: AxiosInstance, method: string, url: string, in
   }
 }
 
-const commandHeaders = () => ({ "Accept-Language": locale.value, "Content-Type": "application/json", "x-toonflow-workspace": "1" });
+const commandHeaders = () => ({ "Accept-Language": locale.value, "Content-Type": "application/json", "x-toonflow-workspace": "1", ...identityHeaders() });
 
 async function submit(url: string, input: object, options: RequestInit = {}) {
-  const response = await fetch(url, { method: "POST", headers: commandHeaders(), body: JSON.stringify(input), ...options });
+  const response = await authenticatedFetch(url, { method: "POST", headers: commandHeaders(), body: JSON.stringify(input), ...options });
   if (!response.ok) {
     const detail = await response.json().catch(() => undefined);
     throw new StudioError(detail?.message || `请求失败（${response.status}）`, detail, response.status);
@@ -50,7 +68,7 @@ async function submit(url: string, input: object, options: RequestInit = {}) {
 }
 
 function observe<T>(url: string): StudioNoticeFeed<T> {
-  const connection = new EventSource(url);
+  const connection = new EventSource(accountMediaSource(url));
   const feed: StudioNoticeFeed<T> = { get closed() { return connection.readyState === EventSource.CLOSED; }, close: () => connection.close() };
   connection.onopen = () => feed.onConnected?.();
   connection.onerror = () => feed.onFailure?.();
@@ -65,8 +83,9 @@ function observe<T>(url: string): StudioNoticeFeed<T> {
 
 export function createProductionPort(): StudioPort {
   return {
-    assetMediaSource: path => `/api/assets/read?path=${encodeURIComponent(path)}`,
+    assetMediaSource: path => accountMediaSource(`/api/assets/read?path=${encodeURIComponent(path)}`),
     async loadHostConnection(signal) {
+      if (accountsRequired.value) return { mode: "local" };
       return (await request<HostConnection>(applicationClient, "get", "/api/connection/connection", [{ signal, headers: { "Cache-Control": "no-store" } }])).data;
     },
     notifyDesktopReady: failed => submit("/api/desktop/ready", { failed }, { headers: { ...commandHeaders(), "x-toonflow-desktop": "1" } }),
@@ -76,13 +95,13 @@ export function createProductionPort(): StudioPort {
       catch (error) { if (!(error instanceof StudioError) || error.status !== 404) throw error; }
     },
     async *streamConversation<T extends { type: string }>(input: object, signal: AbortSignal) {
-      yield* readEvents<T>(await fetch("/api/agent", { method: "POST", headers: commandHeaders(), body: JSON.stringify(input), signal }), signal);
+      yield* readEvents<T>(await authenticatedFetch("/api/agent", { method: "POST", headers: commandHeaders(), body: JSON.stringify(input), signal }), signal);
     },
     async *streamAssistantSession<T extends { type: string }>(input: object, signal: AbortSignal) {
-      yield* readEvents<T>(await fetch("/api/singleAgent/run", { method: "POST", headers: commandHeaders(), body: JSON.stringify(input), signal }), signal);
+      yield* readEvents<T>(await authenticatedFetch("/api/singleAgent/run", { method: "POST", headers: commandHeaders(), body: JSON.stringify(input), signal }), signal);
     },
     async *streamProviderDebug<T extends { type: string }>(input: object, signal: AbortSignal) {
-      yield* readEvents<T>(await fetch("/api/providers/debug/run", { method: "POST", headers: commandHeaders(), body: JSON.stringify(input), signal }), signal);
+      yield* readEvents<T>(await authenticatedFetch("/api/providers/debug/run", { method: "POST", headers: commandHeaders(), body: JSON.stringify(input), signal }), signal);
     },
     publishCanvasResult: (input, options) => submit("/api/agent/canvasResult", input, options),
     answerConversationQuestion: input => submit("/api/agent/answer", input),
@@ -95,7 +114,7 @@ export function createProductionPort(): StudioPort {
     async loadPluginSource(url, kind) {
       const address = new URL(url, window.location.href);
       if (kind === "editor" && (address.origin !== window.location.origin || !address.pathname.startsWith("/api/ext/"))) throw new Error("扩展脚本地址无效");
-      const response = await fetch(url);
+      const response = await authenticatedFetch(url);
       if (!response.ok) throw new Error(`插件脚本加载失败（${response.status}）`);
       return response.text();
     },

@@ -70,7 +70,7 @@ export async function saveRemoteTeam(record: RemoteTeam) {
     if ([...locals, ...Object.keys(remotes)].some(name => name.toLowerCase() === record.name.toLowerCase())) {
       throw Object.assign(new Error("已存在同名团队或远端连接"), { status: 409 });
     }
-    conf.set("remoteConnections", { ...remotes, [record.name]: record });
+    await conf.set("remoteConnections", { ...remotes, [record.name]: record });
   });
 }
 
@@ -79,7 +79,7 @@ export async function setEnabled(name: string, enabled: boolean) {
   return withTeamFiles(async () => {
     const remote = getRemoteTeam(name);
     if (remote) {
-      conf.set("remoteConnections", { ...conf.get("remoteConnections", {}), [name]: { ...remote, enabled } });
+      await conf.set("remoteConnections", { ...conf.get("remoteConnections", {}), [name]: { ...remote, enabled } });
       return;
     }
     const { files } = await readFiles(name);
@@ -99,7 +99,7 @@ export async function uninstall(name: string) {
     if (remote) {
       const remotes = { ...conf.get("remoteConnections", {}) };
       delete remotes[name];
-      conf.set("remoteConnections", remotes);
+      await conf.set("remoteConnections", remotes);
       return;
     }
     const { directory, files } = await readFiles(name);

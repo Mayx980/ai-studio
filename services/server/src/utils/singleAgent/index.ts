@@ -12,6 +12,7 @@ import { createQuestionContext, answerQuestion } from "@/agent/bridge/question";
 import { listTools, loadTool, validateToolConfig } from "@/utils/plugins/tools";
 import { browserRuntime } from "@/utils/browser";
 import conf from "@/utils/conf";
+import { ownerId, userRoot } from "@/utils/accounts/context";
 import type { SingleAgentEvent, SingleAgentResult, SingleAgentStatus, SingleAgentToolDescriptor, SingleAgentToolReference, SingleAgentToolResult } from "./types";
 
 type ClientCall = {
@@ -33,6 +34,7 @@ type RunState = {
   clientCalls: Map<string, ClientCall>;
 };
 type SingleSession = {
+  owner: string;
   id: string;
   cwd: string;
   workspaceAvailable: boolean;
@@ -49,7 +51,7 @@ const sessions = new Map<string, SingleSession>();
 
 function getSession(sessionId: string) {
   const session = sessions.get(sessionId);
-  if (!session || session.closed) throw Object.assign(new Error("临时对话不存在或已关闭"), { status: 404 });
+  if (!session || session.owner !== ownerId() || session.closed) throw Object.assign(new Error("临时对话不存在或已关闭"), { status: 404 });
   return session;
 }
 
@@ -110,10 +112,10 @@ export async function create(options: {
 }, signal?: AbortSignal) {
   signal?.throwIfAborted();
   const id = crypto.randomUUID();
-  const cwd = options.directory ?? join(dirname(conf.path), "singleAgent", id);
+  const cwd = options.directory ?? join(userRoot(), "singleAgent", id);
   if (!options.directory) await mkdir(cwd, { recursive: true });
   const session: SingleSession = {
-    id, cwd, workspaceAvailable: !!options.directory, history: SessionManager.inMemory(cwd),
+    id, owner: ownerId(), cwd, workspaceAvailable: !!options.directory, history: SessionManager.inMemory(cwd),
     systemPrompt: options.systemPrompt ?? "", tools: [], closed: false,
   };
   sessions.set(id, session);
@@ -368,7 +370,7 @@ export async function close(sessionId: string) {
     } finally {
       sessions.delete(sessionId);
       // 仅清理 create 分配的私有目录，用户提供的工作区由用户管理。
-      if (!session.workspaceAvailable) await rm(join(dirname(conf.path), "singleAgent", session.id), { recursive: true, force: true });
+      if (!session.workspaceAvailable) await rm(join(userRoot(), "singleAgent", session.id), { recursive: true, force: true });
     }
   })();
   return session.closing;

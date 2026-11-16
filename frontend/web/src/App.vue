@@ -1,13 +1,14 @@
 <template>
   <el-config-provider :locale="elementLocale">
     <config-provider :globalConfig="tdesignLocale">
+      <div v-show="!sessionExpired" class="applicationContent">
       <router-view v-slot="{ Component: currentComponent }">
         <transition name="el-fade-in">
           <component :is="currentComponent" />
         </transition>
       </router-view>
-      <customMaterialEditor />
-      <ffmpegRequired />
+      <customMaterialEditor v-if="!accountsRequired || currentUser && !currentUser.mustChangePassword" />
+      <ffmpegRequired v-if="!accountsRequired || currentUser && !currentUser.mustChangePassword" />
       <updateBox
         v-if="updateBoxBuild && !installFailure"
         v-model="updateBoxVisible"
@@ -35,6 +36,17 @@
 
         </template>
       </el-dialog>
+      </div>
+      <section v-if="sessionExpired" class="accountSessionNotice" role="alert" tabindex="-1">
+        <h1>账号状态已改变</h1>
+        <p>当前页面已停止写入。原账号的未保存内容仍留在本页内存中，重新登录将关闭本页内容。</p>
+        <el-button type="primary" @click="reloadAccount">重新登录</el-button>
+        <div v-if="confirmAccountReload" class="accountReloadConfirmation">
+          <p>确认关闭本页并放弃其中尚未保存的内容？</p>
+          <el-button @click="confirmAccountReload = false">保留本页</el-button>
+          <el-button type="danger" @click="discardAndReload">放弃并重新登录</el-button>
+        </div>
+      </section>
     </config-provider>
   </el-config-provider>
 </template>
@@ -61,9 +73,19 @@ import { desktopUpdateSnapshot, stopDesktopUpdateObservation } from "@/stores/de
 import { useMcpControl } from "@/lib/mcpControl";
 import ffmpegRequired from "@/components/settings/ffmpegRequired.vue";
 import updateBox from "@/components/updateBox.vue";
+import { sessionExpired, accountsRequired, currentUser } from "@/stores/accounts";
 import "element-plus/theme-chalk/dark/css-vars.css";
 
-useMcpControl();
+if (!accountsRequired.value) useMcpControl();
+const confirmAccountReload = ref(false);
+function reloadAccount() { confirmAccountReload.value = true; }
+function discardAndReload() {
+  const url = new URL(window.location.href);
+  url.searchParams.set("accountLogin", String(Date.now()));
+  url.hash = "/login";
+  window.location.assign(url.href);
+}
+watch(sessionExpired, expired => document.documentElement.classList.toggle("afxenSessionExpired", expired), { immediate: true });
 
 // ACT: TDesign 缺少的语言使用英语基底，聊天控件由应用字典补齐。
 const tdesignLocales = {
@@ -176,6 +198,13 @@ watchEffect(() => {
 </script>
 
 <style lang="scss">
+.applicationContent { width: 100%; height: 100%; }
+.accountSessionNotice { min-height: 100dvh; display: grid; place-content: center; gap: 18px; padding: 24px; background: var(--el-bg-color-page);
+  h1 { margin: 0; font-size: 22px; }
+  p { max-width: 480px; line-height: 1.6; color: var(--el-text-color-secondary); }
+  .el-button { justify-self: start; min-height: 44px; }
+}
+.afxenSessionExpired { .el-overlay, .el-popper, .t-popup { visibility: hidden !important; } }
 html {
   background-color: var(--el-bg-color);
   color: var(--el-text-color-primary);

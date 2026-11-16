@@ -3,7 +3,7 @@ FROM oven/bun:1.3.14
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates ffmpeg \
+    && apt-get install -y --no-install-recommends ca-certificates ffmpeg git python3 python3-pymysql python3-yaml python3-cryptography \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . .
@@ -12,8 +12,8 @@ COPY . .
 RUN bun install --frozen-lockfile
 
 RUN bun run build:server \
-    && mkdir -p data/workspaces/myProject \
-    && chown -R bun:bun data
+    && mkdir -p data/workspaces/myProject ops/db/.runtime \
+    && chown -R bun:bun data ops/db/.runtime
 
 ENV NODE_ENV=production
 ENV TOONFLOW_DATA_DIR=/app/data

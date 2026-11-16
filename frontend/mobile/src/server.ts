@@ -106,6 +106,7 @@ if (connection.proxy) {
 } else {
   const { createApp } = await import("@toonflow/server/app");
   toonflow = await createApp({
+      accountMode: "local",
     webRoot: resolve(resources, "web"),
     appVersion: config.app.version,
     dataDirectory: directory,

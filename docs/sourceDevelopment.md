@@ -341,3 +341,11 @@ data/                  本机运行数据，不提交
 构建继续运行各受影响包的现有 `typecheck`/`build`；本宿主根聚合 `typecheck` 返回 ENOENT 时，逐包执行并列明实际结果，不当作根命令成功。构建完成后运行现有 `start:server`，API 与 Web 同源。开发验证应显式设置临时 `TOONFLOW_DATA_DIR`，不要覆盖真实 `data/`；不新增测试、自检或 CI 入口。
 
 此版本是单人/共享工作区服务端版，不新增账号、角色、个人隔离或关闭浏览器后的任务恢复。旧浏览器原型数据不自动迁移；需要导入时先明确来源和冲突策略。真实供应商成功生成、原生签名与生产部署按实际验证披露。
+
+## 多用户Server与云媒体
+
+独立Server默认users模式，先验证真实会话，再加载SQL个人设置和创作索引。源码启动与构建版使用相同 `AFXEN_DATABASE_CONFIG`、`AFXEN_CREDENTIAL_KEY_FILE` 及OSS环境变量，配置格式、权限、维护入口和原卷接管统一见 [部署步骤](../ops/database.md)，不再按匿名共享版直接操作业务。构建不执行DDL或数据接管。
+
+原生桌面、移动嵌入通过 `createApp({accountMode:"local",...})` 保持本机数据入口；连接多用户Server仍须真实登录。本轮未完成各原生平台运行验收。SQL元数据不回退JSON，新媒体只读SQL映射的云对象，临时处理文件由业务模块负责清理，不能改写公共file包为网络存储。
+
+新增路由按原命令 `bun run --cwd services/server routes` 显式生成，然后执行受影响包已有typecheck/build；完整构建为根 `bun run build:server`，包含 `build/server/createAdmin.js`。数据库运维静态检查 `python3 -B ops/db/db-ops config-check` 不连接数据库；连接、初始化、接管及真实生成不绑定构建或开发启动。项目继续不新增测试/自检文件、命令、框架或CI入口。

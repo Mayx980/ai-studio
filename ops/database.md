@@ -1,39 +1,111 @@
-# 数据库运行方案候选
+# 独立账号与数据库部署
 
-本页属于 Issue #7 待审 Plan 的运行设计，尚未形成可执行部署/运维交付。当前 `ops/compose.yaml` 仍只有应用，不能据本文宣称已包含或部署 MySQL。业务数据和兼容方案见 [数据库合同](../contracts/data/database.md)，应用内部分工见 [accountIsolation](../services/server/designs/accountIsolation.md)。
+已确认范围见 Issue #7 notes 131807、131814；本页对应当前源码，操作命令尚未在目标环境执行。继续使用单实例Bun/Express，数据库为Compose内部的MySQL 8.4.13/InnoDB，镜像固定digest见 [compose.yaml](compose.yaml)。原生本机模式不依赖数据库。用户、表和事务的唯一规则见 [数据合同](../contracts/data/database.md)，结构操作见 [运维手册](db/runbook.md)。
 
-## 服务、卷和配置
+## 1. 保留原资料并准备配置
 
-建议在现有 Compose 中增加 MySQL 8.4 LTS 服务 `db`，采用 InnoDB、utf8mb4 和独立 `mysqlData` 持久卷；具体镜像补丁版本与 digest 在实现时核实并登记于实际 Compose，不使用未经核实的 latest。数据库只在 Compose 内部网络供应用访问，不映射宿主 3306；应用现有 HTTP 端口、APISIX 上游及 appData 卷保持；新媒体云存储修订见 [storage](storage.md)，原卷继续保存旧媒体与业务JSON。应用先依赖 DB 健康，再核对已交付 schema 版本；缺库/缺表/错版本不能自动创建或继续匿名运行。
+在维护窗口停止旧应用写入，记录当前镜像、源代码完整SHA和真实挂载卷：
 
-应用使用 Bun 1.3.14 已存在的 `SQL` 能力，连接池参数按当前单实例边界配置，不额外引入 ORM、Redis 或第二服务框架。数据库不替代应用进程内任务、文件协调锁或持久任务队列，首版仍仅一个可写应用实例。原生本机模式不强制依赖这个远程数据库；连接多用户 Server 时仍须真实登录。
+```sh
+docker-compose -f compose.yaml ps
+docker inspect afxentest-app-1 --format '{{range .Mounts}}{{println .Name .Destination}}{{end}}'
+```
 
-DB root/维护账号、应用 DML 账号及凭据加密密钥分开。Compose 从未跟踪的受限 secret 文件挂载配置，不写默认固定密码、明文连接串或真实 Key 到仓库/镜像/命令行/日志。数据库首次创建、业务 schema 初始化和账号接管是三项不同结果，应用健康检查必须反映 DB/schema 可用性；新健康接口只返回最小状态，不要求登录，也不泄露数据库配置。管理员初始化仍通过受控本地入口输入密码，不能开放抢占式 Web 初始化。
+先备份原 `/app/data` 卷及敏感 `settings.json`；已有SQL、云对象和根密钥同时备份。记录实际卷名，不能只凭目录名推断。不要执行 `down -v`、删卷、清空data或把空卷当旧卷。仓库 `ops/compose.yaml` 要求显式设置 `AFXEN_DATA_VOLUME` 并引用已存在的外部卷；全新环境由运维明确创建空卷。它的应用service仍名为 `toonflow`，数据库service为 `database`。用户已有 `~/afxenDeploy/compose.yaml` 的 `app` 服务可以继续使用原名，只把本仓新增的环境、secret挂载、数据库及健康定义同步进去，保留 `31230:3000` 和原 `appData`。
 
-## 交付与操作顺序
+本仓示例从根目录运行，先在忽略的 `secrets/` 建立普通文件，不能是符号链接。应用以镜像 `bun` 用户运行；JSON和密钥必须0600/0400且可被该UID读取，不能为了省事改成0644。只把应用DML配置和密钥挂入常驻应用，维护账号和DB root不挂入常驻应用。
 
-实施阶段在同一主仓交付真实 `ops/db/` 操作包，独立 code unit 绑定现有 `server` 数据域及真实数据库源码证据，父 operations claim 排除该子树；不为未实现候选先伪造 Facts 或数据库实体。NFR 的候选协议目标 `mysql 8.4` 待本版人工确认后才写入并派生 profile，不擅自扩大到 MySQL 8.0 或 MariaDB。
+- `mysqlRoot`：强随机数据库root密码的纯文本文件，由运维安全填写；不输出到日志或命令行。
+- `database.json`：应用DML连接，格式如下；`password`由运维安全填写。
+- `maintenance.json`：与应用JSON同格式，使用独立维护账号，仅管理员接管的一次性容器挂载。
+- `database.yaml`：按 `ops/db/database.template.yaml` 建立的维护连接，仅结构运维的一次性容器挂载。
+- `credentialKey.json`：`{"keyVersion":"v1","key":"32字节随机值的base64编码"}`。首次生成后妥善备份，绝不重新生成来覆盖旧密文。该文字不是有效密钥。
 
-操作包需有实际的连通检查、只读诊断、备份准备、结构初始化、版本演进、表校验和当前版本 runbook，不能只放通用空成功脚本或只验连通性。业务 schema 由唯一运维入口维护，应用启动不自动执行 DDL；新管理员/旧资料接管只做经过校验的业务事务，不建立第二套结构迁移器。
+```json
+{"host":"database","port":3306,"database":"afxen","username":"afxenApp","password":"由运维填写"}
+```
 
-拟交付顺序：核对 source SHA 与备份范围 → 启动 DB 并安全建立所需账号 → 使用该 source 的 named operation 诊断/预览初始化计划 → 选择备份及明确批准该目标的操作 → 初始化并 verify/readback → 受控建立管理员并接管旧资料 → 启动应用与健康核对 → 双账号业务验收。每个动作只报告本步真实结果。计划确认授权开发这些材料，不等于允许当前操作测试机或生产数据库。
+外部数据库用 `ca` 字段填写PEM CA正文并验证服务器域名；未提供CA时为明确的非TLS连接，仅适用于可信内部网络。Bun 1.3.14使用其内置MySQL握手，不添加仅在新版本类型声明中存在的选项。MySQL初始认证与实际TLS仍须在目标环境验证。无需额外ORM或数据库npm依赖。
 
-Implement 只做不连接数据库的生成/静态 conformance 及已有构建；不读取环境携密配置，不在本轮执行连接、初始化或迁移。需要连接的开发验证、测试环境执行和恢复绑定实际目标并由相应获准入口或人工操作。项目仍不新增测试/自检模块、框架或 CI 自动测试入口；运维操作承担真实业务管理职责，不能另造测试模块绕过约定。
+在拥有本仓已安装依赖的受控终端，首次可生成密钥文件（文件存在会拒绝覆盖）：
 
-## 备份、失败与恢复
+```sh
+bun -e 'import { randomBytes } from "node:crypto"; import { writeAtomic } from "@toonflow/file"; await writeAtomic("secrets/credentialKey.json", JSON.stringify({keyVersion:"v1",key:randomBytes(32).toString("base64")}), {exclusive:true,mode:0o600});'
+```
 
-应用停止写入的接管窗口内，备份受影响的数据库结构/数据、现有媒体与项目卷及凭据加密密钥，明确每项一致性时点和恢复依赖；备份不入 Git/聊天/普通日志。数据库元数据不能替代文件备份，密文库备份也不能替代解密密钥。保留旧 JSON 来源，不自动删除、覆盖或移动原项目/媒体。
+## 2. 启动数据库并建立最小权限账号
 
-DB 不可用时应用健康失败并明确提示，保留前端未保存内容，不自动切回 JSON 或重提收费任务。初始化/升级遇到 partial/unmanaged/newer/unknown 状态先诊断，只按实际支持的前向修复处理，不能自动删表、删库、降级或重放结果未知的写入。
+按实际位置设置环境；下列使用仓库内Compose。外部卷名必须替换为第一步实际读到的名称，文件目录须为绝对路径：
 
-恢复要核对同一应用/schema 版本，以及匹配的数据库、文件卷和加密密钥。只恢复账号表、只还原项目文件或重新生成密钥不能视为完整恢复。返回旧共享应用版本会恢复其共享访问语义，故不能以简单换镜像替代多用户安全恢复。部署、备份选择和真实恢复的最终授权不从本版设计推导。
+```sh
+export AFXEN_DATA_VOLUME=afxentest_appData
+export AFXEN_SECRETS_DIR="$PWD/secrets"
+export AFXEN_BIND_ADDRESS=0.0.0.0
+export AFXEN_PORT=31230
+docker-compose -f ops/compose.yaml up -d database
+```
 
-恢复期间隔离外部业务流量；重新开放前，通过同版本且获准的恢复步骤撤销恢复出的全部 Session，持久提交并验证原 Cookie 返回 401，不能只验证恢复后再点击一次退出。备份时点之后的改密/停用状态不能凭旧备份自动保留，管理员须在维护窗口核对并恢复相应账号状态、重设必要密码后才开放访问。此过程不清空业务资料，也不表示当前已获数据库恢复授权。
+`database`不映射宿主3306。DB健康只表示进程响应；不表示schema已初始化。DBA通过本机受控终端建立 `afxenMaintenance` 与 `afxenApp`，限定本库及Compose网络来源，不复用root作为应用账号。MySQL交互客户端用 `--password` 提示输入并关闭客户端历史，不把密码写成参数；可以由DBA已有凭据管理工具生成和交付账号。所需授权如下：
 
-## 需要随本版一并确认的固定命名例外
+| 账号 | 必需权限 |
+| --- | --- |
+| 应用 | `users`、`sessions`、`userSettings`、`providerSecrets`、`creationStates`、`libraryStates`、`mediaFiles` 的 SELECT/INSERT/UPDATE/DELETE；`schemaMigrations`、`dataImports` 的 SELECT。无需DDL、FILE、全局管理权限或读取backup表 |
+| 维护 | `afxen.*` 的 SELECT/INSERT/UPDATE/DELETE/CREATE/ALTER/INDEX/REFERENCES/LOCK TABLES；仅在获准维护窗口使用；备份涉及固定backup表 |
+| 数据库root | 仅初始创建库和账号等数据库管理，不交给应用 |
 
-当前 AGENTS 的工具命名例外仅覆盖 Facts 和 UIUX 路径。本次数据库运维工具强制路径还需限定允许：`ops/db/db-ops`、`ops/db/README.md`、`ops/db/.gitignore`、`ops/db/database.template.yaml`、`ops/db/fixed-files.json`、`ops/db/lib/db_ops.py`、`ops/db/operations/check.input.schema.json`、`ops/db/profiles/mysql-8.4.json`，以及其固定本地 `.runtime/`、`.local/`、`database.dev.yaml`、`database.test.yaml`、`database.prod.yaml` 路径。只请求这些工具合同固定名称，不放宽其它新源码、脚本、组件或变量的小驼峰规则。候选审阅前不创建这些路径，也不声称已获例外授权。
+Compose首次只创建 `afxen` 空库；不通过启动SQL目录自动建业务表或接管资料。DBA建立账号、填入受限配置后继续，实际密码不进入本仓示例。
 
-选型依据：[Bun SQL 官方文档](https://bun.sh/docs/runtime/sql)说明原生 MySQL、参数化、连接池与事务能力；本地只核实 Bun 1.3.14 导出 `SQL`，尚未连接验证。[MySQL LTS 说明](https://dev.mysql.com/doc/refman/8.4/en/mysql-releases.html)提供稳定版本线依据。支持声明不替代本项目实际连接、DDL、迁移或事务行为验收。
+## 3. 构建、初始化结构和接管
 
-本轮媒体入云后，配套恢复还依赖bucket/prefix中的真实云对象；其备份与删除能力见 [storage](storage.md)。MySQL不存媒体BLOB，数据库或本地卷的备份不能代替云对象备份；恢复顺序须核对媒体记录与对象对应，不自动重新上传、覆盖或删除现有对象。
+```sh
+docker-compose -f ops/compose.yaml build toonflow
+```
+
+网络差时沿用已验证的构建代理 `--build-arg HTTP_PROXY=... --build-arg HTTPS_PROXY=...`；基础镜像拉取仍由Docker daemon的代理配置负责。
+
+创建并持久挂载仅运维可读写的 `dbRuntime/`，使一次性容器退出后保留本次计划；目录UID须与镜像bun用户一致。以下命令会连接数据库，必须先由操作者确认目标及权限，不是构建自动步骤：
+
+```sh
+docker-compose -f ops/compose.yaml run --rm --no-deps --entrypoint python3 \
+  -v "$PWD/secrets/database.yaml:/run/secrets/database.yaml:ro" \
+  -v "$PWD/dbRuntime:/app/ops/db/.runtime" \
+  toonflow -B ops/db/db-ops check --entity server --operation diagnose --config /run/secrets/database.yaml --format human
+
+docker-compose -f ops/compose.yaml run --rm --no-deps --entrypoint python3 \
+  -v "$PWD/secrets/database.yaml:/run/secrets/database.yaml:ro" \
+  -v "$PWD/dbRuntime:/app/ops/db/.runtime" \
+  toonflow -B ops/db/db-ops run --entity server --operation initialize --config /run/secrets/database.yaml
+```
+
+查看本次计划、备份范围和风险后在终端确认，默认取消。empty库建立v1结构，partial/unmanaged/newer/unknown不自动修复；原计划和结果未知时按runbook核查。没有自动降级、删表或重新执行未知DDL的流程。
+
+随后用本地交互入口接管旧资料；维护JSON临时覆盖本次进程的连接文件，常驻应用仍用DML账号：
+
+```sh
+docker-compose -f ops/compose.yaml run --rm --no-deps \
+  -v "$PWD/secrets/maintenance.json:/run/secrets/maintenance.json:ro" \
+  -e AFXEN_DATABASE_CONFIG=/run/secrets/maintenance.json \
+  toonflow bun build/server/createAdmin.js
+```
+
+按提示输入管理员用户名、显示名及两次隐藏密码。只在实例无账号时执行；检验旧索引和真实路径、登记local媒体、配置与加密Key，在一个业务事务提交。原文件不改动、不上传旧媒体；有账号会拒绝，不重置密码或再次认领。非法索引、符号链接、超100MiB媒体或超过10万条媒体会明确阻断，不能跳过后宣称接管完整。
+
+## 4. 填OSS并启动应用
+
+OSS配置和受控网络见 [storage.md](storage.md)。填好实际 `AFXEN_STORAGE_BASE_URL`、`AFXEN_STORAGE_BUCKET` 后运行：
+
+```sh
+docker-compose -f ops/compose.yaml up -d toonflow
+curl --fail http://127.0.0.1:31230/api/health
+docker-compose -f ops/compose.yaml logs --tail 100 toonflow
+```
+
+`/api/health`核对DB/schema、凭据根密钥和OSS配置是否齐备，不上传文件，也不宣称OSS已连通。真实数据库/OSS/模型尚未在本轮连接验证。APISIX仍转发到应用实际端口，无需为OSS开放浏览器路由；HTTPS网关下设置 `AFXEN_PUBLIC_ORIGIN` 为浏览器实际origin，服务端不盲信转发头。直接HTTP内网测试可不设置该值；HTTP本身不提供凭据的链路保密。
+
+管理员登录后创建普通账号。检查原资料只归初始管理员、新账号空资料、强制改密、跨用户目录和媒体拒绝、改密/停用后的旧Cookie失效、双页面版本冲突以及真实上传/生成。模型域名、结果CDN及内部LLM的部署允许项见storage说明。不要把健康或构建通过当作上述功能验收。
+
+## 失败与恢复
+
+DB错误返回503，不回退JSON、不重建空库；保存409保留草稿。根密钥丢失不自动换钥，先找匹配备份。新云媒体失败保留pending记录和对象，不物理删除；临时处理输出发布失败显示保留位置。只换回旧共享镜像会恢复共享访问语义，不能当作安全回滚。
+
+配套恢复需要同版本SQL、应用文件、云对象及密钥，并隔离流量。按 [runbook](db/runbook.md) 撤销恢复出的全部Session，核对备份时点之后的停用/改密状态，旧Cookie须401后才开放。不在本轮执行实际接管、备份、恢复或部署。

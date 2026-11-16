@@ -20,6 +20,7 @@ import { loadSettings, settingsStorage } from "@/stores/settings";
 import { checkDesktopUpdate } from "@/stores/desktopUpdate";
 import { registerLanguage } from "@/lib/i18n";
 import { locale, translate } from "@toonflow/i18n/vue";
+import { loadAccountSession, accountsRequired, currentUser } from "@/stores/accounts";
 
 const app = createApp(App);
 app.onUnmount(registerLanguage());
@@ -37,8 +38,11 @@ async function notifyDesktopReady(failed = false) {
   ? Promise.reject(new Error("当前 Microsoft Edge WebView2 Runtime 版本过旧。请以管理员身份运行微软最新版安装器；若仍提示已安装，请修复 WebView2 或联系管理员检查更新服务。更新完成后，请完全退出 AFXEN 再重新打开。"))
   : requiresMobileWebViewUpdate
   ? Promise.reject(new Error("当前移动端浏览器内核缺少 AFXEN 所需能力。请更新 AFXEN 和系统浏览器内核；部分系统需要通过系统更新升级。更新完成后，请完全退出并重新打开 AFXEN。"))
-  : loadSettings()).then(async () => {
-  await (await import("@/stores/browserGeneration")).loadServerModels();
+  : loadAccountSession().then(async () => {
+    if (accountsRequired.value && (!currentUser.value || currentUser.value.mustChangePassword)) return;
+    await loadSettings();
+    await (await import("@/stores/browserGeneration")).loadServerModels();
+  })).then(async () => {
   app.use(createPinia().use(createPersistedState({ storage: settingsStorage })));
   app.use(router);
   await router.isReady();

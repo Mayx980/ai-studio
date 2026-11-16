@@ -12,7 +12,7 @@ export default Router().put("/", validateFields({ name: u.extPlugins.extNameSche
   try {
     const { configRules } = await u.extPlugins.readExt(name);
     const parsed = u.extPlugins.validateExtConfig(configRules, config);
-    u.conf.set("extConfigs", { ...u.conf.get("extConfigs", {}), [name]: parsed });
+    await u.conf.set("extConfigs", { ...u.conf.get("extConfigs", {}), [name]: parsed });
     res.json(success(parsed, "文件扩展配置已保存"));
   } finally { release(); }
 });

@@ -2,6 +2,8 @@ import type { PrototypePort } from "@/ports/prototype";
 import { studio } from "@/ports";
 import { createNodeAi, type NodeVideoRequest } from "@toonflow/nodes-scaffold/nodeAi";
 import { createAssetFiles } from "./assetFiles";
+import { accountsRequired } from "@/stores/accounts";
+import { authenticatedFetch } from "./accounts";
 
 const nodeAi = createNodeAi();
 const unavailableAccount = () => { throw new Error("当前实例使用共享工作区，没有演示账号"); };
@@ -10,7 +12,7 @@ export function createPrototypePort(): PrototypePort {
   return {
     workspaceMode: false,
     supportsCreation: true,
-    requiresAccount: false,
+    get requiresAccount() { return accountsRequired.value; },
     readLegacyState: () => null,
     readAccount: () => null,
     writeAccount: unavailableAccount,
@@ -53,7 +55,7 @@ export function createPrototypePort(): PrototypePort {
     async readMedia(url, signal) {
       const address = new URL(url, window.location.href);
       if (!["blob:", "data:"].includes(address.protocol) && (address.origin !== window.location.origin || !address.pathname.startsWith("/api/"))) throw new Error("模型结果必须先通过服务器保存到项目");
-      const response = await fetch(address, { signal });
+      const response = await authenticatedFetch(address, { signal });
       if (!response.ok) throw new Error(`读取模型结果失败（HTTP ${response.status}）`);
       return response.blob();
     },

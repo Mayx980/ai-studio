@@ -2,6 +2,7 @@ import { prototype } from "@/ports/prototype";
 import { createRouter, createWebHashHistory } from "vue-router";
 import { useHelloStore } from "@/stores/hello";
 import { currentAccount } from "@/stores/prototypeAccount";
+import { accountsRequired, currentUser } from "@/stores/accounts";
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
@@ -36,5 +37,13 @@ const router = createRouter({
     },
   ],
 });
-router.beforeEach(to => !prototype.requiresAccount && to.path === "/login" ? { path: "/home", replace: true } : prototype.requiresAccount && to.path !== "/login" && !currentAccount.value ? { path: "/login", replace: true } : true);
+router.beforeEach(to => {
+  if (accountsRequired.value) {
+    if ((!currentUser.value || currentUser.value.mustChangePassword) && to.path !== "/login") return { path: "/login", replace: true };
+    if (currentUser.value && !currentUser.value.mustChangePassword && to.path === "/login") return { path: "/home", replace: true };
+    return true;
+  }
+  return !prototype.requiresAccount && to.path === "/login" ? { path: "/home", replace: true }
+    : prototype.requiresAccount && to.path !== "/login" && !currentAccount.value ? { path: "/login", replace: true } : true;
+});
 export default router;

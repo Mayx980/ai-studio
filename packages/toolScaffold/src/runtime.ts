@@ -194,6 +194,8 @@ export interface ToolFiles {
 }
 
 export interface ToolContext {
+  /** 宿主提供的出站边界；多用户宿主限制为公共GET，不接受内网与任意代理。 */
+  fetch?: typeof fetch;
   assets?: { execute: ToolDefinition["execute"] };
   browser?: {
     execute(sessionId: string, args: Record<string, unknown>, config: Record<string, unknown>, signal?: AbortSignal,

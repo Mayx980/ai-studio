@@ -12,13 +12,13 @@ const router = Router();
 
 export default router.get("/", validateFields({ directory: z.string().min(1).max(4096), path: z.string().max(4096), snapshot: z.enum(["true"]).optional(), maxBytes: z.coerce.number().int().positive().max(20 * 1024 * 1024).optional() }, "query"), async (req, res, next) => {
   const { path } = await u.workspaceFile.resolveWorkspaceFile(req, req.query.directory as string, req.query.path as string);
-  const file = await lstat(path);
+  const file = await u.workspaceFile.statWorkspaceFile(path);
   if (!file.isFile()) throw Object.assign(new Error("只能读取文件"), { status: 400 });
   res.set("Cache-Control", "no-store");
   if (req.query.snapshot === "true") {
     const maxBytes = req.query.maxBytes === undefined ? undefined : Number(req.query.maxBytes);
     if (maxBytes !== undefined && file.size > maxBytes) throw Object.assign(new Error("文件超过本次文本读取的大小限制"), { status: 413 });
-    const bytes = await readFile(path);
+    const bytes = await u.workspaceFile.readWorkspaceFile(path);
     if (maxBytes !== undefined && bytes.length > maxBytes) throw Object.assign(new Error("文件超过本次文本读取的大小限制"), { status: 413 });
     res.json(success({ ...decodeText(bytes), revision: createHash("sha256").update(bytes).digest("hex") }));
     return;

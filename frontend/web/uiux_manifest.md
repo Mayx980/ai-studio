@@ -2,7 +2,7 @@
 
 ## 端
 
-本次登记既有 `web` entity，复用 [PRD](../../requirements/prd.md)描述的浏览器入口；不新分配产品端 ID。AFXEN 创作交互复用已合入的原型，正式数据与模型传输由共享 Server 承接。原生端共享同一 Web 页面工程。
+本次登记既有 `web` entity，复用 [PRD](../../requirements/prd.md)描述的浏览器入口；不新分配产品端 ID。AFXEN 创作交互复用已合入的原型，正式数据与模型传输由真实账号的Server承接。原生端共享同一 Web 页面工程。
 
 ## 通用约束
 
@@ -19,7 +19,7 @@
 
 创作宿主由 `src/ports/prototype.ts` 声明，生产组装使用服务端工作区和固定资产/模板库，模型请求复用 NodeAiPort；旧 IndexedDB、内存 Key 和演示账号不进入正式主流程。隔离组装拒绝真实文件保存与模型调用，不读取旧浏览器业务数据。接口与共享边界见 [Contract](../../contracts/readme.md)。
 
-基础场景 `empty`、`loading`、`error`、`permission`、`formValidation` 的进入方式见[Preview](../previewGuide.md)。当前覆盖首页及“我的项目 → 导入项目”的目录选择器接入链路；分页、真实模型生成、媒体处理、支付及完整业务页面场景尚未覆盖，不能以预览启动当作这些能力验收。
+账号场景 `login`、`accountPassword`、`accountManagement`复用同一登录和账号组件，失败操作保持内存态且不执行真实账号写入、不进入生产广播通道。基础场景 `empty`、`loading`、`error`、`permission`、`formValidation` 的进入方式见[Preview](../previewGuide.md)。当前覆盖首页及“我的项目 → 导入项目”的目录选择器接入链路；分页、真实模型生成、媒体处理、支付及完整业务页面场景尚未覆盖，不能以预览启动当作这些能力验收。
 
 ## 待确认问题
 

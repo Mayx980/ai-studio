@@ -1,3 +1,4 @@
+import { modelFetch, restrictModelFetch } from "@/utils/ai/network";
 import { t, translateMessage, validationOptions } from "@/lib/i18n";
 
 import { createHash } from "node:crypto";
@@ -9,6 +10,7 @@ import tfRouter from "@toonflow/providers/media/tfRouter";
 import { parse, parseExpression } from "@babel/parser";
 import { z } from "zod";
 import conf from "@/utils/conf";
+import { usesAccounts } from "@/utils/accounts/context";
 import { convertAudio } from "@/utils/media/audioProcessor";
 import { createWorkspaceFfmpeg } from "@/utils/ffmpeg";
 import { lockWorkspaceFiles, writeWorkspaceFile } from "@/utils/workspace/files";
@@ -255,7 +257,15 @@ export async function getMediaProvider(id: string) {
     if (error.code === "ENOENT") invalid("请先在媒体模型设置中添加供应商", 404);
     throw error;
   });
-  return { ...metadata(current.fileName, current.source), source: current.source };
+  const result = metadata(current.fileName, current.source);
+  if (usesAccounts()) {
+    const models = conf.get(`settings.mediaProviderModels.${id}`) as unknown;
+    if (models !== undefined) {
+      result.models = mediaModelsSchema.parse(models);
+      result.revision = createHash("sha256").update(result.revision).update(JSON.stringify(result.models)).digest("hex");
+    }
+  }
+  return { ...result, source: current.source };
 }
 
 export async function listMediaProviders() {
@@ -267,7 +277,8 @@ export async function listMediaProviders() {
       let current = { fileName: file.name, id: file.name.slice(0, -3), source: "", revision: "" };
       try {
         current = await readProvider(path, file.name);
-        return metadata(current.fileName, current.source);
+        const { source, ...result } = await getMediaProvider(current.id);
+        return result;
       } catch (error) {
         // ACT: 元数据损坏不影响其他供应商；仍保留原文版本，允许用户明确删除。
         const { source, ...file } = current;
@@ -294,6 +305,12 @@ export async function saveMediaProvider(fileName: string, models: z.infer<typeof
   if (!mediaProviderFileSchema.safeParse(fileName).success) invalid("供应商文件名无效");
   const checked = mediaModelsSchema.safeParse(models, validationOptions());
   if (!checked.success) invalid(checked.error.issues.map(issue => translateMessage(issue.message)).join("; "));
+  if (usesAccounts()) {
+    const provider = await getMediaProvider(fileName.slice(0, -3));
+    if (provider.revision !== revision || (expectedApiKey !== undefined && getMediaProviderApiKey(provider.id) !== expectedApiKey)) invalid("供应商配置已变更，请刷新后重试", 409);
+    await conf.set(`settings.mediaProviderModels.${provider.id}`, checked.data);
+    return getMediaProvider(provider.id);
+  }
   const path = await directory();
   if (!path) invalid("供应商文件不存在", 404);
   const release = lockWorkspaceFiles([join(path, fileName)]);
@@ -332,7 +349,7 @@ export async function refreshMediaProviderModels(fileName: string, revision?: st
   const models = (await Promise.all(modelTypes.map(async requestedModelType => {
     const modelsUrl = new URL(provider.modelsUrl!);
     if (requestedModelType) modelsUrl.searchParams.set("type", requestedModelType);
-    const response = await fetch(modelsUrl, {
+    const response = await modelFetch(modelsUrl, {
       headers: { Accept: "application/json", ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) },
       signal: AbortSignal.timeout(30000), redirect: "error",
     });
@@ -376,12 +393,13 @@ export async function deleteMediaProvider(fileName: string, revision: string) {
     const current = await readProvider(path, fileName);
     if (current.revision !== revision) invalid("供应商文件已被修改，请刷新页面后再删除", 409);
     await unlink(file);
-    conf.delete(`settings.mediaProviderConfigs.${current.id}`);
+    await conf.delete(`settings.mediaProviderConfigs.${current.id}`);
   } finally { release(); }
 }
 
 export async function loadMediaProviderSource(source: string, config: Record<string, unknown> = {}, signal?: AbortSignal, fetchRequest = fetch, cwd?: string) {
   signal?.throwIfAborted();
+  fetchRequest = restrictModelFetch(fetchRequest);
   const { id } = parseProvider(source);
   // ACT: VM 只隔离可信供应商的全局上下文；不可信代码需要独立进程等更强隔离。
   const context = createContext({

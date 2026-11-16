@@ -14,7 +14,7 @@ export default router.put("/", validateFields({ name: u.plugins.toolNameSchema, 
   try {
     const { plugin } = await u.plugins.loadTool(name);
     const parsed = u.plugins.validateToolConfig(plugin, config);
-    u.conf.set("toolConfigs", { ...u.conf.get("toolConfigs", {}), [name]: parsed });
+    await u.conf.set("toolConfigs", { ...u.conf.get("toolConfigs", {}), [name]: parsed });
     res.json(success(parsed, "工具配置已保存"));
   } finally { release(); }
 });

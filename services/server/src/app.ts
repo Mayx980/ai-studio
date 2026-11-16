@@ -2,7 +2,7 @@ import logger from "morgan";
 import express from "express";
 import cors from "cors";
 import { createHash } from "node:crypto";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { readFile } from "@toonflow/file";
 import type { Request, Response, NextFunction } from "express";
 import buildRoute from "@/core";
@@ -13,6 +13,7 @@ import { getRuntimePlatform } from "@/lib/platform";
 import initializePlugins from "@/utils/plugins/initialize";
 import { languageRequest, resolveRequestLocale, runWithLocale, setLocaleFallback, translateError, translateMessage } from "@/lib/i18n";
 import { detectLocale, normalizeLocale } from "@toonflow/i18n";
+import { configure, usesAccounts } from "@/utils/accounts/context";
 
 const autoInstallProviders = ["tfRouter.ts", "apiMart.ts", "metaso.ts", "compshare.ts"];
 
@@ -27,6 +28,7 @@ export async function createApp({
   skillsRoot,
   agentsRoot,
   pluginRevision,
+  accountMode = "users",
 }: {
   webRoot: string;
   appVersion?: string;
@@ -38,10 +40,19 @@ export async function createApp({
   skillsRoot?: string;
   agentsRoot?: string;
   pluginRevision?: string;
+  accountMode?: "local" | "users";
 }) {
   // conf 由下方的路由动态加载，必须先确定整个进程共用的数据目录。
   if (dataDirectory) process.env.TOONFLOW_DATA_DIR = resolve(dataDirectory);
+  configure(accountMode, process.env.TOONFLOW_DATA_DIR ?? resolve(import.meta.dirname, "../../../data"));
   const { default: conf } = await import("@/utils/conf");
+  configure(accountMode, dirname(conf.path));
+  if (usesAccounts()) {
+    await (await import("@/utils/database")).initialize();
+    await (await import("@/utils/database/secrets")).initialize();
+  }
+  const mediaStorage = await import("@/utils/mediaStorage");
+  await mediaStorage.initialize();
   setLocaleFallback(() => normalizeLocale((conf.get("settings", {}).ui as { language?: unknown } | undefined)?.language)
     ?? detectLocale([Intl.DateTimeFormat().resolvedOptions().locale]));
   if (dataDirectory && toolsRoot)
@@ -78,8 +89,10 @@ export async function createApp({
     await buildRoute();
     app.use(logger("dev"));
   }
-  app.use(cors());
+  if (!usesAccounts()) app.use(cors());
   app.use(languageRequest);
+  const accounts = await import("@/utils/accounts");
+  app.use("/api", accounts.middleware);
   app.use("/a2a", express.json({ limit: "2mb" }));
   app.use(["/api/workspaces/files/write", "/api/assets/save"], express.raw({ type: "application/octet-stream", limit: "100mb" }));
   app.use(express.json({ limit: "100mb" }));
@@ -87,10 +100,11 @@ export async function createApp({
   app.use("/api/desktop", desktopRequest);
 
   const { default: initializeProviderModels } = await import("@/utils/ai/initialize");
-  await initializeProviderModels();
+  if (!usesAccounts()) await initializeProviderModels();
   const router = await import("@/router");
   router.default(app);
-  const [{ createMcpRouter }, { getMcpTools }, { authorizeMcp }, { skillResources }] = await Promise.all([
+  if (!usesAccounts()) {
+    const [{ createMcpRouter }, { getMcpTools }, { authorizeMcp }, { skillResources }] = await Promise.all([
     import("@toonflow/mcp"),
     import("@/utils/mcp/tools"),
     import("@/utils/mcp/control"),
@@ -103,6 +117,7 @@ export async function createApp({
   }));
   const { createA2aRouter } = await import("@/agent/a2a");
   app.use("/a2a", createA2aRouter());
+  }
   app.use(express.static(webRoot));
 
   // 错误处理
@@ -122,6 +137,6 @@ export async function createApp({
   });
 
   const { initializeMobileLinkRuntime } = await import("@/utils/mobileLink");
-  initializeMobileLinkRuntime(app);
+  if (!usesAccounts()) initializeMobileLinkRuntime(app);
   return app;
 }

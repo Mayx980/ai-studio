@@ -1,10 +1,10 @@
 # 现有接口与数据边界
 
-业务服务身份为 [server](../facts/entities/server.yaml)，更新服务身份为 [updateserver](../facts/entities/updateserver.yaml)。本页索引现有接口及 #7 已确认的共享实例服务端协议。既有字段、设置覆盖及文件冲突规则见 [settings](data/settings.md)，更新边界见 [updateArtifacts](data/updateArtifacts.md)。
+业务服务身份为 [server](../facts/entities/server.yaml)，更新服务身份为 [updateserver](../facts/entities/updateserver.yaml)。本页索引现有接口及 #7 已确认的独立账号服务端协议。既有字段、设置覆盖及文件冲突规则见 [settings](data/settings.md)，更新边界见 [updateArtifacts](data/updateArtifacts.md)。
 
 业务 API 的具体方法与字段以 [routes](../services/server/src/routes) 中校验及注册为准；路由生成器按文件路径添加 `/api`，`index.ts` 不生成 `/index`，注册文件为派生结果。普通 JSON 使用 `{ code, data, message }`，HTTP 状态需由接口显式设置。流式接口沿用原有 SSE 或逐行 JSON 格式。
 
-设置读取为 `GET /api/settings/get`，保存为 `PUT /api/settings/save`，请求体 `{ settings: { ... } }`，保持原有完整覆盖语义。`createApp` 在加载路由前指定进程级数据目录，配置写入 `settings.json`，文件权限 `0o600`；模型 Key 的保存/保留/清除和读取脱敏遵循 [凭据合同](data/settings.md)，普通设置仍完整覆盖。
+设置读取为 `GET /api/settings/get`，保存为 `PUT /api/settings/save`，用户模式请求体为 `{ settings: { ... }, expectedRevision }`，保持普通设置完整覆盖并校验 revision。`createApp` 在加载路由前指定进程级数据目录；用户设置和加密模型凭据分别保存在 MySQL，原生本机模式继续使用权限 `0o600` 的 `settings.json`。Key 的保存、保留、清除和读取脱敏遵循 [凭据合同](data/settings.md)。
 
 工作区文件接口使用 `directory` 指定工作区目录、`path`/`target` 指定工作区内相对路径，服务端继续负责授权、路径边界和冲突保护。Web 使用 [workspaceFiles](../frontend/web/src/lib/workspaceFiles.ts) 统一入口；消费侧传输放在生产适配层，Port 与 Scenario 不成为第二份 HTTP 协议定义。
 
@@ -12,6 +12,6 @@ AI、媒体、插件、MCP、原生宿主与更新协议保留已有实现及公
 
 共享项目索引、服务端项目目录创建、固定资产/模板库及 revision 规则见 [创作数据](data/studio.md)。工程登记、实现、编译和功能验收分别报告。
 
-Issue #7 的[独立账号候选](data/accounts.md)补充真实认证及用户数据归属，旧共享资料按 note 131174 归初始管理员。本轮另按人工要求增加[数据库候选](data/database.md)，以 MySQL 保存账号/会话和用户业务元数据，文件仍保留原卷。它与 studio/settings 的候选补充供修订 Plan 审阅，尚未实现；上文描述的共享代码和现有 HTTP 协议不能被误报为已有登录隔离。
+Issue #7 已按 note 131807 接入[独立账号](data/accounts.md)和[MySQL 数据协议](data/database.md)，账号、会话与用户业务元数据按用户归属。首次管理员的显式接管将旧共享资料归初始管理员；画布、对话及旧媒体仍保留原卷，不自动迁移或覆盖。部署前须由维护者完成数据库运维包初始化和管理员建立，源码接入不等于真实环境验收。
 
-[媒体云存储候选](data/mediaStorage.md)记录公司storage真实HTTP协议、用户授权、Range、响应误判、缺少的删除/签名能力及旧文件兼容；当前源码尚未接入。它只调整媒体内容落点，不把画布/对话入库建议当作本轮已确认决定。
+[媒体云存储](data/mediaStorage.md)记录公司 storage 的真实 HTTP 协议、用户授权、Range、响应误判、缺少的删除/签名能力及旧文件兼容。新增媒体使用 OSS 和 MySQL 归属映射；旧媒体保留本地读取，删除只解除关联。本轮未连接实际数据库、OSS 或付费模型，联调结果以 MR 的实际记录为准。

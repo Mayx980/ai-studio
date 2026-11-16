@@ -1,5 +1,6 @@
 import { inject, onScopeDispose } from "vue";
 import { createBrowserFfmpeg } from "@toonflow/ffmpeg/browser";
+export { configureFfmpegTransport, type FfmpegTransport } from "@toonflow/ffmpeg/browser";
 
 export type { BrowserFfmpegFactory, BrowserFfmpegCommand, BrowserFfmpegOptions, FfprobeData } from "@toonflow/ffmpeg/browser";
 

@@ -5,10 +5,58 @@ services:
       dockerfile: ops/Dockerfile
     init: true
     restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      TOONFLOW_DATA_DIR: /app/data
+      AFXEN_DATABASE_CONFIG: /run/secrets/database.json
+      AFXEN_CREDENTIAL_KEY_FILE: /run/secrets/credentialKey.json
+      AFXEN_STORAGE_BASE_URL: ${AFXEN_STORAGE_BASE_URL:-}
+      AFXEN_STORAGE_BUCKET: ${AFXEN_STORAGE_BUCKET:-}
+      AFXEN_STORAGE_PREFIX: ${AFXEN_STORAGE_PREFIX:-afxen}
+      AFXEN_PUBLIC_ORIGIN: ${AFXEN_PUBLIC_ORIGIN:-}
+      AFXEN_MODEL_ALLOWED_BASES: ${AFXEN_MODEL_ALLOWED_BASES:-[]}
     ports:
-      - "127.0.0.1:3000:3000"
+      - "${AFXEN_BIND_ADDRESS:-127.0.0.1}:${AFXEN_PORT:-3000}:3000"
     volumes:
       - toonflowData:/app/data
-
+      - ${AFXEN_SECRETS_DIR:-../secrets}/database.json:/run/secrets/database.json:ro
+      - ${AFXEN_SECRETS_DIR:-../secrets}/credentialKey.json:/run/secrets/credentialKey.json:ro
+    healthcheck:
+      test: ["CMD", "bun", "-e", "process.exit((await fetch('http://127.0.0.1:3000/api/health')).ok ? 0 : 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+  database:
+    image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: afxen
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysqlRoot
+    volumes:
+      - mysqlData:/var/lib/mysql
+      - ${AFXEN_SECRETS_DIR:-../secrets}/mysqlRoot:/run/secrets/mysqlRoot:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "--host=127.0.0.1", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 volumes:
   toonflowData:
+    external: true
+    name: ${AFXEN_DATA_VOLUME:?请显式填写要保留的应用数据卷名称}
+  mysqlData:

@@ -12,8 +12,7 @@ export default router.delete("/", validateFields({ directory: z.string().min(1).
   u.workspaceFile.protectWorkspaceRoot(directory, path);
   const release = u.workspaceFile.lockWorkspaceFiles([path]);
   try {
-    if ((await lstat(path)).isDirectory() && req.body.recursive !== true) await rmdir(path);
-    else await rm(path, { recursive: req.body.recursive === true });
+    await u.workspaceFile.removeWorkspaceFile(path, req.body.recursive === true);
   } finally { release(); }
   res.json(success());
 });

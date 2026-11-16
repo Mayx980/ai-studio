@@ -5,10 +5,12 @@ import type { ProviderBalance, ProviderPrice, ProviderPriceRequest } from "@toon
 import { savedTfKey } from "@/utils/marketplace";
 import conf from "@/utils/conf";
 import { getMediaProvider, loadMediaProviderSource } from "@/utils/media/provider";
+import { ownerId } from "@/utils/accounts/context";
 
 type RuntimeProvider = Awaited<ReturnType<typeof loadMediaProviderSource>>;
 type BalanceSnapshot = { accountId: string; balance: ProviderBalance | null; revision: number };
 type Account = BalanceSnapshot & {
+  owner: string;
   provider?: RuntimeProvider;
   epoch: number;
   refreshRequested: boolean;
@@ -37,7 +39,7 @@ function accountId(provider: RuntimeProvider) {
   if (provider.id === "tfRouter" && typeof config.apiKey === "string") config.apiKey = config.apiKey.trim().replace(/^Bearer(?:\s+|$)/i, "").trim();
   const data = JSON.stringify({ id: provider.id, config }, (_key, value) => value && typeof value === "object" && !Array.isArray(value)
     ? Object.fromEntries(Object.entries(value).sort(([left], [right]) => left.localeCompare(right))) : value);
-  return createHmac("sha256", accountSecret).update(data).digest("hex");
+  return createHmac("sha256", accountSecret).update(ownerId()).update("\0").update(data).digest("hex");
 }
 
 function queryContext(provider: RuntimeProvider, timeout: number) {
@@ -106,7 +108,7 @@ function getAccount(provider: RuntimeProvider) {
   const id = accountId(provider);
   let account = accounts.get(id);
   if (!account) {
-    account = { accountId: id, balance: null, revision: 0, epoch: 0, refreshRequested: false, connections: new Set() };
+    account = { owner: ownerId(), accountId: id, balance: null, revision: 0, epoch: 0, refreshRequested: false, connections: new Set() };
     accounts.set(id, account);
   }
   return account;
@@ -169,7 +171,7 @@ export function beginGeneration(provider: RuntimeProvider) {
 export function connectBalanceEvents(ids: string | string[], response: Response) {
   const subscribedAccounts = [...new Set(typeof ids === "string" ? [ids] : ids)].map(id => {
     const account = accounts.get(id);
-    if (!account) throw Object.assign(new Error("余额账户已失效，请刷新余额"), { status: 404 });
+    if (!account || account.owner !== ownerId()) throw Object.assign(new Error("余额账户已失效，请刷新余额"), { status: 404 });
     return account;
   });
   response.set({ "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" });

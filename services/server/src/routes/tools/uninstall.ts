@@ -20,7 +20,7 @@ export default router.delete("/", validateFields({ name: u.plugins.toolNameSchem
     });
     const configs = u.conf.get("toolConfigs", {});
     delete configs[name];
-    u.conf.set("toolConfigs", configs);
+    await u.conf.set("toolConfigs", configs);
     res.json(success(null, "工具已卸载"));
   } finally { release(); }
 });

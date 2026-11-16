@@ -4,6 +4,9 @@ import { lstat, mkdir, readFile, realpath, rmdir } from "@toonflow/file";
 import { z } from "zod";
 import conf from "@/utils/conf";
 import { lockWorkspaceFiles, resolveWorkspacePath, writeWorkspaceFile } from "@/utils/workspace/files";
+import { requireAccount, userRoot, usesAccounts } from "@/utils/accounts/context";
+import * as database from "@/utils/database";
+import { assertSession } from "@/utils/accounts";
 
 const storeKeys = ["toonflow.projectList", "aiStudio.assetTags"] as const;
 const storesSchema = z.partialRecord(z.enum(storeKeys), z.json());
@@ -37,6 +40,11 @@ async function loadState(path: string) {
 }
 
 export async function readState() {
+  if (usesAccounts()) return database.run(async sql => {
+    const [row] = await sql`SELECT payload, revision FROM creationStates WHERE userId = ${requireAccount().user.id}`;
+    if (!row) throw database.unavailable();
+    return { stores: storesSchema.parse(database.parseJson(row.payload)), revision: row.revision };
+  });
   const { stores, revision } = await loadState(await statePath());
   return { stores, revision };
 }
@@ -45,6 +53,16 @@ export async function saveState(expectedRevision: string, value: unknown) {
   const stores = storesSchema.parse(value);
   const content = Buffer.from(`${JSON.stringify(stores, null, 2)}\n`);
   if (content.length > maxStateBytes) throw Object.assign(new Error("创作索引超过 16 MiB"), { status: 413 });
+  if (usesAccounts()) return database.run(sql => sql.begin(async transaction => {
+    await assertSession(transaction);
+    const id = requireAccount().user.id;
+    const [row] = await transaction`SELECT revision FROM creationStates WHERE userId = ${id} FOR UPDATE`;
+    if (!row) throw database.unavailable();
+    if (row.revision !== expectedRevision) throw Object.assign(new Error("本账号的数据已被其它页面修改，当前内容未覆盖；请保留内容并刷新后重试"), { status: 409, code: "ESTALE" });
+    const nextRevision = revision(content);
+    await transaction`UPDATE creationStates SET payload = ${content.toString("utf8")}, revision = ${nextRevision} WHERE userId = ${id}`;
+    return { stores, revision: nextRevision };
+  }));
   const path = await statePath();
   const release = lockWorkspaceFiles([path]);
   try {
@@ -61,7 +79,8 @@ export async function saveState(expectedRevision: string, value: unknown) {
 export async function createWorkspace(name: string, initializeCanvas = true) {
   const title = name.trim();
   if (!title || title.length > 80) throw Object.assign(new Error("请输入1–80个字符的项目名称"), { status: 400 });
-  const root = (await resolveWorkspacePath(dirname(conf.path), "workspaces")).path;
+  await mkdir(userRoot(), { recursive: true });
+  const root = (await resolveWorkspacePath(userRoot(), "workspaces")).path;
   await mkdir(root, { recursive: true });
   const directory = join(await realpath(root), `project${randomUUID().replaceAll("-", "")}`);
   // ACT: 显示名在共享索引中维护；磁盘 ID 不随项目重命名变化。

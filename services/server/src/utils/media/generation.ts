@@ -1,3 +1,4 @@
+import { modelFetch } from "@/utils/ai/network";
 import { t, translateMessage } from "@/lib/i18n";
 import { mkdir, readFile, realpath, stat } from "@toonflow/file";
 import { join, relative } from "node:path";
@@ -8,6 +9,9 @@ import { getMediaProvider, getMediaProviderApiKey, listMediaProviders, loadMedia
 import { lockWorkspaceFiles, resolveWorkspacePath, writeWorkspaceFile } from "@/utils/workspace/files";
 import { beginGeneration, getProviderPrice } from "@/utils/media/billing";
 import { detectMimeType, readPriceReference } from "@/utils/media/priceReference";
+import { usesAccounts } from "@/utils/accounts/context";
+import { requireConfiguration } from "@/utils/mediaStorage";
+import { readWorkspaceFile, statWorkspaceFile } from "@/utils/workspace/files";
 
 const maxMediaSize = 100 * 1024 * 1024;
 const mediaExtensions: Record<string, string> = {
@@ -52,9 +56,9 @@ export async function listMediaModels(): Promise<MediaModel[]> {
 export async function readReference(cwd: string, reference: MediaReference, mediaType: string, signal?: AbortSignal): Promise<Extract<MediaInput, { type: "base64" }>> {
   signal?.throwIfAborted();
   const { path } = await resolveWorkspacePath(cwd, reference.path);
-  const info = await stat(path);
+  const info = await statWorkspaceFile(path);
   if (!info.isFile() || info.size > maxMediaSize) invalid("参考媒体须为不超过 100 MB 的文件");
-  const bytes = await readFile(path, { signal });
+  const bytes = await readWorkspaceFile(path, signal);
   if (!bytes.length || bytes.length > maxMediaSize) invalid("参考媒体为空或超过 100 MB");
   const mimeType = detectMimeType(bytes, reference.mimeType);
   if (!mimeType.startsWith(`${mediaType}/`)) invalid(t`参考媒体类型须为 ${mediaType}`);
@@ -63,7 +67,7 @@ export async function readReference(cwd: string, reference: MediaReference, medi
 
 async function downloadAsset(url: string, signal?: AbortSignal) {
   if (!/^https?:\/\//i.test(url)) invalid("生成结果必须使用 HTTP 或 HTTPS 地址");
-  const response = await fetch(url, { signal });
+  const response = await modelFetch(url, { signal });
   if (!response.ok) throw new Error(t`下载生成结果失败（HTTP ${response.status}）`);
   if (Number(response.headers.get("content-length")) > maxMediaSize) {
     await response.body?.cancel();
@@ -170,6 +174,7 @@ async function preparePriceRequest(directory: string | undefined, mediaType: "im
 
 export async function getMediaPrice(directory: string | undefined, mediaType: "image" | "video" | "audio", request: MediaGenerationRequest, signal?: AbortSignal) {
   signal?.throwIfAborted();
+  if (usesAccounts()) requireConfiguration();
   const provider = await configuredProvider(request, mediaType, signal, directory);
   if (!provider.getPrice) return null;
   const prepared = await preparePriceRequest(directory, mediaType, request, signal);
@@ -188,6 +193,7 @@ export async function generateMedia(
   const directory = await realpath(cwd);
   const outputDirectory = request.outputDirectory ?? "assets/generated";
   await resolveWorkspacePath(directory, outputDirectory, true);
+  if (usesAccounts()) requireConfiguration();
   const provider = await configuredProvider(request, mediaType, signal, directory);
   const generate = mediaType === "image" ? provider.generateImage : mediaType === "video" ? provider.generateVideo : provider.generateAudio;
   if (typeof generate !== "function") invalid(t`此供应商不支持${translateMessage({ image: "图片", video: "视频", audio: "音频" }[mediaType])}生成`);

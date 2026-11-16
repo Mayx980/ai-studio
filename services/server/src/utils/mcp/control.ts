@@ -1,3 +1,4 @@
+import { usesAccounts } from "@/utils/accounts/context";
 import { timingSafeEqual } from "node:crypto";
 import type { Request, Response } from "express";
 import { z } from "zod";
@@ -41,7 +42,8 @@ export function getAppOrigin(req: Request) {
   let url: URL;
   try { url = new URL(source); }
   catch { throw Object.assign(new Error("页面来源无效"), { status: 403 }); }
-  if (!["http:", "https:"].includes(url.protocol) || url.host !== req.get("host")) throw Object.assign(new Error("页面来源与服务地址不一致"), { status: 403 });
+  const expected = usesAccounts() && process.env.AFXEN_PUBLIC_ORIGIN ? new URL(process.env.AFXEN_PUBLIC_ORIGIN).origin : undefined;
+  if (!["http:", "https:"].includes(url.protocol) || (expected ? url.origin !== expected : url.host !== req.get("host"))) throw Object.assign(new Error("页面来源与服务地址不一致"), { status: 403 });
   return url.origin;
 }
 

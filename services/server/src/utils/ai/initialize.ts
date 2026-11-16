@@ -29,7 +29,7 @@ async function refreshLanguageModels(previousSettings?: Record<string, unknown>)
     && item.protocol === provider.protocol && item.apiKey === provider.apiKey);
   if (index === -1) return;
   const providers = current.map((item, itemIndex) => itemIndex === index ? { ...item, models } : item);
-  conf.set("settings.customProviders", providers);
+  await conf.set("settings.customProviders", providers);
   return providers;
 }
 
@@ -52,7 +52,8 @@ async function refreshMediaModels(previousSettings: Record<string, unknown> | un
 
 export async function refreshProviderModels(previousSettings?: Record<string, unknown>) {
   const errors: string[] = [];
-  const [language, media] = await Promise.allSettled([refreshLanguageModels(previousSettings), refreshMediaModels(previousSettings, errors)]);
+  const [language] = await Promise.allSettled([refreshLanguageModels(previousSettings)]);
+  const [media] = await Promise.allSettled([refreshMediaModels(previousSettings, errors)]);
   for (const [result, label] of [[language, "文本"], [media, "媒体"]] as const) {
     if (result.status === "rejected") errors.push(`TF-Router ${label}模型更新失败：${result.reason instanceof Error ? result.reason.message : "未知错误"}`);
   }

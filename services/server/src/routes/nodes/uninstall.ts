@@ -29,12 +29,12 @@ export default router.delete("/", validateFields({ name: z.string().regex(/^[a-z
     throw err;
   }
   const settings = u.conf.get("settings", {});
-  if (u.cleanNodeMenuSettings(settings)) u.conf.set("settings", settings);
+  if (u.cleanNodeMenuSettings(settings)) await u.conf.set("settings", settings);
   await unlink(markerPath).catch((err: NodeJS.ErrnoException) => {
     if (err.code !== "ENOENT") throw err;
   });
   const configs = u.conf.get("nodeConfigs", {});
   delete configs[req.body.name];
-  u.conf.set("nodeConfigs", configs);
+  await u.conf.set("nodeConfigs", configs);
   res.json(success(null, "节点已卸载"));
 });

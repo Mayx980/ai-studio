@@ -1,6 +1,6 @@
 import { StudioError, type StudioAction, type StudioPort, type StudioNoticeFeed, type StudioResponse } from "@/ports";
 
-export const scenarioNames = ["empty", "loading", "error", "permission", "formValidation"] as const;
+export const scenarioNames = ["empty", "loading", "error", "permission", "formValidation", "login", "accountPassword", "accountManagement"] as const;
 export type ScenarioName = typeof scenarioNames[number];
 
 const unavailable = async () => { throw new StudioError("隔离预览不执行此操作，请使用真实开发服务", { message: "隔离预览不执行此操作，请使用真实开发服务" }, 403); };
@@ -86,7 +86,7 @@ export function createScenarioPort(scenario: ScenarioName): StudioPort {
     listWorkspaceDirectories: directoryListing,
     listWorkspaceFiles: value({ directory: "/scenario", empty: true, entries: [] }),
     loadAgentConnections: value({ connections: [], enabled: false }),
-    loadApplicationSettings: async <T>() => value(scenarioSettings)<T>(),
+    loadApplicationSettings: async <T>() => value({ ...scenarioSettings, settingsRevision: 1 })<T>(),
     loadDefaultPrompt: value({ prompt: "" }),
     loadDesktopUpdate: unavailable,
     loadDeviceConnections: value({ enabled: false, hubEnabled: false }),

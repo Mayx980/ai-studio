@@ -129,6 +129,7 @@ async function start() {
     const { hash, version } = await file(resolve(PATHS.RESOURCES_FOLDER, "version.json")).json();
     if (typeof hash !== "string" || !hash) throw new Error(t`应用构建标识缺失，无法同步内置插件`);
     const app = await createApp({
+      accountMode: "local",
       webRoot: resolve(PATHS.VIEWS_FOLDER, "mainview"),
       appVersion: typeof version === "string" ? version : "",
       dataDirectory,

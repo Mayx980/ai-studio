@@ -15,7 +15,7 @@
 
 ## 模型凭据
 
-实例级凭据继续存入同一 `settings.json`：文本供应商使用 `settings.customProviders[].apiKey`，媒体供应商使用 `settings.mediaProviderConfigs[providerId].apiKey`。保留原字段和已有服务端凭据，不读取、导入或清理旧浏览器项目与内存配置。共享实例的访问者使用同一份模型配置，本协议不提供账号或个人凭据隔离。
+原生local模式实例凭据继续存入同一 `settings.json`；多用户Web使用下文SQL个人设置及加密凭据，字段兼容为：文本供应商使用 `settings.customProviders[].apiKey`，媒体供应商使用 `settings.mediaProviderConfigs[providerId].apiKey`。保留原字段和已有服务端凭据，不读取、导入或清理旧浏览器项目与内存配置。原生local模式保持本机边界；多用户Web访问者各自配置，不能使用其它账号凭据。
 
 通用设置读取不返回上述 `apiKey`；在对应供应商对象内返回布尔字段 `apiKeyConfigured`，表示服务端是否保存了非空 Key。该字段只读，不作为凭据、权限证明或磁盘保存内容。模型刷新和设置保存的响应同样不得包含原始 Key。Key 不进入浏览器持久化、项目、对话、资产、模板、日志或可见错误。
 
@@ -46,8 +46,10 @@
 
 模型列表只列出已配置 Key 且未停用的模型；请求仍核对供应商、模型和媒体类型。图片生成保留 `n`（1–6）、size 和 ratio；参考文件仍按原工作区相对路径读取。服务端先保存真实生成文件，再返回路径。供应商协议和模型权限未通过真实有效 Key 联调时，不宣称生成成功。
 
-## 用户凭据修订候选（尚未实现）
+## 多用户个人凭据
 
 依据 [note 131174](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_131174)，目标由实例凭据改为所属用户凭据，并按本轮数据库决定改由数据库保存个人配置和加密凭据。上文 Key 的保存字段、脱敏、按供应商 ID 保留/替换/清除、禁止回传和错误脱敏语义保持；个人保存不能修改实例宿主或可执行插件设置。
 
-新账号从未配置状态开始，不能隐式继承管理员或其它用户 Key。旧实例模型配置原位归初始管理员；供应商模型列表、价格/余额及所有生成、市场或工具调用只使用当前所属用户配置，缓存与刷新也按用户区分。登录接口以外的相关请求先认证；请求中的 providerId 不构成跨用户授权。账号规则见 [accounts](accounts.md)，入库、密钥和事务规则见 [database](database.md)，系统设置与用户数据库配置的分离见 [服务端设计](../../services/server/designs/accountIsolation.md)。本段待计划确认后实施，当前运行代码未完成此隔离。
+新账号从未配置状态开始，不能隐式继承管理员或其它用户 Key。旧实例模型配置原位归初始管理员；供应商模型列表、价格/余额及所有生成、市场或工具调用只使用当前所属用户配置，缓存与刷新也按用户区分。登录接口以外的相关请求先认证；请求中的 providerId 不构成跨用户授权。账号规则见 [accounts](accounts.md)，入库、密钥和事务规则见 [database](database.md)，系统设置与用户数据库配置的分离见 [服务端设计](../../services/server/designs/accountIsolation.md)。本版已按 note 131807 实现对应源码，实际隔离、SQL故障与真实生成仍交软测和目标环境验收。
+
+多用户Web读取设置的data附带settingsRevision整数，前端仅在内存保存版本，不将该字段混入设置正文；完整保存时在body附expectedRevision。与当前账号SQL版本不符为409并保留输入，不能用请求开始时的最新版本掩盖旧页面快照。成功保存返回新的settingsRevision；原生local保持原协议。
