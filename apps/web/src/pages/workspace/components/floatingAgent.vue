@@ -171,7 +171,7 @@ onBeforeUnmount(() => { finishMaterialDrag(); stopResize(); window.removeEventLi
     }
     .simpleInput { display: flex; flex-wrap: wrap; align-items: stretch; border-radius: 20px;
       .simpleReferenceSlots { flex: 0 1 auto; max-width: calc(100% - 220px); padding: 12px; .referenceDeck, .frameDeck { padding: 0; } }
-      .senderEditor { flex: 1 1 220px; min-width: 0; min-height: 149px; }
+      .senderEditor { flex: 1 1 220px; min-width: 0; min-height: 129px; }
       &:has(.simpleReferenceSlots .thumbnailImage) {
         .simpleReferenceSlots { flex-basis: 100%; max-width: 100%; }
         .senderEditor { flex-basis: 100%; }
@@ -196,7 +196,7 @@ onBeforeUnmount(() => { finishMaterialDrag(); stopResize(); window.removeEventLi
       .welcomeMessage { padding-bottom: 12px; .welcomeHeader { gap: 12px; h3 { font-size: 28px; } } }
       .simpleInput { border-radius: 20px;
         .simpleReferenceSlots { padding: 12px; .slotCard { width: 56px; height: 56px; border-radius: 8px; svg { width: 24px; height: 24px; } } }
-        .senderEditor { min-height: 151px; .chat-rich-text, .chat-placeholder-wrap { font-size: 16px !important; line-height: 24px !important; } }
+        .senderEditor { min-height: 131px; .chat-rich-text, .chat-placeholder-wrap { font-size: 16px !important; line-height: 24px !important; } }
         .senderActions.simpleToolbar { gap: 10px 12px; padding: 8px 12px;
           .outputTabs button { height: 28px; padding: 0 5px; gap: 4px; font-size: 14px; svg { width: 16px; height: 16px; } }
           .inlineModelSelect { flex-basis: 120px; width: 132px; min-width: 120px; max-width: 160px; .el-select__wrapper { min-height: 32px; } .el-select__selected-item { font-size: 14px; } }
@@ -213,7 +213,7 @@ onBeforeUnmount(() => { finishMaterialDrag(); stopResize(); window.removeEventLi
   @media(max-width:700px) {
     :deep(.emptyConversation) {
       .welcomeMessage .welcomeHeader h3 { font-size: 24px; }
-      .simpleInput { .simpleReferenceSlots { max-width: 100%; } .senderEditor { flex-basis: 180px; min-height: 125px; } }
+      .simpleInput { .simpleReferenceSlots { max-width: 100%; } .senderEditor { flex-basis: 180px; min-height: 105px; } }
     }
     .assistantTemplates { margin-top: 32px; }
   }
