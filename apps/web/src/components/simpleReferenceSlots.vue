@@ -7,18 +7,24 @@
       </el-popover>
     </teleport>
     <input ref="fileInput" type="file" :accept="target.role === 'firstFrame' || target.role === 'lastFrame' ? 'image/*' : 'image/*,video/*'" :multiple="['reference', 'middleFrame'].includes(target.role) && !replacing" hidden :disabled="disabled || opening" @change="selectFiles" />
-    <el-tooltip v-if="!hideAdd && minimizedMaterial" :content="materialHint" :showArrow="false">
-      <button class="slotCard materialChatButton" :class="{ generating: minimizedMaterial.status === 'generating' }" type="button" :disabled="disabled || opening" :aria-label="materialHint" :aria-busy="minimizedMaterial.status === 'generating'" @click="openTask(minimizedMaterial)"><brandLogo compact aria-hidden="true" /></button>
-    </el-tooltip>
+    <div v-if="!hideAdd && materialTask" class="materialEntry" :class="{ collapseFeedback }">
+      <el-tooltip :content="materialHint" :showArrow="false">
+        <span class="materialTrigger"><button class="slotCard materialChatButton" :class="{ generating: materialTask.status === 'generating' }" type="button" :disabled="disabled || opening" :aria-label="materialHint" :aria-expanded="!materialTask.minimized" :aria-busy="materialTask.status === 'generating'" @click="materialTask.minimized ? openTask(materialTask) : minimizeMaterialWorkspace(materialTask)">
+          <brandLogo compact aria-hidden="true" />
+          <span v-if="materialTask.status === 'failed' || materialTask.hasUnreadResult" class="materialStatus" :class="{ failed: materialTask.status === 'failed' }" aria-hidden="true">{{ materialTask.status === 'failed' ? '!' : '' }}</span>
+        </button></span>
+      </el-tooltip>
+      <el-tooltip content="添加参考素材" :showArrow="false"><button class="materialAdd" type="button" :disabled="disabled || opening" aria-label="添加参考素材" @click="openMenu($event, { role: mode === 'frames' ? 'middleFrame' : 'reference' })"><icon-plus :size="16" /></button></el-tooltip>
+    </div>
     <div v-if="mode === 'reference'" class="referenceDeck" aria-label="参考图片">
-      <button v-if="!hideAdd && !minimizedMaterial && !referenceImages.length" class="slotCard" type="button" :disabled="disabled || opening" aria-label="添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="28" /></button>
+      <button v-if="!hideAdd && !materialTask && !referenceImages.length" class="slotCard" type="button" :disabled="disabled || opening" aria-label="添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="28" /></button>
       <div v-for="(attachment, index) in referenceImages" :key="index" class="referenceCard" :class="{ editableReference: canEditSource(attachment), lastReference: index === referenceImages.length - 1, expandedReference: index === referenceImages.length - 1 && expandedReference }" @mouseenter="expandReference" @mouseleave="collapseReference" @focusin="expandReference" @focusout="collapseReference">
         <attachmentPreview :attachment="attachment" :directory="directory" />
         <span class="referenceLabel">{{ referenceLabel(attachment, index) }}</span>
         <el-tooltip content="替换图片"><button class="replaceReference" type="button" :disabled="disabled || opening" :aria-label="`替换${referenceLabel(attachment, index)}`" @click="openMenu($event, { role: 'reference', category: attachment.referenceCategory || 'character' }, attachment)"><icon-refresh :size="22" /></button></el-tooltip>
         <el-tooltip v-if="canEditSource(attachment)" content="编辑来源" :showArrow="false"><button class="editReference" type="button" :disabled="disabled || opening" aria-label="编辑参考素材来源" @click="emit('edit', attachment)"><icon-pencil :size="22" /></button></el-tooltip>
         <button class="removeReference" type="button" :disabled="disabled || opening" :aria-label="`移除${referenceLabel(attachment, index)}`" title="移除图片" @click="remove(attachment)"><icon-x :size="14" /></button>
-        <button v-if="!hideAdd && !minimizedMaterial && index === referenceImages.length - 1" class="addNextReference" :title="referenceLimitReached ? '最多添加10个参考图片/视频' : undefined" type="button" :disabled="disabled || opening" aria-label="继续添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="22" /></button>
+        <button v-if="!hideAdd && !materialTask && index === referenceImages.length - 1" class="addNextReference" :title="referenceLimitReached ? '最多添加10个参考图片/视频' : undefined" type="button" :disabled="disabled || opening" aria-label="继续添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="22" /></button>
       </div>
     </div>
     <div v-else class="frameDeck" aria-label="首尾帧图片">
@@ -54,7 +60,7 @@ import brandLogo from "@/components/brandLogo.vue";
 import attachmentPreview from "@/components/agent/attachmentPreview.vue";
 import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
 import { IconPencil } from "@tabler/icons-vue";
-import { materialEditorState, materialWorkspaces, openMaterialWorkspace, materialStatusLabel, type MaterialTarget, type MaterialWorkspace } from "@/stores/materialEditor";
+import { materialEditorState, materialWorkspaces, openMaterialWorkspace, minimizeMaterialWorkspace, type MaterialTarget, type MaterialWorkspace } from "@/stores/materialEditor";
 const emit = defineEmits<{ edit: [attachment: AgentAttachment] }>();
 const props = withDefaults(defineProps<{ hideAdd?: boolean; showFrames?: boolean; tabsTarget?: HTMLElement; directory?: string; disabled?: boolean; ensureDirectory?: () => Promise<string | undefined> }>(), { showFrames: true });
 const attachments = defineModel<AgentAttachment[]>({ required: true });
@@ -77,11 +83,22 @@ const modeVisible = ref(false);
 const mode = defineModel<"reference" | "frames">("mode", { default: "reference" });
 let active = true;
 const owner = Symbol(), fileInput = ref<HTMLInputElement>(), assetsOpen = ref(false), opening = ref(false);
-const minimizedMaterial = computed(() => {
-  const task = materialWorkspaces.value.findLast(item => !item.ended && item.directory === props.directory && (!item.request || item.request.owner === owner));
-  return task?.minimized ? task : undefined;
+const materialTask = computed(() => {
+  const task = materialWorkspaces.value.findLast(item => item.directory === props.directory && (!item.request || item.request.owner === owner));
+  return task?.ended ? undefined : task;
 });
-const materialHint = computed(() => minimizedMaterial.value ? `自定义素材 · ${materialStatusLabel(minimizedMaterial.value)}，点击打开对话` : "打开自定义素材对话");
+const materialHint = computed(() => {
+  const task = materialTask.value;
+  if (!task?.minimized) return "收起自定义素材对话";
+  return ({ idle: "展开自定义素材对话", queued: "等待生成，点击查看", generating: "正在生成，点击查看", completed: "生成完成，点击查看", failed: "生成失败，点击查看原因" })[task.status];
+});
+const collapseFeedback = ref(false);
+let collapseTimer: ReturnType<typeof setTimeout> | undefined;
+watch(() => materialTask.value?.minimized, (minimized, previous) => {
+  clearTimeout(collapseTimer);
+  collapseFeedback.value = minimized === true && previous === false;
+  if (collapseFeedback.value) collapseTimer = setTimeout(() => { collapseFeedback.value = false; }, 400);
+});
 const target = ref<MaterialTarget>({ role: "reference" }), replacing = ref<AgentAttachment>();
 const menuVisible = ref(false), menuStage = ref<"category" | "source">("category"), menuAnchor = ref<HTMLElement>(), sourcePopover = ref<PopoverInstance>();
 const menuExcludes = computed(() => [menuAnchor.value, sourcePopover.value?.popperRef?.contentRef]);
@@ -161,7 +178,7 @@ async function chooseSource(choice: string) {
 }
 function selectFiles(event: Event) { try { applyFiles(Array.from((event.target as HTMLInputElement).files ?? [])); } catch (error) { ElMessage.error((error as Error).message); } }
 function selectAsset(file: File) { try { applyFiles([file]); assetsOpen.value = false; } catch (error) { ElMessage.error((error as Error).message); } }
-onUnmounted(() => { clearTimeout(hoverTimer); active = false; for (const task of materialWorkspaces.value) if (task.request?.owner === owner) task.request = undefined; });
+onUnmounted(() => { clearTimeout(collapseTimer); clearTimeout(hoverTimer); active = false; for (const task of materialWorkspaces.value) if (task.request?.owner === owner) task.request = undefined; });
 </script>
 <style scoped lang="scss">
 .simpleReferenceSlots {
@@ -172,7 +189,19 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; for (const task of
 
   .referenceDeck, .frameDeck { display: flex; justify-content: flex-start; align-items: flex-start; gap: 10px; min-width: 0; flex-wrap: wrap; padding: 4px 10px 8px 0; }
 
-  .materialChatButton {
+  .materialEntry { position: relative; flex: none;
+    .materialTrigger { display: flex; }
+    &.collapseFeedback .materialChatButton { animation: materialCollapseGlow 400ms ease-out; }
+    .materialAdd { position: absolute; right: -6px; bottom: -6px; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 1px solid var(--el-border-color); border-radius: 50%; background: #50555a; color: white; opacity: 0; pointer-events: none; transition: opacity 140ms ease; cursor: pointer;
+      &:focus-visible { outline: 2px solid #b4a1ff; outline-offset: 2px; }
+    }
+    &:hover .materialAdd, &:focus-within .materialAdd { opacity: 1; pointer-events: auto; }
+    .materialStatus { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: #b4a1ff;
+      &.failed { display: grid; place-items: center; width: 14px; height: 14px; color: #fff; background: #bd4a4a; font-size: 11px; font-weight: 700; }
+    }
+  }
+  .materialChatButton { position: relative;
+    &:focus-visible { outline: 2px solid #b4a1ff; outline-offset: 2px; }
     :deep(.brandLogo.compact) { position: relative; width: 28px; height: 28px; }
     &.generating {
       :deep(.brandLogo) { animation: materialEnergyPulse 2.6s ease-in-out infinite; }
@@ -206,10 +235,13 @@ onUnmounted(() => { clearTimeout(hoverTimer); active = false; for (const task of
 </style>
 
 <style scoped lang="scss">
+@keyframes materialCollapseGlow { 0%, 100% { box-shadow: none; } 40% { box-shadow: 0 0 0 3px #9370ff55, 0 0 16px #9370ff66; } }
+@media (hover: none) { .simpleReferenceSlots .materialEntry .materialAdd { opacity: 1; pointer-events: auto; } }
 @keyframes materialEnergyPulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 1px #8060ff44); } 50% { transform: scale(1.09); filter: drop-shadow(0 0 4px #8c6cffaa); } }
 @keyframes materialEnergyHalo { 0%, 100% { transform: scale(.8); opacity: .3; } 50% { transform: scale(1.25); opacity: .85; } }
 @keyframes materialGradientFlow { 0% { background-position: 140% 50%; opacity: 0; } 20%, 75% { opacity: .9; } 100% { background-position: -40% 50%; opacity: 0; } }
 @media(prefers-reduced-motion:reduce) {
+  .simpleReferenceSlots .materialEntry.collapseFeedback .materialChatButton { animation: none; }
   .materialChatButton.generating {
     :deep(.brandLogo) { animation: none; }
     :deep(.brandLogo::before), :deep(.brandLogo::after) { animation: none; content: none; }

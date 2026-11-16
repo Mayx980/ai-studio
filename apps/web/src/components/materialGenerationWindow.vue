@@ -105,6 +105,7 @@ function saveDraft(draft: { prompt: string; attachments: AgentAttachment[] }) {
 }
 function updateTask(task: { status: MaterialTaskStatus; error?: string; taskId?: string; vendorTaskId?: string; resultIds?: string[] }) {
   if (task.status === "queued") props.workspace.applied = false;
+  props.workspace.hasUnreadResult = task.status === "completed" && props.workspace.minimized;
   Object.assign(props.workspace, { status: task.status, error: task.error || "", taskId: task.taskId || props.workspace.taskId, vendorTaskId: task.vendorTaskId || props.workspace.vendorTaskId, resultIds: task.resultIds || props.workspace.resultIds });
   saveMaterialWorkspaces();
 }
@@ -153,8 +154,8 @@ async function applyMaterial(file: File) {
     .styleSelect { width: 32px; min-width: 32px; max-width: 32px; padding: 0; > span { gap: 0; font-size: 0; } svg { width: 16px; height: 16px; flex: none; } }
   }
 }
-.materialWindow-enter-active, .materialWindow-leave-active { transition: transform 240ms ease, opacity 240ms ease; }
-.materialWindow-enter-from, .materialWindow-leave-to { transform: translateX(calc(100% + 16px)); opacity: 0; }
+.materialWindow-enter-active, .materialWindow-leave-active { transition: transform 200ms ease, opacity 200ms ease; }
+.materialWindow-enter-from, .materialWindow-leave-to { transform: scale(.97); opacity: 0; }
 @media(prefers-reduced-motion:reduce) { .materialWindow-enter-active, .materialWindow-leave-active { transition: none; } }
 </style>
 
