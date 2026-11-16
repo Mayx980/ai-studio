@@ -1,23 +1,23 @@
 <template>
   <div v-click-outside:[clickOutsideExclude]="closeMenu" class="mentionMenu" @keydown.capture="handleKeydown">
-    <el-button v-if="!hideTrigger" class="mentionButton" text circle :disabled="disabled" :aria-expanded="visible" :aria-controls="listId" aria-label="选择参考素材" title="选择参考素材" @mousedown.prevent @click="visible ? closeMenu() : openMenu()"><icon-at :size="16" /></el-button>
+    <el-button v-if="!hideTrigger" class="mentionButton" text circle :disabled="disabled" :aria-expanded="visible" :aria-controls="listId" aria-label="选择参考素材" title="选择参考素材" @mousedown.prevent @click="visible ? closeMenu() : openMenu($event.currentTarget as HTMLElement)"><icon-at :size="16" /></el-button>
     <teleport to="body">
       <div v-if="visible" ref="popupElement" class="mentionMenu mentionOverlay" :style="popupStyle" @keydown.capture="handleKeydown">
-        <el-card class="mentionPopup" shadow="always" :bodyStyle="{ padding: '0' }" :style="{ maxHeight: `${popupHeight}px` }">
+        <el-card class="mentionPopup" shadow="always" :bodyStyle="{ padding: '0', maxHeight: `${Math.max(0, popupHeight - 2)}px` }" :style="{ maxHeight: `${popupHeight}px` }">
           <div class="mentionHeader"><strong>选择参考素材</strong><div class="mentionScopes" aria-label="素材范围"><button v-for="item in visibleScopes" :key="item.id" type="button" :class="{ selected: scope === item.id }" :aria-pressed="scope === item.id" @click="changeScope(item.id)">{{ item.name }}</button></div><el-button text circle size="small" aria-label="关闭素材选择" @click="closeMenu"><icon-x :size="14" /></el-button></div>
           <div v-if="selectedNode || selectedCanvas || assetPath" class="mentionBreadcrumb">
             <el-button text circle size="small" aria-label="返回上一级" @click="goBack"><icon-chevron-left :size="15" /></el-button>
             <span :title="breadcrumb">{{ breadcrumb }}</span>
           </div>
           <div class="mentionSearch"><el-input v-model="search" clearable :placeholder="searchPlaceholder" aria-label="搜索素材名称"><template #prefix><icon-search :size="15" /></template></el-input></div>
-          <el-scrollbar ref="listScrollbar" class="mentionScroll" :maxHeight="`${Math.max(90, popupHeight - (selectedNode || selectedCanvas || assetPath ? 218 : 188))}px`">
+          <el-scrollbar ref="listScrollbar" class="mentionScroll">
             <div :id="listId" class="mentionList" role="listbox" aria-label="可引用素材" :aria-busy="loading || selecting" :aria-multiselectable="!!selectedNode">
               <div v-if="loading && !rows.length" class="mentionStatus" role="status">正在加载…</div>
               <div v-else-if="loadError && !rows.length" class="mentionStatus" role="alert"><span>{{ loadError }}</span><el-button text type="primary" size="small" @click="loadList()">重试</el-button></div>
               <div v-else-if="!rows.length" class="mentionStatus" role="status">{{ emptyText }}</div>
               <div class="mentionRows" :style="{ height: `${listVirtualizer.getTotalSize()}px` }">
                 <button v-for="{ row, index, start } in visibleRows" :id="`${listId}-${index}`" :key="`${row.kind}-${row.id}`" class="mentionItem" :style="{ transform: `translateY(${start}px)` }" :class="{ active: index === activeIndex, unavailable: !row.available, checked: row.kind === 'output' && selectedOutputs.includes(row.id) }" type="button" role="option" :aria-selected="row.kind === 'output' ? selectedOutputs.includes(row.id) : index === activeIndex" :aria-disabled="!row.available || selecting" :aria-posinset="index + 1" :aria-setsize="rows.length" :title="row.name" @mouseenter="activeIndex = index" @mousedown.prevent @click="chooseRow(row)">
-                  <attachmentPreview v-if="row.kind === 'attachment' && attachments?.[Number(row.id)]" class="uploadedThumbnail" :attachment="attachments[Number(row.id)]!" :directory="directory" /><mentionThumbnail v-else :thumbnail="row.thumbnail" :directory="directory" :globalAsset="row.kind === 'file'"><component :is="row.kind === 'canvas' ? IconVector : row.kind === 'directory' ? IconFolder : row.dataType === 'image' || row.dataType === 'mask' ? IconPhoto : row.dataType === 'video' ? IconVideo : row.dataType === 'audio' ? IconMusic : row.dataType ? IconFileText : IconBox" :size="18" /></mentionThumbnail>
+                  <attachmentPreview v-if="row.kind === 'attachment' && attachments?.[Number(row.id)]" class="uploadedThumbnail" :attachment="attachments[Number(row.id)]!" :directory="directory" /><mentionThumbnail v-else class="materialThumbnail" :thumbnail="row.thumbnail" :directory="directory" :globalAsset="row.kind === 'file'"><component :is="row.kind === 'canvas' ? IconVector : row.kind === 'directory' ? IconFolder : row.dataType === 'image' || row.dataType === 'mask' ? IconPhoto : row.dataType === 'video' ? IconVideo : row.dataType === 'audio' ? IconMusic : row.dataType ? IconFileText : IconBox" :size="18" /></mentionThumbnail>
                   <span class="mentionContent"><span class="mentionName">{{ row.name }}</span><span v-if="row.description" class="mentionDescription">{{ row.description }}</span></span>
                   <span v-if="!row.available" class="mentionState">{{ row.kind === 'file' ? '不支持' : '暂无输出' }}</span>
                   <span v-else-if="row.kind === 'output'" class="mentionCheck" :class="{ selected: selectedOutputs.includes(row.id) }"><icon-check v-if="selectedOutputs.includes(row.id)" :size="12" /></span>
@@ -78,7 +78,8 @@ const loading = ref(false);
 const loadError = ref("");
 const selecting = ref(false);
 const selectionError = ref("");
-const popupHeight = ref(400);
+const popupHeight = ref(320);
+const triggerElement = ref<HTMLElement>();
 const popupElement = ref<HTMLElement>();
 const popupStyle = ref<CSSProperties>({});
 const clickOutsideExclude = computed(() => [props.editor, popupElement.value]);
@@ -132,7 +133,7 @@ const listVirtualizer = useVirtualizer<HTMLDivElement, HTMLButtonElement>(comput
   count: rows.value.length,
   getScrollElement: () => listScrollbar.value?.wrapRef ?? null,
   getItemKey: (index: number) => `${rows.value[index]!.kind}-${rows.value[index]!.id}`,
-  estimateSize: () => 52,
+  estimateSize: () => 56,
   overscan: 3,
   enabled: visible.value,
 })));
@@ -145,8 +146,9 @@ let requestController: AbortController | undefined;
 let selectionController: AbortController | undefined;
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
-function openMenu() {
+function openMenu(anchor?: HTMLElement) {
   if (props.disabled || !props.active) return;
+  triggerElement.value = anchor;
   buttonVisible.value = true;
 }
 
@@ -318,38 +320,58 @@ function handleKeydown(event: KeyboardEvent): boolean {
   return true;
 }
 
-watch(() => props.query, query => { if (query !== undefined) search.value = query; });
+watch(() => props.query, query => { if (query !== undefined) { triggerElement.value = undefined; search.value = query; } });
 watch(visible, open => {
   if (open) emit("open");
   else buttonVisible.value = false;
 });
-watch([visible, () => props.editor], ([open, editor], _previous, onCleanup) => {
+watch([visible, () => props.editor, triggerElement], ([open, editor], _previous, onCleanup) => {
   if (!open || !editor) return;
-  const input = editor.closest(".messageInput") ?? editor;
+  const editorElement = editor;
+  const input = editorElement.closest(".messageInput") ?? editorElement;
+  let caretOffset: { left: number; top: number; height: number } | undefined;
   function updatePopupPosition() {
-    const bounds = input.getBoundingClientRect();
-    const above = Math.max(0, bounds.top - 16);
-    const below = Math.max(0, window.innerHeight - bounds.bottom - 16);
-    const openBelow = above < 220 && below > above;
+    const inputBounds = input.getBoundingClientRect();
+    let anchor = triggerElement.value?.isConnected ? triggerElement.value.getBoundingClientRect() : undefined;
+    if (!anchor) {
+      const selection = window.getSelection();
+      if (selection?.rangeCount && editorElement.contains(selection.anchorNode)) {
+        const range = selection.getRangeAt(0).cloneRange();
+        range.collapse(false);
+        let bounds = range.getBoundingClientRect();
+        if (!bounds.height && range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset > 0) {
+          range.setStart(range.startContainer, range.startOffset - 1);
+          bounds = range.getBoundingClientRect();
+          bounds = new DOMRect(bounds.right, bounds.top, 0, bounds.height);
+        }
+        if (bounds.height) caretOffset = { left: bounds.left - inputBounds.left, top: bounds.top - inputBounds.top, height: bounds.height };
+      }
+      anchor = caretOffset ? new DOMRect(inputBounds.left + caretOffset.left, inputBounds.top + caretOffset.top, 0, caretOffset.height) : editorElement.getBoundingClientRect();
+    }
+    const above = Math.max(0, anchor.top - 20);
+    const below = Math.max(0, window.innerHeight - anchor.bottom - 20);
+    const openBelow = below >= 320 || below >= above;
     const available = openBelow ? below : above;
-    const width = Math.min(bounds.width, Math.max(0, window.innerWidth - 16));
-    popupHeight.value = Math.min(420, available);
+    const width = Math.min(360, Math.max(0, window.innerWidth - 24));
+    popupHeight.value = Math.min(320, available);
     popupStyle.value = {
       width: `${width}px`,
-      left: `${Math.max(8, Math.min(bounds.left, window.innerWidth - width - 8))}px`,
-      top: openBelow ? `${bounds.bottom + 8}px` : "auto",
-      bottom: openBelow ? "auto" : `${window.innerHeight - bounds.top + 8}px`,
+      left: `${Math.max(12, Math.min(anchor.left, window.innerWidth - width - 12))}px`,
+      top: openBelow ? `${Math.max(12, anchor.bottom + 8)}px` : "auto",
+      bottom: openBelow ? "auto" : `${Math.max(12, window.innerHeight - anchor.top + 8)}px`,
     };
   }
   const observer = new ResizeObserver(updatePopupPosition);
-  for (const element of [input, editor.closest(".agentConversation"), editor.closest(".floatingAgent")]) if (element) observer.observe(element);
+  for (const element of [input, editor.closest(".agentConversation"), triggerElement.value]) if (element) observer.observe(element);
   window.addEventListener("resize", updatePopupPosition);
   window.addEventListener("scroll", updatePopupPosition, true);
+  document.addEventListener("selectionchange", updatePopupPosition);
   updatePopupPosition();
   onCleanup(() => {
     observer.disconnect();
     window.removeEventListener("resize", updatePopupPosition);
     window.removeEventListener("scroll", updatePopupPosition, true);
+    document.removeEventListener("selectionchange", updatePopupPosition);
   });
 }, { flush: "post" });
 watch(visible, (value, previous) => { if (value && !previous && props.attachments?.length) changeScope("current"); });
@@ -428,8 +450,11 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
   .mentionPopup {
     min-width: 0;
     box-sizing: border-box;
-    overflow-y: auto;
+    overflow: hidden;
     overscroll-behavior: contain;
+    :deep(.el-card__body) { display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; }
+    .mentionHeader, .mentionSearch, .mentionScopes, .mentionBreadcrumb, .mentionFooter, .mentionError { flex-shrink: 0; }
+    .mentionScroll { flex: 1; min-height: 0; }
     color: var(--el-text-color-primary);
 
     .mentionHeader { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 7px 10px; font-size: 13px; strong { white-space: nowrap; } > .el-button { margin-left: auto; } }
@@ -480,11 +505,11 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
           align-items: center;
           gap: 8px;
           width: 100%;
-          height: 52px;
+          height: 56px;
           box-sizing: border-box;
           padding: 8px 7px;
           border: 0;
-          border-radius: 5px;
+          border-radius: 10px;
           background: transparent;
           color: var(--el-text-color-primary);
           text-align: left;
@@ -530,5 +555,5 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
 </style>
 
 <style scoped lang="scss">
-.uploadedThumbnail { flex: none; width: 36px; height: 36px; :deep(.thumbnailImage), :deep(.thumbnailButton) { width: 36px; height: 36px; } }
+.uploadedThumbnail, .materialThumbnail { flex: none; width: 40px; height: 40px; :deep(.thumbnailImage), :deep(.thumbnailButton) { width: 40px; height: 40px; } }
 </style>
