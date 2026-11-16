@@ -32,7 +32,7 @@
         <div class="hoverMedia">
           <template v-if="attachment.mimeType.startsWith('video/')">
             <video ref="hoverVideo" :src="thumbnailUrl" preload="metadata" playsinline @loadedmetadata="showVideoCover" @play="hoverPlaying = true" @pause="hoverPlaying = false" @ended="hoverPlaying = false" />
-            <button class="hoverPlayback" :class="{ playing: hoverPlaying }" type="button" :aria-label="hoverPlaying ? '暂停' : '播放'" :title="hoverPlaying ? '暂停' : '播放'" @click="toggleHoverPlayback"><icon-player-pause v-if="hoverPlaying" :size="28" /><icon-player-play v-else :size="28" /></button>
+            <button class="hoverPlayback" :class="{ playing: hoverPlaying }" type="button" :aria-label="hoverPlaying ? '暂停' : '播放'" :title="hoverPlaying ? '暂停' : '播放'" @click="toggleHoverPlayback"><icon-player-pause v-if="hoverPlaying" :size="18" /><icon-player-play v-else :size="28" /></button>
           </template>
           <img v-else :src="thumbnailUrl" :alt="attachment.name" />
           <span v-if="videoDuration" class="hoverDuration">{{ videoDuration }}</span>
@@ -257,7 +257,7 @@ watch([textPreviewVisible, () => props.attachment, () => props.directory], async
   .hoverMedia { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; background: #181818;
     img, video { display: block; width: 100%; height: 100%; object-fit: cover; }
     .hoverPlayback { position: absolute; inset: 0; margin: auto; display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border: 1px solid #ffffff66; border-radius: 50%; background: #0008; color: #fff; cursor: pointer;
-      &.playing { inset: auto auto 8px 8px; margin: 0; }
+      &.playing { inset: auto auto 8px 8px; margin: 0; width: 32px; height: 32px; }
       &:hover { background: #000b; }
       &:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 3px; }
     }
