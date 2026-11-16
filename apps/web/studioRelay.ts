@@ -1,4 +1,6 @@
 import type { Plugin } from "vite";
+import { lookup } from "node:dns";
+import { request as httpsRequest } from "node:https";
 
 // ACT: 仅本机原型的传输适配，不保存凭证，不提供生产代理入口。
 export default function studioRelay(): Plugin {
@@ -32,9 +34,20 @@ export default function studioRelay(): Plugin {
         const body = new Uint8Array(size);
         let offset = 0;
         for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.length; }
-        const upstream = await fetch(target, { method: request.method, headers, ...(size ? { body } : {}), redirect: "error", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(180000)]) });
-        response.writeHead(upstream.status, { "Content-Type": upstream.headers.get("content-type") || "application/octet-stream" });
-        if (upstream.body) for await (const chunk of upstream.body) {
+        // ACT: 建立连接时尝试域名的全部地址，不重发已提交的生成请求。
+        const upstream = await new Promise<import("node:http").IncomingMessage>((resolve, reject) => {
+          const connectionOptions = { autoSelectFamily: true };
+          const outgoing = httpsRequest(target, {
+            ...connectionOptions,
+            method: request.method, headers: Object.fromEntries(headers),
+            lookup(hostname, _, callback) { lookup(hostname, { all: true }, callback); },
+            signal: AbortSignal.any([controller.signal, AbortSignal.timeout(180000)]),
+          }, resolve);
+          outgoing.on("error", reject);
+          outgoing.end(size ? body : undefined);
+        });
+        response.writeHead(upstream.statusCode || 502, { "Content-Type": upstream.headers["content-type"] || "application/octet-stream" });
+        for await (const chunk of upstream) {
           if (!response.write(chunk)) await new Promise<void>(resolve => { response.once("drain", resolve); response.once("close", resolve); });
         }
         response.end();

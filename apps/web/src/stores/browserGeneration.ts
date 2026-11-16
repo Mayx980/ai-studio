@@ -207,7 +207,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
     if (browserWorkspaceMode && directory) await saveBrowserResults(directory, signal);
     return true;
   } catch (error) {
-    generationError.value = signal.aborted ? "已停止等待；已提交的远端任务可能仍在运行，请先检查供应商任务记录。" : error instanceof TypeError ? "无法访问供应商接口，请检查本机预览服务及网络。输入和参考已保留。" : (error instanceof Error ? error.message : "模型调用失败").replaceAll(apiKey, "[Key]");
+    generationError.value = signal.aborted ? "已停止等待；已提交的远端任务可能仍在运行，请先检查供应商任务记录。" : (error instanceof Error ? error.message : "模型调用失败").replaceAll(apiKey, "[Key]");
     return false;
   } finally { generationBusy.value = false; controller = undefined; }
 }

@@ -20,10 +20,10 @@ const builtinNodeAliases = ["nodes/textNode", "nodes/imageGenerationNode", "node
   }));
 });
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode, command }) => ({
   css: { postcss: postcssConfig },
   define: {
-    "import.meta.env.VITE_STUDIO_RELAY": mode === "studio",
+    "import.meta.env.VITE_STUDIO_RELAY": command === "serve",
     "import.meta.env.appVersion": JSON.stringify(desktopConfig.app.version),
   },
   server: {
@@ -53,7 +53,7 @@ export default defineConfig(({ mode }) => ({
     emptyOutDir: true,
   },
   plugins: [
-    ...(mode === "studio" ? [studioRelay()] : []),
+    ...(command === "serve" ? [studioRelay()] : []),
     i18nPlugin(),
     vue(),
     components({
