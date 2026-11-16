@@ -1,17 +1,28 @@
 <template>
-  <section class="creativeCases" :class="{ compact, curated }">
-    <div class="caseHeader"><h2>{{ curated ? '创作优选' : '模板中心' }}</h2><el-button text type="primary" @click="professional ? projectPickerOpen = true : openUpload()">{{ professional ? '上传创作优选' : '上传模板' }}</el-button></div>
-    <div v-if="!curated" class="caseFilters"><div class="caseCategories"><button v-for="item in categories" :key="item" :aria-pressed="category === item" @click="category = item">{{ item }}</button></div>
+  <section ref="root" class="creativeCases" :class="{ compact, curated }">
+    <div class="caseHeader"><h2>模板中心</h2><el-button text type="primary" @click="professional ? projectPickerOpen = true : openUpload()">上传模板</el-button></div>
+    <div class="caseFilters"><div class="caseCategories"><button v-for="item in categories" :key="item" :aria-pressed="category === item" @click="category = item">{{ item }}</button></div>
     <form class="templateSearch" role="search" @submit.prevent="searchTemplates"><el-input v-model="query" clearable aria-label="搜索视频模板" placeholder="请输入搜索内容" @input="invalidateSearch"><template #suffix><el-button class="searchSubmit" text nativeType="submit" :loading="searching" aria-label="搜索模板"><icon-search v-if="!searching" :size="16" /></el-button></template></el-input></form></div>
+    <el-alert v-if="projectLoadError" :title="projectLoadError" type="warning" :closable="false" />
     <p v-if="searching" role="status" aria-live="polite">正在理解需求并查找相关模板…</p>
     <el-alert v-else-if="searchError || loadError" :title="searchError || loadError" type="error" :closable="false"><el-button text @click="loadError ? loadTemplates() : searchTemplates()">重试</el-button></el-alert>
     <p v-else-if="query.trim() && !rankedIds" role="status">按回车或点击搜索，查找语义相关的模板。</p>
-    <p v-else-if="!visibleCases.length" role="status">{{ query.trim() ? '没有找到相关模板，试试调整描述或分类。' : professional ? '当前分类暂无项目模板，可从“我的项目”制作模板。' : '当前分类暂无视频模板。' }}</p>
-    <div v-else class="caseGrid" :aria-busy="searching"><article v-for="item in visibleCases" :key="item.id" @pointerenter="playPreview" @pointerleave="pausePreview" @focusin="playPreview" @focusout="pausePreview"><button class="caseCard" :aria-label="`${curated ? '播放作品' : '查看模板'} ${item.name}`" @click="openPreview(item)"><span class="casePreview"><templateMedia :ref="value => setCardMedia(item.id, value)" :media="item.media" /></span><span class="caseName" :title="item.name">{{ item.name }}</span></button><el-tooltip :content="curated ? '查看创作过程' : '一键同款'"><el-button class="cardAction" circle :icon="curated ? IconVector : IconCopy" :aria-label="`${curated ? '查看创作过程' : '一键同款'} ${item.name}`" :loading="!curated && applying" @click.stop="curated ? openPreview(item, true) : applyTemplate(item, cardMedia.get(item.id))" /></el-tooltip><el-tooltip v-if="currentAccount?.role === 'admin'" content="删除"><el-button class="deleteCard" circle :icon="IconTrash" :aria-label="`删除 ${item.name}`" :loading="removingId === item.id" @click.stop="deleteCard(item)" /></el-tooltip></article></div>
-    <el-dialog :modelValue="!!preview" :title="preview?.name" class="templateDetail" :class="{ processDetail: professional && previewMode === 'process' }" :fullscreen="professional && previewMode === 'process'" :width="professional && previewMode === 'process' ? 'min(1600px, 98vw)' : 'min(1120px, 96vw)'" alignCenter appendToBody destroyOnClose :closeOnClickModal="!copying" :closeOnPressEscape="!copying" :showClose="!copying" @opened="projectPreview?.fitView()" @update:modelValue="preview = undefined">
-      <template v-if="professional" #header="{ titleId, titleClass }"><div v-if="previewMode === 'process'" class="detailHeader"><h3 :id="titleId" :class="titleClass">{{ preview?.name }}</h3><el-button type="primary" :loading="copying" @click="copyProject">复制项目</el-button></div></template>
-      <div v-if="preview && professional && previewMode === 'media'" class="workPreview"><div class="workMedia"><templateMedia ref="previewMedia" :media="preview.media" controls autoplay /></div><footer><h3>{{ preview.name }}</h3><el-button plain @click="previewMode = 'process'"><icon-vector :size="17" />查看创作过程</el-button></footer></div>
-      <templateProjectPreview ref="projectPreview" v-else-if="preview && professional" :template="preview" />
+    <p v-else-if="!visibleCases.length" role="status">{{ query.trim() ? '没有找到相关模板，试试调整描述或分类。' :  '当前分类暂无模板。' }}</p>
+    <div v-else class="caseGrid" :aria-busy="searching">
+      <article v-for="item in visibleCases" :key="item.id" @pointerenter="playPreview" @pointerleave="pausePreview" @focusin="playPreview" @focusout="pausePreview">
+        <button class="caseCard" :aria-label="`查看模板 ${item.name}`" @click="openPreview(item)"><span class="casePreview"><templateMedia :ref="value => setCardMedia(item.id, value)" :media="item.media" @duration="value => mediaDurations[item.id] = value" /><span v-if="mediaDurations[item.id]" class="caseDuration">{{ mediaDurations[item.id] }}</span></span><span class="caseName" :title="item.name">{{ item.name }}</span></button>
+        <div class="caseActions">
+          <el-tooltip v-if="item.applicationTemplate" :content="professional ? '一键同款 · 将进入简单模式' : '一键同款'"><el-button class="mainAction" type="primary" :loading="applying" @click.stop="applyTemplate(item.applicationTemplate, cardMedia.get(item.id))">一键同款<span v-if="professional" class="modeDestination">简单模式</span></el-button></el-tooltip>
+          <el-button v-if="item.processTemplate" class="mainAction" type="primary" @click.stop="openPreview(item, true)">查看创作过程</el-button>
+        </div>
+        <el-tooltip v-if="item.processTemplate" :content="professional ? '一键复制' : '一键复制 · 将进入专业模式'"><el-button class="copyTemplateAction" :icon="IconCopy" :aria-label="`一键复制 ${item.name}`" :loading="copying" @click.stop="copyProject(item.processTemplate)">一键复制<span v-if="!professional" class="modeDestination">专业模式</span></el-button></el-tooltip>
+        <el-tooltip v-if="currentAccount?.role === 'admin'" content="删除"><el-button class="deleteCard" circle :icon="IconTrash" :aria-label="`删除 ${item.name}`" :loading="removingId === item.id" @click.stop="deleteCard(item)" /></el-tooltip>
+      </article>
+    </div>
+    <el-dialog :modelValue="!!preview" :title="preview?.name" class="templateDetail" :class="{ processDetail: !!preview?.processTemplate && previewMode === 'process' }" :fullscreen="!!preview?.processTemplate && previewMode === 'process'" :width="!!preview?.processTemplate && previewMode === 'process' ? 'min(1600px, 98vw)' : 'min(1120px, 96vw)'" alignCenter appendToBody destroyOnClose :closeOnClickModal="!copying" :closeOnPressEscape="!copying" :showClose="!copying" @opened="projectPreview?.fitView()" @update:modelValue="preview = undefined">
+      <template v-if="preview?.processTemplate" #header="{ titleId, titleClass }"><div v-if="previewMode === 'process'" class="detailHeader"><h3 :id="titleId" :class="titleClass">{{ preview?.name }}</h3><el-button type="primary" :loading="copying" @click="copyProject()">一键复制<span v-if="!professional"> · 专业模式</span></el-button></div></template>
+      <div v-if="preview && preview.processTemplate && previewMode === 'media'" class="workPreview"><div class="workMedia"><templateMedia ref="previewMedia" :media="preview.media" controls autoplay /></div><footer><h3>{{ preview.name }}</h3><el-button v-if="preview.applicationTemplate" type="primary" :loading="applying" @click="applyPreview">一键同款<span v-if="professional"> · 简单模式</span></el-button><el-button type="primary" @click="previewMode = 'process'"><icon-vector :size="17" />查看创作过程</el-button></footer></div>
+      <templateProjectPreview ref="projectPreview" v-else-if="preview?.processTemplate" :template="preview.processTemplate" />
       <div v-else-if="preview" class="detailLayout"><div class="detailMedia"><templateMedia ref="previewMedia" :media="preview.media" controls /></div><div class="detailContent"><h3>创作详情</h3><p class="templatePrompt">{{ preview.prompt }}</p><p class="templateParameters">{{ preview.modelId || '当前模型' }} ｜ {{ preview.ratio || '当前比例' }} ｜ {{ preview.resolution || preview.imageSize || '当前清晰度' }}<span v-if="preview.duration"> ｜ {{ preview.duration }}秒</span></p><el-button type="primary" :loading="applying" @click="applyPreview">一键同款</el-button></div></div>
     </el-dialog>
     <el-dialog v-model="projectPickerOpen" title="选择项目" width="min(640px, 94vw)" appendToBody><div class="projectChoices"><el-button v-for="project in workspace.projectList" :key="project.directory" @click="projectPickerOpen = false; openUpload(project)">{{ project.name }}</el-button></div></el-dialog>
@@ -22,7 +33,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, toRefs, watch } from "vue";
 import { IconCopy, IconVector, IconTrash, IconSearch } from "@tabler/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useRouter } from "vue-router";
@@ -30,9 +41,10 @@ import { currentAccount } from "@/stores/prototypeAccount";
 import { useWorkspaceStore, type Project } from "@/stores/workspace";
 import { generateBrowserText } from "@/lib/browserNodeAi";
 import { captureTemplateProject, copyTemplateProject } from "@/lib/projectTemplates";
+import { curatedCreatorFiles, curatedCreatorTemplate } from "@/lib/curatedProject";
 import templateProjectPreview from "@/components/templateProjectPreview.vue";
 import templateMedia from "@/components/templateMedia.vue";
-import { creationTemplates, templateIsRemoved, removeCreationTemplate, loadCreationTemplates, readTemplateFile, saveCreationTemplate, type CreationTemplate, type TemplateApplication } from "@/lib/creationTemplates";
+import { creationTemplates, templateBrowsingState, templateIsRemoved, removeCreationTemplate, loadCreationTemplates, readTemplateFile, saveCreationTemplate, type CreationTemplate, type TemplateApplication } from "@/lib/creationTemplates";
 import { browserModelSelection, configuredBrowserModels } from "@/stores/browserGeneration";
 import { browserAssetMimeType } from "@/lib/browserAssets";
 import { imageDimensions } from "@toonflow/node-shared/generationDefaults";
@@ -40,16 +52,20 @@ const props = defineProps<{ compact?: boolean; curated?: boolean }>();
 const emit = defineEmits<{ apply: [value: TemplateApplication] }>();
 const workspace = useWorkspaceStore(), router = useRouter();
 const professional = computed(() => !!props.curated);
+const root = ref<HTMLElement>();
+const mediaDurations = reactive<Record<string, string>>({});
+type TemplateCard = CreationTemplate & { applicationTemplate?: CreationTemplate; processTemplate?: CreationTemplate };
 const projectPreview = ref<InstanceType<typeof templateProjectPreview>>();
 const cardMedia = new Map<string, InstanceType<typeof templateMedia>>();
 function setCardMedia(id: string, value: unknown) { if (value) cardMedia.set(id, value as InstanceType<typeof templateMedia>); else cardMedia.delete(id); }
 const projectPickerOpen = ref(false), previewInput = ref<HTMLInputElement>();
 const sourceProject = ref<Project>(), copying = ref(false);
-const query = ref(""), searching = ref(false), searchError = ref(""), loadError = ref(""), rankedIds = ref<string[]>();
+const { query, category, rankedIds } = toRefs(templateBrowsingState);
+const searching = ref(false), searchError = ref(""), loadError = ref("");
 let searchRequest: AbortController | undefined;
 const previewMode = ref<"media" | "process">("media");
-function openPreview(item: CreationTemplate, process = false) { previewMode.value = process ? "process" : "media"; preview.value = item; }
-const category = ref("全部"), preview = ref<CreationTemplate>(), previewMedia = ref<InstanceType<typeof templateMedia>>();
+function openPreview(item: TemplateCard, process = false) { previewMode.value = process ? "process" : "media"; preview.value = item; }
+const preview = ref<TemplateCard>(), previewMedia = ref<InstanceType<typeof templateMedia>>();
 const removingId = ref("");
 async function deleteCard(item: CreationTemplate) {
   if (currentAccount.value?.role !== "admin" || removingId.value) return;
@@ -62,38 +78,78 @@ async function deleteCard(item: CreationTemplate) {
 const applying = ref(false), uploadOpen = ref(false), saving = ref(false), uploadFile = ref<File>();
 const draft = reactive({ name: "", category: "产品展示", prompt: "", modelId: "", ratio: "", resolution: "" });
 const projectCases = ref<CreationTemplate[]>([]);
+const projectLoadError = ref("");
 let projectVersion = 0;
-watch(() => [professional.value, ...workspace.projectList.filter(project => (project.name.includes("达人种草") || project.example)).map(project => `${project.directory}:${project.lastOpenedAt}:${project.name}`)], async () => {
+watch(() => [...workspace.projectList.filter(project => (project.name.includes("达人种草") || project.example)).map(project => `${project.directory}:${project.lastOpenedAt}:${project.name}`)], async () => {
   const version = ++projectVersion;
-  if (!professional.value) return;
   const result: CreationTemplate[] = [];
-  try {
-    for (const project of workspace.projectList.filter(project => (project.name.includes("达人种草") || project.example))) {
+  let failed = 0;
+  for (const project of workspace.projectList.filter(project => (project.name.includes("达人种草") || project.example))) {
+    try {
       const snapshot = await captureTemplateProject(project.directory);
       const canvases = snapshot.project.canvases.map(path => JSON.parse(new TextDecoder().decode(snapshot.files.get(path)!)));
       const outputs = canvases.flatMap(canvas => canvas.nodes.flatMap((node: { data?: { outputs?: Record<string, { value?: { url?: string; mimeType?: string } }> } }) => Object.values(node.data?.outputs ?? {}).map(output => output.value))).filter((value): value is { url: string; mimeType: string } => !!value?.url && /^(image|video)\//.test(value.mimeType ?? ""));
       const media = outputs.find(value => value.mimeType.startsWith("video/")) ?? outputs[0];
       if (!media) continue;
       result.push({ id: `project${project.directory.slice(10).replaceAll("-", "")}`, sourceDirectory: project.directory, name: project.name, category: "达人种草", prompt: "", kind: media.mimeType.startsWith("video/") ? "video" : "image", references: [], media: { directory: project.directory, path: media.url, mimeType: media.mimeType, name: project.name }, project: snapshot.project });
-    }
-    if (version === projectVersion) projectCases.value = result;
-  } catch (error) { if (version === projectVersion) loadError.value = error instanceof Error ? error.message : "项目读取失败"; }
+    } catch { failed++; }
+  }
+  if (version === projectVersion) {
+    projectCases.value = result;
+    projectLoadError.value = failed ? `${failed} 个项目模板暂时无法读取，其他模板仍可使用。请确认原项目是否存在。` : "";
+  }
 }, { immediate: true });
-const modeCases = computed(() => [...creationTemplates.value, ...(professional.value ? projectCases.value : [])].filter(item => !templateIsRemoved(item)).filter(item => professional.value ? !!item.project : item.kind === "video"));
-const categories = computed(() => ["全部", ...new Set(modeCases.value.map(item => item.category))]);
+const modeCases = computed(() => {
+  const cards = new Map<string, TemplateCard>();
+  for (const item of [...creationTemplates.value, ...projectCases.value].filter(item => !templateIsRemoved(item))) {
+    const checksum = item.project?.files.find(file => file.path === item.media.path)?.sha256;
+    const sharedMedia = Object.entries(curatedCreatorFiles).find(([path, url]) => item.media.path === url || !!checksum && curatedCreatorTemplate.project?.files.find(file => file.path === path)?.sha256 === checksum);
+    const key = sharedMedia ? `public:${sharedMedia[1]}` : checksum ? `media:${checksum}` : `${item.media.path.startsWith("/templates/") ? "public" : item.media.directory || "templates"}:${item.media.path}`;
+    const existing = cards.get(key) || [...cards.values()].find(card => card.id === item.id || !!item.sourceDirectory && card.processTemplate?.sourceDirectory === item.sourceDirectory);
+    const applicationTemplate = item.project ? existing?.applicationTemplate : item;
+    const processTemplate = item.project ? item : existing?.processTemplate;
+    const card: TemplateCard = { ...(existing || item), applicationTemplate, processTemplate };
+    if (existing) Object.assign(existing, card);
+    else cards.set(key, card);
+  }
+  return [...cards.values()];
+});
+const categories = computed(() => ["全部", "产品展示", "达人种草", "短剧带货", "真实测评", ...new Set(modeCases.value.map(item => item.category).filter(category => !["产品展示", "达人种草", "短剧带货", "真实测评"].includes(category)))]);
 const categoryCases = computed(() => modeCases.value.filter(item => category.value === "全部" || item.category === category.value));
 const visibleCases = computed(() => !query.value.trim() ? categoryCases.value : rankedIds.value ? rankedIds.value.flatMap(id => categoryCases.value.find(item => item.id === id) ?? []) : []);
 const uploadVideo = computed(() => uploadFile.value?.type === "video/mp4" || uploadFile.value?.name.toLowerCase().endsWith(".mp4"));
 const models = computed(() => configuredBrowserModels("video"));
-onMounted(loadTemplates);
-onUnmounted(() => searchRequest?.abort());
+let scrollContainer: HTMLElement | undefined;
+function rememberScroll() {
+  if (!root.value?.getClientRects().length || !scrollContainer) return;
+  templateBrowsingState.scrollOffset = (scrollContainer === document.scrollingElement ? 0 : scrollContainer.getBoundingClientRect().top) - root.value.getBoundingClientRect().top;
+}
+async function restoreScroll() {
+  await nextTick();
+  if (!root.value?.getClientRects().length || !scrollContainer || templateBrowsingState.scrollOffset === undefined) return;
+  scrollContainer.scrollTop += root.value.getBoundingClientRect().top - (scrollContainer === document.scrollingElement ? 0 : scrollContainer.getBoundingClientRect().top) + templateBrowsingState.scrollOffset;
+}
+onMounted(async () => {
+  let parent = root.value?.parentElement;
+  while (parent && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) parent = parent.parentElement;
+  scrollContainer = parent || document.scrollingElement as HTMLElement;
+  const scrollTarget = scrollContainer === document.scrollingElement ? document : scrollContainer;
+  scrollTarget.addEventListener("scroll", rememberScroll, { passive: true });
+  await loadTemplates();
+  await restoreScroll();
+});
+onUnmounted(() => {
+  searchRequest?.abort();
+  const target = scrollContainer === document.scrollingElement ? document : scrollContainer;
+  target?.removeEventListener("scroll", rememberScroll);
+});
 async function loadTemplates() {
   loadError.value = "";
   try { await loadCreationTemplates(); } catch (error) { loadError.value = error instanceof Error ? error.message : "模板读取失败"; }
 }
 function invalidateSearch() { searchRequest?.abort(); searchRequest = undefined; searching.value = false; rankedIds.value = undefined; searchError.value = ""; }
-watch(category, () => { invalidateSearch(); if (query.value.trim()) void searchTemplates(); });
-watch(professional, () => { preview.value = undefined; invalidateSearch(); category.value = "全部"; });
+watch(category, () => { if (!root.value?.getClientRects().length) return; invalidateSearch(); if (query.value.trim()) void searchTemplates(); });
+watch(professional, () => { preview.value = undefined; void restoreScroll(); });
 async function searchTemplates() {
   invalidateSearch();
   if (!query.value.trim()) return;
@@ -121,8 +177,7 @@ function openUpload(project?: Project) {
   uploadFile.value = undefined; uploadOpen.value = true;
 }
 function selectPreview(event: Event) { uploadFile.value = (event.target as HTMLInputElement).files?.[0]; }
-async function copyProject() {
-  const template = preview.value;
+async function copyProject(template = preview.value?.processTemplate) {
   if (!template || copying.value) return;
   copying.value = true;
   try {
@@ -133,13 +188,14 @@ async function copyProject() {
     workspace.renameProject(directory, `${template.name} 副本`);
     preview.value = undefined;
     await router.push({ path: "/workspace", query: { returnSection: "create" } });
+    ElMessage.success("项目已复制，已进入专业模式");
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "复制项目失败"); }
   finally { copying.value = false; }
 }
 defineExpose({ openProjectTemplate: openUpload });
 function playPreview(event: Event) { if (!matchMedia("(prefers-reduced-motion: reduce)").matches) void (event.currentTarget as HTMLElement).querySelector("video")?.play().catch(() => {}); }
 function pausePreview(event: Event) { (event.currentTarget as HTMLElement).querySelector("video")?.pause(); }
-function applyPreview() { if (preview.value) void applyTemplate(preview.value, previewMedia.value); }
+function applyPreview() { if (preview.value?.applicationTemplate) void applyTemplate(preview.value.applicationTemplate, previewMedia.value); }
 async function applyTemplate(item: CreationTemplate, source?: InstanceType<typeof templateMedia>) {
   if (applying.value) return;
   applying.value = true;
@@ -210,10 +266,14 @@ async function saveTemplate() {
       &:hover, &:focus-visible { color: #b4a1ff; background: #28232e; }
     }
   }
-  .deleteCard { position: absolute; right: 8px; top: 8px; z-index: 2; opacity: 0; pointer-events: none; color: #f2a3aa; background: #28282e; }
-  .cardAction { position: absolute; right: 8px; bottom: 8px; z-index: 1; opacity: 0; pointer-events: none; transition: opacity .15s; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px; color: #fff; background: #0005; &:hover, &:focus-visible { background: #ffffff38; } }
-  @media(hover:none) { .deleteCard { opacity: 1; pointer-events: auto; } .cardAction { opacity: 1; pointer-events: auto; } }
-  .caseGrid { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 6px; article { min-width: 0; position: relative; &:hover .cardAction, &:focus-within .cardAction, &:hover .deleteCard, &:focus-within .deleteCard { opacity: 1; pointer-events: auto; } &:hover .caseCard::after { opacity: 1; } }
+  .deleteCard { position: absolute; left: 8px; top: 8px; z-index: 2; opacity: 0; pointer-events: none; color: #f2a3aa; background: #28282e; }
+  .copyTemplateAction { position: absolute; top: 8px; right: 8px; width: auto; height: 28px; margin: 0; padding: 0 8px; font-size: 11px; :deep(> span) { gap: 4px; } .modeDestination { opacity: .8; } color: #fff; background: #0008; border: 0; opacity: 0; pointer-events: none; }
+  .caseActions { position: absolute; bottom: 42px; left: 8px; right: 8px; display: flex; flex-wrap: wrap; gap: 6px; opacity: 0; pointer-events: none; transition: opacity 150ms;
+    .mainAction { flex: 1; height: auto; min-height: 28px; margin: 0; padding: 6px; font-size: 12px; :deep(> span) { flex-wrap: wrap; gap: 3px; } .modeDestination { font-size: 10px; opacity: .85; } }
+  }
+  .caseDuration { position: absolute; right: 8px; top: 8px; padding: 2px 5px; border-radius: 4px; background: #0009; color: #fff; font-size: 11px; }
+  @media(hover:none) { .deleteCard, .copyTemplateAction, .caseActions { opacity: 1; pointer-events: auto; } }
+  .caseGrid { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 8px; article { min-width: 0; position: relative; &:hover .caseActions, &:focus-within .caseActions, &:hover .copyTemplateAction, &:focus-within .copyTemplateAction, &:hover .deleteCard, &:focus-within .deleteCard { opacity: 1; pointer-events: auto; } &:hover .caseCard::after { opacity: 1; } &:hover .caseDuration, &:focus-within .caseDuration { top: 42px; } }
     .caseCard { display: block; position: relative; width: 100%; padding: 0; border: 0; border-radius: 10px; overflow: hidden; text-align: left; color: var(--el-text-color-primary); background: var(--el-bg-color); cursor: pointer;
       &::after { content: ""; position: absolute; inset: 0; background: rgba(100,100,100,.25); opacity: 0; pointer-events: none; transition: opacity .15s; }
       &:hover::after { opacity: 1; }

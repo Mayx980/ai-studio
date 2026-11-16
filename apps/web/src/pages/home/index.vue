@@ -7,7 +7,7 @@
         <button class="newCanvasEntry" type="button" :disabled="creating || opening" @click="createCanvas()"><span class="canvasPlus"><icon-plus :size="28" /></span><strong>新建画布创作</strong></button>
         <div class="nodeShortcuts" aria-label="节点快捷创作"><button v-for="item in nodeShortcuts" :key="item.type" type="button" :disabled="creating || opening" :aria-label="`新建${item.label}节点项目`" @click="createCanvas(item.type)"><span><component :is="item.icon" :size="26" /></span>{{ item.label }}</button></div>
         <section class="recentSection" aria-label="最近项目"><div class="sectionHeader"><h2>最近项目</h2><el-button text @click="homeSection = 'projects'">查看全部</el-button></div><div class="recentCards"><button v-for="item in recentProjects" :key="item.directory" type="button" class="recentCard" :disabled="creating || opening" :aria-label="`打开项目 ${item.name}`" @click="openProject(item)"><projectThumbnail :directory="item.directory" /><span><strong>{{ item.name }}</strong><small>最近编辑 {{ formatTime(item.lastEditedAt ?? item.lastOpenedAt) }}</small></span></button></div></section>
-        <creativeCases curated />
+        <creativeCases curated @apply="applyCase" />
       </section>
       <creativeCases ref="templateCenter" v-show="homeSection === 'templates'" @apply="applyCase" />
       <templateReview v-if="homeSection === 'reviews'" />

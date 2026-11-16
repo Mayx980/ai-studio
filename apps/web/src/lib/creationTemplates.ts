@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import { currentAccount } from "@/stores/prototypeAccount";
 import type { AnyTagProps } from "x-sender";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
@@ -10,6 +10,7 @@ export type TemplateProject = { files: { path: string; sha256: string }[]; canva
 export type TemplateReview = { authorId: "admin" | "user"; status: "pending" | "approved" | "rejected"; reason?: string; reviewedAt?: string };
 export type CreationTemplate = { sourceDirectory?: string; id: string; name: string; category: string; prompt: string; media: TemplateMedia; references: TemplateMedia[]; kind: "image" | "video"; modelId?: string; ratio?: string; resolution?: string; imageSize?: string; duration?: number; project?: TemplateProject; review?: TemplateReview };
 export type TemplateApplication = { prompt: string; references: File[]; template?: CreationTemplate };
+export const templateBrowsingState = reactive({ category: "全部", query: "", rankedIds: undefined as string[] | undefined, scrollOffset: undefined as number | undefined });
 export const templateDirectory = "browser://personalTemplates";
 const personal = ref<CreationTemplate[]>([]);
 const removedTemplateIds = ref<string[]>([]);
