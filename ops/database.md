@@ -4,7 +4,7 @@
 
 ## 服务、卷和配置
 
-建议在现有 Compose 中增加 MySQL 8.4 LTS 服务 `db`，采用 InnoDB、utf8mb4 和独立 `mysqlData` 持久卷；具体镜像补丁版本与 digest 在实现时核实并登记于实际 Compose，不使用未经核实的 latest。数据库只在 Compose 内部网络供应用访问，不映射宿主 3306；应用现有 HTTP 端口、APISIX 上游及媒体 appData 卷保持。应用先依赖 DB 健康，再核对已交付 schema 版本；缺库/缺表/错版本不能自动创建或继续匿名运行。
+建议在现有 Compose 中增加 MySQL 8.4 LTS 服务 `db`，采用 InnoDB、utf8mb4 和独立 `mysqlData` 持久卷；具体镜像补丁版本与 digest 在实现时核实并登记于实际 Compose，不使用未经核实的 latest。数据库只在 Compose 内部网络供应用访问，不映射宿主 3306；应用现有 HTTP 端口、APISIX 上游及 appData 卷保持；新媒体云存储修订见 [storage](storage.md)，原卷继续保存旧媒体与业务JSON。应用先依赖 DB 健康，再核对已交付 schema 版本；缺库/缺表/错版本不能自动创建或继续匿名运行。
 
 应用使用 Bun 1.3.14 已存在的 `SQL` 能力，连接池参数按当前单实例边界配置，不额外引入 ORM、Redis 或第二服务框架。数据库不替代应用进程内任务、文件协调锁或持久任务队列，首版仍仅一个可写应用实例。原生本机模式不强制依赖这个远程数据库；连接多用户 Server 时仍须真实登录。
 
@@ -35,3 +35,5 @@ DB 不可用时应用健康失败并明确提示，保留前端未保存内容�
 当前 AGENTS 的工具命名例外仅覆盖 Facts 和 UIUX 路径。本次数据库运维工具强制路径还需限定允许：`ops/db/db-ops`、`ops/db/README.md`、`ops/db/.gitignore`、`ops/db/database.template.yaml`、`ops/db/fixed-files.json`、`ops/db/lib/db_ops.py`、`ops/db/operations/check.input.schema.json`、`ops/db/profiles/mysql-8.4.json`，以及其固定本地 `.runtime/`、`.local/`、`database.dev.yaml`、`database.test.yaml`、`database.prod.yaml` 路径。只请求这些工具合同固定名称，不放宽其它新源码、脚本、组件或变量的小驼峰规则。候选审阅前不创建这些路径，也不声称已获例外授权。
 
 选型依据：[Bun SQL 官方文档](https://bun.sh/docs/runtime/sql)说明原生 MySQL、参数化、连接池与事务能力；本地只核实 Bun 1.3.14 导出 `SQL`，尚未连接验证。[MySQL LTS 说明](https://dev.mysql.com/doc/refman/8.4/en/mysql-releases.html)提供稳定版本线依据。支持声明不替代本项目实际连接、DDL、迁移或事务行为验收。
+
+本轮媒体入云后，配套恢复还依赖bucket/prefix中的真实云对象；其备份与删除能力见 [storage](storage.md)。MySQL不存媒体BLOB，数据库或本地卷的备份不能代替云对象备份；恢复顺序须核对媒体记录与对象对应，不自动重新上传、覆盖或删除现有对象。
