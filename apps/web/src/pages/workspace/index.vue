@@ -214,7 +214,11 @@ onMounted(async () => {
   const { sourceType, sourceDirectory, source, canvasPath } = sourceRoute.query;
   if (typeof sourceDirectory === "string" && typeof source === "string" && (sourceType === "conversation" || sourceType === "canvas" && typeof canvasPath === "string")) {
     try { await openGenerationOrigin(sourceType === "conversation" ? { type: "conversation", directory: sourceDirectory, sessionFile: source } : { type: "canvas", directory: sourceDirectory, canvasPath: canvasPath as string, nodeId: source }, router, true); }
-    catch (error) { ElMessage.error(error instanceof Error ? error.message : "生成来源无法恢复"); }
+    catch (error) {
+      const message = error instanceof Error ? error.message : "生成来源无法恢复";
+      ElMessage.error(message);
+      window.frameElement?.dispatchEvent(new CustomEvent("afxen:source-ready", { detail: { error: message } }));
+    }
     return;
   }
   if (browserWorkspaceMode && !workspaceStore.project) await startNewProject("professional").catch(error => ElMessage.error(error.message));
@@ -234,6 +238,8 @@ watch(() => workspaceStore.pendingCanvasEntry, async entry => {
     if (entry.canvasPath && entry.nodeId) {
       await panel.focusDocumentNode(entry.directory, entry.canvasPath, entry.nodeId);
       agentVisible.value = false;
+      await nextTick();
+      if (sourceWorkspace) window.frameElement?.dispatchEvent(new CustomEvent("afxen:source-ready"));
       return;
     }
     if (entry.files?.length) {
@@ -251,7 +257,11 @@ watch(() => workspaceStore.pendingCanvasEntry, async entry => {
       if (workspaceStore.project) workspaceStore.project.tutorial = true;
       if (!workspaceStore.tutorialVisited.includes(tutorialKind.value)) workspaceStore.tutorialVisited.push(tutorialKind.value);
     }
-  } catch (error) { ElMessage.error(error instanceof Error ? error.message : "画布打开失败，项目已保留"); }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "画布打开失败，项目已保留";
+    ElMessage.error(message);
+    if (sourceWorkspace) window.frameElement?.dispatchEvent(new CustomEvent("afxen:source-ready", { detail: { error: message } }));
+  }
   finally { canvasEntryPreparing.value = false; }
 }, { immediate: true, flush: "post" });
 watch(() => [canvasPanelRef.value?.canvasReady, workspaceStore.project?.directory, workspaceStore.creationMode, activePanel.value], async () => {

@@ -42,7 +42,7 @@ import { materialWorkspaces } from "@/stores/materialEditor";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { createBrowserConversation, readBrowserConversation, listBrowserConversations, renameBrowserConversation, removeBrowserConversation } from "./browserConversations";
 import { restoreBrowserResults } from "@/stores/browserGeneration";
-import { computed, inject, onBeforeUnmount, ref, watch, type ComponentPublicInstance } from "vue";
+import { computed, inject, nextTick, onBeforeUnmount, ref, watch, type ComponentPublicInstance } from "vue";
 import axios from "axios";
 import { translate } from "@toonflow/i18n/vue";
 import { ElMessage } from "element-plus";
@@ -203,6 +203,20 @@ async function loadHistory(openLatest = false) {
   historyLoading.value = true;
   loading.value = openLatest;
   try {
+    const sourceQuery = new URLSearchParams(window.location.hash.split("?")[1] || "");
+    if (window.frameElement?.hasAttribute("data-source-editor") && sourceQuery.get("sourceType") === "conversation" && openLatest) {
+      if (sourceQuery.get("sourceDirectory") !== directory) return;
+      const file = sourceQuery.get("source");
+      if (!file) throw new Error("缺少来源对话");
+      const [session] = await Promise.all([readConversation(directory, file), browserWorkspaceMode ? restoreBrowserResults(directory) : Promise.resolve()]);
+      if (currentRequest !== requestId) return;
+      if (workspaceStore.pendingAgentSession?.file === file) workspaceStore.pendingAgentSession = null;
+      showConversation(session);
+      initialized.value = true;
+      await nextTick();
+      if (currentRequest === requestId) window.frameElement.dispatchEvent(new CustomEvent("afxen:source-ready"));
+      return;
+    }
     if (browserWorkspaceMode) await restoreBrowserResults(directory);
     const data = browserWorkspaceMode ? { code: 200, data: await listBrowserConversations(directory), message: "" } : (await axios.get<{ code: number; data: AgentHistory[]; message?: string }>("/api/agent/list", { params: { directory }, headers: { "x-toonflow-workspace": "1" } })).data;
     if (data.code !== 200) throw new Error(data.message || "读取历史对话失败");
@@ -225,7 +239,11 @@ async function loadHistory(openLatest = false) {
       initialized.value = true;
     }
   } catch (error) {
-    if (currentRequest === requestId) ElMessage.error(error instanceof Error ? error.message : "读取历史对话失败");
+    if (currentRequest === requestId) {
+      const message = error instanceof Error ? error.message : "读取历史对话失败";
+      ElMessage.error(message);
+      window.frameElement?.dispatchEvent(new CustomEvent("afxen:source-ready", { detail: { error: message } }));
+    }
   } finally {
     if (currentRequest === requestId) {
       historyLoading.value = false;
