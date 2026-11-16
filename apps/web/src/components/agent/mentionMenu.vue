@@ -151,6 +151,10 @@ function openMenu(anchor?: HTMLElement) {
   if (props.disabled || !props.active) return;
   triggerElement.value = anchor;
   buttonVisible.value = true;
+  void nextTick(() => {
+    if (!visible.value) return;
+    popupElement.value?.querySelector<HTMLInputElement>(".mentionSearch input")?.focus({ preventScroll: true });
+  });
 }
 
 function closeMenu() {
