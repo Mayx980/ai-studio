@@ -27,10 +27,18 @@
     </button>
     <div v-else class="fileAttachmentCard" :title="attachment.name"><icon-file-text :size="18" /><span>{{ attachment.name }}</span></div>
     <span v-if="hoverPreview && videoDuration" class="videoDuration">{{ videoDuration }}</span>
-    <el-popover v-if="hoverPreview && thumbnailUrl" trigger="hover" virtualTriggering :virtualRef="thumbnailElement" placement="right" :showAfter="250" :width="240" :showArrow="false" :popperStyle="{ zIndex: 3100 }">
-      <div class="attachmentHoverPreview">
-        <video v-if="attachment.mimeType.startsWith('video/')" :src="thumbnailUrl" preload="metadata" muted playsinline @loadedmetadata="showVideoCover" /><img v-else :src="thumbnailUrl" :alt="attachment.name" />
-        <span>{{ attachment.referenceName || attachment.name }}<template v-if="videoDuration"> · {{ videoDuration }}</template></span>
+    <el-popover v-if="hoverPreview && thumbnailUrl" trigger="hover" virtualTriggering :virtualRef="thumbnailElement" :appendTo="previewTarget" placement="right" :showAfter="250" :width="240" :showArrow="false" :popperStyle="{ zIndex: 3100, padding: '0', overflow: 'hidden', maxWidth: 'calc(100vw - 24px)' }" @hide="pauseHoverVideo">
+      <div class="attachmentHoverPreview" @mousedown.stop @click.stop>
+        <div class="hoverMedia">
+          <template v-if="attachment.mimeType.startsWith('video/')">
+            <video ref="hoverVideo" :src="thumbnailUrl" preload="metadata" playsinline @loadedmetadata="showVideoCover" @play="hoverPlaying = true" @pause="hoverPlaying = false" @ended="hoverPlaying = false" />
+            <button class="hoverPlayback" type="button" :aria-label="hoverPlaying ? '暂停' : '播放'" :title="hoverPlaying ? '暂停' : '播放'" @click="toggleHoverPlayback"><icon-player-pause v-if="hoverPlaying" :size="28" /><icon-player-play v-else :size="28" /></button>
+          </template>
+          <img v-else :src="thumbnailUrl" :alt="attachment.name" />
+          <span v-if="videoDuration" class="hoverDuration">{{ videoDuration }}</span>
+        </div>
+        <p v-if="hoverPlaybackError" class="hoverError" role="alert">{{ hoverPlaybackError }}</p>
+        <span class="hoverLabel">{{ attachment.referenceName || attachment.name }}</span>
       </div>
     </el-popover>
     <el-tooltip v-if="restorable" content="还原到输入框" placement="bottom"><el-button class="restoreAttachment" text circle size="small" :disabled="disabled" aria-label="还原到输入框" @click="emit('restore')"><icon-arrow-back-up :size="14" /></el-button></el-tooltip>
@@ -47,14 +55,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import imageViewer from "@toonflow/node-shared/imageViewer";
-import { IconFileText, IconPhoto, IconVideo, IconX, IconArrowBackUp } from "@tabler/icons-vue";
+import { IconFileText, IconPhoto, IconVideo, IconX, IconArrowBackUp, IconPlayerPlay, IconPlayerPause } from "@tabler/icons-vue";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import type { AgentAttachment } from "./types";
 import { readTextAttachment } from "./textAttachments";
 
-const props = defineProps<{ attachment: AgentAttachment; directory?: string; removable?: boolean; restorable?: boolean; disabled?: boolean; hoverPreview?: boolean }>();
+const props = defineProps<{ attachment: AgentAttachment; directory?: string; removable?: boolean; restorable?: boolean; disabled?: boolean; hoverPreview?: boolean; previewTarget?: HTMLElement }>();
 const emit = defineEmits<{ remove: []; restore: [] }>();
 const isText = computed(() => props.attachment.mimeType === "text/plain");
 const isMedia = computed(() => /^(image|video)\//.test(props.attachment.mimeType));
@@ -67,6 +75,19 @@ const videoPreviewVisible = ref(false);
 const thumbnailUrl = ref("");
 const thumbnailElement = ref<HTMLElement>();
 const videoDuration = ref("");
+const hoverVideo = ref<HTMLVideoElement>();
+const hoverPlaying = ref(false);
+const hoverPlaybackError = ref("");
+function pauseHoverVideo() { hoverVideo.value?.pause(); }
+onBeforeUnmount(pauseHoverVideo);
+async function toggleHoverPlayback() {
+  const video = hoverVideo.value;
+  if (!video) return;
+  hoverPlaybackError.value = "";
+  if (!video.paused) { video.pause(); return; }
+  try { await video.play(); }
+  catch { hoverPlaybackError.value = "视频暂时无法播放，请重试"; }
+}
 function showVideoCover(event: Event) {
   const video = event.target as HTMLVideoElement;
   if (Number.isFinite(video.duration) && video.duration > 0) {
@@ -78,6 +99,7 @@ function showVideoCover(event: Event) {
 
 watch(() => [props.directory, props.attachment.file, props.attachment.path, props.attachment.mimeType] as const, async ([directory, file, path, mimeType], _previous, onCleanup) => {
   videoPreviewVisible.value = false; imagePreviewVisible.value = false;
+  pauseHoverVideo(); hoverPlaying.value = false; hoverPlaybackError.value = "";
   thumbnailUrl.value = ""; videoDuration.value = "";
   if (!/^(image|video)\//.test(mimeType)) return;
   let cancelled = false;
@@ -231,8 +253,16 @@ watch([textPreviewVisible, () => props.attachment, () => props.directory], async
 </style>
 
 <style scoped lang="scss">
-.attachmentHoverPreview { display: flex; flex-direction: column; gap: 8px;
-  img, video { width: 100%; max-height: 240px; object-fit: contain; border-radius: 8px; }
-  span { font-size: 12px; overflow-wrap: anywhere; }
+.attachmentHoverPreview { display: flex; flex-direction: column;
+  .hoverMedia { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; background: #181818;
+    img, video { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .hoverPlayback { position: absolute; inset: 0; margin: auto; display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border: 1px solid #ffffff66; border-radius: 50%; background: #0008; color: #fff; cursor: pointer;
+      &:hover { background: #000b; }
+      &:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 3px; }
+    }
+    .hoverDuration { position: absolute; right: 8px; bottom: 8px; padding: 2px 5px; border-radius: 4px; color: #fff; background: #000a; font-size: 11px; }
+  }
+  .hoverLabel { padding: 10px 12px; font-size: 12px; overflow-wrap: anywhere; }
+  .hoverError { padding: 0 12px; color: var(--el-color-danger); font-size: 12px; }
 }
 </style>

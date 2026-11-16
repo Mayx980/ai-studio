@@ -115,7 +115,7 @@
       <attachmentList v-if="unassignedAttachments.length" class="draftAttachments" :class="{ materialReferences: props.materialEditor }" numbered :attachments="unassignedAttachments" :directory="directory" removable restorable :disabled="locked" @remove="removeVisibleAttachment($event)" @restore="restoreVisibleAttachment" />
       <div ref="senderElement" class="senderEditor" @pointerdown.capture="inputStarted = true" @input.capture="inputStarted = true" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
-      <mentionContent ref="draftMentionPreview" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
+      <mentionContent ref="draftMentionPreview" :attachments="draftAttachments" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
       <div class="senderActions" :class="{ simpleToolbar: props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple') }">
         <simpleGenerationTools v-if="props.creationModes && !imageOnlyMaterial && workspaceStore.creationMode === 'simple'" controls="tabs" :lockedKind="lockedGenerationKind" :disabled="locked" />
         <browserModelOptions :disabled="locked" :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="imageOnlyMaterial ? 'image' : lockedGenerationKind" :hideCount="imageOnlyMaterial" :prompt="draftPrompt"><template #afterModel><div v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" ref="referenceTabsTarget" class="referenceTabsTarget" /><simpleGenerationTools v-if="props.materialEditor || workspaceStore.creationMode === 'simple'" controls="style" :disabled="locked" /></template></browserModelOptions><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
@@ -506,12 +506,8 @@ async function insertAttachmentMention(attachment: AgentAttachment) {
     else instance.focus("last");
     if (mentionPosition?.remove) await instance.backspace(-mentionPosition.remove);
     const id = `attachment${draftAttachments.value.indexOf(attachment)}`;
-    const existingTags = new Set(instance.chatElement.richText.querySelectorAll('[data-set-richtype="richMention"]'));
     await instance.setMention({ id, name: attachment.referenceName || attachment.name });
     instance.focus("last");
-    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-    const tag = [...instance.chatElement.richText.querySelectorAll('[data-set-richtype="richMention"]')].find(element => !existingTags.has(element));
-    if (tag && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) tag.animate([{ boxShadow: "0 0 0 2px var(--el-color-primary)", backgroundColor: "var(--el-color-primary-light-9)" }, { boxShadow: "0 0 0 0 transparent", backgroundColor: "transparent" }], { duration: 850, easing: "ease-out" });
   } catch (error) { ElMessage.error(error instanceof Error ? error.message : "引用素材失败"); }
   finally { mentionQuery.value = undefined; mentionPosition = undefined; }
 }

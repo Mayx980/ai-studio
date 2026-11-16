@@ -10,7 +10,7 @@
     <div :class="mode === 'reference' ? 'referenceDeck' : 'frameDeck'" aria-label="参考素材预览">
       <template v-if="mode === 'reference'">
         <button v-if="!hideAdd && !materialTask && !referenceImages.length" class="slotCard" type="button" :disabled="disabled || opening" aria-label="添加参考图" @click="openMenu($event, { role: 'reference' })"><icon-plus :size="28" /></button>
-        <div v-for="(attachment, index) in referenceImages" :key="index" class="referenceCard" :class="{ editableReference: canEditSource(attachment), lastReference: index === referenceImages.length - 1, expandedReference: index === referenceImages.length - 1 && expandedReference }" @mouseenter="expandReference" @mouseleave="collapseReference" @focusin="expandReference" @focusout="collapseReference">
+        <div v-for="(attachment, index) in referenceImages" :key="index" class="referenceCard" :class="{ editableReference: canEditSource(attachment), lastReference: index === referenceImages.length - 1, expandedReference: !hideAdd && !materialTask && index === referenceImages.length - 1 && expandedReference }" @mouseenter="expandReference" @mouseleave="collapseReference" @focusin="expandReference" @focusout="collapseReference">
           <attachmentPreview :attachment="attachment" :directory="directory" />
           <span class="referenceLabel">{{ referenceLabel(attachment, index) }}</span>
           <el-tooltip content="替换图片"><button class="replaceReference" type="button" :disabled="disabled || opening" :aria-label="`替换${referenceLabel(attachment, index)}`" @click="openMenu($event, { role: 'reference', category: attachment.referenceCategory || 'character' }, attachment)"><icon-refresh :size="22" /></button></el-tooltip>

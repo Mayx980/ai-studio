@@ -1,18 +1,18 @@
 <template>
   <span class="mentionContent"><template v-for="(part, index) in parts" :key="index"><el-tooltip v-if="part.mention" :content="sourceLabel(part.mention)" :showArrow="false"><button class="mentionTag" type="button" :aria-label="`预览 ${mentionName(part.mention)}`" @click="preview(part.mention.id)"><mentionThumbnail v-if="mentionThumbnailProps(part.mention).thumbnail" class="inlineMentionThumbnail" v-bind="mentionThumbnailProps(part.mention)" :directory="directory"><icon-at :size="13" /></mentionThumbnail><icon-at v-else :size="13" /><span class="mentionLabel">{{ mentionName(part.mention) }}</span></button></el-tooltip><template v-else>{{ part.text }}</template></template></span>
-  <el-dialog v-model="previewVisible" :title="selected?.label || '提及内容'" width="min(720px, 90vw)" alignCenter appendToBody destroyOnClose>
-    <div v-if="selected" class="mentionPreview">
-      <p class="mentionSource">{{ sourceLabel(selected) }}</p>
+  <el-dialog v-model="previewVisible" :title="previewLabel" width="min(720px, 90vw)" alignCenter appendToBody destroyOnClose>
+    <div v-if="selected || selectedAttachment" class="mentionPreview">
+      <p v-if="selected" class="mentionSource">{{ sourceLabel(selected) }}</p>
       <p v-if="loading || error" :role="error ? 'alert' : 'status'">{{ loading ? '正在读取…' : error }}</p>
-      <img v-else-if="previewUrl && ['IMAGE', 'MASK'].includes(selected.dataType)" :src="previewUrl" :alt="selected.label" @error="error = '无法预览该图片'" />
-      <video v-else-if="previewUrl && selected.dataType === 'VIDEO'" :src="previewUrl" controls playsinline preload="metadata" @error="error = '无法预览该视频'" />
-      <audio v-else-if="previewUrl && selected.dataType === 'AUDIO'" :src="previewUrl" controls preload="metadata" @error="error = '无法预览该音频'" />
-      <p v-else-if="selected.dataType === 'FILE'" class="fileName"><icon-file :size="20" />{{ selected.label }}</p>
+      <img v-else-if="previewUrl && ['IMAGE', 'MASK'].includes(previewType)" :src="previewUrl" :alt="previewLabel" @error="error = '无法预览该图片'" />
+      <video v-else-if="previewUrl && previewType === 'VIDEO'" :src="previewUrl" controls playsinline preload="metadata" @error="error = '无法预览该视频'" />
+      <audio v-else-if="previewUrl && previewType === 'AUDIO'" :src="previewUrl" controls preload="metadata" @error="error = '无法预览该音频'" />
+      <p v-else-if="previewType === 'FILE'" class="fileName"><icon-file :size="20" />{{ previewLabel }}</p>
       <template v-else>
         <pre>{{ textValue.slice(0, 12000) }}</pre>
         <p v-if="textValue.length > 12000">…（预览已截取，发送保留完整内容）</p>
       </template>
-      <el-button v-if="removable" text type="danger" @click="removeSelected">移除此引用</el-button>
+      <el-button v-if="removable && selected" text type="danger" @click="removeSelected">移除此引用</el-button>
     </div>
   </el-dialog>
 </template>
@@ -25,13 +25,20 @@ import type { AgentMention } from "@toonflow/server/agent/types";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import { mentionName, mentionParts, mentionThumbnailProps } from "./mentionText";
 import mentionThumbnail from "./mentionThumbnail.vue";
+import type { AgentAttachment } from "./types";
 
-const props = defineProps<{ content?: string; mentions?: AgentMention[]; directory?: string; removable?: boolean }>();
+const props = defineProps<{ content?: string; mentions?: AgentMention[]; attachments?: AgentAttachment[]; directory?: string; removable?: boolean }>();
 const emit = defineEmits<{ remove: [id: string] }>();
 const parts = computed(() => mentionParts(props.content ?? "", props.mentions));
 const previewVisible = ref(false);
 const selectedId = ref("");
 const selected = computed(() => props.mentions?.find(mention => mention.id === selectedId.value));
+const selectedAttachment = computed(() => {
+  const match = /^attachment(\d+)$/.exec(selectedId.value);
+  return match ? props.attachments?.[Number(match[1])] : undefined;
+});
+const previewLabel = computed(() => selectedAttachment.value?.referenceName || selectedAttachment.value?.name || selected.value?.label || "提及内容");
+const previewType = computed(() => selectedAttachment.value ? selectedAttachment.value.mimeType.split("/")[0]!.toUpperCase() : selected.value?.dataType || "");
 const previewUrl = ref("");
 const loading = ref(false);
 const error = ref("");
@@ -55,18 +62,27 @@ function removeSelected() {
   previewVisible.value = false;
 }
 
-watch([previewVisible, selected, () => props.directory], async ([visible, mention, directory], _old, onCleanup) => {
+watch([previewVisible, selected, selectedAttachment, () => props.directory], async ([visible, mention, attachment, directory], _old, onCleanup) => {
   previewUrl.value = "";
   error.value = "";
   loading.value = false;
-  if (!visible || !mention || !["IMAGE", "MASK", "VIDEO", "AUDIO"].includes(mention.dataType)) return;
-  const value = mention.value as { url?: string; mimeType?: string } | null;
+  if (!visible || (!mention && !attachment) || !["IMAGE", "MASK", "VIDEO", "AUDIO"].includes(previewType.value)) return;
+  const value = mention?.value as { url?: string; mimeType?: string } | null;
   let release = () => {};
   const controller = new AbortController();
   onCleanup(() => { controller.abort(); release(); });
   loading.value = true;
   try {
-    if (mention.source.kind === "asset" && mentionThumbnailProps(mention).globalAsset) {
+    if (attachment?.file) {
+      const url = URL.createObjectURL(attachment.file);
+      release = () => URL.revokeObjectURL(url);
+      previewUrl.value = url;
+    } else if (attachment && directory) {
+      const preview = useWorkspaceFiles(directory).acquireUrl(attachment.path, attachment.mimeType);
+      release = preview.release;
+      const url = await preview.url;
+      if (!controller.signal.aborted) previewUrl.value = url;
+    } else if (mention?.source.kind === "asset" && mentionThumbnailProps(mention).globalAsset) {
       const { data } = await axios.get<Blob>("/api/assets/read", { params: { path: mention.source.path }, responseType: "blob", signal: controller.signal });
       controller.signal.throwIfAborted();
       previewUrl.value = URL.createObjectURL(data);
