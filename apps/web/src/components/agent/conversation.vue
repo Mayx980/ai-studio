@@ -123,7 +123,7 @@
         <el-tooltip v-if="props.materialEditor || sourceConversationScope" content="上传" :showArrow="false"><button class="materialUpload" type="button" :disabled="locked" aria-label="上传" @click="attachmentInput?.click()"><icon-upload :size="19" /></button></el-tooltip>
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
         <referencePicker v-if="!props.creationModes" :disabled="locked" @local="attachmentInput?.click()" @files="addAttachments" />
-        <mentionMenu :currentOnly="sourceConversation || props.creationModes && workspaceStore.creationMode === 'simple'" :attachmentsOnly="sourceConversationScope" :currentLabel="sourceConversationScope ? '当前对话' : undefined" :attachments="mentionAttachments" @selectAttachment="insertAttachmentMention" :hideTrigger="props.creationModes" ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
+        <mentionMenu currentOnly attachmentsOnly currentLabel="当前输入框" :attachments="mentionAttachments" @selectAttachment="insertAttachmentMention" :hideTrigger="props.creationModes" ref="mentionMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="mentionQuery" :editor="senderElement" :currentCanvasId="createCanvasContext?.()?.id" @open="captureMentionPosition" @select="insertMentions" @dismiss="mentionQuery = undefined" />
         <skillMenu v-if="!browserWorkspaceMode && !browserConfig.enabled" ref="skillMenuRef" :directory="directory" :active="active" :disabled="locked || !directory" :query="skillQuery" :editor="senderElement" @select="selectSkill" @dismiss="skillQuery = undefined" />
         <el-popover
           v-if="!props.creationModes"
@@ -258,17 +258,7 @@ const creationChoices = [
   { label: "图片", kind: "image" as const, script: false }, { label: "音频", kind: "audio" as const, script: false }, { label: "视频", kind: "video" as const, script: false },
 ];
 const messages = ref<AgentMessage[]>((props.initialSession?.messages ?? []).map(message => ({ ...message })));
-const mentionAttachments = computed(() => {
-  if (!sourceConversationScope) return props.creationModes ? activeDraftAttachments.value : undefined;
-  const attachments = [...activeDraftAttachments.value];
-  const resultIds = new Set(messages.value.flatMap(message => message.browserResultIds ?? []));
-  const outputs: AgentAttachment[] = generationResults.value.filter(result => result.directory === directory && resultIds.has(result.id) && ["image", "video"].includes(result.kind)).map(result => ({ name: result.file?.name || result.path?.split("/").at(-1) || (result.kind === "image" ? "生成图片.png" : "生成视频.mp4"), path: result.path || "", mimeType: result.file?.type || (result.kind === "image" ? "image/png" : "video/mp4"), file: result.file, origin: result.origin }));
-  for (const attachment of [...messages.value.flatMap(message => message.attachments ?? []), ...outputs]) {
-    if (!/^(image|video)\//.test(attachment.mimeType)) continue;
-    if (!attachments.some(item => attachment.path && item.path === attachment.path || attachment.file && item.file === attachment.file)) attachments.push(attachment);
-  }
-  return attachments;
-});
+const mentionAttachments = computed(() => activeDraftAttachments.value.filter(item => /^(image|video)\//.test(item.mimeType)));
 const selectedHomeMode = inject("homeCreationMode", ref<"simple" | "professional">("simple"));
 const isHomeSelection = computed(() => props.creationModes && !props.materialEditor && !messages.value.length && workspaceStore.creationMode === "simple" && !window.frameElement?.hasAttribute("data-source-editor"));
 const homeCreationMode = computed({ get: () => isHomeSelection.value ? selectedHomeMode.value : workspaceStore.creationMode, set: value => { if (isHomeSelection.value) selectedHomeMode.value = value; else workspaceStore.creationMode = value; } });

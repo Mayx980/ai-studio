@@ -140,7 +140,7 @@ const visibleRows = computed(() => listVirtualizer.value.getVirtualItems().map(i
 const hasMore = computed(() => !listingCanvases.value && !selectedNode.value && !!nextCursor.value);
 const breadcrumb = computed(() => selectedNode.value ? [selectedCanvas.value?.name ?? translate("当前画布"), selectedNode.value.name].join(" / ") : selectedCanvas.value?.name ?? assetPath.value);
 const searchPlaceholder = computed(() => listingCanvases.value ? "搜索画布名称" : "搜索素材名称");
-const emptyText = computed(() => props.attachmentsOnly ? search.value ? "没有找到匹配的素材" : "当前对话暂无可引用素材" : scope.value === "current" && !canvasId.value ? translate("打开画布后即可提及节点输出") : search.value ? translate("没有找到匹配的内容") : selectedNode.value ? translate("该节点暂无可用输出") : listingCanvases.value ? translate("暂无其他画布") : scope.value === "assets" ? translate("暂无素材") : translate("当前画布暂无节点"));
+const emptyText = computed(() => props.attachmentsOnly ? search.value ? "没有找到匹配的素材" : `${props.currentLabel || "当前对话"}暂无可引用素材` : scope.value === "current" && !canvasId.value ? translate("打开画布后即可提及节点输出") : search.value ? translate("没有找到匹配的内容") : selectedNode.value ? translate("该节点暂无可用输出") : listingCanvases.value ? translate("暂无其他画布") : scope.value === "assets" ? translate("暂无素材") : translate("当前画布暂无节点"));
 let requestController: AbortController | undefined;
 let selectionController: AbortController | undefined;
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
