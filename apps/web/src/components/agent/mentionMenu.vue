@@ -10,7 +10,7 @@
             <span :title="breadcrumb">{{ breadcrumb }}</span>
           </div>
           <div class="mentionSearch"><el-input v-model="search" clearable :placeholder="searchPlaceholder" aria-label="搜索素材名称"><template #prefix><icon-search :size="15" /></template></el-input></div>
-          <el-scrollbar ref="listScrollbar" class="mentionScroll">
+          <el-scrollbar ref="listScrollbar" class="mentionScroll" :maxHeight="`${Math.max(0, popupHeight - chromeHeight)}px`">
             <div :id="listId" class="mentionList" role="listbox" aria-label="可引用素材" :aria-busy="loading || selecting" :aria-multiselectable="!!selectedNode">
               <div v-if="loading && !rows.length" class="mentionStatus" role="status">正在加载…</div>
               <div v-else-if="loadError && !rows.length" class="mentionStatus" role="alert"><span>{{ loadError }}</span><el-button text type="primary" size="small" @click="loadList()">重试</el-button></div>
@@ -79,6 +79,7 @@ const loadError = ref("");
 const selecting = ref(false);
 const selectionError = ref("");
 const popupHeight = ref(320);
+const chromeHeight = ref(104);
 const triggerElement = ref<HTMLElement>();
 const popupElement = ref<HTMLElement>();
 const popupStyle = ref<CSSProperties>({});
@@ -329,8 +330,11 @@ watch([visible, () => props.editor, triggerElement], ([open, editor], _previous,
   if (!open || !editor) return;
   const editorElement = editor;
   const input = editorElement.closest(".messageInput") ?? editorElement;
+  const dialog = editorElement.closest<HTMLElement>('[role="dialog"]');
   let caretOffset: { left: number; top: number; height: number } | undefined;
   function updatePopupPosition() {
+    const chrome = popupElement.value?.querySelectorAll<HTMLElement>(".mentionHeader, .mentionSearch, .mentionBreadcrumb, .mentionFooter, .mentionError");
+    if (chrome?.length) chromeHeight.value = [...chrome].reduce((height, element) => height + element.getBoundingClientRect().height, 2);
     const inputBounds = input.getBoundingClientRect();
     let anchor = triggerElement.value?.isConnected ? triggerElement.value.getBoundingClientRect() : undefined;
     if (!anchor) {
@@ -352,17 +356,20 @@ watch([visible, () => props.editor, triggerElement], ([open, editor], _previous,
     const below = Math.max(0, window.innerHeight - anchor.bottom - 20);
     const openBelow = below >= 320 || below >= above;
     const available = openBelow ? below : above;
-    const width = Math.min(360, Math.max(0, window.innerWidth - 24));
+    const dialogBounds = dialog?.getBoundingClientRect();
+    const leftBoundary = Math.max(12, (dialogBounds?.left ?? 0) + 12);
+    const rightBoundary = Math.min(window.innerWidth - 12, (dialogBounds?.right ?? window.innerWidth) - 12);
+    const width = Math.min(360, Math.max(0, rightBoundary - leftBoundary));
     popupHeight.value = Math.min(320, available);
     popupStyle.value = {
       width: `${width}px`,
-      left: `${Math.max(12, Math.min(anchor.left, window.innerWidth - width - 12))}px`,
+      left: `${Math.max(leftBoundary, Math.min(anchor.left, rightBoundary - width))}px`,
       top: openBelow ? `${Math.max(12, anchor.bottom + 8)}px` : "auto",
       bottom: openBelow ? "auto" : `${Math.max(12, window.innerHeight - anchor.top + 8)}px`,
     };
   }
   const observer = new ResizeObserver(updatePopupPosition);
-  for (const element of [input, editor.closest(".agentConversation"), triggerElement.value]) if (element) observer.observe(element);
+  for (const element of [input, editor.closest(".agentConversation"), triggerElement.value, popupElement.value, dialog]) if (element) observer.observe(element);
   window.addEventListener("resize", updatePopupPosition);
   window.addEventListener("scroll", updatePopupPosition, true);
   document.addEventListener("selectionchange", updatePopupPosition);
