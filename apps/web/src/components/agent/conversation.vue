@@ -1167,6 +1167,10 @@ function addAttachments(files: File[], fromMaterialResult = false) {
       ElMessage.warning("文本附件不能超过 400000 字节");
       continue;
     }
+    if (mimeType.startsWith("image/") && draftAttachments.value.filter(item => item.mimeType.startsWith("image/")).length >= 10) {
+      ElMessage.warning("最多添加10个图片");
+      break;
+    }
     if (draftAttachments.value.length >= 20) {
       ElMessage.warning("每条消息最多添加 20 个附件");
       break;

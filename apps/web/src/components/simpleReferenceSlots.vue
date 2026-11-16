@@ -110,6 +110,7 @@ function applyFiles(files: File[], destination = target.value, replacement = rep
   const selected = ["reference", "middleFrame"].includes(destination.role) && !replacement ? valid : valid.slice(0, 1);
   const replacementIndex = replacement ? retained.indexOf(replacement) : -1;
   if (replacement && replacementIndex < 0) throw new Error("原参考图已移除，请重新选择");
+  if (retained.filter(item => item.mimeType.startsWith("image/")).length + selected.filter(file => file.type.startsWith("image/")).length - (replacement?.mimeType.startsWith("image/") ? 1 : 0) > 10) throw new Error("最多添加10个图片");
   if (retained.length + selected.length - (replacement ? 1 : 0) > 20) throw new Error("每条消息最多添加20个附件");
   const added = selected.map((file, index) => ({ name: file.name, path: "", mimeType: file.type, file, origin: fileGenerationOrigin(file), assetPath: fileAssetPath(file), referenceRole: destination.role, referenceCategory: destination.category, referenceName: replacement?.referenceName || (destination.role === "middleFrame" ? `中间帧${lastNumber + index + 1}` : group ? `${group.label}${lastNumber + index + 1}` : undefined) }));
   if (replacement) { const result = [...retained]; result.splice(replacementIndex, 1, ...added); attachments.value = result; }
