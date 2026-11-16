@@ -40,7 +40,7 @@ const sidebarOpening = ref(false);
 const assistantContent = ref<HTMLElement>();
 const homeMode = ref<"simple" | "professional">("simple");
 provide("homeCreationMode", homeMode);
-function applyCase(value: TemplateApplication) { emit("applyTemplate", value); assistantContent.value?.scrollTo({ top: 0 }); }
+function applyCase(value: TemplateApplication) { homeMode.value = "simple"; emit("applyTemplate", value); assistantContent.value?.scrollTo({ top: 0 }); }
 async function sidebarAction(action: () => Promise<void>) {
   if (sidebarOpening.value) return;
   sidebarOpening.value = true;
