@@ -601,10 +601,17 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
         flex-direction: column;
         gap: 8px;
         .mentionGroup {
-          padding: 6px;
+          padding: 0 6px 6px;
+          border: 1px solid var(--el-border-color);
           border-radius: 10px;
           background: var(--el-fill-color-darker);
-          .mentionGroupTitle { padding: 3px 7px 5px; color: var(--el-text-color-secondary); font-size: 12px; }
+          .mentionGroupTitle {
+            margin: 0 -6px 6px;
+            padding: 8px 13px;
+            border-bottom: 1px solid var(--el-border-color);
+            color: var(--el-text-color-secondary);
+            font-size: 12px;
+          }
           .mentionGroupItem {
             display: flex;
             align-items: center;
