@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" class="saveAssetDialog" title="保存资产" width="min(720px, 94vw)" alignCenter appendToBody :closeOnClickModal="false" :closeOnPressEscape="!saving" :showClose="!saving" @closed="clear">
+  <el-dialog v-model="visible" class="saveAssetDialog" title="保存资产" width="min(720px, 94vw)" alignCenter appendToBody :closeOnClickModal="false" :closeOnPressEscape="!saving" :showClose="!saving" @closed="closed">
     <div v-if="current" class="saveAssetBody">
       <figure><img v-if="current.file.type.startsWith('image/')" :src="current.url" :alt="current.name" /><video v-else-if="current.file.type.startsWith('video/')" :src="current.url" controls playsinline preload="metadata" /><audio v-else :src="current.url" controls /><figcaption>{{ current.name || current.file.name }}</figcaption></figure>
       <el-form labelPosition="top" @submit.prevent="save">
@@ -21,7 +21,7 @@ import { browserAssetFiles, listBrowserAssets, requiresAssetFolder, type Browser
 import { useAssetStore, type AssetMetadata } from "@/stores/assets";
 export type AssetSaveSource = { file: File; name?: string; metadata?: AssetMetadata };
 type SaveItem = AssetSaveSource & { name: string; url: string; folder: string; tags: string[]; saved: boolean };
-const emit = defineEmits<{ saved: [] }>();
+const emit = defineEmits<{ saved: []; savedItem: [file: File]; closed: [] }>();
 const assets = useAssetStore();
 const visible = ref(false), saving = ref(false), loading = ref(false), error = ref("");
 const items = ref<SaveItem[]>([]), activeIndex = ref(0), folders = ref<string[]>([]);
@@ -29,6 +29,7 @@ const current = computed(() => items.value[activeIndex.value]);
 const tags = computed(() => [...new Set(["角色", "场景", "物品", "风格", "音效", ...Object.values(assets.tags).flat()])]);
 const valid = computed(() => items.value.length > 0 && items.value.every(item => item.saved || !!item.name.trim() && (!requiresAssetFolder(item.file.name, item.file.type) || !!item.folder) && !/[\\/\0]/.test(item.name) && ![".", ".."].includes(item.name.trim())));
 function clear() { items.value.forEach(item => URL.revokeObjectURL(item.url)); items.value = []; }
+function closed() { clear(); emit("closed"); }
 onBeforeUnmount(clear);
 async function open(sources: AssetSaveSource[]) {
   if (saving.value || !sources.length) return;
@@ -56,9 +57,13 @@ async function save() {
       assets.tags[path] = [...item.tags];
       assets.metadata[path] = { ...item.metadata, createdAt: Date.now() };
       item.saved = true;
+      emit("savedItem", item.file);
     }
     emit("saved"); visible.value = false; ElMessage.success("已保存到个人资产");
-  } catch (cause) { error.value = cause instanceof Error ? cause.message : "保存失败，请重试"; }
+  } catch (cause) {
+    const completed = items.value.filter(item => item.saved).length;
+    error.value = `已保存 ${completed} 项，${items.value.length - completed} 项未完成：${cause instanceof Error ? cause.message : "保存失败，请重试"}`;
+  }
   finally { saving.value = false; }
 }
 defineExpose({ open });

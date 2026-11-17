@@ -43,31 +43,38 @@
         </article>
         </template>
       </div>
+      <div v-if="selectable" class="pickerFooter">
+        <div class="pickerSelection">
+          <span class="selectionCount">已选 {{ selected.length }} 项，还可添加 {{ Math.max(0, selectionLimit - selected.length) }} 项</span>
+          <div class="selectedAssetList" aria-label="已选素材">
+            <div v-for="item in selectedEntries" :key="item.path" class="selectedAsset" :title="item.name">
+              <button class="selectedPreview" type="button" :aria-label="`预览 ${item.name}`" @click="open(item)"><img v-if="kind(item) === 'image'" :src="urlFor(item)" :alt="item.name" /><assetVideoPreview v-else :src="urlFor(item)" /></button>
+              <button class="removeSelected" type="button" :disabled="operationLocked" :aria-label="`取消选择 ${item.name}`" @click="toggleSelection(item)"><icon-x :size="12" /></button>
+            </div>
+          </div>
+        </div>
+        <div class="pickerActions" role="toolbar" aria-label="所选素材操作">
+          <el-button :disabled="operationLocked || !selected.length" @click="selected = []">取消</el-button>
+          <div class="fullActions"><el-tooltip v-for="action in pickerActions" :key="action.value" :content="action.hint"><span><el-button :class="{ deleteAction: action.value === 'delete' }" :disabled="operationLocked || !selected.length || action.disabled" :aria-label="action.label" @click="runPickerAction(action.value)"><component :is="action.icon" :size="15" /><span v-if="!['delete', 'download'].includes(action.value)">{{ action.label }}</span></el-button></span></el-tooltip></div>
+          <el-dropdown class="compactActions" trigger="click" @command="runPickerAction"><el-button :disabled="operationLocked || !selected.length">更多</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item v-for="action in pickerActions" :key="action.value" :command="action.value" :disabled="action.disabled" :title="action.hint">{{ action.label }}</el-dropdown-item></el-dropdown-menu></template></el-dropdown>
+          <el-button type="primary" :disabled="operationLocked || !selected.length" :loading="adding" @click="addSelected()">{{ selected.length ? `添加（${selected.length}）` : '添加' }}</el-button>
+        </div>
+      </div>
       </div>
     </div>
     <div v-if="selected.length && !selectable" class="selectionToolbar" role="toolbar" aria-label="资产批量操作"><el-tooltip content="取消选择" placement="top"><el-button text :disabled="busy || adding || matching" aria-label="取消选择" @click="selected = []"><icon-x :size="16" /></el-button></el-tooltip><span>已选择 {{ selected.length }} 项</span><el-tooltip content="删除"><el-button :disabled="busy || adding || matching" aria-label="删除所选资产" @click="remove(selectedEntries)"><icon-trash :size="18" /></el-button></el-tooltip><el-tooltip content="重命名"><el-button :disabled="busy || selected.length !== 1" aria-label="重命名" @click="rename"><icon-pencil :size="18" /></el-button></el-tooltip><el-tooltip content="移动到"><el-button :disabled="busy || adding || matching" aria-label="移动到" @click="destination = ''; moveVisible = true"><icon-folder-symlink :size="18" /></el-button></el-tooltip><el-tooltip content="修改标签"><el-button :disabled="busy || adding || matching" aria-label="修改标签" @click="editTags"><icon-tags :size="18" /></el-button></el-tooltip></div>
-    <div v-if="selectable && selected.length" class="selectedAssets">
-      <button class="selectedAssetsToggle" type="button" :aria-expanded="selectedExpanded" :aria-controls="selectedListId" @click="selectedExpanded = !selectedExpanded">已选素材（{{ selected.length }}）<icon-chevron-right :size="14" :class="{ expanded: selectedExpanded }" /></button>
-      <div v-show="selectedExpanded" :id="selectedListId" class="selectedAssetList">
-        <div v-for="item in selectedEntries" :key="item.path" class="selectedAsset" :title="item.name">
-          <button class="selectedPreview" type="button" :aria-label="`预览 ${item.name}`" @click="open(item)"><img v-if="kind(item) === 'image'" :src="urlFor(item)" :alt="item.name" /><assetVideoPreview v-else :src="urlFor(item)" /></button>
-          <button class="removeSelected" type="button" :disabled="busy || adding || matching" :aria-label="`移除 ${item.name}`" @click="toggleSelection(item)"><icon-x :size="12" /></button>
-        </div>
-      </div>
-    </div>
-    <div v-if="selectable" class="pickerFooter"><span>已选 {{ selected.length }} 项，还可添加 {{ Math.max(0, selectionLimit - selected.length) }} 项</span><el-button :disabled="busy || adding || matching || !selected.length" @click="selected = []">清空选择</el-button><el-button type="primary" :disabled="busy || adding || matching || !selected.length" :loading="adding" @click="addSelected()">{{ selected.length ? `添加（${selected.length}）` : '添加' }}</el-button></div>
     <el-dialog :modelValue="!!preview" class="assetDetailDialog" width="min(1200px, 96vw)" alignCenter appendToBody destroyOnClose :showClose="false" @update:modelValue="preview = undefined"><div v-if="preview" class="assetDetail"><div class="detailMedia"><img v-if="kind(preview) === 'image'" :src="urlFor(preview)" :alt="preview.name" /><video v-else-if="kind(preview) === 'video'" :src="urlFor(preview)" controls playsinline /><audio v-else :src="urlFor(preview)" controls /></div><aside><header><h3>{{ preview.name }}</h3><el-button text aria-label="关闭资产详情" @click="preview = undefined"><icon-x :size="16" /></el-button></header><dl><dt>创建时间</dt><dd>{{ dateFor(preview.path, true) }}</dd><dt>资产来源</dt><dd>{{ metadataFor(preview)?.source || '未记录' }}<template v-if="metadataFor(preview)?.model"> · {{ metadataFor(preview)?.model }}</template></dd></dl><h4>生成信息</h4><p class="generationInfo">{{ metadataFor(preview)?.prompt || '未记录' }}</p><footer><el-button v-if="selectable" type="primary" :loading="adding" :disabled="busy || adding || matching" @click="addSelected([preview])">添加</el-button><template v-else><el-button :disabled="busy || !metadataFor(preview)?.origin" :title="metadataFor(preview)?.origin ? '返回生成来源' : '外部上传或旧素材没有生成来源'" @click="editOrigin(preview)">去画布/对话编辑</el-button><el-button :disabled="busy || adding || matching" @click="addToCanvas([preview])">新建画布添加</el-button><div><el-button :disabled="busy || adding || matching" type="danger" @click="remove([preview])"><icon-trash :size="16" />删除</el-button><el-button :disabled="busy || adding || matching" @click="download([preview])"><icon-download :size="16" />下载</el-button></div></template></footer></aside></div></el-dialog>
     <el-dialog v-model="moveVisible" title="移动到" width="360px" appendToBody><el-select v-model="destination" aria-label="目标文件夹"><el-option label="个人资产库" value="" :disabled="selectedEntries.some(item => ['image', 'video'].includes(kind(item)))" /><el-option v-for="item in moveFolders" :key="item.path" :label="item.path" :value="item.path" /></el-select><template #footer><el-button :disabled="busy || adding || matching" @click="moveVisible = false">取消</el-button><el-button :loading="busy" @click="move">移动</el-button></template></el-dialog>
     <el-dialog v-model="tagsVisible" title="修改标签" width="400px" appendToBody><el-checkbox-group v-model="chosenTags"><el-checkbox-button v-for="tag in categories" :key="tag" :value="tag">{{ tag }}</el-checkbox-button></el-checkbox-group><template #footer><el-button @click="tagsVisible = false">取消</el-button><el-button @click="saveTags">保存</el-button></template></el-dialog>
-    <saveAssetDialog ref="saveDialog" @saved="reload().catch(failure)" />
+    <saveAssetDialog ref="saveDialog" @savedItem="assetSaved" @closed="saveClosed" />
   </section>
 </template>
 <script setup lang="ts">
-import { IconChevronRight, IconEye, IconPlayerPlay, IconHistory } from "@tabler/icons-vue";
+import { IconChevronRight, IconEye, IconPlayerPlay, IconHistory, IconTrash, IconDownload, IconFolderSymlink, IconTags, IconFolderPlus } from "@tabler/icons-vue";
 import assetVideoPreview from "@/components/assetVideoPreview.vue";
 import saveAssetDialog from "@/components/saveAssetDialog.vue";
 import { openGenerationOrigin, readGenerationOrigin, rememberFileOrigin, type GenerationOrigin } from "@/lib/generationOrigin";
-import { computed, onBeforeUnmount, onMounted, ref, useId, nextTick, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, nextTick, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { browserAssetFiles, browserAssetMimeType, listBrowserAssets, type BrowserAssetEntry } from "@/lib/browserAssets";
@@ -79,8 +86,6 @@ import saveFile from "@/lib/saveFile";
 const props = withDefaults(defineProps<{ selectable?: boolean; selectionLimit?: number; imagesOnly?: boolean }>(), { selectionLimit: 10 });
 const emit = defineEmits<{ select: [files: File[]] }>();
 const adding = ref(false), matching = ref(false);
-const selectedExpanded = ref(false);
-const selectedListId = useId();
 const collapsedFolders = ref<string[]>([]);
 type Entry = BrowserAssetEntry & { history?: HistoryItem };
 const source = ref<"library" | "history">("library");
@@ -121,11 +126,24 @@ const displayed = computed(() => {
   const items = searchVisible.value && search.value.trim() ? all.value.filter(item => item.path.startsWith(folder.value ? folder.value + "/" : "") && item.name.toLowerCase().includes(search.value.trim().toLowerCase())) : folder.value ? all.value.find(item => item.path === folder.value)?.children ?? [] : entries.value;
   return items.filter(item => item.type === "directory" || kind(item));
 });
-const selectedEntries = computed(() => (props.selectable ? pickerEntries.value : all.value).filter(item => selected.value.includes(item.path) && !selected.value.some(path => item.path.startsWith(path + "/"))));
+const selectedEntries = computed(() => props.selectable
+  ? selected.value.flatMap(path => { const item = pickerEntries.value.find(item => item.path === path); return item ? [item] : []; })
+  : all.value.filter(item => selected.value.includes(item.path) && !selected.value.some(path => item.path.startsWith(path + "/"))));
+const operationLocked = computed(() => busy.value || adding.value || matching.value);
+const selectionSource = computed(() => !selectedEntries.value.length ? source.value : selectedEntries.value.every(item => item.history) ? "history" : selectedEntries.value.every(item => !item.history) ? "library" : "mixed");
+type PickerAction = "delete" | "download" | "move" | "tags" | "save";
+const pickerActions = computed(() => [
+  { value: "delete" as const, label: selectionSource.value === "history" ? "删除历史记录" : "删除", hint: selectionSource.value === "mixed" ? "请分别选择个人资产或生成历史进行删除" : selectionSource.value === "history" ? "删除历史记录，保留画布和对话引用素材" : "删除所选素材", disabled: selectionSource.value === "mixed", icon: IconTrash },
+  { value: "download" as const, label: "下载", hint: "下载所选素材", disabled: false, icon: IconDownload },
+  ...(selectionSource.value === "history" ? [{ value: "save" as const, label: "保存到资产", hint: "保存到个人资产", disabled: false, icon: IconFolderPlus }] : [
+    { value: "move" as const, label: "移动到", hint: selectionSource.value === "mixed" ? "仅支持个人资产" : "移动到其他文件夹", disabled: selectionSource.value !== "library", icon: IconFolderSymlink },
+    { value: "tags" as const, label: "修改标签", hint: selectionSource.value === "mixed" ? "仅支持个人资产" : "修改所选素材标签", disabled: selectionSource.value !== "library", icon: IconTags },
+  ]),
+]);
 const moveFolders = computed(() => folders.value.filter(item => !selectedEntries.value.some(source => item.path === source.path || item.path.startsWith(source.path + "/"))));
 function urlFor(item: Entry) { return item.history?.url ?? urls.value[item.path]; }
 function metadataFor(item: Entry) { return item.history ? { ...item.history, source: "生成历史" } : assets.metadata[item.path]; }
-function isSelected(item: Entry) { return selected.value.includes(aliases.value[item.path] ?? item.path); }
+function isSelected(item: Entry) { const key = aliases.value[item.path] ?? item.path; return selected.value.some(path => (aliases.value[path] ?? path) === key); }
 async function switchSource(value: "library" | "history") {
   if (source.value === value) return;
   const previous = source.value;
@@ -186,7 +204,8 @@ async function linkDuplicateAssets() {
       if (disposed) return;
     }
     aliases.value = next;
-    selected.value = [...new Set(selected.value.map(path => next[path] ?? path))];
+    const seen = new Set<string>();
+    selected.value = selected.value.filter(path => { const key = next[path] ?? path; if (seen.has(key)) return false; seen.add(key); return true; });
   } finally { matching.value = false; }
 }
 watch(() => props.imagesOnly, value => { if (value && mediaFilter.value === "video") mediaFilter.value = "image"; });
@@ -195,9 +214,9 @@ function toggleSelection(item: Entry, event?: Event) {
   if (event?.target instanceof HTMLInputElement) event.target.checked = isSelected(item);
   if (busy.value || adding.value || matching.value) return;
   const path = aliases.value[item.path] ?? item.path;
-  if (selected.value.includes(path)) { selected.value = selected.value.filter(item => item !== path); return; }
+  if (isSelected(item)) { selected.value = selected.value.filter(item => (aliases.value[item] ?? item) !== path); return; }
   if (props.selectable && selected.value.length >= props.selectionLimit) { ElMessage.warning(props.selectionLimit === 1 ? "本次只能选择1个素材" : "最多添加10个参考图片/视频"); return; }
-  selected.value = [...selected.value, path];
+  selected.value = [...selected.value, item.path];
 }
 async function addSelected(items = selectedEntries.value) {
   if (busy.value || adding.value || matching.value || !items.length) return;
@@ -268,6 +287,31 @@ async function upload(event: Event) {
   } catch (cause) { ElMessage.error(`已上传 ${completed} 项；${cause instanceof Error ? cause.message : "上传失败"}`); }
   finally { try { await reload(); } catch (cause) { failure(cause); } busy.value = false; }
 }
+async function runPickerAction(action: PickerAction) {
+  if (operationLocked.value || !selectedEntries.value.length || pickerActions.value.find(item => item.value === action)?.disabled) return;
+  const items = [...selectedEntries.value];
+  if (action === "delete") { await remove(items); return; }
+  if (action === "download") { await download(items); return; }
+  if (action === "move") { destination.value = ""; moveVisible.value = true; return; }
+  if (action === "tags") { editTags(); return; }
+  busy.value = true;
+  try {
+    const sources = await Promise.all(items.map(async item => ({ file: await fileFor(item), metadata: { source: "生成历史", prompt: item.history?.prompt, model: item.history?.model, origin: item.history?.origin } })));
+    savingEntries.clear();
+    sources.forEach((source, index) => savingEntries.set(source.file, items[index]!.path));
+    await saveDialog.value?.open(sources);
+  } catch (cause) { failure(cause); }
+  finally { busy.value = false; }
+}
+const savingEntries = new Map<File, string>();
+async function saveClosed() {
+  savingEntries.clear();
+  try { await reload(); } catch (cause) { failure(cause); }
+}
+function assetSaved(file: File) {
+  const path = savingEntries.get(file);
+  if (path) { selected.value = selected.value.filter(item => item !== path); savingEntries.delete(file); }
+}
 async function fileFor(item: Entry) {
   const bytes = item.history ? await useWorkspaceFiles(item.history.directory).read(item.history.path) : await browserAssetFiles().read(item.path);
   return new File([bytes], item.name, { type: item.history?.mimeType ?? browserAssetMimeType(item.path) });
@@ -284,32 +328,86 @@ async function addToCanvas(items: Entry[]) {
   catch (cause) { failure(cause); } finally { busy.value = false; }
 }
 async function download(items: Entry[]) {
-  if (busy.value) return; busy.value = true;
-  try { for (const item of items) if (!await saveFile(await fileFor(item), item.name)) break; } catch (cause) { failure(cause); } finally { busy.value = false; }
+  if (operationLocked.value || !items.length) return;
+  busy.value = true;
+  const failed: Entry[] = [];
+  let completed = 0;
+  try {
+    for (const [index, item] of items.entries()) {
+      try {
+        if (!await saveFile(await fileFor(item), item.name)) { failed.push(...items.slice(index)); break; }
+        completed++;
+      } catch { failed.push(item); }
+    }
+    if (failed.length && props.selectable) selected.value = failed.map(item => item.path);
+    if (failed.length) ElMessage.warning(`已下载 ${completed} 项，${failed.length} 项失败或取消，已保留未完成项`);
+    else ElMessage.success(`已发起 ${completed} 项下载`);
+  } finally { busy.value = false; }
 }
 async function remove(items: Entry[]) {
-  if (busy.value || !items.length) return; busy.value = true;
+  if (operationLocked.value || !items.length) return;
+  const fromHistory = items.every(item => !!item.history);
+  if (!fromHistory && items.some(item => item.history)) { ElMessage.warning("请分别选择个人资产或生成历史进行删除"); return; }
+  busy.value = true;
+  const failed: Entry[] = [];
+  let completed = 0;
   try {
-    await ElMessageBox.confirm(`删除所选 ${items.length} 项资产？`, "删除资产", { confirmButtonText: "删除", cancelButtonText: "取消", type: "warning" });
-    for (const item of items) { await browserAssetFiles().remove(item.path, item.type === "directory"); for (const key of Object.keys(assets.metadata)) if (key === item.path || key.startsWith(item.path + "/")) delete assets.metadata[key]; for (const key of Object.keys(assets.tags)) if (key === item.path || key.startsWith(item.path + "/")) delete assets.tags[key]; if (preview.value?.path === item.path) preview.value = undefined; }
+    const text = fromHistory ? `删除所选 ${items.length} 条历史记录？画布和对话引用的素材将保留。` : `删除所选 ${items.length} 项资产文件？此操作不可恢复。`;
+    const confirmed = await ElMessageBox.confirm(text, fromHistory ? "删除历史记录" : "删除资产", { confirmButtonText: "删除", cancelButtonText: "取消", type: "warning" }).then(() => true, () => false);
+    if (!confirmed) return;
+    for (const item of items) {
+      try {
+        if (item.history) {
+          const record = item.history, files = useWorkspaceFiles(record.directory);
+          const hidden = await files.readJson<unknown>(".agent/hiddenResults.json").catch(cause => { if (cause.code === "ENOENT") return []; throw cause; });
+          if (!Array.isArray(hidden) || hidden.some(id => typeof id !== "string")) throw new Error("历史记录格式无效");
+          await files.writeJson(".agent/hiddenResults.json", [...new Set([...hidden, record.id])]);
+          history.items.value = history.items.value.filter(entry => entry.key !== record.key);
+          for (const path of Object.keys(aliases.value)) if (aliases.value[path] === item.path) delete aliases.value[path];
+        } else {
+          await browserAssetFiles().remove(item.path, item.type === "directory");
+          for (const data of [assets.metadata, assets.tags]) for (const key of Object.keys(data)) if (key === item.path || key.startsWith(item.path + "/")) delete data[key];
+          delete aliases.value[item.path]; contentHashes.delete(item.path);
+        }
+        if (preview.value?.path === item.path) preview.value = undefined;
+        selected.value = selected.value.filter(path => path !== item.path);
+        completed++;
+      } catch { failed.push(item); }
+    }
+    if (failed.length) { selected.value = failed.map(item => item.path); ElMessage.warning(`已删除 ${completed} 项，${failed.length} 项失败，已保留失败项`); }
+    else ElMessage.success(`已删除 ${completed} 项`);
   } catch (cause) { failure(cause); }
-  finally { try { await reload(); } catch (cause) { failure(cause); } busy.value = false; }
+  finally { if (!fromHistory) { try { await reload(); } catch (cause) { failure(cause); } } busy.value = false; }
 }
 async function move() {
-  if (busy.value) return; busy.value = true; let completed = 0; const directory = destination.value; const targets = [...selectedEntries.value];
+  if (operationLocked.value || selectedEntries.value.some(item => item.history)) return;
+  const directory = destination.value, targets = [...selectedEntries.value];
+  if (!targets.length) return;
+  busy.value = true;
+  const failed: Entry[] = [], moved: string[] = [];
   try {
     for (const item of targets) {
-      const target = directory ? `${directory}/${item.name}` : item.name;
-      if (target === item.path) continue;
-      if (directory === item.path || directory.startsWith(item.path + "/")) throw new Error("不能移入自身或子文件夹");
-      if (!directory && ["image", "video"].includes(kind(item))) throw new Error("图片和视频须放入文件夹");
-      await browserAssetFiles().rename(item.path, target);
-      moveMetadata(item.path, target); completed++;
+      try {
+        const target = directory ? `${directory}/${item.name}` : item.name;
+        if (directory === item.path || directory.startsWith(item.path + "/")) throw new Error("不能移入自身或子文件夹");
+        if (!directory && ["image", "video"].includes(kind(item))) throw new Error("图片和视频须放入文件夹");
+        if (target !== item.path) {
+          await browserAssetFiles().rename(item.path, target);
+          moveMetadata(item.path, target);
+          if (aliases.value[item.path]) { aliases.value[target] = aliases.value[item.path]!; delete aliases.value[item.path]; }
+          contentHashes.delete(item.path); contentHashes.delete(target);
+          if (preview.value?.path === item.path) preview.value = undefined;
+        }
+        moved.push(target);
+      } catch { failed.push(item); }
     }
-    selected.value = []; moveVisible.value = false; ElMessage.success(`已移动 ${completed} 项`);
-  } catch (cause) { ElMessage.error(`已移动 ${completed} 项；${cause instanceof Error ? cause.message : "移动失败"}`); }
-  finally { try { await reload(); } catch (cause) { failure(cause); } busy.value = false; }
+    selected.value = failed.length ? failed.map(item => item.path) : props.selectable ? moved : [];
+    moveVisible.value = false;
+    if (failed.length) ElMessage.warning(`已移动 ${moved.length} 项，${failed.length} 项失败，已保留失败项`);
+    else ElMessage.success(`已移动 ${moved.length} 项`);
+  } finally { try { await reload(); } catch (cause) { failure(cause); } busy.value = false; }
 }
+
 function moveMetadata(source: string, target: string) {
   for (const record of [assets.metadata, assets.tags]) for (const key of Object.keys(record)) if (key === source || key.startsWith(source + "/")) { (record as Record<string, unknown>)[target + key.slice(source.length)] = record[key]; delete record[key]; }
 }
@@ -324,8 +422,8 @@ async function rename() {
     busy.value = true; await browserAssetFiles().rename(item.path, target); moveMetadata(item.path, target); selected.value = [target]; await reload();
   } catch (cause) { failure(cause); } finally { busy.value = false; }
 }
-function editTags() { chosenTags.value = [...new Set(selectedEntries.value.flatMap(item => assets.tags[item.path] ?? []))]; tagsVisible.value = true; }
-function saveTags() { for (const item of selectedEntries.value) assets.tags[item.path] = [...chosenTags.value]; tagsVisible.value = false; }
+function editTags() { if (operationLocked.value || selectedEntries.value.some(item => item.history)) return; chosenTags.value = [...new Set(selectedEntries.value.flatMap(item => assets.tags[item.path] ?? []))]; tagsVisible.value = true; }
+function saveTags() { if (operationLocked.value || selectedEntries.value.some(item => item.history)) return; for (const item of selectedEntries.value) assets.tags[item.path] = [...chosenTags.value]; tagsVisible.value = false; }
 </script>
 <style scoped lang="scss">
 .personalAssetBrowser {
@@ -353,6 +451,7 @@ function saveTags() { for (const item of selectedEntries.value) assets.tags[item
       &:hover::-webkit-scrollbar-thumb { background: #ffffff40; }
     }
     .pickerContent {
+      container-type: inline-size;
       display: flex;
       flex: 1;
       flex-direction: column;
@@ -441,20 +540,38 @@ function saveTags() { for (const item of selectedEntries.value) assets.tags[item
       }
       .assetGrid { min-width: 0; }
     }
-    .selectedAssets {
+    .pickerFooter {
+      display: flex;
       flex: none;
-      min-width: 0;
+      align-items: flex-end;
+      gap: 12px;
+      min-height: 76px;
       margin-top: 12px;
-      .selectedAssetsToggle { display: flex; align-items: center; gap: 6px; padding: 4px 0; border: 0; background: transparent; color: var(--el-text-color-secondary); font: inherit; font-size: 12px; cursor: pointer; svg.expanded { transform: rotate(90deg); } }
-      .selectedAssetList { :deep(.videoDuration) { display: none; } display: flex; gap: 10px; padding: 6px 4px; overflow-x: auto; }
-      .selectedAsset { position: relative; flex: none; width: 44px; height: 44px;
+      padding-top: 12px;
+      border-top: 1px solid var(--el-border-color);
+      .pickerSelection { flex: 1; min-width: 0; }
+      .selectionCount { color: var(--el-text-color-secondary); font-size: 11px; }
+      .selectedAssetList { display: flex; gap: 8px; min-height: 44px; padding: 6px 4px 0; overflow-x: auto; :deep(.videoDuration) { display: none; } }
+      .selectedAsset { position: relative; flex: none; width: 36px; height: 36px;
         .selectedPreview { width: 100%; height: 100%; border: 0; padding: 0; border-radius: 6px; overflow: hidden; background: #282828; cursor: pointer; img { width: 100%; height: 100%; object-fit: cover; } }
-        .removeSelected { position: absolute; right: -4px; top: -4px; display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 1px solid #555; border-radius: 50%; background: #252525; color: #fff; cursor: pointer; }
+        .removeSelected { position: absolute; right: -3px; top: -3px; display: grid; place-items: center; width: 16px; height: 16px; padding: 0; border: 1px solid #555; border-radius: 50%; background: #252525; color: #fff; opacity: 0; pointer-events: none; cursor: pointer; }
+        &:hover .removeSelected, &:focus-within .removeSelected { opacity: 1; pointer-events: auto; }
+      }
+      .pickerActions { display: flex; flex: none; align-items: center; gap: 6px; padding-bottom: 4px;
+        .el-button { margin: 0; height: 32px; padding: 7px 9px; }
+        .fullActions { display: flex; align-items: center; gap: 6px; .el-button { gap: 4px; } }
+        .deleteAction { color: #ee7777; }
+        .compactActions { display: none; }
       }
     }
-    .pickerFooter { flex-shrink: 0; flex-wrap: wrap; position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 12px 0 0; border-top: 1px solid var(--el-border-color); background: var(--el-dialog-bg-color, #171717);
-      span { flex: 1; color: var(--el-text-color-secondary); font-size: 13px; }
+    @container (max-width: 680px) {
+      .pickerFooter .pickerActions { .fullActions { display: none; } .compactActions { display: inline-flex; } }
     }
+    @container (max-width: 320px) {
+      .pickerFooter { flex-direction: column; align-items: stretch; .pickerActions { flex-wrap: wrap; justify-content: flex-end; } }
+    }
+    @media (hover: none) { .pickerFooter .selectedAsset .removeSelected { opacity: 1; pointer-events: auto; } }
+
   }
   .pickerBody, .pickerContent, .pickerTools, .cardMedia { display: contents; }
   header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; } .breadcrumbs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; button { padding: 0; border: 0; color: inherit; background: none; font-size: 15px; cursor: pointer; } span { color: var(--el-text-color-secondary); } } .libraryActions { display: flex; align-items: center; gap: 8px; .el-input { max-width: 220px; } } .uploadInput { display: none; } .assetGrid { display: flex; flex-wrap: wrap; gap: 20px 14px; } .assetCard { position: relative; width: 140px; min-width: 0; h3 { font-size: 12px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 10px 4px 6px; } small { font-size: 11px; color: var(--el-text-color-secondary); margin-left: 4px; } .assetCover { display: grid; place-items: center; width: 140px; height: 140px; border: 2px solid transparent; padding: 0; background: #242526; border-radius: 12px; overflow: hidden; color: #b4b5b7; cursor: pointer; img, video { width: 100%; height: 100%; object-fit: contain; } .folderIcon { filter: drop-shadow(0 3px 3px #0003); } } .assetCheckbox { position: absolute; left: 8px; top: 8px; width: 17px; height: 17px; opacity: 0; accent-color: var(--el-color-primary); cursor: pointer; } &:hover .assetCheckbox, &:focus-within .assetCheckbox, &.selected .assetCheckbox { opacity: 1; } &.selected .assetCover { border-color: var(--el-color-primary); } } .selectionToolbar { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; gap: 5px; align-items: center; max-width: calc(100vw - 32px); overflow-x: auto; white-space: nowrap; padding: 10px; border-radius: 16px; background: #28292b; border: 1px solid #3b3c3e; font-size: 12px; .el-button { margin: 0; border-color: transparent; background: transparent; &:hover { background: #ffffff12; border-color: transparent; } } } }
