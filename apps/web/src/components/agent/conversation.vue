@@ -591,8 +591,8 @@ watch(() => props.initialDraft, draft => {
   if (sender) void sender.reset({ clearHistory: false, chatNode: templatePromptModel(draft.prompt) });
 });
 async function editReferenceAttachment(attachment: AgentAttachment) {
-  if (locked.value) { ElMessage.warning("请等待当前操作完成后编辑来源"); return; }
-  if (!directory) { ElMessage.warning("当前对话尚未关联项目，请重新打开项目后编辑来源"); return; }
+  if (locked.value) { ElMessage.warning("请等待当前操作完成后编辑"); return; }
+  if (!directory) { ElMessage.warning("当前对话尚未关联项目，请重新打开项目后编辑"); return; }
   if (!attachment.origin) { ElMessage.warning("该素材没有可编辑的生成来源"); return; }
   try {
     await persistBrowserMessages();

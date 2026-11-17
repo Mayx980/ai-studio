@@ -7,7 +7,7 @@
         <section v-show="sourceEdit && !sourceEditorMinimized && sourceUrl === url" class="sourceEditorWindow" :class="{ canvasSource: url.includes('sourceType=canvas'), resizing: resizingUrl === url }" :style="sourceStyle(url)" role="dialog" aria-modal="true" aria-label="编辑素材来源">
           <button v-for="handle in resizeHandles" :key="handle.edge" type="button" class="sourceResize" :class="handle.edge" :aria-label="`拖动${handle.label}调整来源编辑窗口大小`" @pointerdown="startResize($event, url, handle.edge)" @pointermove="resizeWindow" @pointerup="stopResize" @pointercancel="stopResize" @lostpointercapture="stopResize" @keydown="resizeWithKeyboard($event, url, handle.edge)" />
           <header class="sourceEditorHeader">
-            <div><strong :title="sourceEdit?.name">{{ sourceEdit?.name }}</strong><small>{{ sourceEdit?.origin.type === 'canvas' ? '编辑来源画布' : '编辑来源对话' }}</small></div>
+            <div><strong :title="sourceEdit?.name">{{ sourceEdit?.name }}</strong><small>{{ sourceEdit?.origin.type === 'canvas' ? '编辑画布' : '编辑对话' }}</small></div>
             <div class="sourceEditorActions">
               <el-tooltip v-if="sourceEdit?.origin.type === 'canvas' && sourceEdit.result" content="应用最新生成结果并替换原素材" :showArrow="false"><el-button type="primary" :loading="sourceEditBusy" aria-label="应用编辑结果" @click="returnFromSourceEdit(true)"><icon-check :size="16" />应用</el-button></el-tooltip>
               <el-button text :disabled="sourceEditBusy" aria-label="关闭来源编辑" @click="returnFromSourceEdit()"><icon-x :size="18" /></el-button>
