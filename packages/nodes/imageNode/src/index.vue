@@ -21,9 +21,9 @@
         :loading="uploading"
         :disabled="lighting?.generating || multiAngle?.generating || panorama?.busy"
         text
-        title="替换图片"
-        aria-label="替换图片"
-        @click.stop="fileInput?.click()">替换图片</el-button>
+        title="替换"
+        aria-label="替换"
+        @click.stop="fileInput?.click()">替换</el-button>
     </template>
     <template #topRightActions>
       <el-button :icon="IconPencil" :disabled="uploading || lighting?.generating || multiAngle?.generating || panorama?.busy || !previewUrl || gridSplit?.splitting" text title="标记" aria-label="标记" @click.stop="startEditor('mark')" />
