@@ -18,7 +18,7 @@
               <div v-else-if="!rows.length" class="mentionStatus" role="status">{{ emptyText }}</div>
               <div v-if="groupedMedia" class="mentionGroups">
                 <section v-for="group in mediaGroups" :key="group.type" class="mentionGroup" role="group" :aria-label="group.label">
-                  <div class="mentionGroupTitle">{{ group.label }}<span class="mentionGroupCount"> · {{ group.items.length }}</span></div>
+                  <div class="mentionGroupTitle">{{ group.label }}<span class="mentionGroupCount">{{ group.items.length }}</span></div>
                   <button v-for="{ row, index } in group.items" :id="`${listId}-${index}`" :key="row.id" class="mentionGroupItem mentionItem" :class="{ active: keyboardNavigation && index === activeIndex }" type="button" role="option" :aria-selected="index === activeIndex" @mouseenter="keyboardNavigation = false; activeIndex = index" @mousedown.prevent @click="chooseRow(row)">
                     <attachmentPreview class="groupThumbnail" hideNativeTitle hoverPreview :previewTarget="popupElement" :attachment="attachments![Number(row.id)]!" :directory="directory" />
                     <icon-player-play v-if="row.dataType === 'video'" class="groupVideoMark" :size="9" aria-hidden="true" />
@@ -493,12 +493,25 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
   .mentionPopup {
     &.groupedMediaPopup {
       background: #000;
-      .mentionHeader .mentionScopes button { color: var(--el-text-color-secondary); font-size: 11px; }
+      border-color: #303238;
+      border-radius: 14px;
+      box-shadow: 0 16px 40px rgb(0 0 0 / 45%);
+      .mentionHeader {
+        padding: 12px 12px 10px;
+        gap: 8px;
+        strong { font-size: 14px; font-weight: 600; }
+        .mentionScopes button { color: #92969f; font-size: 11px; }
+      }
       .mentionScroll {
         :deep(.el-scrollbar__bar.is-vertical) { width: 4px; right: 2px; }
       }
       .mentionList { padding: 0 10px 5px; }
-      .mentionFooter { padding-top: 7px; padding-bottom: 7px; color: #92969f; }
+      .mentionFooter {
+        margin-top: 3px;
+        padding: 8px 12px;
+        border-top: 1px solid rgb(255 255 255 / 6%);
+        color: #92969f;
+      }
     }
     min-width: 0;
     box-sizing: border-box;
@@ -609,21 +622,39 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
       .mentionGroups {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
         .mentionGroup {
           padding: 0 6px 6px;
-          border: 1px solid rgb(255 255 255 / 14%);
+          border: 1px solid rgb(255 255 255 / 8%);
           border-radius: 10px;
           background: #111214;
           .mentionGroupTitle {
-            margin: 0 -6px 6px;
-            padding: 5px 13px;
-            border-bottom: 1px solid rgb(255 255 255 / 5%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin: 0 -6px 5px;
+            padding: 7px 13px;
+            border-bottom: 1px solid rgb(255 255 255 / 4%);
             border-radius: 9px 9px 0 0;
-            background: #1a1c20;
+            background: #191a1d;
             color: #c4c7ce;
             font-size: 12px;
-            .mentionGroupCount { color: #92969f; }
+            font-weight: 500;
+            .mentionGroupCount {
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              min-width: 18px;
+              height: 18px;
+              padding: 0 4px;
+              box-sizing: border-box;
+              border-radius: 5px;
+              background: rgb(255 255 255 / 6%);
+              color: #92969f;
+              font-size: 11px;
+              font-weight: 400;
+            }
           }
           .mentionGroupItem {
             position: relative;
