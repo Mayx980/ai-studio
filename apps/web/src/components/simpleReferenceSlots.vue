@@ -49,7 +49,7 @@
         <template v-else><button v-for="source in sources" :key="source.value" type="button" role="menuitem" @click="chooseSource(source.value)">{{ source.label }}</button></template>
       </div>
     </el-popover>
-    <el-dialog v-model="assetsOpen" title="从个人资产库上传" width="min(800px, 92vw)" appendToBody destroyOnClose><assetLibrary :modelValue="true" :directory="directory" selectable @select="selectAsset" /></el-dialog>
+    <el-dialog v-model="assetsOpen" title="素材库添加" width="min(1200px, 96vw)" alignCenter appendToBody destroyOnClose :closeOnClickModal="false"><personalAssetBrowser selectable :selectionLimit="assetSelectionLimit" :imagesOnly="['firstFrame', 'lastFrame'].includes(target.role)" @select="selectAssets" /></el-dialog>
   </div>
 </template>
 <script setup lang="ts">
@@ -60,7 +60,7 @@ import { IconPlus, IconRefresh, IconX, IconPhoto, IconChevronDown, IconLayoutCol
 import type { AgentAttachment, ReferenceRole, ReferenceCategory } from "@/components/agent/types";
 import brandLogo from "@/components/brandLogo.vue";
 import attachmentPreview from "@/components/agent/attachmentPreview.vue";
-import assetLibrary from "@/pages/workspace/panels/canvas/components/assetLibrary.vue";
+import personalAssetBrowser from "@/components/personalAssetBrowser.vue";
 import { IconPencil } from "@tabler/icons-vue";
 import { materialEditorState, materialWorkspaces, openMaterialWorkspace, minimizeMaterialWorkspace, type MaterialTarget, type MaterialWorkspace } from "@/stores/materialEditor";
 const emit = defineEmits<{ edit: [attachment: AgentAttachment] }>();
@@ -108,13 +108,14 @@ const tabs = computed(() => ([{ value: "reference", label: "参考图" }, { valu
 watch(() => props.showFrames, show => { if (!show) mode.value = "reference"; }, { immediate: true, flush: "sync" });
 const frames = [{ role: "firstFrame", label: "首帧" }, { role: "lastFrame", label: "尾帧" }] as const;
 const groups = [{ value: "character", label: "角色" }, { value: "prop", label: "道具" }, { value: "scene", label: "背景" }, { value: "other", label: "其他" }] as const;
-const sources = [{ value: "local", label: "从本地上传" }, { value: "assets", label: "从个人资产库上传" }, { value: "custom", label: "自定义素材" }];
+const sources = [{ value: "local", label: "从本地上传" }, { value: "assets", label: "素材库添加" }, { value: "custom", label: "自定义素材" }];
 const expandedReference = ref(false);
 let hoverTimer: ReturnType<typeof setTimeout> | undefined;
 function expandReference() { clearTimeout(hoverTimer); expandedReference.value = true; }
 function collapseReference() { clearTimeout(hoverTimer); hoverTimer = setTimeout(() => { if (!menuVisible.value) expandedReference.value = false; }, 500); }
 const middleFrames = computed(() => attachments.value.filter(item => item.referenceRole === "middleFrame"));
 const referenceLimitReached = computed(() => attachments.value.filter(item => /^(image|video)\//.test(item.mimeType)).length >= 10);
+const assetSelectionLimit = computed(() => replacing.value || ["firstFrame", "lastFrame"].includes(target.value.role) ? 1 : Math.max(0, 10 - attachments.value.filter(item => /^(image|video)\//.test(item.mimeType)).length));
 const referenceImages = computed(() => attachments.value.filter(item => item.referenceRole === "reference"));
 watch(attachments, value => { if (props.showFrames && value.some(item => item.referenceRole === "firstFrame" || item.referenceRole === "lastFrame") && !value.some(item => item.referenceRole === "reference")) mode.value = "frames"; }, { immediate: true });
 function frameAttachment(role: ReferenceRole) { return attachments.value.find(item => item.referenceRole === role); }
@@ -179,7 +180,7 @@ async function chooseSource(choice: string) {
   finally { opening.value = false; }
 }
 function selectFiles(event: Event) { try { applyFiles(Array.from((event.target as HTMLInputElement).files ?? [])); } catch (error) { ElMessage.error((error as Error).message); } }
-function selectAsset(file: File) { try { applyFiles([file]); assetsOpen.value = false; } catch (error) { ElMessage.error((error as Error).message); } }
+function selectAssets(files: File[]) { try { applyFiles(files); assetsOpen.value = false; } catch (error) { ElMessage.error((error as Error).message); } }
 onUnmounted(() => { clearTimeout(collapseTimer); clearTimeout(hoverTimer); active = false; for (const task of materialWorkspaces.value) if (task.request?.owner === owner) task.request = undefined; });
 </script>
 <style scoped lang="scss">
