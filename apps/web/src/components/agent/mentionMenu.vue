@@ -95,7 +95,7 @@ const loading = ref(false);
 const loadError = ref("");
 const selecting = ref(false);
 const selectionError = ref("");
-const maximumPopupHeight = computed(() => props.groupedMedia ? 380 : 440);
+const maximumPopupHeight = computed(() => props.groupedMedia ? 300 : 440);
 const popupHeight = ref(maximumPopupHeight.value);
 const chromeHeight = ref(104);
 const triggerElement = ref<HTMLElement>();
@@ -395,7 +395,7 @@ watch([visible, () => props.editor, triggerElement], ([open, editor], _previous,
     const dialogBounds = dialog?.getBoundingClientRect();
     const leftBoundary = Math.max(12, (dialogBounds?.left ?? 0) + 12);
     const rightBoundary = Math.min(window.innerWidth - 12, (dialogBounds?.right ?? window.innerWidth) - 12);
-    const width = Math.min(props.groupedMedia ? 320 : 360, Math.max(0, rightBoundary - leftBoundary));
+    const width = Math.min(props.groupedMedia ? 280 : 360, Math.max(0, rightBoundary - leftBoundary));
     popupHeight.value = Math.min(maximumPopupHeight.value, available);
     popupStyle.value = {
       width: `${width}px`,
