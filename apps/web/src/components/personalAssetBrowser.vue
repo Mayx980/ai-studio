@@ -10,12 +10,14 @@
           <button type="button" class="folderExpand" :aria-expanded="libraryExpanded" aria-label="展开或收起个人资产" @click="libraryExpanded = !libraryExpanded"><icon-chevron-right :size="12" :class="{ expanded: libraryExpanded }" /></button>
           <button type="button" class="folderName" :aria-current="source === 'library' && !folder ? 'page' : undefined" @click="chooseFolder('')"><icon-folder-filled :size="16" /><span>个人资产</span></button>
         </div>
+        <div class="folderList">
         <div v-for="item in libraryExpanded ? visibleFolders : []" :key="item.path" class="folderRow" :style="{ paddingInlineStart: `${item.path.split('/').length * 12}px` }">
           <button v-if="item.children?.some(child => child.type === 'directory')" type="button" class="folderExpand" :aria-label="`${collapsedFolders.includes(item.path) ? '展开' : '收起'}${item.name}`" :aria-expanded="!collapsedFolders.includes(item.path)" @click="toggleFolder(item.path)"><icon-chevron-right :size="12" :class="{ expanded: !collapsedFolders.includes(item.path) }" /></button>
           <span v-else class="folderExpandSpacer" />
           <button type="button" class="folderName" :title="item.path" :aria-current="source === 'library' && folder === item.path ? 'page' : undefined" @click="chooseFolder(item.path)"><icon-folder-filled :size="16" /><span>{{ item.name }}</span></button>
         </div>
-        <button type="button" :aria-current="source === 'history' ? 'page' : undefined" @click="switchSource('history')"><icon-history :size="16" /><span>生成历史</span></button>
+        </div>
+        <button class="historyEntry" type="button" :aria-current="source === 'history' ? 'page' : undefined" @click="switchSource('history')"><icon-history :size="16" /><span>生成历史</span></button>
       </nav>
       <div class="pickerContent">
         <header><div class="breadcrumbs"><button type="button" @click="source === 'library' && (folder = '')">{{ source === 'history' ? '生成历史' : selectable ? '个人资产' : '个人资产库' }}</button><template v-if="source === 'library'"><template v-for="crumb in breadcrumbs" :key="crumb.path"><span>/</span><button type="button" @click="folder = crumb.path">{{ crumb.name }}</button></template></template></div><div class="pickerTools"><nav v-if="selectable" class="mediaFilters" aria-label="素材类型"><el-tooltip v-for="filter in mediaFilters" :key="filter.value" :disabled="!imagesOnly || filter.value !== 'video'" content="首尾帧仅支持图片"><button type="button" :aria-pressed="mediaFilter === filter.value" :disabled="imagesOnly && filter.value === 'video'" @click="mediaFilter = filter.value">{{ filter.label }}</button></el-tooltip></nav><div class="libraryActions"><el-input v-if="selectable || searchVisible" v-model="search" :placeholder="selectable ? searchPlaceholder : '搜索资产'" :aria-label="selectable ? searchPlaceholder : '搜索资产'" clearable /><el-button v-if="!selectable" text :aria-expanded="searchVisible" aria-label="搜索资产" @click="searchVisible = !searchVisible"><icon-search :size="18" /></el-button><el-dropdown v-if="!selectable || source === 'library'" trigger="click" @command="create"><el-button :disabled="busy || adding || matching"><icon-plus :size="16" />新建</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="upload">上传资产</el-dropdown-item><el-dropdown-item command="folder">新建文件夹</el-dropdown-item></el-dropdown-menu></template></el-dropdown></div></div></header>
@@ -25,6 +27,7 @@
         <template v-for="(item, index) in displayed" :key="item.path">
         <h3 v-if="selectable && source === 'history' && (!index || dateFor(item.path) !== dateFor(displayed[index - 1]!.path))" class="historyDate">{{ dateFor(item.path) }}</h3>
         <article class="assetCard" :class="{ selected: isSelected(item) }">
+          <div class="cardMedia">
           <button class="assetCover" type="button" :disabled="selectable && (busy || adding || matching)" :aria-pressed="selectable ? isSelected(item) : undefined" :aria-label="(item.type === 'directory' ? '打开文件夹 ' : selectable ? '选择 ' : '预览 ') + item.name" @click="selectable ? toggleSelection(item) : open(item)">
             <icon-folder-filled v-if="item.type === 'directory'" class="folderIcon" :size="58" />
             <img v-else-if="kind(item) === 'image'" :src="urlFor(item)" :alt="item.name" />
@@ -33,7 +36,8 @@
           </button>
           <input v-if="!selectable || item.type === 'file'" class="assetCheckbox" type="checkbox" :checked="isSelected(item)" @change="toggleSelection(item, $event)" :aria-label="'选择 ' + item.name" :disabled="busy || adding || matching" />
           <button v-if="selectable" class="cardPreview" type="button" :aria-label="`预览 ${item.name}`" @click="open(item)"><icon-eye :size="14" />预览</button>
-          <span v-if="selectable && kind(item) === 'video'" class="cardVideoMark"><icon-player-play :size="12" aria-hidden="true" />视频</span>
+          <span v-if="selectable && kind(item) === 'video'" class="cardVideoMark" aria-label="视频"><icon-player-play :size="12" aria-hidden="true" /></span>
+          </div>
           <h3 :title="item.name"><button v-if="selectable" class="cardName" type="button" :disabled="busy || adding || matching" :aria-pressed="isSelected(item)" @click="toggleSelection(item)">{{ item.name }}</button><template v-else>{{ item.name }}</template></h3>
           <small>{{ dateFor(item.path) }}</small>
         </article>
@@ -330,7 +334,24 @@ function saveTags() { for (const item of selectedEntries.value) assets.tags[item
     min-height: 0;
     display: flex;
     flex-direction: column;
-    .assetGrid { flex: 1; min-height: 0; align-content: flex-start; overflow-y: auto; padding-bottom: 4px; }
+    .assetGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(132px, 100%), 1fr));
+      gap: 20px 16px;
+      flex: 1;
+      min-height: 0;
+      align-content: start;
+      overflow-y: auto;
+      padding: 0 6px 4px 0;
+    }
+    .assetGrid, .folderList {
+      scrollbar-width: thin;
+      scrollbar-color: #ffffff20 transparent;
+      &::-webkit-scrollbar { width: 4px; height: 4px; }
+      &::-webkit-scrollbar-thumb { border-radius: 4px; background: #ffffff20; }
+      &:hover { scrollbar-color: #ffffff40 transparent; }
+      &:hover::-webkit-scrollbar-thumb { background: #ffffff40; }
+    }
     .pickerContent {
       display: flex;
       flex: 1;
@@ -347,16 +368,24 @@ function saveTags() { for (const item of selectedEntries.value) assets.tags[item
           &:focus-visible { outline: 1px solid var(--el-color-primary); }
         }
       }
-      .historyDate { flex-basis: 100%; margin: 4px 0 -8px; font-size: 12px; color: var(--el-text-color-secondary); font-weight: 500; }
+      .historyDate { grid-column: 1 / -1; margin: 4px 0 -8px; font-size: 12px; color: var(--el-text-color-secondary); font-weight: 500; }
     }
-    .pickerHint { margin: 0 0 12px; color: var(--el-text-color-secondary); font-size: 12px; flex-shrink: 0; }
-    .libraryActions { flex-wrap: wrap; min-width: 0; max-width: 100%; .el-input { width: 200px; max-width: 100%; min-width: 0; } }
-    .assetCard .assetCheckbox { opacity: 1; }
+    .pickerHint { margin: 0 0 10px; color: #8e9199; font-size: 12px; flex-shrink: 0; }
+    .libraryActions {
+      flex-wrap: wrap;
+      min-width: 0;
+      max-width: 100%;
+      .el-input { width: 180px; max-width: 100%; min-width: 0; --el-input-height: 32px; }
+      .el-button { height: 32px; border-color: #ffffff18; background: #18191b; }
+    }
     .assetCard {
-      .assetCover { box-sizing: border-box; }
-      small { color: var(--el-text-color-placeholder); }
+      width: auto;
+      .cardMedia { display: block; position: relative; aspect-ratio: 1; }
+      .assetCover { box-sizing: border-box; width: 100%; height: 100%; }
+      h3 { margin: 8px 2px 3px; }
+      small { margin-left: 2px; font-size: 10px; color: #80848c; }
       .cardName { width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .cardPreview { position: absolute; top: 104px; right: 8px; display: flex; align-items: center; gap: 4px; padding: 4px 7px; border: 0; border-radius: 6px; background: #17191ddd; color: #fff; font-size: 12px; opacity: 0; pointer-events: none; cursor: pointer; }
+      .cardPreview { position: absolute; bottom: 8px; right: 8px; display: flex; align-items: center; gap: 4px; padding: 4px 7px; border: 0; border-radius: 6px; background: #17191ddd; color: #fff; font-size: 12px; opacity: 0; pointer-events: none; cursor: pointer; }
       &:hover .cardPreview, &:focus-within .cardPreview { opacity: 1; pointer-events: auto; }
       .cardVideoMark { position: absolute; top: 8px; right: 8px; display: flex; align-items: center; gap: 2px; padding: 3px 5px; border-radius: 5px; background: #17191dbb; color: #fff; font-size: 10px; pointer-events: none; }
       .assetCover:focus-visible, .cardName:focus-visible, .cardPreview:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: -2px; }
@@ -371,12 +400,16 @@ function saveTags() { for (const item of selectedEntries.value) assets.tags[item
         width: 180px;
         max-width: 35%;
         flex: none;
-        overflow-y: auto;
-        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 6px;
         box-sizing: border-box;
         border-radius: 10px;
         background: #1a1a1a;
-        .folderRow { display: flex; align-items: center; min-width: 0; }
+        .folderRow { display: flex; align-items: center; min-width: 0; flex-shrink: 0; }
+        .folderList { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+        .historyEntry { flex-shrink: 0; margin-top: 6px; margin-bottom: 0; }
         .folderExpand, .folderExpandSpacer { flex: none; width: 20px; }
         .folderExpand { padding: 0; justify-content: center; }
         .folderExpandSpacer { display: block; }
@@ -387,19 +420,22 @@ function saveTags() { for (const item of selectedEntries.value) assets.tags[item
           align-items: center;
           gap: 8px;
           width: 100%;
-          min-height: 36px;
-          margin-bottom: 4px;
+          height: 36px;
+          box-sizing: border-box;
+          margin-bottom: 2px;
           padding: 8px 10px;
           border: 0;
           border-radius: 8px;
           background: transparent;
           color: var(--el-text-color-secondary);
           font: inherit;
+          font-size: 13px;
           text-align: left;
           cursor: pointer;
           svg { flex: none; }
           span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-          &[aria-current="page"], &:hover { color: var(--el-text-color-primary); background: var(--el-fill-color); }
+          &:hover { color: var(--el-text-color-primary); background: #242529; }
+          &[aria-current="page"] { color: var(--el-text-color-primary); background: #2b2d32; }
           &:focus-visible { outline: 1px solid var(--el-color-primary); outline-offset: -1px; }
         }
       }
@@ -420,7 +456,7 @@ function saveTags() { for (const item of selectedEntries.value) assets.tags[item
       span { flex: 1; color: var(--el-text-color-secondary); font-size: 13px; }
     }
   }
-  .pickerBody, .pickerContent, .pickerTools { display: contents; }
+  .pickerBody, .pickerContent, .pickerTools, .cardMedia { display: contents; }
   header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; } .breadcrumbs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; button { padding: 0; border: 0; color: inherit; background: none; font-size: 15px; cursor: pointer; } span { color: var(--el-text-color-secondary); } } .libraryActions { display: flex; align-items: center; gap: 8px; .el-input { max-width: 220px; } } .uploadInput { display: none; } .assetGrid { display: flex; flex-wrap: wrap; gap: 20px 14px; } .assetCard { position: relative; width: 140px; min-width: 0; h3 { font-size: 12px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 10px 4px 6px; } small { font-size: 11px; color: var(--el-text-color-secondary); margin-left: 4px; } .assetCover { display: grid; place-items: center; width: 140px; height: 140px; border: 2px solid transparent; padding: 0; background: #242526; border-radius: 12px; overflow: hidden; color: #b4b5b7; cursor: pointer; img, video { width: 100%; height: 100%; object-fit: contain; } .folderIcon { filter: drop-shadow(0 3px 3px #0003); } } .assetCheckbox { position: absolute; left: 8px; top: 8px; width: 17px; height: 17px; opacity: 0; accent-color: var(--el-color-primary); cursor: pointer; } &:hover .assetCheckbox, &:focus-within .assetCheckbox, &.selected .assetCheckbox { opacity: 1; } &.selected .assetCover { border-color: var(--el-color-primary); } } .selectionToolbar { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; gap: 5px; align-items: center; max-width: calc(100vw - 32px); overflow-x: auto; white-space: nowrap; padding: 10px; border-radius: 16px; background: #28292b; border: 1px solid #3b3c3e; font-size: 12px; .el-button { margin: 0; border-color: transparent; background: transparent; &:hover { background: #ffffff12; border-color: transparent; } } } }
 </style>
 <style lang="scss">

@@ -49,7 +49,7 @@
         <template v-else><button v-for="source in sources" :key="source.value" type="button" role="menuitem" @click="chooseSource(source.value)">{{ source.label }}</button></template>
       </div>
     </el-popover>
-    <el-dialog v-model="assetsOpen" title="素材库添加" width="min(1080px, 96vw)" alignCenter appendToBody destroyOnClose :closeOnClickModal="false"><personalAssetBrowser selectable :selectionLimit="assetSelectionLimit" :imagesOnly="['firstFrame', 'lastFrame'].includes(target.role)" @select="selectAssets" /></el-dialog>
+    <el-dialog v-model="assetsOpen" class="materialLibraryDialog" title="素材库添加" width="min(1080px, 96vw)" alignCenter appendToBody destroyOnClose :closeOnClickModal="false"><personalAssetBrowser selectable :selectionLimit="assetSelectionLimit" :imagesOnly="['firstFrame', 'lastFrame'].includes(target.role)" @select="selectAssets" /></el-dialog>
   </div>
 </template>
 <script setup lang="ts">
@@ -234,6 +234,7 @@ onUnmounted(() => { clearTimeout(collapseTimer); clearTimeout(hoverTimer); activ
 </style>
 
 <style lang="scss">
+.materialLibraryDialog { .el-dialog__header { padding-bottom: 8px; } .el-dialog__title { font-size: 18px; font-weight: 500; } }
 .referenceModePopover.el-popover.el-popper { padding: 8px; border: 0; border-radius: 10px; background: var(--agent-input-bg, #1b1b1b); box-shadow: 0 8px 24px #0006; }
 </style>
 
