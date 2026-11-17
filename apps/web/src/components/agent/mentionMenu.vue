@@ -2,21 +2,30 @@
   <div v-click-outside:[clickOutsideExclude]="closeMenu" class="mentionMenu" @keydown.capture="handleKeydown">
     <el-button v-if="!hideTrigger" class="mentionButton" text circle :disabled="disabled" :aria-expanded="visible" :aria-controls="listId" aria-label="选择参考素材" title="选择参考素材" @mousedown.prevent @click="visible ? closeMenu() : openMenu($event.currentTarget as HTMLElement)"><icon-at :size="16" /></el-button>
     <teleport to="body">
-      <div v-if="visible" ref="popupElement" class="mentionMenu mentionOverlay" :style="popupStyle" @keydown.capture="handleKeydown">
+      <div v-if="visible" ref="popupElement" class="mentionMenu mentionOverlay" tabindex="-1" :style="popupStyle" @keydown.capture="handleKeydown">
         <el-card class="mentionPopup" shadow="always" :bodyStyle="{ padding: '0', maxHeight: `${Math.max(0, popupHeight - 2)}px` }" :style="{ maxHeight: `${popupHeight}px` }">
           <div class="mentionHeader"><strong>选择参考素材</strong><div class="mentionScopes" aria-label="素材范围"><button v-for="item in visibleScopes" :key="item.id" type="button" :class="{ selected: scope === item.id }" :aria-pressed="scope === item.id" @click="changeScope(item.id)">{{ item.name }}<span v-if="attachmentsOnly"> · {{ mediaAttachments.length }}个素材</span></button></div><el-button text circle size="small" aria-label="关闭素材选择" @click="closeMenu"><icon-x :size="14" /></el-button></div>
           <div v-if="selectedNode || selectedCanvas || assetPath" class="mentionBreadcrumb">
             <el-button text circle size="small" aria-label="返回上一级" @click="goBack"><icon-chevron-left :size="15" /></el-button>
             <span :title="breadcrumb">{{ breadcrumb }}</span>
           </div>
-          <div class="mentionSearch"><el-input v-model="search" clearable :placeholder="searchPlaceholder" aria-label="搜索素材名称"><template #prefix><icon-search :size="15" /></template></el-input></div>
-          <div v-if="showTypeFilters" class="mentionFilters" role="group" aria-label="素材类型"><button v-for="filter in mediaFilters" :key="filter.value" type="button" :class="{ selected: mediaFilter === filter.value }" :aria-pressed="mediaFilter === filter.value" @mousedown.prevent @click="mediaFilter = filter.value">{{ filter.label }}</button></div>
+          <div v-if="!groupedMedia" class="mentionSearch"><el-input v-model="search" clearable :placeholder="searchPlaceholder" aria-label="搜索素材名称"><template #prefix><icon-search :size="15" /></template></el-input></div>
+          <div v-if="showTypeFilters && !groupedMedia" class="mentionFilters" role="group" aria-label="素材类型"><button v-for="filter in mediaFilters" :key="filter.value" type="button" :class="{ selected: mediaFilter === filter.value }" :aria-pressed="mediaFilter === filter.value" @mousedown.prevent @click="mediaFilter = filter.value">{{ filter.label }}</button></div>
           <el-scrollbar ref="listScrollbar" class="mentionScroll" :maxHeight="`${Math.max(0, popupHeight - chromeHeight)}px`">
             <div :id="listId" class="mentionList" role="listbox" aria-label="可引用素材" :aria-busy="loading || selecting" :aria-multiselectable="!!selectedNode">
               <div v-if="loading && !rows.length" class="mentionStatus" role="status">正在加载…</div>
               <div v-else-if="loadError && !rows.length" class="mentionStatus" role="alert"><span>{{ loadError }}</span><el-button text type="primary" size="small" @click="loadList()">重试</el-button></div>
               <div v-else-if="!rows.length" class="mentionStatus" role="status">{{ emptyText }}</div>
-              <div class="mentionRows" :style="{ height: `${listVirtualizer.getTotalSize()}px` }">
+              <div v-if="groupedMedia" class="mentionGroups">
+                <section v-for="group in mediaGroups" :key="group.type" class="mentionGroup" role="group" :aria-label="group.label">
+                  <div class="mentionGroupTitle">{{ group.label }}</div>
+                  <button v-for="{ row, index } in group.items" :id="`${listId}-${index}`" :key="row.id" class="mentionGroupItem mentionItem" :class="{ active: keyboardNavigation && index === activeIndex }" type="button" role="option" :aria-selected="index === activeIndex" :title="row.name" @mouseenter="keyboardNavigation = false; activeIndex = index" @mousedown.prevent @click="chooseRow(row)">
+                    <attachmentPreview class="groupThumbnail" hoverPreview :previewTarget="popupElement" :attachment="attachments![Number(row.id)]!" :directory="directory" />
+                    <span class="mentionGroupName">{{ row.name }}</span>
+                  </button>
+                </section>
+              </div>
+              <div v-else class="mentionRows" :style="{ height: `${listVirtualizer.getTotalSize()}px` }">
                 <button v-for="{ row, index, start } in visibleRows" :id="`${listId}-${index}`" :key="`${row.kind}-${row.id}`" class="mentionItem" :style="{ transform: `translateY(${start}px)` }" :class="{ active: keyboardNavigation && index === activeIndex, unavailable: !row.available, checked: row.kind === 'output' && selectedOutputs.includes(row.id) }" type="button" role="option" :aria-selected="row.kind === 'output' ? selectedOutputs.includes(row.id) : index === activeIndex" :aria-disabled="!row.available || selecting" :aria-posinset="index + 1" :aria-setsize="rows.length" :title="row.name" @mouseenter="keyboardNavigation = false; activeIndex = index" @mousedown.prevent @click="chooseRow(row)">
                   <attachmentPreview v-if="row.kind === 'attachment' && attachments?.[Number(row.id)]" class="uploadedThumbnail" hoverPreview :previewTarget="popupElement" :attachment="attachments[Number(row.id)]!" :directory="directory" /><mentionThumbnail v-else class="materialThumbnail" :thumbnail="row.thumbnail" :directory="directory" :globalAsset="row.kind === 'file'"><component :is="row.kind === 'canvas' ? IconVector : row.kind === 'directory' ? IconFolder : row.dataType === 'image' || row.dataType === 'mask' ? IconPhoto : row.dataType === 'video' ? IconVideo : row.dataType === 'audio' ? IconMusic : row.dataType ? IconFileText : IconBox" :size="18" /></mentionThumbnail>
                   <span class="mentionContent"><span class="mentionName">{{ row.name }}</span><span v-if="row.description" class="mentionDescription">{{ row.description }}</span></span>
@@ -50,7 +59,7 @@ import { useMentionSources, type MentionAsset, type MentionNode, type MentionOut
 import attachmentPreview from "./attachmentPreview.vue";
 import mentionThumbnail from "./mentionThumbnail.vue";
 
-const props = defineProps<{ currentOnly?: boolean; attachmentsOnly?: boolean; currentLabel?: string; attachments?: AgentAttachment[]; hideTrigger?: boolean; directory?: string; active: boolean; disabled: boolean; query?: string; editor?: HTMLElement; currentCanvasId?: string }>();
+const props = defineProps<{ groupedMedia?: boolean; currentOnly?: boolean; attachmentsOnly?: boolean; currentLabel?: string; attachments?: AgentAttachment[]; hideTrigger?: boolean; directory?: string; active: boolean; disabled: boolean; query?: string; editor?: HTMLElement; currentCanvasId?: string }>();
 const emit = defineEmits<{ select: [mentions: AgentMention[]]; dismiss: []; open: []; selectAttachment: [attachment: AgentAttachment] }>();
 const sources = useMentionSources(() => props.directory);
 const listId = useId();
@@ -128,7 +137,7 @@ const unfilteredRows = computed<MentionRow[]>(() => {
   const uploaded: MentionRow[] = (props.attachments ?? []).flatMap((attachment, index) => {
     const dataType = attachment.mimeType.split("/")[0];
     const name = referenceName(attachment.name, dataType, attachment.referenceName);
-    return `${name} ${attachment.name}`.toLocaleLowerCase().includes(searchText.value) ? [{ id: String(index), name, kind: "attachment", available: true, description: name !== attachment.name ? `${dataType === "video" ? "视频" : dataType === "image" ? "图片" : "素材"} · ${attachment.name}` : props.attachmentsOnly ? "对话素材" : "输入框素材", dataType, outputCount: 1 }] : [];
+    return (props.groupedMedia || `${name} ${attachment.name}`.toLocaleLowerCase().includes(searchText.value)) ? [{ id: String(index), name, kind: "attachment", available: true, description: name !== attachment.name ? `${dataType === "video" ? "视频" : dataType === "image" ? "图片" : "素材"} · ${attachment.name}` : props.attachmentsOnly ? "对话素材" : "输入框素材", dataType, outputCount: 1 }] : [];
   });
   if (props.attachmentsOnly) return uploaded;
   return [...uploaded, ...nodes.value.map(item => {
@@ -138,14 +147,20 @@ const unfilteredRows = computed<MentionRow[]>(() => {
     return { ...item, name, kind: "node" as const, dataType, description: name !== item.name ? `${type} · ${item.name}` : type, outputCount: item.outputCount };
   })];
 });
-const rows = computed(() => unfilteredRows.value.filter(row => !showTypeFilters.value || mediaFilter.value === "all" || row.dataType === mediaFilter.value));
+const rows = computed(() => props.groupedMedia
+  ? ["image", "video"].flatMap(type => unfilteredRows.value.filter(row => row.dataType === type))
+  : unfilteredRows.value.filter(row => !showTypeFilters.value || mediaFilter.value === "all" || row.dataType === mediaFilter.value));
+const mediaGroups = computed(() => [{ type: "image", label: "图片" }, { type: "video", label: "视频" }].map(group => ({
+  ...group,
+  items: rows.value.flatMap((row, index) => row.dataType === group.type ? [{ row, index }] : []),
+})).filter(group => group.items.length));
 const listVirtualizer = useVirtualizer<HTMLDivElement, HTMLButtonElement>(computed(() => ({
   count: rows.value.length,
   getScrollElement: () => listScrollbar.value?.wrapRef ?? null,
   getItemKey: (index: number) => `${rows.value[index]!.kind}-${rows.value[index]!.id}`,
   estimateSize: () => 56,
   overscan: 3,
-  enabled: visible.value,
+  enabled: visible.value && !props.groupedMedia,
 })));
 const visibleRows = computed(() => listVirtualizer.value.getVirtualItems().map(item => ({ row: rows.value[item.index]!, index: item.index, start: item.start })));
 const hasMore = computed(() => !listingCanvases.value && !selectedNode.value && !!nextCursor.value);
@@ -162,7 +177,8 @@ function openMenu(anchor?: HTMLElement) {
   buttonVisible.value = true;
   void nextTick(() => {
     if (!visible.value) return;
-    popupElement.value?.querySelector<HTMLInputElement>(".mentionSearch input")?.focus({ preventScroll: true });
+    const focusTarget = props.groupedMedia ? popupElement.value : popupElement.value?.querySelector<HTMLInputElement>(".mentionSearch input");
+    focusTarget?.focus({ preventScroll: true });
   });
 }
 
@@ -304,6 +320,11 @@ async function confirmOutputs() {
   }
 }
 
+function scrollToRow(index: number) {
+  if (props.groupedMedia) document.getElementById(`${listId}-${index}`)?.scrollIntoView({ block: "nearest" });
+  else listVirtualizer.value.scrollToIndex(index, { align: "auto" });
+}
+
 function handleKeydown(event: KeyboardEvent): boolean {
   if (!visible.value || event.isComposing || event.keyCode === 229 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
   if (event.key === "Escape") {
@@ -328,7 +349,7 @@ function handleKeydown(event: KeyboardEvent): boolean {
     const index = (activeIndex.value + direction * step + rows.value.length) % rows.value.length;
     if (rows.value[index]?.available) {
       activeIndex.value = index;
-      listVirtualizer.value.scrollToIndex(index, { align: "auto" });
+      scrollToRow(index);
       break;
     }
   }
@@ -434,7 +455,7 @@ watch(rows, async (items, previous) => {
   activeIndex.value = retainedIndex >= 0 ? retainedIndex : Math.max(0, items.findIndex(item => item.available));
   if (retainedIndex >= 0 || !items.length) return;
   await nextTick();
-  listVirtualizer.value.scrollToIndex(activeIndex.value, { align: "start" });
+  scrollToRow(activeIndex.value);
 });
 watch([visible, visibleRows, activeIndex, loading], async () => {
   await nextTick();
@@ -572,6 +593,42 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
             border-radius: 3px;
 
             &.selected { background: var(--el-color-primary); border-color: var(--el-color-primary); color: white; }
+          }
+        }
+      }
+      .mentionGroups {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        .mentionGroup {
+          padding: 6px;
+          border-radius: 10px;
+          background: var(--el-fill-color-darker);
+          .mentionGroupTitle { padding: 3px 7px 5px; color: var(--el-text-color-secondary); font-size: 12px; }
+          .mentionGroupItem {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            min-height: 34px;
+            padding: 7px;
+            border: 0;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--el-text-color-primary);
+            text-align: left;
+            font: inherit;
+            cursor: pointer;
+            &:hover { background: var(--el-fill-color-light); }
+            &.active, &:focus-visible { outline: 1px solid var(--el-color-primary); outline-offset: -1px; }
+            .groupThumbnail {
+              flex: none;
+              width: 15px;
+              height: 15px;
+              :deep(.thumbnailImage), :deep(.thumbnailButton) { width: 15px; height: 15px; box-sizing: border-box; border-radius: 3px; }
+              :deep(.videoDuration), :deep(.videoIcon) { display: none; }
+            }
+            .mentionGroupName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           }
         }
       }
