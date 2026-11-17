@@ -46,14 +46,14 @@
         <div class="pickerSelection">
           <span class="selectionCount">已选 {{ selected.length }} 项，还可添加 {{ Math.max(0, selectionLimit - selected.length) }} 项</span>
           <div class="selectedCarousel" :class="{ hasPrevious: selectedStart > 0, hasNext: selectedStart < selectedMaxStart }">
-            <button v-if="selectedEntries.length > selectedCapacity" class="selectedArrow previousArrow" type="button" aria-label="上一步，向左查看三个素材" :disabled="selectedStart === 0" @click="stepSelected(-1)"><icon-chevron-left :size="14" /></button>
+            <button v-if="selectedEntries.length > selectedCapacity" class="selectedArrow previousArrow" type="button" aria-label="上一步，向左查看三个素材" :disabled="selectedStart === 0" @click="stepSelected(-1)"><icon-chevron-left :size="22" /></button>
             <div ref="selectedViewport" class="selectedAssetList" aria-label="已选素材">
               <div v-for="item in visibleSelected" :key="item.path" class="selectedAsset" :title="item.name">
                 <button class="selectedPreview" type="button" :aria-label="`预览 ${item.name}`" @click="open(item)"><img v-if="kind(item) === 'image'" :src="urlFor(item)" :alt="item.name" /><assetVideoPreview v-else :src="urlFor(item)" /></button>
                 <input class="selectedCheckbox" type="checkbox" :checked="true" :disabled="operationLocked" :aria-label="`取消选择 ${item.name}`" @change="toggleSelection(item, $event)" />
               </div>
             </div>
-            <button v-if="selectedEntries.length > selectedCapacity" class="selectedArrow nextArrow" type="button" aria-label="下一步，向右查看三个素材" :disabled="selectedStart === selectedMaxStart" @click="stepSelected(1)"><icon-chevron-right :size="14" /></button>
+            <button v-if="selectedEntries.length > selectedCapacity" class="selectedArrow nextArrow" type="button" aria-label="下一步，向右查看三个素材" :disabled="selectedStart === selectedMaxStart" @click="stepSelected(1)"><icon-chevron-right :size="22" /></button>
           </div>
         </div>
         <div class="pickerActions" role="toolbar" aria-label="所选素材操作">
@@ -482,7 +482,7 @@ function saveTags() { if (operationLocked.value || selectedEntries.value.some(it
 <style scoped lang="scss">
 .personalAssetBrowser {
   &.selectionMode {
-    height: min(480px, calc(80dvh - 110px));
+    height: min(640px, calc(90dvh - 110px));
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -614,21 +614,21 @@ function saveTags() { if (operationLocked.value || selectedEntries.value.some(it
       .pickerSelection { flex: 1; min-width: 0; }
       .selectionCount { color: var(--el-text-color-secondary); font-size: 11px; }
       .selectedCarousel {
-        position: relative; width: min(100%, 336px); padding: 0 18px; box-sizing: border-box;
+        position: relative; width: min(100%, 356px); padding: 0 28px; box-sizing: border-box;
         .selectedAssetList { display: flex; gap: 8px; min-height: 44px; padding: 4px 0; overflow: hidden; box-sizing: border-box; :deep(.videoDuration) { display: none; } }
         .selectedAsset { position: relative; flex: none; width: 36px; height: 36px;
           .selectedPreview { width: 100%; height: 100%; border: 0; padding: 0; border-radius: 6px; overflow: hidden; background: #282828; cursor: pointer; img { width: 100%; height: 100%; object-fit: cover; } }
           .selectedCheckbox { position: absolute; left: 2px; top: 2px; width: 13px; height: 13px; margin: 0; accent-color: var(--el-color-primary); opacity: 0; cursor: pointer; }
           &:hover .selectedCheckbox, &:focus-within .selectedCheckbox { opacity: 1; }
         }
-        .selectedArrow { position: absolute; top: 4px; z-index: 2; display: grid; place-items: center; width: 18px; height: 36px; padding: 0; border: 0; border-radius: 4px; background: #222; color: #eee; opacity: 0; pointer-events: none; cursor: pointer;
+        .selectedArrow { position: absolute; top: 4px; z-index: 2; display: grid; place-items: center; width: 28px; height: 36px; padding: 0; border: 0; border-radius: 4px; background: #222; color: #eee; opacity: 0; pointer-events: none; cursor: pointer;
           &:disabled { color: #666; cursor: default; }
         }
         .previousArrow { left: 0; } .nextArrow { right: 0; }
         &:hover .selectedArrow, &:focus-within .selectedArrow { opacity: 1; pointer-events: auto; }
         &.hasPrevious::before, &.hasNext::after { content: ""; position: absolute; top: 4px; bottom: 4px; z-index: 1; width: 6px; pointer-events: none; }
-        &.hasPrevious::before { left: 18px; background: linear-gradient(to right, var(--el-dialog-bg-color, #202020), transparent); }
-        &.hasNext::after { right: 18px; background: linear-gradient(to left, var(--el-dialog-bg-color, #202020), transparent); }
+        &.hasPrevious::before { left: 28px; background: linear-gradient(to right, var(--el-dialog-bg-color, #202020), transparent); }
+        &.hasNext::after { right: 28px; background: linear-gradient(to left, var(--el-dialog-bg-color, #202020), transparent); }
       }
       .pickerActions { display: flex; flex: none; align-items: center; gap: 6px; padding-bottom: 4px;
         .el-button { margin: 0; height: 32px; padding: 7px 9px; }
