@@ -622,7 +622,7 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
       .mentionGroups {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 5px;
         .mentionGroup {
           padding: 0 6px 6px;
           border: 1px solid rgb(255 255 255 / 8%);
