@@ -25,7 +25,7 @@
       <el-alert v-if="selectable && source === 'history' && history.error.value" :title="history.error.value" type="warning" :closable="false" />
       <div ref="mediaGrid" class="assetGrid">
         <template v-for="(item, index) in displayed" :key="item.path">
-        <h3 v-if="selectable && source === 'history' && (!index || dateFor(item.path) !== dateFor(displayed[index - 1]!.path))" class="historyDate">{{ dateFor(item.path) }}</h3>
+        <h3 v-if="selectable && source === 'history' && (!index || dateFor(item.path) !== dateFor(displayed[index - 1]!.path))" class="historyDate" :class="{ hasSelection: (dateSelections.get(dateFor(item.path))?.selectedCount ?? 0) > 0 }"><span>{{ dateFor(item.path) }}</span><input type="checkbox" :checked="dateChecked(dateFor(item.path))" :indeterminate="datePartial(dateFor(item.path))" :aria-checked="datePartial(dateFor(item.path)) ? 'mixed' : dateChecked(dateFor(item.path))" :aria-label="`选择 ${dateFor(item.path)} 下当前显示的全部素材`" :disabled="operationLocked || history.loading.value" @change="toggleDate(dateFor(item.path), $event)" /></h3>
         <article class="assetCard" :class="{ selected: isSelected(item) }">
           <div class="cardMedia">
           <button class="assetCover" type="button" :disabled="selectable && (busy || adding || matching)" :aria-pressed="selectable ? isSelected(item) : undefined" :aria-label="(item.type === 'directory' ? '打开文件夹 ' : selectable ? '选择 ' : '预览 ') + item.name" @click="selectable ? toggleSelection(item) : open(item)">
@@ -36,7 +36,6 @@
           </button>
           <input v-if="!selectable || item.type === 'file'" class="assetCheckbox" type="checkbox" :checked="isSelected(item)" @change="toggleSelection(item, $event)" :aria-label="'选择 ' + item.name" :disabled="busy || adding || matching" />
           <button v-if="selectable" class="cardPreview" type="button" :aria-label="`预览 ${item.name}`" @click="open(item)"><icon-eye :size="14" />预览</button>
-          <span v-if="selectable && kind(item) === 'video'" class="cardVideoMark" aria-label="视频"><icon-player-play :size="12" aria-hidden="true" /></span>
           </div>
           <h3 :title="item.name"><button v-if="selectable" class="cardName" type="button" :disabled="busy || adding || matching" :aria-pressed="isSelected(item)" @click="toggleSelection(item)">{{ item.name }}</button><template v-else>{{ item.name }}</template></h3>
           <small>{{ dateFor(item.path) }}</small>
@@ -46,11 +45,15 @@
       <div v-if="selectable" class="pickerFooter">
         <div class="pickerSelection">
           <span class="selectionCount">已选 {{ selected.length }} 项，还可添加 {{ Math.max(0, selectionLimit - selected.length) }} 项</span>
-          <div class="selectedAssetList" aria-label="已选素材">
-            <div v-for="item in selectedEntries" :key="item.path" class="selectedAsset" :title="item.name">
-              <button class="selectedPreview" type="button" :aria-label="`预览 ${item.name}`" @click="open(item)"><img v-if="kind(item) === 'image'" :src="urlFor(item)" :alt="item.name" /><assetVideoPreview v-else :src="urlFor(item)" /></button>
-              <button class="removeSelected" type="button" :disabled="operationLocked" :aria-label="`取消选择 ${item.name}`" @click="toggleSelection(item)"><icon-x :size="12" /></button>
+          <div class="selectedCarousel" :class="{ hasPrevious: selectedStart > 0, hasNext: selectedStart < selectedMaxStart }">
+            <button v-if="selectedEntries.length > selectedCapacity" class="selectedArrow previousArrow" type="button" aria-label="上一步，向左查看三个素材" :disabled="selectedStart === 0" @click="stepSelected(-1)"><icon-chevron-left :size="14" /></button>
+            <div ref="selectedViewport" class="selectedAssetList" aria-label="已选素材">
+              <div v-for="item in visibleSelected" :key="item.path" class="selectedAsset" :title="item.name">
+                <button class="selectedPreview" type="button" :aria-label="`预览 ${item.name}`" @click="open(item)"><img v-if="kind(item) === 'image'" :src="urlFor(item)" :alt="item.name" /><assetVideoPreview v-else :src="urlFor(item)" /></button>
+                <input class="selectedCheckbox" type="checkbox" :checked="true" :disabled="operationLocked" :aria-label="`取消选择 ${item.name}`" @change="toggleSelection(item, $event)" />
+              </div>
             </div>
+            <button v-if="selectedEntries.length > selectedCapacity" class="selectedArrow nextArrow" type="button" aria-label="下一步，向右查看三个素材" :disabled="selectedStart === selectedMaxStart" @click="stepSelected(1)"><icon-chevron-right :size="14" /></button>
           </div>
         </div>
         <div class="pickerActions" role="toolbar" aria-label="所选素材操作">
@@ -70,7 +73,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import { IconChevronRight, IconEye, IconPlayerPlay, IconHistory, IconTrash, IconDownload, IconFolderSymlink, IconTags, IconFolderPlus } from "@tabler/icons-vue";
+import { IconChevronRight, IconChevronLeft, IconEye, IconHistory, IconTrash, IconDownload, IconFolderSymlink, IconTags, IconFolderPlus } from "@tabler/icons-vue";
 import assetVideoPreview from "@/components/assetVideoPreview.vue";
 import saveAssetDialog from "@/components/saveAssetDialog.vue";
 import { openGenerationOrigin, readGenerationOrigin, rememberFileOrigin, type GenerationOrigin } from "@/lib/generationOrigin";
@@ -118,7 +121,7 @@ function toggleFolder(path: string) {
 const breadcrumbs = computed(() => folder.value.split("/").filter(Boolean).map((name, index, parts) => ({ name, path: parts.slice(0, index + 1).join("/") })));
 const historyEntries = computed<Entry[]>(() => history.items.value.filter(item => item.kind !== "audio").map(item => ({ path: `history:${item.key}`, name: item.name, type: "file", history: item })));
 const pickerEntries = computed<Entry[]>(() => [...all.value, ...historyEntries.value]);
-const displayed = computed(() => {
+const displayed = computed<Entry[]>(() => {
   if (props.selectable) {
     const items = source.value === "history" ? [...historyEntries.value].sort((a, b) => (b.history?.createdAt ?? 0) - (a.history?.createdAt ?? 0)) : folder.value ? all.value.find(item => item.path === folder.value)?.children ?? [] : all.value;
     return items.filter(item => item.type === "file" && (props.imagesOnly ? kind(item) === "image" : ["image", "video"].includes(kind(item))) && (mediaFilter.value === "all" || kind(item) === mediaFilter.value) && item.name.toLowerCase().includes(search.value.trim().toLowerCase()));
@@ -129,6 +132,57 @@ const displayed = computed(() => {
 const selectedEntries = computed(() => props.selectable
   ? selected.value.flatMap(path => { const item = pickerEntries.value.find(item => item.path === path); return item ? [item] : []; })
   : all.value.filter(item => selected.value.includes(item.path) && !selected.value.some(path => item.path.startsWith(path + "/"))));
+const selectedViewport = ref<HTMLElement>();
+const selectedStart = ref(0), selectedCapacity = ref(7);
+const selectedMaxStart = computed(() => Math.max(0, selectedEntries.value.length - selectedCapacity.value));
+const visibleSelected = computed(() => selectedEntries.value.slice(selectedStart.value, selectedStart.value + selectedCapacity.value));
+function stepSelected(direction: number) {
+  selectedStart.value = Math.max(0, Math.min(selectedMaxStart.value, selectedStart.value + direction * 3));
+}
+watch(selectedViewport, (element, _previous, onCleanup) => {
+  if (!element) return;
+  function resizeSelected() { selectedCapacity.value = Math.max(1, Math.min(7, Math.floor((element!.clientWidth + 8) / 44))); }
+  const observer = new ResizeObserver(resizeSelected);
+  observer.observe(element);
+  resizeSelected();
+  onCleanup(() => observer.disconnect());
+});
+watch([selectedEntries, selectedCapacity], ([items], [previous, previousCapacity]) => {
+  const atEnd = selectedStart.value >= Math.max(0, previous.length - previousCapacity);
+  selectedStart.value = items.length > previous.length || atEnd ? selectedMaxStart.value : Math.min(selectedStart.value, selectedMaxStart.value);
+}, { flush: "post" });
+const dateSelections = computed(() => {
+  const groups = new Map<string, { items: Entry[]; selectedCount: number }>();
+  for (const item of displayed.value) {
+    if (!item.history) continue;
+    const date = dateFor(item.path);
+    let group = groups.get(date);
+    if (!group) { group = { items: [], selectedCount: 0 }; groups.set(date, group); }
+    const key = aliases.value[item.path] ?? item.path;
+    if (group.items.some(entry => (aliases.value[entry.path] ?? entry.path) === key)) continue;
+    group.items.push(item);
+    if (isSelected(item)) group.selectedCount++;
+  }
+  return groups;
+});
+function dateChecked(date: string) { const group = dateSelections.value.get(date); return !!group?.items.length && group.selectedCount === group.items.length; }
+function datePartial(date: string) { const group = dateSelections.value.get(date); return !!group && group.selectedCount > 0 && group.selectedCount < group.items.length; }
+function toggleDate(date: string, event: Event) {
+  if (event.target instanceof HTMLInputElement) event.target.checked = dateChecked(date);
+  if (operationLocked.value || history.loading.value) return;
+  const group = dateSelections.value.get(date);
+  if (!group) return;
+  if (dateChecked(date)) {
+    const keys = new Set(group.items.map(item => aliases.value[item.path] ?? item.path));
+    selected.value = selected.value.filter(path => !keys.has(aliases.value[path] ?? path));
+    return;
+  }
+  const remaining = props.selectionLimit - selected.value.length;
+  const pending = group.items.filter(item => !isSelected(item));
+  if (pending.length > remaining) { ElMessage.warning(`当前日期有 ${group.items.length} 项，还可添加 ${Math.max(0, remaining)} 项，请单独选择`); return; }
+  selected.value = [...selected.value, ...pending.map(item => item.path)];
+}
+watch([folder, mediaFilter, search], () => { if (mediaGrid.value) mediaGrid.value.scrollTop = 0; }, { flush: "post" });
 const operationLocked = computed(() => busy.value || adding.value || matching.value);
 const selectionSource = computed(() => !selectedEntries.value.length ? source.value : selectedEntries.value.every(item => item.history) ? "history" : selectedEntries.value.every(item => !item.history) ? "library" : "mixed");
 type PickerAction = "delete" | "download" | "move" | "tags" | "save";
@@ -439,8 +493,11 @@ function saveTags() { if (operationLocked.value || selectedEntries.value.some(it
       flex: 1;
       min-height: 0;
       align-content: start;
+      align-items: start;
+      grid-auto-rows: max-content;
       overflow-y: auto;
-      padding: 0 6px 4px 0;
+      scroll-padding-block: 4px;
+      padding: 4px 6px 4px 0;
     }
     .assetGrid, .folderList {
       scrollbar-width: thin;
@@ -467,7 +524,11 @@ function saveTags() { if (operationLocked.value || selectedEntries.value.some(it
           &:focus-visible { outline: 1px solid var(--el-color-primary); }
         }
       }
-      .historyDate { grid-column: 1 / -1; margin: 4px 0 -8px; font-size: 12px; color: var(--el-text-color-secondary); font-weight: 500; }
+      .historyDate {
+        grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin: 4px 0 -8px; min-height: 20px; font-size: 12px; color: var(--el-text-color-secondary); font-weight: 500;
+        input { width: 14px; height: 14px; margin: 0; opacity: 0; accent-color: var(--el-color-primary); cursor: pointer; }
+        &:hover input, &:focus-within input, &.hasSelection input { opacity: 1; }
+      }
     }
     .pickerHint { margin: 0 0 10px; color: #8e9199; font-size: 12px; flex-shrink: 0; }
     .libraryActions {
@@ -486,7 +547,8 @@ function saveTags() { if (operationLocked.value || selectedEntries.value.some(it
       .cardName { width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .cardPreview { position: absolute; bottom: 8px; right: 8px; display: flex; align-items: center; gap: 4px; padding: 4px 7px; border: 0; border-radius: 6px; background: #17191ddd; color: #fff; font-size: 12px; opacity: 0; pointer-events: none; cursor: pointer; }
       &:hover .cardPreview, &:focus-within .cardPreview { opacity: 1; pointer-events: auto; }
-      .cardVideoMark { position: absolute; top: 8px; right: 8px; display: flex; align-items: center; gap: 2px; padding: 3px 5px; border-radius: 5px; background: #17191dbb; color: #fff; font-size: 10px; pointer-events: none; }
+      &:not(.selected) .assetCheckbox { opacity: 0; }
+      .cardMedia:hover .assetCheckbox, .cardMedia:focus-within .assetCheckbox, &.selected .assetCheckbox { opacity: 1; }
       .assetCover:focus-visible, .cardName:focus-visible, .cardPreview:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: -2px; }
     }
     @media (hover: none) { .assetCard .cardPreview { opacity: 1; pointer-events: auto; } }
@@ -551,11 +613,22 @@ function saveTags() { if (operationLocked.value || selectedEntries.value.some(it
       border-top: 1px solid var(--el-border-color);
       .pickerSelection { flex: 1; min-width: 0; }
       .selectionCount { color: var(--el-text-color-secondary); font-size: 11px; }
-      .selectedAssetList { display: flex; gap: 8px; min-height: 44px; padding: 6px 4px 0; overflow-x: auto; :deep(.videoDuration) { display: none; } }
-      .selectedAsset { position: relative; flex: none; width: 36px; height: 36px;
-        .selectedPreview { width: 100%; height: 100%; border: 0; padding: 0; border-radius: 6px; overflow: hidden; background: #282828; cursor: pointer; img { width: 100%; height: 100%; object-fit: cover; } }
-        .removeSelected { position: absolute; right: -3px; top: -3px; display: grid; place-items: center; width: 16px; height: 16px; padding: 0; border: 1px solid #555; border-radius: 50%; background: #252525; color: #fff; opacity: 0; pointer-events: none; cursor: pointer; }
-        &:hover .removeSelected, &:focus-within .removeSelected { opacity: 1; pointer-events: auto; }
+      .selectedCarousel {
+        position: relative; width: min(100%, 336px); padding: 0 18px; box-sizing: border-box;
+        .selectedAssetList { display: flex; gap: 8px; min-height: 44px; padding: 4px 0; overflow: hidden; box-sizing: border-box; :deep(.videoDuration) { display: none; } }
+        .selectedAsset { position: relative; flex: none; width: 36px; height: 36px;
+          .selectedPreview { width: 100%; height: 100%; border: 0; padding: 0; border-radius: 6px; overflow: hidden; background: #282828; cursor: pointer; img { width: 100%; height: 100%; object-fit: cover; } }
+          .selectedCheckbox { position: absolute; left: 2px; top: 2px; width: 13px; height: 13px; margin: 0; accent-color: var(--el-color-primary); opacity: 0; cursor: pointer; }
+          &:hover .selectedCheckbox, &:focus-within .selectedCheckbox { opacity: 1; }
+        }
+        .selectedArrow { position: absolute; top: 4px; z-index: 2; display: grid; place-items: center; width: 18px; height: 36px; padding: 0; border: 0; border-radius: 4px; background: #222; color: #eee; opacity: 0; pointer-events: none; cursor: pointer;
+          &:disabled { color: #666; cursor: default; }
+        }
+        .previousArrow { left: 0; } .nextArrow { right: 0; }
+        &:hover .selectedArrow, &:focus-within .selectedArrow { opacity: 1; pointer-events: auto; }
+        &.hasPrevious::before, &.hasNext::after { content: ""; position: absolute; top: 4px; bottom: 4px; z-index: 1; width: 6px; pointer-events: none; }
+        &.hasPrevious::before { left: 18px; background: linear-gradient(to right, var(--el-dialog-bg-color, #202020), transparent); }
+        &.hasNext::after { right: 18px; background: linear-gradient(to left, var(--el-dialog-bg-color, #202020), transparent); }
       }
       .pickerActions { display: flex; flex: none; align-items: center; gap: 6px; padding-bottom: 4px;
         .el-button { margin: 0; height: 32px; padding: 7px 9px; }
@@ -570,7 +643,7 @@ function saveTags() { if (operationLocked.value || selectedEntries.value.some(it
     @container (max-width: 320px) {
       .pickerFooter { flex-direction: column; align-items: stretch; .pickerActions { flex-wrap: wrap; justify-content: flex-end; } }
     }
-    @media (hover: none) { .pickerFooter .selectedAsset .removeSelected { opacity: 1; pointer-events: auto; } }
+    @media (hover: none) { .pickerFooter .selectedCarousel { .selectedArrow { opacity: 1; pointer-events: auto; } .selectedAsset .selectedCheckbox { opacity: 1; } } .pickerContent .historyDate input { opacity: 1; } }
 
   }
   .pickerBody, .pickerContent, .pickerTools, .cardMedia { display: contents; }
