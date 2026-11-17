@@ -49,7 +49,7 @@
         <template v-else><button v-for="source in sources" :key="source.value" type="button" role="menuitem" @click="chooseSource(source.value)">{{ source.label }}</button></template>
       </div>
     </el-popover>
-    <el-dialog v-model="assetsOpen" title="素材库添加" width="min(1200px, 96vw)" alignCenter appendToBody destroyOnClose :closeOnClickModal="false"><personalAssetBrowser selectable :selectionLimit="assetSelectionLimit" :imagesOnly="['firstFrame', 'lastFrame'].includes(target.role)" @select="selectAssets" /></el-dialog>
+    <el-dialog v-model="assetsOpen" title="素材库添加" width="min(1080px, 96vw)" alignCenter appendToBody destroyOnClose :closeOnClickModal="false"><personalAssetBrowser selectable :selectionLimit="assetSelectionLimit" :imagesOnly="['firstFrame', 'lastFrame'].includes(target.role)" @select="selectAssets" /></el-dialog>
   </div>
 </template>
 <script setup lang="ts">
