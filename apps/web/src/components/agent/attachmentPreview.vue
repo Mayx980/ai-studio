@@ -1,7 +1,7 @@
 <template>
   <div ref="thumbnailElement" class="thumbnailItem" :class="{ fileAttachment: !isMedia }">
     <template v-if="isText">
-      <button class="textAttachmentButton" type="button" :title="attachment.name" :aria-label="`预览 ${attachment.name}`" @click="textPreviewVisible = true">
+      <button class="textAttachmentButton" type="button" :title="hideNativeTitle ? undefined : attachment.name" :aria-label="`预览 ${attachment.name}`" @click="textPreviewVisible = true">
         <icon-file-text :size="18" />
         <span>{{ attachment.name }}</span>
       </button>
@@ -12,7 +12,7 @@
       :src="thumbnailUrl"
       fit="cover"
       :alt="attachment.name"
-      :title="attachment.name"
+      :title="hideNativeTitle ? undefined : attachment.name"
       tabindex="0"
       role="button"
       :aria-label="`预览 ${attachment.name}`"
@@ -21,11 +21,11 @@
       @keydown.space.prevent="!hoverPreview && (imagePreviewVisible = true)">
       <template #error><icon-photo :size="20" /></template>
     </el-image>
-    <button v-else-if="attachment.mimeType.startsWith('video/')" class="thumbnailButton" type="button" :title="attachment.name" :aria-label="`预览 ${attachment.name}`" :disabled="!thumbnailUrl" @click="!hoverPreview && (videoPreviewVisible = true)">
+    <button v-else-if="attachment.mimeType.startsWith('video/')" class="thumbnailButton" type="button" :title="hideNativeTitle ? undefined : attachment.name" :aria-label="`预览 ${attachment.name}`" :disabled="!thumbnailUrl" @click="!hoverPreview && (videoPreviewVisible = true)">
       <video v-if="thumbnailUrl" :src="thumbnailUrl" preload="metadata" muted playsinline aria-hidden="true" @loadedmetadata="showVideoCover" />
       <icon-video class="videoIcon" :size="16" />
     </button>
-    <div v-else class="fileAttachmentCard" :title="attachment.name"><icon-file-text :size="18" /><span>{{ attachment.name }}</span></div>
+    <div v-else class="fileAttachmentCard" :title="hideNativeTitle ? undefined : attachment.name"><icon-file-text :size="18" /><span>{{ attachment.name }}</span></div>
     <span v-if="hoverPreview && videoDuration" class="videoDuration">{{ videoDuration }}</span>
     <el-popover v-if="hoverPreview && thumbnailUrl" trigger="hover" virtualTriggering :virtualRef="thumbnailElement" :appendTo="previewTarget" placement="right" :showAfter="250" :width="240" :showArrow="false" :popperStyle="{ zIndex: 3100, padding: '0', overflow: 'hidden', maxWidth: 'calc(100vw - 24px)' }" @hide="pauseHoverVideo">
       <div class="attachmentHoverPreview" @mousedown.stop @click.stop>
@@ -62,7 +62,7 @@ import useWorkspaceFiles from "@/lib/workspaceFiles";
 import type { AgentAttachment } from "./types";
 import { readTextAttachment } from "./textAttachments";
 
-const props = defineProps<{ attachment: AgentAttachment; directory?: string; removable?: boolean; restorable?: boolean; disabled?: boolean; hoverPreview?: boolean; previewTarget?: HTMLElement }>();
+const props = defineProps<{ attachment: AgentAttachment; directory?: string; removable?: boolean; restorable?: boolean; disabled?: boolean; hoverPreview?: boolean; hideNativeTitle?: boolean; previewTarget?: HTMLElement }>();
 const emit = defineEmits<{ remove: []; restore: [] }>();
 const isText = computed(() => props.attachment.mimeType === "text/plain");
 const isMedia = computed(() => /^(image|video)\//.test(props.attachment.mimeType));

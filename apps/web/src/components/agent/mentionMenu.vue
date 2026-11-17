@@ -18,9 +18,10 @@
               <div v-else-if="!rows.length" class="mentionStatus" role="status">{{ emptyText }}</div>
               <div v-if="groupedMedia" class="mentionGroups">
                 <section v-for="group in mediaGroups" :key="group.type" class="mentionGroup" role="group" :aria-label="group.label">
-                  <div class="mentionGroupTitle">{{ group.label }}</div>
-                  <button v-for="{ row, index } in group.items" :id="`${listId}-${index}`" :key="row.id" class="mentionGroupItem mentionItem" :class="{ active: keyboardNavigation && index === activeIndex }" type="button" role="option" :aria-selected="index === activeIndex" :title="row.name" @mouseenter="keyboardNavigation = false; activeIndex = index" @mousedown.prevent @click="chooseRow(row)">
-                    <attachmentPreview class="groupThumbnail" hoverPreview :previewTarget="popupElement" :attachment="attachments![Number(row.id)]!" :directory="directory" />
+                  <div class="mentionGroupTitle">{{ group.label }} · {{ group.items.length }}</div>
+                  <button v-for="{ row, index } in group.items" :id="`${listId}-${index}`" :key="row.id" class="mentionGroupItem mentionItem" :class="{ active: keyboardNavigation && index === activeIndex }" type="button" role="option" :aria-selected="index === activeIndex" @mouseenter="keyboardNavigation = false; activeIndex = index" @mousedown.prevent @click="chooseRow(row)">
+                    <attachmentPreview class="groupThumbnail" hideNativeTitle hoverPreview :previewTarget="popupElement" :attachment="attachments![Number(row.id)]!" :directory="directory" />
+                    <icon-player-play v-if="row.dataType === 'video'" class="groupVideoMark" :size="9" aria-hidden="true" />
                     <span class="mentionGroupName">{{ row.name }}</span>
                   </button>
                 </section>
@@ -51,7 +52,7 @@ import { translate } from "@toonflow/i18n/vue";
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch, type CSSProperties } from "vue";
 import { ClickOutside as vClickOutside, type ScrollbarInstance } from "element-plus";
 import { useVirtualizer } from "@tanstack/vue-virtual";
-import { IconAt, IconBox, IconCheck, IconChevronLeft, IconChevronRight, IconFileText, IconFolder, IconVector, IconVideo, IconMusic, IconPhoto, IconSearch, IconX } from "@tabler/icons-vue";
+import { IconPlayerPlay, IconAt, IconBox, IconCheck, IconChevronLeft, IconChevronRight, IconFileText, IconFolder, IconVector, IconVideo, IconMusic, IconPhoto, IconSearch, IconX } from "@tabler/icons-vue";
 import type { AgentAttachment } from "./types";
 import type { AgentMention } from "@toonflow/server/agent/types";
 import { mentionAssetType } from "@toonflow/server/agent/mentionSources";
@@ -490,7 +491,15 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
   .mentionButton { width: 24px; height: 24px; padding: 0; }
 
   .mentionPopup {
-    &.groupedMediaPopup { background: #000; }
+    &.groupedMediaPopup {
+      background: #000;
+      .mentionHeader .mentionScopes button { color: var(--el-text-color-secondary); font-size: 11px; }
+      .mentionScroll {
+        :deep(.el-scrollbar__bar.is-vertical) { width: 4px; right: 2px; }
+      }
+      .mentionList { padding: 0 10px 5px; }
+      .mentionFooter { padding-top: 7px; padding-bottom: 7px; color: var(--el-text-color-secondary); }
+    }
     min-width: 0;
     box-sizing: border-box;
     overflow: hidden;
@@ -603,22 +612,24 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
         gap: 8px;
         .mentionGroup {
           padding: 0 6px 6px;
-          border: 1px solid var(--el-border-color);
+          border: 1px solid rgb(255 255 255 / 14%);
           border-radius: 10px;
           background: #000;
           .mentionGroupTitle {
             margin: 0 -6px 6px;
-            padding: 8px 13px;
-            border-bottom: 1px solid var(--el-border-color);
+            padding: 5px 13px;
+            border-bottom: 1px solid rgb(255 255 255 / 8%);
             color: var(--el-text-color-secondary);
             font-size: 12px;
           }
           .mentionGroupItem {
+            position: relative;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             width: 100%;
-            min-height: 34px;
+            height: 44px;
+            box-sizing: border-box;
             padding: 7px;
             border: 0;
             border-radius: 10px;
@@ -629,14 +640,15 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
             cursor: pointer;
             &:hover { background: var(--el-fill-color-light); }
             &.active, &:focus-visible { outline: 1px solid var(--el-color-primary); outline-offset: -1px; }
+            .groupVideoMark { position: absolute; left: 27px; top: 26px; padding: 1px; border-radius: 2px; color: #fff; background: #000b; pointer-events: none; }
             .groupThumbnail {
               flex: none;
               width: 30px;
               height: 30px;
-              :deep(.thumbnailImage), :deep(.thumbnailButton) { width: 30px; height: 30px; box-sizing: border-box; border-radius: 3px; }
+              :deep(.thumbnailImage), :deep(.thumbnailButton) { width: 30px; height: 30px; box-sizing: border-box; border-radius: 4px; border-color: rgb(255 255 255 / 12%); }
               :deep(.videoDuration), :deep(.videoIcon) { display: none; }
             }
-            .mentionGroupName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .mentionGroupName { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           }
         }
       }
