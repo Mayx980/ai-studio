@@ -2,16 +2,18 @@
   <section class="assetsPage" aria-label="资产">
     <div class="assetContent">
       <template v-if="module === 'history'">
-        <div class="historyHeader"><header><h2>生成历史</h2><el-dropdown @command="descending = $event === 'descending'"><el-button text :aria-label="descending ? '时间倒序' : '时间正序'" :title="descending ? '时间倒序' : '时间正序'"><component :is="descending ? IconSortDescending : IconSortAscending" :size="20" /></el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="ascending">时间正序</el-dropdown-item><el-dropdown-item command="descending">时间倒序</el-dropdown-item></el-dropdown-menu></template></el-dropdown></header>
+        <div ref="historyHeader" class="historyHeader"><header><h2>生成历史</h2><el-dropdown @command="descending = $event === 'descending'"><el-button text :aria-label="descending ? '时间倒序' : '时间正序'" :title="descending ? '时间倒序' : '时间正序'"><component :is="descending ? IconSortDescending : IconSortAscending" :size="20" /></el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="ascending">时间正序</el-dropdown-item><el-dropdown-item command="descending">时间倒序</el-dropdown-item></el-dropdown-menu></template></el-dropdown></header>
+        <historyTagBar ref="tagBar" v-model="historyTag" :disabled="busy" @edited="selected = []" />
         <nav class="historyCategories" aria-label="生成历史分类"><button v-for="category in historyCategories" :key="category.value" type="button" :aria-pressed="historyKind === category.value" :disabled="busy" @click="historyKind = category.value; selected = []"><span>{{ category.label }}</span><span class="categoryCount">{{ category.count }}</span></button></nav></div>
         <el-alert v-if="error" :title="error" type="error" :closable="false" />
         <p v-if="loading" role="status">正在读取生成历史…</p>
+        <p v-if="!loading && !groups.length && !error" class="historyEmpty" role="status">{{ historyTag ? `该标签下暂无${{ all: '素材', image: '图片', video: '视频', audio: '音频' }[historyKind]}` : historyKind === 'all' ? '暂无生成历史' : `暂无${{ image: '图片', video: '视频', audio: '音频' }[historyKind]}` }}</p>
         <div v-for="group in groups" :key="group.date" class="historyGroup"><h3>{{ group.date }}</h3><div class="historyGrid"><article v-for="item in group.items" :key="item.key" class="historyCard" :class="{ selected: selected.includes(item.key) }">
           <button class="mediaPreview" type="button" :title="item.name" :aria-label="'预览 ' + item.name" @click="preview = item"><img v-if="item.kind === 'image'" :src="item.url" :alt="item.name" /><assetVideoPreview v-else-if="item.kind === 'video'" :src="item.url" /><icon-volume v-else :size="36" /></button>
           <input v-model="selected" type="checkbox" :value="item.key" :aria-label="'选择 ' + item.name" :disabled="busy" />
           <div class="hoverActions"><el-tooltip content="去画布/对话编辑" placement="top"><el-button :disabled="busy" aria-label="去画布/对话编辑" @click="run('canvas', [item])"><icon-edit :size="16" /></el-button></el-tooltip><el-tooltip content="保存到个人资产" placement="top"><el-button :disabled="busy" :aria-label="'保存到个人资产 ' + item.name" title="保存到个人资产" @click="run('save', [item])"><icon-folder-plus :size="16" /></el-button></el-tooltip><el-tooltip content="下载素材" placement="top"><el-button :disabled="busy" :aria-label="'下载 ' + item.name" title="下载素材" @click="run('download', [item])"><icon-download :size="16" /></el-button></el-tooltip><el-tooltip content="删除历史" placement="top"><el-button :disabled="busy" :aria-label="'删除 ' + item.name" title="删除历史" @click="run('delete', [item])"><icon-trash :size="16" /></el-button></el-tooltip></div>
         </article></div></div>
-        <div v-if="selected.length" class="selectionToolbar" role="toolbar" aria-label="批量素材操作"><el-tooltip content="取消选择" placement="top"><el-button text :disabled="busy" aria-label="取消选择" @click="selected = []"><icon-x :size="16" /></el-button></el-tooltip><span>已选择 {{ selected.length }} 项</span><el-button :disabled="busy" @click="run('canvas')">去画布/对话编辑</el-button><el-button :disabled="busy" @click="run('newCanvas')">新建画布添加</el-button><el-button :disabled="busy" @click="run('save')">保存到个人资产</el-button><el-tooltip content="下载素材" placement="top"><el-button :disabled="busy" aria-label="下载图片" title="下载素材" @click="run('download')"><icon-download :size="17" /></el-button></el-tooltip><el-tooltip content="删除所选历史" placement="top"><el-button :disabled="busy" type="danger" aria-label="删除所选历史" @click="run('delete')"><icon-trash :size="17" /></el-button></el-tooltip></div>
+        <div v-if="selected.length" class="selectionToolbar" role="toolbar" aria-label="批量素材操作"><el-tooltip content="取消选择" placement="top"><el-button text :disabled="busy" aria-label="取消选择" @click="selected = []"><icon-x :size="16" /></el-button></el-tooltip><span>已选择 {{ selected.length }} 项</span><el-button :disabled="busy" @click="run('canvas')">去画布/对话编辑</el-button><el-button :disabled="busy" @click="run('newCanvas')">新建画布添加</el-button><el-button :disabled="busy" @click="run('save')">保存到个人资产</el-button><el-button :disabled="busy" @click="editHistoryTags()">修改标签</el-button><el-tooltip content="下载素材" placement="top"><el-button :disabled="busy" aria-label="下载图片" title="下载素材" @click="run('download')"><icon-download :size="17" /></el-button></el-tooltip><el-tooltip content="删除所选历史" placement="top"><el-button :disabled="busy" type="danger" aria-label="删除所选历史" @click="run('delete')"><icon-trash :size="17" /></el-button></el-tooltip></div>
       </template>
       <personalAssetBrowser v-else />
     </div>
@@ -25,6 +27,7 @@
           <p class="generationPrompt">{{ preview.prompt || '未记录提示词' }}</p>
           <dl v-if="preview.settings" class="generationSettings"><dt>生成模型</dt><dd>{{ preview.settings.modelId }}</dd><dt>生成模式</dt><dd>{{ { text: '文本生成', singleImage: '首帧生成', reference: '参考素材' }[preview.settings.mode] }}</dd><dt>比例</dt><dd>{{ preview.settings.ratio || '自动' }}</dd><template v-if="preview.kind === 'image'"><dt>尺寸</dt><dd>{{ preview.settings.imageSize.replace('*', ' × ') }}</dd><dt>数量</dt><dd>{{ preview.settings.n }}</dd><dt v-if="preview.settings.style">风格</dt><dd v-if="preview.settings.style">{{ preview.settings.style }}</dd></template><template v-if="preview.kind === 'video'"><dt>清晰度</dt><dd>{{ preview.settings.resolution }}</dd><dt>时长</dt><dd>{{ preview.settings.duration === -1 ? '自动' : `${preview.settings.duration} 秒` }}</dd><dt>音频</dt><dd>{{ preview.settings.generateAudio ? '开启' : '关闭' }}</dd></template></dl>
           <dl v-else-if="preview.model" class="generationSettings"><dt>生成模型</dt><dd>{{ preview.model }}</dd></dl>
+          <div class="detailTags"><span>标签</span><span>{{ previewTags.join('、') || '未标记' }}</span><el-button text :disabled="busy" @click="tagBar?.edit([preview!])">修改标签</el-button></div>
           <div class="previewActions" role="toolbar" aria-label="素材操作"><el-tooltip v-for="action in detailActions" :key="action.value" :content="action.label"><el-button :aria-label="action.label" :disabled="busy" @click="run(action.value, [preview])"><component :is="action.icon" :size="19" /></el-button></el-tooltip></div>
         </aside>
       </div>
@@ -34,8 +37,9 @@
 </template>
 <script setup lang="ts">
 import { resolveGenerationOrigin, openGenerationOrigin } from "@/lib/generationOrigin";
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import historyTagBar from "@/components/historyTagBar.vue";
 import saveAssetDialog from "@/components/saveAssetDialog.vue";
 import { IconCopy, IconSquarePlus, IconEdit, IconFolderPlus, IconSortAscending, IconSortDescending, IconDownload, IconTrash, IconX } from "@tabler/icons-vue";
 import { useRouter } from "vue-router";
@@ -51,17 +55,29 @@ const history = useGenerationHistory();
 const { items, loading, error } = history;
 const module = ref("history"), descending = ref(true), busy = ref(false);
 const selected = ref<string[]>([]), preview = ref<HistoryItem>();
+const historyTag = ref("");
+const tagBar = ref<InstanceType<typeof historyTagBar>>(), historyHeader = ref<HTMLElement>();
+const taggedItems = computed(() => items.value.filter(item => history.matchesTag(item, historyTag.value)));
+const previewTags = computed(() => preview.value ? history.tagsFor(preview.value) : []);
+function editHistoryTags() { tagBar.value?.edit(items.value.filter(item => selected.value.includes(item.key))); }
+watch(historyTag, async () => {
+  selected.value = [];
+  await nextTick();
+  let element = historyHeader.value?.parentElement;
+  while (element && !(/auto|scroll/.test(getComputedStyle(element).overflowY) && element.scrollHeight > element.clientHeight)) element = element.parentElement;
+  (element ?? document.scrollingElement)?.scrollTo({ top: 0 });
+});
 const historyKind = ref<"all" | HistoryItem["kind"]>("all");
 const historyCategories = computed(() => [
-  { value: "all" as const, label: "全部", count: items.value.length },
-  { value: "image" as const, label: "图片", count: items.value.filter(item => item.kind === "image").length },
-  { value: "video" as const, label: "视频", count: items.value.filter(item => item.kind === "video").length },
-  { value: "audio" as const, label: "音频", count: items.value.filter(item => item.kind === "audio").length },
+  { value: "all" as const, label: "全部", count: taggedItems.value.length },
+  { value: "image" as const, label: "图片", count: taggedItems.value.filter(item => item.kind === "image").length },
+  { value: "video" as const, label: "视频", count: taggedItems.value.filter(item => item.kind === "video").length },
+  { value: "audio" as const, label: "音频", count: taggedItems.value.filter(item => item.kind === "audio").length },
 ]);
 const detailActions = [{ value: "newCanvas", label: "新建画布添加", icon: IconSquarePlus }, { value: "canvas", label: "去画布/对话编辑", icon: IconEdit }, { value: "save", label: "保存到个人资产", icon: IconFolderPlus }, { value: "download", label: "下载素材", icon: IconDownload }, { value: "delete", label: "删除历史", icon: IconTrash }] as const;
 async function copyPrompt() { try { await navigator.clipboard.writeText(preview.value?.prompt || ""); ElMessage.success("已复制生成信息"); } catch { ElMessage.error("复制失败，请重试"); } }
 const groups = computed(() => {
-  const sorted = items.value.filter(item => historyKind.value === "all" || item.kind === historyKind.value).sort((a, b) => (descending.value ? -1 : 1) * ((a.createdAt ?? 0) - (b.createdAt ?? 0)));
+  const sorted = taggedItems.value.filter(item => historyKind.value === "all" || item.kind === historyKind.value).sort((a, b) => (descending.value ? -1 : 1) * ((a.createdAt ?? 0) - (b.createdAt ?? 0)));
   const result = new Map<string, HistoryItem[]>();
   for (const item of sorted) { const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "未记录时间"; if (!result.has(date)) result.set(date, []); result.get(date)!.push(item); }
   return [...result].map(([date, entries]) => ({ date, items: entries }));
@@ -82,7 +98,7 @@ async function run(action: "canvas" | "newCanvas" | "save" | "download" | "delet
       return;
     }
     if (action === "save") {
-      await saveDialog.value?.open(await Promise.all(targets.map(async item => ({ file: await fileFor(item), name: item.name, metadata: { source: "生成历史", prompt: item.prompt, model: item.model, origin: await resolveGenerationOrigin(item.directory, item) } }))));
+      await saveDialog.value?.open(await Promise.all(targets.map(async item => ({ file: await fileFor(item), name: item.name, tags: history.tagsFor(item), metadata: { source: "生成历史", prompt: item.prompt, model: item.model, origin: await resolveGenerationOrigin(item.directory, item) } }))));
       return;
     }
     if (action === "delete") {
@@ -119,6 +135,7 @@ async function run(action: "canvas" | "newCanvas" | "save" | "download" | "delet
 </script>
 <style scoped lang="scss">
 .assetsPage {
+  .historyEmpty { padding: 40px 12px; text-align: center; color: var(--el-text-color-secondary); font-size: 13px; }
   .historyHeader { position: sticky; top: 0; z-index: 4; padding-bottom: 1px; background: #131313; &::before { content: ""; position: absolute; bottom: 100%; left: 0; right: 0; height: 48px; background: #131313; pointer-events: none; } }
   .historyCategories { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 20px;
     button { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 12px; border: 0; border-radius: 999px; color: #b7b7b7; background: transparent; font: inherit; font-size: 13px; cursor: pointer;
@@ -133,5 +150,5 @@ async function run(action: "canvas" | "newCanvas" | "save" | "download" | "delet
 </style>
 
 <style lang="scss">
-.el-dialog.generationDetail { padding: 0; border-radius: 16px; overflow: hidden; .el-dialog__header { display: none; } .el-dialog__body { padding: 0; } .generationPreview { display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-template-rows: minmax(0, 1fr); height: min(760px, 88dvh); .previewMedia { position: relative; background: #141414; overflow: hidden; min-width: 0; min-height: 0; img, video { position: absolute; inset: 0; display: block; width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; } audio { max-width: 100%; } } .previewInformation { display: flex; flex-direction: column; padding: 16px; min-height: 0; overflow-y: auto; scrollbar-width: none; header, .promptHeading { display: flex; align-items: center; justify-content: space-between; } dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; font-size: 12px; dt { color: var(--el-text-color-secondary); } dd { margin: 0; text-align: right; overflow-wrap: anywhere; } } .promptHeading { color: var(--el-text-color-secondary); } .generationPrompt { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; margin-top: 4px; } .previewActions { margin-top: auto; padding-top: 24px; display: flex; flex-wrap: wrap; gap: 8px; .el-button { margin: 0; flex: 1; min-width: 40px; } } } } @media(max-width: 650px) { .generationPreview { grid-template-columns: 1fr; grid-template-rows: minmax(200px, 45%) 1fr; } } }
+.el-dialog.generationDetail { .detailTags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--el-text-color-secondary); } padding: 0; border-radius: 16px; overflow: hidden; .el-dialog__header { display: none; } .el-dialog__body { padding: 0; } .generationPreview { display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-template-rows: minmax(0, 1fr); height: min(760px, 88dvh); .previewMedia { position: relative; background: #141414; overflow: hidden; min-width: 0; min-height: 0; img, video { position: absolute; inset: 0; display: block; width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; } audio { max-width: 100%; } } .previewInformation { display: flex; flex-direction: column; padding: 16px; min-height: 0; overflow-y: auto; scrollbar-width: none; header, .promptHeading { display: flex; align-items: center; justify-content: space-between; } dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; font-size: 12px; dt { color: var(--el-text-color-secondary); } dd { margin: 0; text-align: right; overflow-wrap: anywhere; } } .promptHeading { color: var(--el-text-color-secondary); } .generationPrompt { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; margin-top: 4px; } .previewActions { margin-top: auto; padding-top: 24px; display: flex; flex-wrap: wrap; gap: 8px; .el-button { margin: 0; flex: 1; min-width: 40px; } } } } @media(max-width: 650px) { .generationPreview { grid-template-columns: 1fr; grid-template-rows: minmax(200px, 45%) 1fr; } } }
 </style>

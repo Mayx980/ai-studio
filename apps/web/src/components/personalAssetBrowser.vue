@@ -20,21 +20,22 @@
         <button class="historyEntry" type="button" :aria-current="source === 'history' ? 'page' : undefined" @click="switchSource('history')"><icon-history :size="16" /><span>生成历史</span></button>
       </nav>
       <div class="pickerContent">
-        <header><div class="breadcrumbs"><button type="button" @click="source === 'library' && (folder = '')">{{ source === 'history' ? '生成历史' : selectable ? '个人资产' : '个人资产库' }}</button><template v-if="source === 'library'"><template v-for="crumb in breadcrumbs" :key="crumb.path"><span>/</span><button type="button" @click="folder = crumb.path">{{ crumb.name }}</button></template></template></div><div class="pickerTools"><nav v-if="selectable" class="mediaFilters" aria-label="素材类型"><el-tooltip v-for="filter in mediaFilters" :key="filter.value" :disabled="!imagesOnly || filter.value !== 'video'" content="首尾帧仅支持图片"><button type="button" :aria-pressed="mediaFilter === filter.value" :disabled="imagesOnly && filter.value === 'video'" @click="mediaFilter = filter.value">{{ filter.label }}</button></el-tooltip></nav><div class="libraryActions"><el-input v-if="selectable || searchVisible" v-model="search" :placeholder="selectable ? searchPlaceholder : '搜索资产'" :aria-label="selectable ? searchPlaceholder : '搜索资产'" clearable /><el-button v-if="!selectable" text :aria-expanded="searchVisible" aria-label="搜索资产" @click="searchVisible = !searchVisible"><icon-search :size="18" /></el-button><el-dropdown v-if="!selectable || source === 'library'" trigger="click" @command="create"><el-button :disabled="busy || adding || matching"><icon-plus :size="16" />新建</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="upload">上传资产</el-dropdown-item><el-dropdown-item command="folder">新建文件夹</el-dropdown-item></el-dropdown-menu></template></el-dropdown></div></div></header>
+        <header><div class="breadcrumbs"><button type="button" @click="source === 'library' && (folder = '')">{{ source === 'history' ? '生成历史' : selectable ? '个人资产' : '个人资产库' }}</button><template v-if="source === 'library'"><template v-for="crumb in breadcrumbs" :key="crumb.path"><span>/</span><button type="button" @click="folder = crumb.path">{{ crumb.name }}</button></template></template></div><historyTagBar v-if="selectable" v-show="source === 'history'" ref="tagBar" v-model="historyTag" :disabled="operationLocked" /><div class="pickerTools"><nav v-if="selectable" class="mediaFilters" aria-label="素材类型"><el-tooltip v-for="filter in visibleMediaFilters" :key="filter.value" :disabled="!imagesOnly || !['video', 'audio'].includes(filter.value)" content="首尾帧仅支持图片"><button type="button" :aria-pressed="mediaFilter === filter.value" :disabled="imagesOnly && ['video', 'audio'].includes(filter.value)" @click="mediaFilter = filter.value">{{ filter.label }}<span v-if="source === 'history'" class="mediaCount"> {{ filter.count }}</span></button></el-tooltip></nav><div class="libraryActions"><el-input v-if="selectable || searchVisible" v-model="search" :placeholder="selectable ? searchPlaceholder : '搜索资产'" :aria-label="selectable ? searchPlaceholder : '搜索资产'" clearable /><el-button v-if="!selectable" text :aria-expanded="searchVisible" aria-label="搜索资产" @click="searchVisible = !searchVisible"><icon-search :size="18" /></el-button><el-dropdown v-if="!selectable || source === 'library'" trigger="click" @command="create"><el-button :disabled="busy || adding || matching"><icon-plus :size="16" />新建</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="upload">上传资产</el-dropdown-item><el-dropdown-item command="folder">新建文件夹</el-dropdown-item></el-dropdown-menu></template></el-dropdown></div></div></header>
       <p v-if="selectable && sourceLoading" role="status">正在加载素材…</p>
       <el-alert v-if="selectable && source === 'history' && history.error.value" :title="history.error.value" type="warning" :closable="false" />
+      <p v-if="selectable && source === 'history' && !sourceLoading && !displayed.length" class="pickerEmpty" role="status">{{ historyTag ? `该标签下暂无${mediaTypeLabels[mediaFilter] || '素材'}` : '暂无符合条件的生成历史' }}</p>
       <div ref="mediaGrid" class="assetGrid">
         <template v-for="(item, index) in displayed" :key="item.path">
-        <h3 v-if="selectable && source === 'history' && (!index || dateFor(item.path) !== dateFor(displayed[index - 1]!.path))" class="historyDate" :class="{ hasSelection: (dateSelections.get(dateFor(item.path))?.selectedCount ?? 0) > 0 }"><span>{{ dateFor(item.path) }}</span><input type="checkbox" :checked="dateChecked(dateFor(item.path))" :indeterminate="datePartial(dateFor(item.path))" :aria-checked="datePartial(dateFor(item.path)) ? 'mixed' : dateChecked(dateFor(item.path))" :aria-label="`选择 ${dateFor(item.path)} 下当前显示的全部素材`" :disabled="operationLocked || history.loading.value" @change="toggleDate(dateFor(item.path), $event)" /></h3>
+        <h3 v-if="selectable && source === 'history' && (!index || dateFor(item.path) !== dateFor(displayed[index - 1]!.path))" class="historyDate" :class="{ hasSelection: (dateSelections.get(dateFor(item.path))?.selectedCount ?? 0) > 0 }"><span>{{ dateFor(item.path) }}</span><input type="checkbox" :checked="dateChecked(dateFor(item.path))" :indeterminate="datePartial(dateFor(item.path))" :aria-checked="datePartial(dateFor(item.path)) ? 'mixed' : dateChecked(dateFor(item.path))" :aria-label="`选择 ${dateFor(item.path)} 下当前显示的全部素材`" :disabled="operationLocked || history.loading.value || !dateSelections.get(dateFor(item.path))?.items.length" @change="toggleDate(dateFor(item.path), $event)" /></h3>
         <article class="assetCard" :class="{ selected: isSelected(item) }">
           <div class="cardMedia">
-          <button class="assetCover" type="button" :disabled="selectable && (busy || adding || matching)" :aria-pressed="selectable ? isSelected(item) : undefined" :aria-label="(item.type === 'directory' ? '打开文件夹 ' : selectable ? '选择 ' : '预览 ') + item.name" @click="selectable ? toggleSelection(item) : open(item)">
+          <button class="assetCover" type="button" :disabled="selectable && (busy || adding || matching)" :aria-pressed="selectable ? isSelected(item) : undefined" :aria-label="(item.type === 'directory' ? '打开文件夹 ' : selectable ? '选择 ' : '预览 ') + item.name" @click="selectable && canSelect(item) ? toggleSelection(item) : open(item)">
             <icon-folder-filled v-if="item.type === 'directory'" class="folderIcon" :size="58" />
             <img v-else-if="kind(item) === 'image'" :src="urlFor(item)" :alt="item.name" />
             <assetVideoPreview v-else-if="kind(item) === 'video'" :src="urlFor(item)" />
             <icon-music v-else :size="40" />
           </button>
-          <input v-if="!selectable || item.type === 'file'" class="assetCheckbox" type="checkbox" :checked="isSelected(item)" @change="toggleSelection(item, $event)" :aria-label="'选择 ' + item.name" :disabled="busy || adding || matching" />
+          <input v-if="!selectable || item.type === 'file'" class="assetCheckbox" type="checkbox" :checked="isSelected(item)" @change="toggleSelection(item, $event)" :aria-label="'选择 ' + item.name" :disabled="busy || adding || matching || selectable && !canSelect(item)" :title="selectable && !canSelect(item) ? '当前输入仅支持图片和视频，音频可预览' : undefined" />
           <button v-if="selectable" class="cardPreview" type="button" :aria-label="`预览 ${item.name}`" @click="open(item)"><icon-eye :size="14" />预览</button>
           </div>
           <h3 :title="item.name"><button v-if="selectable" class="cardName" type="button" :disabled="busy || adding || matching" :aria-pressed="isSelected(item)" @click="toggleSelection(item)">{{ item.name }}</button><template v-else>{{ item.name }}</template></h3>
@@ -66,14 +67,15 @@
       </div>
     </div>
     <div v-if="selected.length && !selectable" class="selectionToolbar" role="toolbar" aria-label="资产批量操作"><el-tooltip content="取消选择" placement="top"><el-button text :disabled="busy || adding || matching" aria-label="取消选择" @click="selected = []"><icon-x :size="16" /></el-button></el-tooltip><span>已选择 {{ selected.length }} 项</span><el-tooltip content="删除"><el-button :disabled="busy || adding || matching" aria-label="删除所选资产" @click="remove(selectedEntries)"><icon-trash :size="18" /></el-button></el-tooltip><el-tooltip content="重命名"><el-button :disabled="busy || selected.length !== 1" aria-label="重命名" @click="rename"><icon-pencil :size="18" /></el-button></el-tooltip><el-tooltip content="移动到"><el-button :disabled="busy || adding || matching" aria-label="移动到" @click="destination = ''; moveVisible = true"><icon-folder-symlink :size="18" /></el-button></el-tooltip><el-tooltip content="修改标签"><el-button :disabled="busy || adding || matching" aria-label="修改标签" @click="editTags"><icon-tags :size="18" /></el-button></el-tooltip></div>
-    <el-dialog :modelValue="!!preview" class="assetDetailDialog" width="min(1200px, 96vw)" alignCenter appendToBody destroyOnClose :showClose="false" @update:modelValue="preview = undefined"><div v-if="preview" class="assetDetail"><div class="detailMedia"><img v-if="kind(preview) === 'image'" :src="urlFor(preview)" :alt="preview.name" /><video v-else-if="kind(preview) === 'video'" :src="urlFor(preview)" controls playsinline /><audio v-else :src="urlFor(preview)" controls /></div><aside><header><h3>{{ preview.name }}</h3><el-button text aria-label="关闭资产详情" @click="preview = undefined"><icon-x :size="16" /></el-button></header><dl><dt>创建时间</dt><dd>{{ dateFor(preview.path, true) }}</dd><dt>资产来源</dt><dd>{{ metadataFor(preview)?.source || '未记录' }}<template v-if="metadataFor(preview)?.model"> · {{ metadataFor(preview)?.model }}</template></dd></dl><h4>生成信息</h4><p class="generationInfo">{{ metadataFor(preview)?.prompt || '未记录' }}</p><footer><el-button v-if="selectable" type="primary" :loading="adding" :disabled="busy || adding || matching" @click="addSelected([preview])">添加</el-button><template v-else><el-button :disabled="busy || !metadataFor(preview)?.origin" :title="metadataFor(preview)?.origin ? '返回生成来源' : '外部上传或旧素材没有生成来源'" @click="editOrigin(preview)">去画布/对话编辑</el-button><el-button :disabled="busy || adding || matching" @click="addToCanvas([preview])">新建画布添加</el-button><div><el-button :disabled="busy || adding || matching" type="danger" @click="remove([preview])"><icon-trash :size="16" />删除</el-button><el-button :disabled="busy || adding || matching" @click="download([preview])"><icon-download :size="16" />下载</el-button></div></template></footer></aside></div></el-dialog>
+    <el-dialog :modelValue="!!preview" class="assetDetailDialog" width="min(1200px, 96vw)" alignCenter appendToBody destroyOnClose :showClose="false" @update:modelValue="preview = undefined"><div v-if="preview" class="assetDetail"><div class="detailMedia"><img v-if="kind(preview) === 'image'" :src="urlFor(preview)" :alt="preview.name" /><video v-else-if="kind(preview) === 'video'" :src="urlFor(preview)" controls playsinline /><audio v-else :src="urlFor(preview)" controls /></div><aside><header><h3>{{ preview.name }}</h3><el-button text aria-label="关闭资产详情" @click="preview = undefined"><icon-x :size="16" /></el-button></header><dl><dt>创建时间</dt><dd>{{ dateFor(preview.path, true) }}</dd><dt>资产来源</dt><dd>{{ metadataFor(preview)?.source || '未记录' }}<template v-if="metadataFor(preview)?.model"> · {{ metadataFor(preview)?.model }}</template></dd><template v-if="preview.history"><dt>标签</dt><dd>{{ history.tagsFor(preview.history).join('、') || '未标记' }}</dd></template></dl><h4>生成信息</h4><p class="generationInfo">{{ metadataFor(preview)?.prompt || '未记录' }}</p><footer><template v-if="selectable"><el-button type="primary" :loading="adding" :disabled="busy || adding || matching || !canSelect(preview)" :title="!canSelect(preview) ? '当前输入不支持该素材类型' : undefined" @click="addSelected([preview])">添加</el-button><el-button v-if="preview.history" :disabled="operationLocked" @click="tagBar?.edit([preview.history])">修改标签</el-button></template><template v-else><el-button :disabled="busy || !metadataFor(preview)?.origin" :title="metadataFor(preview)?.origin ? '返回生成来源' : '外部上传或旧素材没有生成来源'" @click="editOrigin(preview)">去画布/对话编辑</el-button><el-button :disabled="busy || adding || matching" @click="addToCanvas([preview])">新建画布添加</el-button><div><el-button :disabled="busy || adding || matching" type="danger" @click="remove([preview])"><icon-trash :size="16" />删除</el-button><el-button :disabled="busy || adding || matching" @click="download([preview])"><icon-download :size="16" />下载</el-button></div></template></footer></aside></div></el-dialog>
     <el-dialog v-model="moveVisible" title="移动到" width="360px" appendToBody><el-select v-model="destination" aria-label="目标文件夹"><el-option label="个人资产库" value="" :disabled="selectedEntries.some(item => ['image', 'video'].includes(kind(item)))" /><el-option v-for="item in moveFolders" :key="item.path" :label="item.path" :value="item.path" /></el-select><template #footer><el-button :disabled="busy || adding || matching" @click="moveVisible = false">取消</el-button><el-button :loading="busy" @click="move">移动</el-button></template></el-dialog>
-    <el-dialog v-model="tagsVisible" title="修改标签" width="400px" appendToBody><el-checkbox-group v-model="chosenTags"><el-checkbox-button v-for="tag in categories" :key="tag" :value="tag">{{ tag }}</el-checkbox-button></el-checkbox-group><template #footer><el-button @click="tagsVisible = false">取消</el-button><el-button @click="saveTags">保存</el-button></template></el-dialog>
+    <el-dialog v-model="tagsVisible" title="修改标签" width="400px" appendToBody><el-checkbox-group v-model="chosenTags"><el-checkbox-button v-for="tag in availableAssetTags" :key="tag" :value="tag">{{ tag }}</el-checkbox-button></el-checkbox-group><template #footer><el-button @click="tagsVisible = false">取消</el-button><el-button @click="saveTags">保存</el-button></template></el-dialog>
     <saveAssetDialog ref="saveDialog" @savedItem="assetSaved" @closed="saveClosed" />
   </section>
 </template>
 <script setup lang="ts">
 import { IconChevronRight, IconChevronLeft, IconEye, IconHistory, IconTrash, IconDownload, IconFolderSymlink, IconTags, IconFolderPlus } from "@tabler/icons-vue";
+import historyTagBar from "@/components/historyTagBar.vue";
 import assetVideoPreview from "@/components/assetVideoPreview.vue";
 import saveAssetDialog from "@/components/saveAssetDialog.vue";
 import { openGenerationOrigin, readGenerationOrigin, rememberFileOrigin, type GenerationOrigin } from "@/lib/generationOrigin";
@@ -92,7 +94,9 @@ const adding = ref(false), matching = ref(false);
 const collapsedFolders = ref<string[]>([]);
 type Entry = BrowserAssetEntry & { history?: HistoryItem };
 const source = ref<"library" | "history">("library");
-const libraryExpanded = ref(true), mediaFilter = ref("all");
+const libraryExpanded = ref(true), mediaFilter = ref("all"), historyTag = ref("");
+const tagBar = ref<InstanceType<typeof historyTagBar>>();
+const mediaTypeLabels: Record<string, string> = { all: "素材", image: "图片", video: "视频", audio: "音频" };
 const mediaFilters = [{ value: "all", label: "全部" }, { value: "image", label: "图片" }, { value: "video", label: "视频" }];
 const librarySearch = ref(""), historySearch = ref("");
 const search = computed({ get: () => source.value === "history" ? historySearch.value : librarySearch.value, set: value => { if (source.value === "history") historySearch.value = value; else librarySearch.value = value; } });
@@ -108,6 +112,7 @@ const entries = ref<Entry[]>([]), urls = ref<Record<string, string>>({}), folder
 const selected = ref<string[]>([]), preview = ref<Entry>(), uploadInput = ref<HTMLInputElement>();
 const moveVisible = ref(false), destination = ref(""), tagsVisible = ref(false), chosenTags = ref<string[]>([]);
 const categories = ["场景", "物品", "风格", "音效", "角色"];
+const availableAssetTags = computed(() => [...new Set([...categories, ...assets.historyTagNames, ...Object.values(assets.tags).flat()])]);
 let disposed = false;
 const releases: (() => void)[] = [];
 onBeforeUnmount(() => { disposed = true; releases.forEach(release => release()); });
@@ -119,12 +124,15 @@ function toggleFolder(path: string) {
   collapsedFolders.value = collapsedFolders.value.includes(path) ? collapsedFolders.value.filter(item => item !== path) : [...collapsedFolders.value, path];
 }
 const breadcrumbs = computed(() => folder.value.split("/").filter(Boolean).map((name, index, parts) => ({ name, path: parts.slice(0, index + 1).join("/") })));
-const historyEntries = computed<Entry[]>(() => history.items.value.filter(item => item.kind !== "audio").map(item => ({ path: `history:${item.key}`, name: item.name, type: "file", history: item })));
+const historyEntries = computed<Entry[]>(() => history.items.value.map(item => ({ path: `history:${item.key}`, name: item.name, type: "file", history: item })));
+const visibleMediaFilters = computed(() => source.value === "history"
+  ? [...mediaFilters, { value: "audio", label: "音频" }].map(filter => ({ ...filter, count: history.items.value.filter(item => history.matchesTag(item, historyTag.value) && (filter.value === "all" || item.kind === filter.value)).length }))
+  : mediaFilters.map(filter => ({ ...filter, count: 0 })));
 const pickerEntries = computed<Entry[]>(() => [...all.value, ...historyEntries.value]);
 const displayed = computed<Entry[]>(() => {
   if (props.selectable) {
-    const items = source.value === "history" ? [...historyEntries.value].sort((a, b) => (b.history?.createdAt ?? 0) - (a.history?.createdAt ?? 0)) : folder.value ? all.value.find(item => item.path === folder.value)?.children ?? [] : all.value;
-    return items.filter(item => item.type === "file" && (props.imagesOnly ? kind(item) === "image" : ["image", "video"].includes(kind(item))) && (mediaFilter.value === "all" || kind(item) === mediaFilter.value) && item.name.toLowerCase().includes(search.value.trim().toLowerCase()));
+    const items: Entry[] = source.value === "history" ? [...historyEntries.value].sort((a, b) => (b.history?.createdAt ?? 0) - (a.history?.createdAt ?? 0)) : folder.value ? all.value.find(item => item.path === folder.value)?.children ?? [] : all.value;
+    return items.filter(item => item.type === "file" && (source.value === "history" ? !!item.history && history.matchesTag(item.history, historyTag.value) : props.imagesOnly ? kind(item) === "image" : ["image", "video"].includes(kind(item))) && (mediaFilter.value === "all" || kind(item) === mediaFilter.value) && item.name.toLowerCase().includes(search.value.trim().toLowerCase()));
   }
   const items = searchVisible.value && search.value.trim() ? all.value.filter(item => item.path.startsWith(folder.value ? folder.value + "/" : "") && item.name.toLowerCase().includes(search.value.trim().toLowerCase())) : folder.value ? all.value.find(item => item.path === folder.value)?.children ?? [] : entries.value;
   return items.filter(item => item.type === "directory" || kind(item));
@@ -154,7 +162,7 @@ watch([selectedEntries, selectedCapacity], ([items], [previous, previousCapacity
 const dateSelections = computed(() => {
   const groups = new Map<string, { items: Entry[]; selectedCount: number }>();
   for (const item of displayed.value) {
-    if (!item.history) continue;
+    if (!item.history || !canSelect(item)) continue;
     const date = dateFor(item.path);
     let group = groups.get(date);
     if (!group) { group = { items: [], selectedCount: 0 }; groups.set(date, group); }
@@ -182,16 +190,16 @@ function toggleDate(date: string, event: Event) {
   if (pending.length > remaining) { ElMessage.warning(`当前日期有 ${group.items.length} 项，还可添加 ${Math.max(0, remaining)} 项，请单独选择`); return; }
   selected.value = [...selected.value, ...pending.map(item => item.path)];
 }
-watch([folder, mediaFilter, search], () => { if (mediaGrid.value) mediaGrid.value.scrollTop = 0; }, { flush: "post" });
+watch([folder, mediaFilter, search, historyTag], () => { if (mediaGrid.value) mediaGrid.value.scrollTop = 0; }, { flush: "post" });
 const operationLocked = computed(() => busy.value || adding.value || matching.value);
 const selectionSource = computed(() => !selectedEntries.value.length ? source.value : selectedEntries.value.every(item => item.history) ? "history" : selectedEntries.value.every(item => !item.history) ? "library" : "mixed");
 type PickerAction = "delete" | "download" | "move" | "tags" | "save";
 const pickerActions = computed(() => [
   { value: "delete" as const, label: selectionSource.value === "history" ? "删除历史记录" : "删除", hint: selectionSource.value === "mixed" ? "请分别选择个人资产或生成历史进行删除" : selectionSource.value === "history" ? "删除历史记录，保留画布和对话引用素材" : "删除所选素材", disabled: selectionSource.value === "mixed", icon: IconTrash },
   { value: "download" as const, label: "下载", hint: "下载所选素材", disabled: false, icon: IconDownload },
-  ...(selectionSource.value === "history" ? [{ value: "save" as const, label: "保存到资产", hint: "保存到个人资产", disabled: false, icon: IconFolderPlus }] : [
+  ...(selectionSource.value === "history" ? [{ value: "save" as const, label: "保存到资产", hint: "保存到个人资产", disabled: false, icon: IconFolderPlus }, { value: "tags" as const, label: "修改标签", hint: "修改所选历史素材标签", disabled: false, icon: IconTags }] : [
     { value: "move" as const, label: "移动到", hint: selectionSource.value === "mixed" ? "仅支持个人资产" : "移动到其他文件夹", disabled: selectionSource.value !== "library", icon: IconFolderSymlink },
-    { value: "tags" as const, label: "修改标签", hint: selectionSource.value === "mixed" ? "仅支持个人资产" : "修改所选素材标签", disabled: selectionSource.value !== "library", icon: IconTags },
+    { value: "tags" as const, label: "修改标签", hint: selectionSource.value === "mixed" ? "请分别选择同一来源的素材" : "修改所选素材标签", disabled: selectionSource.value !== "library", icon: IconTags },
   ]),
 ]);
 const moveFolders = computed(() => folders.value.filter(item => !selectedEntries.value.some(source => item.path === source.path || item.path.startsWith(source.path + "/"))));
@@ -203,6 +211,7 @@ async function switchSource(value: "library" | "history") {
   const previous = source.value;
   sourceScroll[previous] = mediaGrid.value?.scrollTop ?? 0;
   source.value = value;
+  if (value === "library" && mediaFilter.value === "audio") mediaFilter.value = "all";
   await nextTick();
   if (mediaGrid.value) mediaGrid.value.scrollTop = sourceScroll[value];
   if (value === "history") {
@@ -264,9 +273,10 @@ async function linkDuplicateAssets() {
 }
 watch(() => props.imagesOnly, value => { if (value && mediaFilter.value === "video") mediaFilter.value = "image"; });
 function kind(item: Entry) { if (item.history) return item.history.kind; const type = item.type === "file" ? browserAssetMimeType(item.path).split("/")[0] : ""; return type && ["image", "video", "audio"].includes(type) ? type : ""; }
+function canSelect(item: Entry) { return props.imagesOnly ? kind(item) === "image" : ["image", "video"].includes(kind(item)); }
 function toggleSelection(item: Entry, event?: Event) {
   if (event?.target instanceof HTMLInputElement) event.target.checked = isSelected(item);
-  if (busy.value || adding.value || matching.value) return;
+  if (busy.value || adding.value || matching.value || props.selectable && !canSelect(item)) return;
   const path = aliases.value[item.path] ?? item.path;
   if (isSelected(item)) { selected.value = selected.value.filter(item => (aliases.value[item] ?? item) !== path); return; }
   if (props.selectable && selected.value.length >= props.selectionLimit) { ElMessage.warning(props.selectionLimit === 1 ? "本次只能选择1个素材" : "最多添加10个参考图片/视频"); return; }
@@ -350,7 +360,7 @@ async function runPickerAction(action: PickerAction) {
   if (action === "tags") { editTags(); return; }
   busy.value = true;
   try {
-    const sources = await Promise.all(items.map(async item => ({ file: await fileFor(item), name: item.name, metadata: { source: "生成历史", prompt: item.history?.prompt, model: item.history?.model, origin: item.history?.origin } })));
+    const sources = await Promise.all(items.map(async item => ({ file: await fileFor(item), name: item.name, tags: item.history ? history.tagsFor(item.history) : [], metadata: { source: "生成历史", prompt: item.history?.prompt, model: item.history?.model, origin: item.history?.origin } })));
     savingEntries.clear();
     sources.forEach((source, index) => savingEntries.set(source.file, items[index]!.path));
     await saveDialog.value?.open(sources);
@@ -476,7 +486,7 @@ async function rename() {
     busy.value = true; await browserAssetFiles().rename(item.path, target); moveMetadata(item.path, target); selected.value = [target]; await reload();
   } catch (cause) { failure(cause); } finally { busy.value = false; }
 }
-function editTags() { if (operationLocked.value || selectedEntries.value.some(item => item.history)) return; chosenTags.value = [...new Set(selectedEntries.value.flatMap(item => assets.tags[item.path] ?? []))]; tagsVisible.value = true; }
+function editTags() { if (operationLocked.value) return; if (selectionSource.value === "history") { tagBar.value?.edit(selectedEntries.value.flatMap(item => item.history ? [item.history] : [])); return; } if (selectionSource.value === "mixed") return; chosenTags.value = [...new Set(selectedEntries.value.flatMap(item => assets.tags[item.path] ?? []))]; tagsVisible.value = true; }
 function saveTags() { if (operationLocked.value || selectedEntries.value.some(item => item.history)) return; for (const item of selectedEntries.value) assets.tags[item.path] = [...chosenTags.value]; tagsVisible.value = false; }
 </script>
 <style scoped lang="scss">
@@ -530,6 +540,8 @@ function saveTags() { if (operationLocked.value || selectedEntries.value.some(it
         &:hover input, &:focus-within input, &.hasSelection input { opacity: 1; }
       }
     }
+    .pickerEmpty { padding: 16px 0; color: var(--el-text-color-secondary); font-size: 13px; }
+    .mediaCount { color: var(--el-text-color-placeholder); font-size: 11px; }
     .pickerHint { margin: 0 0 10px; color: #8e9199; font-size: 12px; flex-shrink: 0; }
     .libraryActions {
       flex-wrap: wrap;

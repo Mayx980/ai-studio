@@ -58,7 +58,7 @@ export function resolveBrowserModel(kind: ModelKind, providerId?: string, modelI
 }
 export const generationBusy = ref(false);
 export const generationError = ref("");
-export type BrowserGenerationResult = { id: string; batchId?: string; kind: ModelKind; createdAt?: number; prompt?: string; model?: string; url?: string; text?: string; file?: File; directory?: string; path?: string; settings?: GenerationSettings; origin?: GenerationOrigin; references?: GenerationRecord["references"] };
+export type BrowserGenerationResult = { id: string; batchId?: string; tags?: string[]; kind: ModelKind; createdAt?: number; prompt?: string; model?: string; url?: string; text?: string; file?: File; directory?: string; path?: string; settings?: GenerationSettings; origin?: GenerationOrigin; references?: GenerationRecord["references"] };
 export type BrowserConversationImport = { id: string; directory: string; request: string; references: { file: File; label: string; role?: "firstFrame" | "reference" | "middleFrame" | "lastFrame" }[]; results: BrowserGenerationResult[] };
 export type BrowserWorkflowNode = { canvasPath: string; nodeId: string };
 export type ProfessionalCanvas = {
@@ -108,7 +108,7 @@ async function saveBrowserResults(directory: string, signal?: AbortSignal) {
     if (item.url?.startsWith("blob:")) URL.revokeObjectURL(item.url);
     item.url = URL.createObjectURL(item.file);
   }
-  await recordGenerationResults(directory, generationResults.value.filter(item => item.directory === directory && item.path && item.kind !== "text").map(({ id, batchId, kind, path, file, createdAt, prompt, model, settings, origin, references }) => ({ id, batchId, prompt, model, origin, references, settings: readGenerationSettings(settings), kind: kind as GenerationRecord["kind"], path: path!, createdAt, mimeType: file?.type, name: file?.name })));
+  await recordGenerationResults(directory, generationResults.value.filter(item => item.directory === directory && item.path && item.kind !== "text").map(({ id, batchId, tags, kind, path, file, createdAt, prompt, model, settings, origin, references }) => ({ id, batchId, tags, prompt, model, origin, references, settings: readGenerationSettings(settings), kind: kind as GenerationRecord["kind"], path: path!, createdAt, mimeType: file?.type, name: file?.name })));
 }
 
 // ACT: 输出意图按动作后的目标优先；参考素材或“视频脚本”中的视频不单独决定输出。
@@ -125,7 +125,7 @@ export function inferGenerationKind(prompt: string): ModelKind {
   return browserConfig.outputChosen ? browserConfig.outputKind : kind ?? browserConfig.outputKind;
 }
 
-export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "", referenceRoles?: ("firstFrame" | "reference" | "middleFrame" | "lastFrame" | undefined)[], options?: { config?: typeof browserConfig; origin?: GenerationOrigin; references?: GenerationRecord["references"]; modelSelection?: typeof browserModelSelection; queue?: boolean; cancelled?: () => boolean; onStart?: () => void; onTask?: (id: string) => void }) {
+export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "", referenceRoles?: ("firstFrame" | "reference" | "middleFrame" | "lastFrame" | undefined)[], options?: { config?: typeof browserConfig; tags?: string[]; origin?: GenerationOrigin; references?: GenerationRecord["references"]; modelSelection?: typeof browserModelSelection; queue?: boolean; cancelled?: () => boolean; onStart?: () => void; onTask?: (id: string) => void }) {
   while (options?.queue && generationBusy.value) await new Promise<void>(resolve => { const stop = watch(generationBusy, busy => { if (!busy) { stop(); resolve(); } }); });
   if (options?.cancelled?.()) { generationError.value = "已取消等待生成"; return false; }
   const config = options?.config ?? browserConfig;
@@ -203,7 +203,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
     for (const asset of assets) {
       const mimeType = asset.mimeType || `${kind}/${kind === "image" ? "png" : kind === "audio" ? "mpeg" : "mp4"}`;
       const file = asset.type === "base64" && asset.data ? new File([Uint8Array.from(atob(asset.data), char => char.charCodeAt(0))], `生成结果.${mimeType.split("/")[1]}`, { type: mimeType }) : undefined;
-      generationResults.value.push({ id: crypto.randomUUID(), batchId, kind, createdAt: Date.now(), prompt, model: chosen!.label, settings, origin, references: options?.references, url: file ? URL.createObjectURL(file) : asset.url, file, directory });
+      generationResults.value.push({ id: crypto.randomUUID(), batchId, tags: options?.tags, kind, createdAt: Date.now(), prompt, model: chosen!.label, settings, origin, references: options?.references, url: file ? URL.createObjectURL(file) : asset.url, file, directory });
     }
     if (browserWorkspaceMode && directory) await saveBrowserResults(directory, signal);
     return true;

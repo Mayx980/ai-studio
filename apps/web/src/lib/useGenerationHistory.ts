@@ -1,11 +1,12 @@
+import { useAssetStore, historyUntaggedLabel } from "@/stores/assets";
 import { onBeforeUnmount, ref } from "vue";
 import { useWorkspaceStore } from "@/stores/workspace";
 import useWorkspaceFiles from "./workspaceFiles";
 import { browserAssetMimeType } from "./browserAssets";
 import { readGenerationOrigin, type GenerationOrigin } from "./generationOrigin";
-import { readGenerationSettings, type GenerationSettings, type GenerationRecord } from "./generationHistory";
+import { readGenerationSettings, readGenerationTags, type GenerationSettings, type GenerationRecord } from "./generationHistory";
 
-export type HistoryItem = { id: string; kind: "image" | "video" | "audio"; path: string; name: string; fileName: string; mimeType: string; prompt?: string; model?: string; settings?: GenerationSettings; origin?: GenerationOrigin; createdAt?: number; directory: string; key: string; url: string };
+export type HistoryItem = { id: string; kind: "image" | "video" | "audio"; path: string; name: string; fileName: string; tags?: string[]; mimeType: string; prompt?: string; model?: string; settings?: GenerationSettings; origin?: GenerationOrigin; createdAt?: number; directory: string; key: string; url: string };
 
 function defaultHistoryName(record: GenerationRecord, index: number, total: number) {
   const fileName = record.name || record.path.split("/").at(-1) || "生成素材";
@@ -21,6 +22,8 @@ function defaultHistoryName(record: GenerationRecord, index: number, total: numb
 
 export default function useGenerationHistory() {
   const workspace = useWorkspaceStore();
+  const assets = useAssetStore();
+  function matchesTag(item: HistoryItem, tag: string) { const tags = assets.historyTagsFor(item); return !tag || (tag === historyUntaggedLabel ? !tags.length : tags.includes(tag)); }
   const items = ref<HistoryItem[]>([]), loading = ref(false), error = ref("");
   const releases: (() => void)[] = [];
   let disposed = false, loaded = false;
@@ -54,7 +57,7 @@ export default function useGenerationHistory() {
           const handle = files.acquireUrl(record.path, mimeType); releases.push(handle.release);
           const url = await handle.url;
           if (disposed) { handle.release(); return; }
-          items.value.push({ ...record, settings: readGenerationSettings(record.settings), origin: readGenerationOrigin(record.origin), name: names.get(record.id)!, fileName: record.name || record.path.split("/").at(-1)!, mimeType, createdAt: Number.isFinite(record.createdAt) && record.createdAt > 0 ? record.createdAt : undefined, directory: project.directory, key: `${project.directory}:${record.id}`, url });
+          items.value.push({ ...record, tags: readGenerationTags(record.tags), settings: readGenerationSettings(record.settings), origin: readGenerationOrigin(record.origin), name: names.get(record.id)!, fileName: record.name || record.path.split("/").at(-1)!, mimeType, createdAt: Number.isFinite(record.createdAt) && record.createdAt > 0 ? record.createdAt : undefined, directory: project.directory, key: `${project.directory}:${record.id}`, url });
         }
       } catch { failures.push(project.name); }
     }
@@ -62,5 +65,5 @@ export default function useGenerationHistory() {
     loading.value = false;
     loaded = true;
   }
-  return { items, loading, error, load };
+  return { items, loading, error, load, matchesTag, tagsFor: assets.historyTagsFor };
 }
