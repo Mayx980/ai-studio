@@ -33,24 +33,24 @@
   </section>
 </template>
 <script setup lang="ts">
-import { readGenerationOrigin, resolveGenerationOrigin, openGenerationOrigin, type GenerationOrigin } from "@/lib/generationOrigin";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { resolveGenerationOrigin, openGenerationOrigin } from "@/lib/generationOrigin";
+import { computed, onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import saveAssetDialog from "@/components/saveAssetDialog.vue";
 import { IconCopy, IconSquarePlus, IconEdit, IconFolderPlus, IconSortAscending, IconSortDescending, IconDownload, IconTrash, IconX } from "@tabler/icons-vue";
 import { useRouter } from "vue-router";
 import { useWorkspaceStore } from "@/stores/workspace";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
-import { browserAssetMimeType } from "@/lib/browserAssets";
+import useGenerationHistory, { type HistoryItem } from "@/lib/useGenerationHistory";
 import saveFile from "@/lib/saveFile";
 import assetVideoPreview from "@/components/assetVideoPreview.vue";
 import personalAssetBrowser from "@/components/personalAssetBrowser.vue";
-import { readGenerationSettings, type GenerationSettings } from "@/lib/generationHistory";
 const saveDialog = ref<InstanceType<typeof saveAssetDialog>>();
-type HistoryItem = { id: string; kind: "image" | "video" | "audio"; path: string; name: string; mimeType: string; prompt?: string; model?: string; settings?: GenerationSettings; origin?: GenerationOrigin; createdAt?: number; directory: string; key: string; url: string };
 const workspace = useWorkspaceStore(), router = useRouter();
-const module = ref("history"), descending = ref(true), loading = ref(true), busy = ref(false), error = ref("");
-const items = ref<HistoryItem[]>([]), selected = ref<string[]>([]), preview = ref<HistoryItem>();
+const history = useGenerationHistory();
+const { items, loading, error } = history;
+const module = ref("history"), descending = ref(true), busy = ref(false);
+const selected = ref<string[]>([]), preview = ref<HistoryItem>();
 const historyKind = ref<"all" | HistoryItem["kind"]>("all");
 const historyCategories = computed(() => [
   { value: "all" as const, label: "全部", count: items.value.length },
@@ -60,39 +60,13 @@ const historyCategories = computed(() => [
 ]);
 const detailActions = [{ value: "newCanvas", label: "新建画布添加", icon: IconSquarePlus }, { value: "canvas", label: "去画布/对话编辑", icon: IconEdit }, { value: "save", label: "保存到个人资产", icon: IconFolderPlus }, { value: "download", label: "下载素材", icon: IconDownload }, { value: "delete", label: "删除历史", icon: IconTrash }] as const;
 async function copyPrompt() { try { await navigator.clipboard.writeText(preview.value?.prompt || ""); ElMessage.success("已复制生成信息"); } catch { ElMessage.error("复制失败，请重试"); } }
-const releases: (() => void)[] = [];
-let disposed = false;
-onBeforeUnmount(() => { disposed = true; releases.forEach(release => release()); });
 const groups = computed(() => {
   const sorted = items.value.filter(item => historyKind.value === "all" || item.kind === historyKind.value).sort((a, b) => (descending.value ? -1 : 1) * ((a.createdAt ?? 0) - (b.createdAt ?? 0)));
   const result = new Map<string, HistoryItem[]>();
   for (const item of sorted) { const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "未记录时间"; if (!result.has(date)) result.set(date, []); result.get(date)!.push(item); }
   return [...result].map(([date, entries]) => ({ date, items: entries }));
 });
-onMounted(async () => {
-  const failures: string[] = [];
-  for (const project of workspace.projectList) {
-    if (disposed) return;
-    try {
-      const files = useWorkspaceFiles(project.directory);
-      const records = await files.readJson<unknown>(".agent/browserResults.json").catch(cause => { if (cause.code === "ENOENT") return []; throw cause; });
-      const hidden = await files.readJson<string[]>(".agent/hiddenResults.json").catch(cause => { if (cause.code === "ENOENT") return [] as string[]; throw cause; });
-      if (!Array.isArray(records) || !Array.isArray(hidden) || hidden.some(id => typeof id !== "string")) throw new Error("历史记录格式无效");
-      for (const record of records) {
-        if (disposed) return;
-        if (!record || typeof record.id !== "string" || typeof record.path !== "string" || !["image", "video", "audio"].includes(record.kind)) throw new Error("历史记录格式无效");
-        if (hidden.includes(record.id)) continue;
-        const mimeType = browserAssetMimeType(record.path);
-        const handle = files.acquireUrl(record.path, mimeType); releases.push(handle.release);
-        const url = await handle.url;
-        if (disposed) { handle.release(); return; }
-        items.value.push({ ...record, settings: readGenerationSettings(record.settings), origin: readGenerationOrigin(record.origin), name: record.name || record.path.split("/").at(-1), mimeType, createdAt: Number.isFinite(record.createdAt) && record.createdAt > 0 ? record.createdAt : undefined, directory: project.directory, key: `${project.directory}:${record.id}`, url });
-      }
-    } catch { failures.push(project.name); }
-  }
-  if (failures.length) error.value = `部分项目历史读取失败：${failures.join("、")}`;
-  loading.value = false;
-});
+onMounted(() => history.load());
 async function fileFor(item: HistoryItem) { return new File([await useWorkspaceFiles(item.directory).read(item.path)], item.name, { type: item.mimeType }); }
 async function run(action: "canvas" | "newCanvas" | "save" | "download" | "delete", targets = items.value.filter(item => selected.value.includes(item.key))) {
   if (busy.value || !targets.length) return;
