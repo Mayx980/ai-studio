@@ -8,7 +8,7 @@
         <el-alert v-if="error" :title="error" type="error" :closable="false" />
         <p v-if="loading" role="status">正在读取生成历史…</p>
         <p v-if="!loading && !groups.length && !error" class="historyEmpty" role="status">{{ historyTag ? `该标签下暂无${{ all: '素材', image: '图片', video: '视频', audio: '音频' }[historyKind]}` : historyKind === 'all' ? '暂无生成历史' : `暂无${{ image: '图片', video: '视频', audio: '音频' }[historyKind]}` }}</p>
-        <div v-for="group in groups" :key="group.date" class="historyGroup"><h3>{{ group.date }}</h3><div class="historyGrid"><article v-for="item in group.items" :key="item.key" class="historyCard" :class="{ selected: selected.includes(item.key) }">
+        <div v-for="group in groups" :key="group.date" class="historyGroup"><h3 class="dateHeading" :class="{ hasSelection: group.selectedCount > 0 }"><span>{{ group.date }}</span><input type="checkbox" :checked="group.selectedCount === group.items.length" :indeterminate="group.selectedCount > 0 && group.selectedCount < group.items.length" :aria-checked="group.selectedCount > 0 && group.selectedCount < group.items.length ? 'mixed' : group.selectedCount === group.items.length" :aria-label="`选择 ${group.date} 下当前显示的全部素材`" :disabled="busy || loading" @change="toggleDate(group, $event)" /></h3><div class="historyGrid"><article v-for="item in group.items" :key="item.key" class="historyCard" :class="{ selected: selected.includes(item.key) }">
           <button class="mediaPreview" type="button" :title="item.name" :aria-label="'预览 ' + item.name" @click="preview = item"><img v-if="item.kind === 'image'" :src="item.url" :alt="item.name" /><assetVideoPreview v-else-if="item.kind === 'video'" :src="item.url" /><icon-volume v-else :size="36" /></button>
           <input v-model="selected" type="checkbox" :value="item.key" :aria-label="'选择 ' + item.name" :disabled="busy" />
           <div class="hoverActions"><el-tooltip content="去画布/对话编辑" placement="top"><el-button :disabled="busy" aria-label="去画布/对话编辑" @click="run('canvas', [item])"><icon-edit :size="16" /></el-button></el-tooltip><el-tooltip content="保存到个人资产" placement="top"><el-button :disabled="busy" :aria-label="'保存到个人资产 ' + item.name" title="保存到个人资产" @click="run('save', [item])"><icon-folder-plus :size="16" /></el-button></el-tooltip><el-tooltip content="下载素材" placement="top"><el-button :disabled="busy" :aria-label="'下载 ' + item.name" title="下载素材" @click="run('download', [item])"><icon-download :size="16" /></el-button></el-tooltip><el-tooltip content="删除历史" placement="top"><el-button :disabled="busy" :aria-label="'删除 ' + item.name" title="删除历史" @click="run('delete', [item])"><icon-trash :size="16" /></el-button></el-tooltip></div>
@@ -80,8 +80,16 @@ const groups = computed(() => {
   const sorted = taggedItems.value.filter(item => historyKind.value === "all" || item.kind === historyKind.value).sort((a, b) => (descending.value ? -1 : 1) * ((a.createdAt ?? 0) - (b.createdAt ?? 0)));
   const result = new Map<string, HistoryItem[]>();
   for (const item of sorted) { const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "未记录时间"; if (!result.has(date)) result.set(date, []); result.get(date)!.push(item); }
-  return [...result].map(([date, entries]) => ({ date, items: entries }));
+  const selectedKeys = new Set(selected.value);
+  return [...result].map(([date, entries]) => ({ date, items: entries, selectedCount: entries.filter(item => selectedKeys.has(item.key)).length }));
 });
+function toggleDate(group: { items: HistoryItem[]; selectedCount: number }, event: Event) {
+  const allSelected = group.selectedCount === group.items.length;
+  if (event.target instanceof HTMLInputElement) event.target.checked = allSelected;
+  if (busy.value || loading.value) return;
+  const keys = new Set(group.items.map(item => item.key));
+  selected.value = allSelected ? selected.value.filter(key => !keys.has(key)) : [...new Set([...selected.value, ...keys])];
+}
 onMounted(() => history.load());
 async function fileFor(item: HistoryItem) { return new File([await useWorkspaceFiles(item.directory).read(item.path)], item.fileName, { type: item.mimeType }); }
 async function run(action: "canvas" | "newCanvas" | "save" | "download" | "delete", targets = items.value.filter(item => selected.value.includes(item.key))) {
@@ -135,6 +143,12 @@ async function run(action: "canvas" | "newCanvas" | "save" | "download" | "delet
 </script>
 <style scoped lang="scss">
 .assetsPage {
+  .historyGroup .dateHeading {
+    display: inline-flex; align-items: center; gap: 8px;
+    input { width: 15px; height: 15px; margin: 0; opacity: 0; accent-color: var(--el-color-primary); cursor: pointer; }
+    &:hover input, &:focus-within input, &.hasSelection input { opacity: 1; }
+  }
+  @media (hover: none) { .historyGroup .dateHeading input { opacity: 1; } }
   .historyEmpty { padding: 40px 12px; text-align: center; color: var(--el-text-color-secondary); font-size: 13px; }
   .historyHeader { position: sticky; top: 0; z-index: 4; padding-bottom: 1px; background: #131313; &::before { content: ""; position: absolute; bottom: 100%; left: 0; right: 0; height: 48px; background: #131313; pointer-events: none; } }
   .historyCategories { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 20px;
