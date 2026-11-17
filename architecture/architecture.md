@@ -22,7 +22,7 @@
 
 AFXEN页面沿用已合入原型交互，正式Web由Bun/Express提供真实账号与按用户隔离的数据边界。现有server拥有SQL元数据、文件卷和公司HTTP媒体存储的业务职责；MySQL及OSS是基础设施依赖，不另造本仓源码实体。独立数据库协议目标见 [NFR](nfr.md)。
 
-用户配置与加密模型凭据、项目/库/媒体索引存MySQL；画布、对话和模板正文保持原JSON，新媒体以SQL映射指向云对象。原共享资料经本地显式接管归初始管理员，旧文件只读保留；新账号使用独立用户根。浏览器业务数据不自动导入或清除。具体合同见 [accounts](../contracts/data/accounts.md)、[database](../contracts/data/database.md) 和 [mediaStorage](../contracts/data/mediaStorage.md)。
+用户配置与加密模型凭据、项目/库/媒体索引存MySQL；画布、对话和模板正文保持原JSON，新媒体以SQL映射指向云对象。按note 132070取消网站管理员和旧测试资料接管，账号通过SQL维护，所有账号使用独立用户根。浏览器业务数据不自动导入或清除。具体合同见 [accounts](../contracts/data/accounts.md)、[database](../contracts/data/database.md) 和 [mediaStorage](../contracts/data/mediaStorage.md)。
 
 部署仍为一个可写应用实例；文件协调、SDK会话和后台任务在进程内，不承诺多副本写入或持久任务队列。模型请求只使用所属用户配置，任务与结果保留发起owner。已接受媒体请求不因切画布/HTTP断开而自动停止，显式停止保留原权限校验。
 
@@ -47,7 +47,7 @@ AFXEN页面沿用已合入原型交互，正式Web由Bun/Express提供真实账�
 
 | 数据域 | 唯一归属 Entity | Contract identity | 说明 |
 | --- | --- | --- | --- |
-| 账号、会话、个人配置/凭据、项目/库/媒体元数据 | `server` | [database](../contracts/data/database.md) | 唯一SQL业务owner，MySQL为其内部部署依赖 |
+| 账号、会话、个人配置/凭据、项目/库/媒体元数据 | `server` | [database](../contracts/data/database.md) | 唯一SQL业务owner，MySQL为已有基础设施依赖，Compose仅部署应用 |
 
 ## 文件与制品归属
 
@@ -72,6 +72,6 @@ Web先取得真实会话再初始化个人业务Store。所有个人API、媒体
 
 公司HTTP OSS没有鉴权，部署侧限制其可达范围；浏览器只访问AFXEN授权媒体代理。模型出站使用供应商和运维登记的base，公共网页下载校验DNS并固定公网IP，避免普通工具绕过内网存储。FFmpeg仅接受受控文件与当前编辑参数，临时物化云输入；输出发布成功后才报告成功。可信部署管理员及其安装代码仍在信任边界内，不宣称能防御恶意宿主。
 
-系统conf单例保留实例资源配置；个人配置由请求上下文消费数据库，不每用户再建conf。启动缺上下文不借用管理员Key；缺数据库、schema、密钥或OSS配置明确失败，不自动建立、降级或回退JSON。数据、字段及错误在相应Contract维护；内部实现见 [accountIsolation](../services/server/designs/accountIsolation.md)。
+系统conf单例保留实例资源配置；个人配置由请求上下文消费数据库，不每用户再建conf。启动缺上下文不借用其它用户Key；缺数据库、schema、密钥或OSS配置明确失败，不自动建立、降级或回退JSON。数据、字段及错误在相应Contract维护；内部实现见 [accountIsolation](../services/server/designs/accountIsolation.md)。
 
 Compose及运维见 [database](../ops/database.md)、[storage](../ops/storage.md)。本轮只交付源码与材料，未执行环境连接、资料接管、部署或生产操作。真实模型、双账号、恢复和原生平台验证按实际结果交接。

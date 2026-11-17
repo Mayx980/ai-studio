@@ -50,6 +50,6 @@
 
 依据 [note 131174](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_131174)，目标由实例凭据改为所属用户凭据，并按本轮数据库决定改由数据库保存个人配置和加密凭据。上文 Key 的保存字段、脱敏、按供应商 ID 保留/替换/清除、禁止回传和错误脱敏语义保持；个人保存不能修改实例宿主或可执行插件设置。
 
-新账号从未配置状态开始，不能隐式继承管理员或其它用户 Key。旧实例模型配置原位归初始管理员；供应商模型列表、价格/余额及所有生成、市场或工具调用只使用当前所属用户配置，缓存与刷新也按用户区分。登录接口以外的相关请求先认证；请求中的 providerId 不构成跨用户授权。账号规则见 [accounts](accounts.md)，入库、密钥和事务规则见 [database](database.md)，系统设置与用户数据库配置的分离见 [服务端设计](../../services/server/designs/accountIsolation.md)。本版已按 note 131807 实现对应源码，实际隔离、SQL故障与真实生成仍交软测和目标环境验收。
+新账号从未配置状态开始，不能隐式继承其它用户Key。按note 132070不再建立网站管理员或接管旧实例模型配置；供应商模型列表、价格/余额及所有生成、市场或工具调用只使用当前所属用户配置，缓存与刷新也按用户区分。登录接口以外的相关请求先认证；请求中的 providerId 不构成跨用户授权。账号规则见 [accounts](accounts.md)，入库、密钥和事务规则见 [database](database.md)，系统设置与用户数据库配置的分离见 [服务端设计](../../services/server/designs/accountIsolation.md)。本版已按 note 131807 实现对应源码，实际隔离、SQL故障与真实生成仍交软测和目标环境验收。
 
 多用户Web读取设置的data附带settingsRevision整数，前端仅在内存保存版本，不将该字段混入设置正文；完整保存时在body附expectedRevision。与当前账号SQL版本不符为409并保留输入，不能用请求开始时的最新版本掩盖旧页面快照。成功保存返回新的settingsRevision；原生local保持原协议。

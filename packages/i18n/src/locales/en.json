@@ -2640,5 +2640,7 @@
   "框选节点": "Box-select nodes",
   "追加选择": "Add to selection",
   "追加选择只绑定修饰键，例如 Ctrl 或 Meta。": "Add to selection accepts only modifier keys, such as Ctrl or Meta.",
-  "密码操作过多，请稍后再试": "Too many password operations. Please try again later."
+  "密码操作过多，请稍后再试": "Too many password operations. Please try again later.",
+  "尚未提交的密码将被清空。": "Unsubmitted passwords will be cleared.",
+  "请先修改初始密码。": "Please change your initial password first."
 }

@@ -21,7 +21,7 @@
 
 ## 工作区创建
 
-`POST /api/workspaces/create` 接收 `{ name, initializeCanvas? }`：名称去除首尾空白后为 1–80 字符，`initializeCanvas` 默认 true。服务端在当前用户根的 `workspaces/` 下分配独立项目目录（初始管理员沿用data根）；默认以 exclusive 原子写入创建空的 `画布1.json`，完成后返回 `{ code: 200, data: { directory }, message }`。设为 false 时创建空目录，供现有项目／模板复制流程使用。
+`POST /api/workspaces/create` 接收 `{ name, initializeCanvas? }`：名称去除首尾空白后为 1–80 字符，`initializeCanvas` 默认 true。服务端在当前用户根的 `workspaces/` 下分配独立项目目录（均为data/users/<userId>/）；默认以 exclusive 原子写入创建空的 `画布1.json`，完成后返回 `{ code: 200, data: { directory }, message }`。设为 false 时创建空目录，供现有项目／模板复制流程使用。
 
 客户端在目录及初始文件完成后才发布项目索引。复制完成文件与引用校验后才登记副本；失败不登记未完成项目，不递归删除可能包含其它操作内容的目录。移除项目列表项继续保留文件。工作区授权、相对路径、符号链接和 revision 规则继承 [工作区文件合同](settings.md)，不把 `browser://` 当系统路径。
 
@@ -35,7 +35,7 @@
 - `POST /api/assets/mkdir`、`POST /api/assets/rename`、`POST /api/assets/copy` 处理相对路径，不覆盖已有目标；复制继续使用已有普通文件／目录复制及符号链接保护。
 - `DELETE /api/assets/remove` 默认只删普通文件或空目录；仅明确的 `recursive=true` 允许递归删除，不能修改或删除库根目录。
 
-资产库中新保存或移动的图片／视频必须位于文件夹中，旧根目录媒体沿现有“未分类”规则归档并保持同名保护、标签和来源关联；项目内素材副本不随全局资产移动。模板快照与目录清单沿用现有校验，排除对话和凭据；个人模板只归本人；真实管理员权限由服务端账号校验，不沿用原型演示身份。
+资产库中新保存或移动的图片／视频必须位于文件夹中，旧根目录媒体沿现有“未分类”规则归档并保持同名保护、标签和来源关联；项目内素材副本不随全局资产移动。模板快照与目录清单沿用现有校验，排除对话和凭据；个人模板只归本人；生产模式不设网站管理员，不沿用原型演示角色；个人模板只影响本人资料。
 
 文件和索引当前都以单进程为边界。服务端保存不承诺多进程并发、浏览器关闭后的任务恢复、服务重启后的持续模型任务或自动迁移旧浏览器数据。
 
@@ -49,7 +49,7 @@
 
 ## 用户创作数据
 
-Issue #7 [note 131174](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_131174) 将实例共享调整为用户隔离。现有项目/资产/模板索引按 [database](database.md) 入库，画布/对话/模板JSON及旧媒体保留原卷，新媒体的云存储按 [mediaStorage](mediaStorage.md) 单独规定；所有协议只解析当前认证用户的记录和文件根；用户 ID 和角色不能由 body、目录或 header 自行指定。账号与旧资料归属见 [accounts](accounts.md)。初始管理员保留旧目录，旧索引经显式校验/事务导入数据库后由其独占；原 JSON 保留只作来源，不双写或失败回退。新用户不能读到旧项目、模板、媒体或元数据。
+Issue #7 [note 131174](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_131174) 将实例共享调整为用户隔离。现有项目/资产/模板索引按 [database](database.md) 入库，画布/对话/模板JSON及旧媒体保留原卷，新媒体的云存储按 [mediaStorage](mediaStorage.md) 单独规定；所有协议只解析当前认证用户的记录和文件根；用户 ID 和角色不能由 body、目录或 header 自行指定。账号与旧资料归属见 [accounts](accounts.md)。note 132070进一步取消管理员接管；全新账号使用自己的users/<id>目录，不自动读取旧项目、模板、媒体或元数据。旧JSON不作为失败回退来源，不实际清理或迁移旧文件。
 
 保留原有 JSON/画布/节点/引用格式、exclusive、revision、同名不覆盖、HTTP Range 和错误语义；只改变授权与数据根的归属。列表、查询、复制、改名、下载、引用及 Agent/模型工具的间接文件操作均核对 owner，跨用户请求不能凭已知绝对路径访问。内置只读示例可共用，个人模板不自动公开。
 

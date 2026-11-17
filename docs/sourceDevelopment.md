@@ -332,7 +332,9 @@ data/                  本机运行数据，不提交
 ---
 
 
-### Issue #7 共享创作运行
+### 历史共享创作运行（仅原生local兼容参考）
+
+以下描述旧共享入口；当前独立Web使用后文多用户SQL账号流程，不按匿名共享方式部署。
 
 在仓库根显式准备既有 Bun 依赖后，分别使用现有 `dev:web` 和 `dev:server` 入口（或根 `dev`）。正式页面不需要 `studioRelay` 或浏览器供应商 Key；在设置的 API 配置中分别接入文字和媒体供应商，Key 由实例 Server 保存。阿里云图片/视频与 Seed-Audio 位于现有供应商包，可从内置媒体供应商卡片添加，再填写服务器配置。获取列表和修改参数不触发生成。
 
@@ -344,8 +346,8 @@ data/                  本机运行数据，不提交
 
 ## 多用户Server与云媒体
 
-独立Server默认users模式，先验证真实会话，再加载SQL个人设置和创作索引。源码启动与构建版使用相同 `AFXEN_DATABASE_CONFIG`、`AFXEN_CREDENTIAL_KEY_FILE` 及OSS环境变量，配置格式、权限、维护入口和原卷接管统一见 [部署步骤](../ops/database.md)，不再按匿名共享版直接操作业务。构建不执行DDL或数据接管。
+独立Server默认users模式，先验证真实会话，再加载SQL个人设置和创作索引。源码启动与构建版使用相同 `AFXEN_DATABASE_CONFIG`、`AFXEN_CREDENTIAL_KEY_FILE` 及OSS环境变量，配置格式、权限、SQL建号和部署统一见 [部署步骤](../ops/database.md)，不再按匿名共享版直接操作业务。构建不执行DDL或数据接管。
 
 原生桌面、移动嵌入通过 `createApp({accountMode:"local",...})` 保持本机数据入口；连接多用户Server仍须真实登录。本轮未完成各原生平台运行验收。SQL元数据不回退JSON，新媒体只读SQL映射的云对象，临时处理文件由业务模块负责清理，不能改写公共file包为网络存储。
 
-新增路由按原命令 `bun run --cwd services/server routes` 显式生成，然后执行受影响包已有typecheck/build；完整构建为根 `bun run build:server`，包含 `build/server/createAdmin.js`。数据库运维静态检查 `python3 -B ops/db/db-ops config-check` 不连接数据库；连接、初始化、接管及真实生成不绑定构建或开发启动。项目继续不新增测试/自检文件、命令、框架或CI入口。
+新增路由按原命令 `bun run --cwd services/server routes` 显式生成，然后执行受影响包已有typecheck/build；完整构建为根 `bun run build:server`，包含离线 `build/server/userSql.js`。数据库运维静态检查 `python3 -B ops/db/db-ops config-check` 不连接数据库；连接、初始化及真实生成不绑定构建或开发启动。项目继续不新增测试/自检文件、命令、框架或CI入口。

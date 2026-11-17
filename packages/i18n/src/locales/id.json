@@ -2640,5 +2640,7 @@
   "框选节点": "Pilih node dengan kotak",
   "追加选择": "Tambahkan ke pilihan",
   "追加选择只绑定修饰键，例如 Ctrl 或 Meta。": "Tambahkan ke pilihan hanya dapat ditetapkan ke tombol pengubah, seperti Ctrl atau Meta.",
-  "密码操作过多，请稍后再试": "Terlalu banyak operasi kata sandi. Silakan coba lagi nanti."
+  "密码操作过多，请稍后再试": "Terlalu banyak operasi kata sandi. Silakan coba lagi nanti.",
+  "尚未提交的密码将被清空。": "Kata sandi yang belum dikirim akan dihapus.",
+  "请先修改初始密码。": "Ubah kata sandi awal Anda terlebih dahulu."
 }

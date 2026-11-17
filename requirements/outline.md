@@ -40,7 +40,7 @@
 | BR-ui-preferences | 品牌、偏好及操作一致性 | 3.10 教学、设置与操作辅助 | SC-workbench-controls |
 | BR-account-login | 真实账号及会话生命周期 | 4. 独立账号修订 | SC-account-session |
 | BR-user-isolation | 用户资料、凭据与任务隔离 | 4. 独立账号修订 | SC-user-isolation, SC-conflicting-save |
-| BR-existing-data-owner | 旧共享资料归初始管理员 | 4. 独立账号修订 | SC-existing-data-owner |
+| BR-sql-account | SQL维护账号与空工作区 | 4. 独立账号修订 | SC-sql-account |
 
 ## 场景
 
@@ -62,13 +62,13 @@
 | SC-onboarding | SF-creation-workbench | 使用者 | 首次及手动教学可见且不覆盖原项目 | 3.10 教学、设置与操作辅助 |
 | SC-workbench-controls | SF-creation-workbench | 使用者 | 偏好、快捷键与侧栏会话保持一致 | 3.10 教学、设置与操作辅助 |
 
-新增账号验收（待修订计划审阅）：
+账号验收（按note 132070修订）：
 
 | ID | 端 | 角色 | 场景 | PRD 章节 |
 | --- | --- | --- | --- | --- |
 | SC-account-session | SF-creation-workbench | 登录用户 | 登录、刷新、退出及改密后会话与用户状态一致 | 4. 独立账号修订 |
 | SC-user-isolation | SF-creation-workbench | 两个独立账号 | 分别保存/调用模型且拒绝跨用户访问、订阅和停止 | 4. 独立账号修订 |
-| SC-existing-data-owner | SF-creation-workbench | 初始管理员与新用户 | 原资料保留归管理员，新用户为空，重复初始化不覆盖 | 4. 独立账号修订 |
+| SC-sql-account | SF-creation-workbench | 运维与登录用户 | SQL建号后可登录且个人数据独立，首次初始化不覆盖已有内容 | 4. 独立账号修订 |
 
 原跨浏览器场景按同账号解释，其他创作规则与验收继续保留。
 

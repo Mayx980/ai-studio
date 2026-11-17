@@ -1,65 +1,47 @@
-# Issue #7 修订计划：公司HTTP云存储、独立账号与MySQL
+# Issue #7：SQL维护账号与现有服务部署
 
-本版在 `352aad9` 的数据库候选上按 [note 131794](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_131794) 优先补齐公司HTTP云存储，完整版本 `3ebf2dee35b58d55f934e402ae3854b82ac43c9c` 已由 [note 131807](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_131807) 明确确认实施；固定table_check路径另由note 131814确认。保留已批准的共享Server成果，已接入下述源码，实际环境验收单独交接。新增数据库的决定见 [note 131340](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_131340)；独立账号范围和旧数据归属已由 [note 131174](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_131174) 确认；沿用 [note 128562](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_128562) 的先审阅计划约定。本版不能作为账号功能已完成或已通过验收的证明。
+本轮在已交付的 `issue/7@7b508b5f10fe636e2db075eb3fb2ed41880c28b0` 上按 [note 132070](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7#note_132070) 的明确实施决定修订。既有HTTP云存储、MySQL个人配置及文件/会话隔离成果保留；本计划不代表真实环境已经验收。
 
-## 对象、保留成果与本次变化
+## 目标、对象和约束
 
-- 项目：`yuxin.ma/ai-studio`；[Issue #7](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/issues/7)；唯一 source 为 `issue/7`，target 为 `main`，继续使用 [MR !7](https://git.aimall-tech.com/yuxin.ma/ai-studio/-/merge_requests/7)。
-- 本版修订基于 source `352aad9f9ee740af9df153cb4545c745d419b366`，target 为 `8679f4192fa8fa7fa6e811f3d06ace42ccd6ce5c`。保留共享服务端接线及设备轮询、内网 HTTP UUID、文件日志修复，不重做原型合入或工程迁移。
-- 原型来源仍为人工已合入的 `issue-design/7@2dea9eee5529659cf9723bca4e82ca9bab7c4b8d`，设计基线 `309eb5a43f9cc029edcf3d6d4a91c0d51fd0ed33`；不吸收第二轮设计，不整体承接 #4。
-- 本次将原计划中的“实例共享、不新增账号”改为真实登录及按用户隔离。旧共享项目、资产和 API Key 归初始管理员；新账号从空工作区开始。对话、历史、模板和模型结果随其所属项目或用户隔离，避免从旁路泄露。
-- 继续沿用 Bun/Express、统一文件入口、Port 与同页面 Scenario，不新增测试/自检模块、框架、CI 自动测试入口；不增加 SSO、开放注册、跨用户共享或实时协作、持久任务队列、成片合成，不执行生产部署或最终 MR approve/merge。
+- 同一项目 `yuxin.ma/ai-studio`、Issue #7、source `issue/7`、target `main` 和唯一 MR !7；不新建分支、重写历史或修改默认分支。
+- 取消网站管理员及账号管理界面/HTTP接口。运维通过SQL维护登录账号，网站保留登录、本人改密、退出和个人数据隔离。
+- 复用现有MySQL和公司HTTP OSS，只部署一个应用容器；不再默认部署MySQL容器/卷，不改APISIX职责。应用业务文件仍须持久保存，测试环境可从空目录开始，不实际删除旧资料。
+- 保留Bun/Express/TypeScript/Vue、统一文件入口、Port及同页面Scenario、Argon2id、CSRF、会话撤销、个人配置加密、同账号CAS和文件边界。不新增测试或自检模块、框架、CI入口、ORM或服务框架。
+- 本轮不连接实际数据库/OSS，不执行DDL、账号SQL、目标部署、数据接管或恢复；不approve/merge或关闭Issue。
 
-## 核实到的真实影响
+## 已核实的实现及兼容取舍
 
-`studioState.json`、资产库和设置目前按实例保存；前端 `sharedState.ts` 的 revision 及保存队列只保护当前页面。`workspace.ts` 还把当前项目和列表放在同一持久键中。不同页面触发 409 是过期快照保护，不能靠移除校验解决。
+当前管理员同时承担网站账号管理和实例可执行资源权限。删除管理员不能把插件安装/调试、全局技能写入或宿主目录授予所有用户：多用户模式始终拒绝这些操作，可信local模式继续按原宿主能力运行。
 
-真实账号不能复用 `prototypeAccount.ts` 的演示身份。启动阶段目前先读取设置和模型，必须调整为先验证服务端会话。服务端全局 `conf`、模型初始化、余额订阅、Agent 会话和桥接 pending map 也必须核对归属；只改项目目录不够。插件源码安装/调试会执行服务端代码，普通用户必须被服务端拒绝，不能只隐藏按钮。
+当前首次创建普通账号还建立userSettings和creationStates；仅INSERT users会导致认证后读取个人资料失败。因此在密码校验成功并锁定用户行的登录事务内，幂等初始化缺失的空个人记录；已有内容不覆盖。SQL创建用户后即可登录，不需要初始化管理员或由运维拼接多表业务事务。
 
-## 设计依据及取舍
+schema v1的role和legacyRoot历史列暂保留，避免为取消网站管理额外引入DDL迁移；新账号SQL固定user/0，运行时不再由这些历史列赋予管理员或旧实例根权限，文件根统一为users/<id>。旧测试资料不自动导入，不为兼容旧管理员恢复特权。
 
-系统范围见 [architecture](../../../architecture/architecture.md) 的“独立账号修订目标”；账号数据与认证规则见 [accounts](../../../contracts/data/accounts.md)，创作索引和凭据变化分别见 [studio](../../../contracts/data/studio.md)、[settings](../../../contracts/data/settings.md) 的候选补充。服务端内部方案唯一保存在 [accountIsolation](../../../services/server/designs/accountIsolation.md)；界面变化见 [creationExperience](../../../frontend/web/designs/creationExperience.md) 的“正式账号接入候选”，运行和初始化见 [ops](../../../ops/readme.md)。数据库数据范围、事务和接管规则见 [database](../../../contracts/data/database.md)，Compose 与运维交付见 [数据库运行方案](../../../ops/database.md)。云存储的外部协议、唯一数据来源、用户授权、缺失能力与删除提议见 [mediaStorage](../../../contracts/data/mediaStorage.md)，环境/文件配置和恢复见 [storage](../../../ops/storage.md)。上述设计已获本版确认，保持相应内容唯一维护。
+账号SQL由离线userSql入口生成：隐藏输入密码并用Bun Argon2id计算哈希，输出创建、重置、停用/启用SQL供运维在自己的数据库工具执行。它不接数据库，不保存明文密码，不再需要maintenance.json或createAdmin。重置/启停递增authVersion，使旧Session立即失效；首次/重置密码仍要求用户改密。
 
-按本轮明确要求增加独立数据库服务。采用 MySQL 8.4 LTS / InnoDB，协议兼容目标为 `mysql 8.4`，已按本版确认写入 NFR。账号、Session、个人设置、模型凭据及项目/资产/模板/媒体索引入库；新图片/视频/音频与缩略图存公司HTTP云存储，画布、对话、模板JSON及旧媒体仍留原卷。当前只确认先解决云存储，不顺带批准或实施此前讨论的画布/对话入库。复用 Bun 1.3.14 已核实存在的 `SQL` 与 `Bun.password`，采用参数化查询、事务、按用户 CAS 和 Argon2id，不增加 ORM、Redis 或第二服务框架。选择独立数据库符合本轮决定，并为账号/索引并发提供事务和约束；SQLite 或继续 JSON 不满足这次独立数据库服务的选择。新增成本为 DB 容器、独立卷、维护账号及备份/版本演进，均纳入本次交付。
+### Task 1: 去除管理员并打通SQL账号首次登录
 
-系统 conf 单例继续保存可信宿主设置；个人设置改为数据库事实，加载到当前认证上下文后供现有同步消费者使用，按用户和配置版本刷新缓存，不能为每用户再创建 conf 文件。模型 Key 加密入库，根加密密钥由应用侧受限 secret 文件保存。请求与后台任务沿用 AsyncLocalStorage 方式捕获身份及目录，不每请求改全局目录或供应商。数据库不能事务化磁盘文件或OSS：先完成本次新对象/文件写入，再发布SQL记录与索引；上传成功但SQL失败单独报告，HTTP缺物理删除时不得伪称回滚已清理云对象。具体方案由相应设计唯一维护。
+Consumes：当前accounts/context、认证路由、工作区根及全局技能写入边界。修改services/server/src/utils/accounts/、agent/skills/index.ts；删除routes/accounts四个管理接口并用现有routes命令重新生成router。删除createAdmin入口，新增scripts/userSql.ts，更新既有构建。
 
-## 实施安排与依赖
+Produces：仅普通身份的会话、本人改密、受控系统能力拒绝、幂等空配置/创作索引、离线SQL输出。验证成功登录事务不会覆盖已有记录、错误密码不初始化、重置/停用版本失效、SQL文字正确转义；不使用真实数据库或新增测试代码。
 
-1. 本版设计与Tasks、云媒体逻辑删除、mysql 8.4及固定命名已分别由notes 131807、131814确认；不重复请求原范围授权。
-2. 优先完成配置化的HTTP媒体适配与逻辑路径/媒体记录契约：复用真实GET/POST、Range与错误体规则，不引入Go、gRPC或新存储服务；实际持久链路依赖后续账号/SQL边界，不能单独把无鉴权OSS开放给浏览器。
-3. 在同一主仓完成 schema、版本化运维包、Compose 与应用 SQL 接入材料；数据库操作只在实际目标另行获准后执行，不由本次计划确认推导连接或迁移环境权限。
-4. 完成数据库账号/会话、服务端授权及个人数据读取。旧索引与配置通过显式事务接管给初始管理员，原文件保留；成功切换后只读数据库元数据，不双写或失败回退 JSON。
-5. 接通前端登录、账号管理、退出和用户状态清理；当前项目视图与持久索引分离，保留同账号 revision 和所有文件冲突保护。
-6. 核对后台任务、事件流、高权限旁路、数据库故障和文件/DB 部分失败；按许可完成双账号及恢复验证后交独立审查，目标机执行仍由人工或独立获准入口完成。
+### Task 2: 简化用户中心与隔离场景
 
-存量任务文件继续原位维护；本轮云存储新增任务及完整行为、位置和完成依据见 [tasks.md](tasks.md)。所有改动仍在同一 source/MR。现有共享服务端代码已保存不表示 #7 所有产品验收均已完成；本次回归受影响创作链路，真实供应商和目标机验收分别交接。
+依赖Task 1的AccountsPort。去除账号管理菜单、Port管理方法及生产调用；账号组件只保留三项密码表单，沿用标签、显示密码、提交loading、错误保留、关闭确认及成功重新登录。设置中的实例管理面在所有多用户账号下隐藏。
 
-## 验证与交付
+保留login/accountPassword场景，去除已删除的accountManagement场景；生产与Scenario仍共用页面且不接真实业务。局部图稿位于frontend/web/designs/accountAccess.svg，配套设计沿creationExperience.md维护，不改创作页布局或品牌。
 
-- 文档阶段：核对人工决定、真实storage HTTP文档/路由、配置可后填、200错误体、Range、MIME和删除/签名能力缺口，以及数据库选型、唯一数据来源、接管与恢复、任务依赖、相对链接、actual diff 及命名例外候选；不声称已连接数据库或完成账号功能。
-- 实现阶段：路由变化先 `bun run --cwd services/server routes`，再执行 Server 的 `typecheck`、`build`；Web 执行 `typecheck`、`build`、`build:scenario`。检查受影响公开包的既有命令，最后运行根 `bun run build:server` 核实聚合输出及管理员初始化入口。
-- 实现中先执行不连接数据库的运维包生成/conformance 和实际 schema 静态核对；需要连接的开发验证使用独立获准的临时数据库目标与数据目录，不读取真实测试/生产配置，不使用临时测试代码。验收覆盖 DB 断连/重启、唯一约束、CAS、事务回滚、旧资料接管重复/失败和备份恢复；再用两个独立浏览器上下文及同账号两个标签页核对：认证、登录失败限速、CSRF、登出/改密失效、管理员账号操作、跨用户文件/配置/会话拒绝、不同用户并行保存、同用户旧版本冲突、Range 媒体读取、服务重启及旧资料继承。不得连接或修改测试机真实数据卷，不写临时测试代码。
-- 真实模型：只有各自用户明确发送才调用各自凭据；任务结果和停止权归发起用户。缺有效 Key 时保留未实测项，不伪造供应商成功，不为验证自动收费重试。
-- Scenario：复用同一登录/创作页面，内存身份与展示数据不访问真实 API、工作区或供应商；不将内存切换说成生产鉴权通过。UI 实现时按适用 Skill 审视实际页面，本轮已实现同页登录、强制改密和账号管理，Scenario纯内存。
-- 交付前 fresh 核对同一 MR、HEAD 和必要 checks；按实际增量做隔离安全、正确性及验证审查。旧审查与有效检查按输入影响复用；未完成项如实报告，MR 不因本计划转 Ready。
+### Task 3: 交付单应用容器和SQL运维说明
 
-本版已获确认并实施，沿原Issue/source/MR继续交付。交付保留实际命令/结果、未实测项，以及数据库+文件卷+云对象+凭据加密密钥的配套备份恢复说明。Compose 增加内部 MySQL 服务和 mysqlData 卷，沿用既有应用端口及 appData；不映射数据库端口、不改 APISIX、不执行目标机部署。应用暂仍为单个可写实例，数据库不解除文件锁和任务单进程限制。
+依赖Task 1。ops/compose.yaml仅保留应用，外部MySQL地址由受限database.json配置；画布/对话文件使用明确应用数据目录，OSS地址和bucket通过环境变量填写。数据库schema仍由现有ops/db包在操作者自己的目标显式初始化，不把DDL绑定应用启动。
 
-新增数据库运维包存在工具强制名称，限定命名例外的完整路径见 [ops/database.md](../../../ops/database.md)；AGENTS已登记notes 131807、131814确认的固定名称。本版按已确认目标建立NFR、运维包及真实Facts，不扩大其它命名例外。
+更新ops/database.md、readme/storage导航、源码说明，以及受影响产品/系统/账号/数据库合同与内部设计；给出创建用户、重置/启停、初始化、密钥生成、权限及31230端口部署步骤。历史schema列、旧资料不接管、无真实环境验证和单实例限制如实说明。存量tasks.md仅修订冲突安排，不产生第二份当前方案。
 
-## 本轮云存储的已确认取舍
+### Task 4: 检查、独立审核和原MR交付
 
-- 保留Bun/TypeScript；参考Go封装的业务职责，但采用已核实公司storage的HTTP接口，不直接调用Go SDK，不建Go旁路。外部仓库只读调查，不修改其协议或部署。
-- 服务地址、bucket、可选prefix由配置文件或Compose环境变量后填，环境变量优先；缺失、非法或配置文件不可读时明确不可用，不填猜测地址，也不静默降级写本地。当前源码支持配置，实际部署例子在ops/database.md和storage.md维护。
-- 当前外部HTTP只有multipart POST保存、GET读取及单段Range；没有物理DELETE、GetAccessURL或GetUploadInfo HTTP操作。上传成功必须200且空响应，非空JSON错误不能误判成功；代理按实际媒体元数据修正MIME。
-- 首版已确认云媒体删除解除当前用户业务关联并保留仍被引用内容，暂不物理清理云对象。这是note 131807明确确认的回收行为；若要求立即物理删除，须先取得真实HTTP删除合同，不改外部storage或擅自切换gRPC。
-- Browser经本项目授权媒体入口读取；普通用户不能选bucket/object/origin。无鉴权OSS须限制网络可达范围，可绕过应用直接访问时不能宣称用户资料保密。模型引用不发送容器内网URL，按已有适配器的真实传输能力处理。
-- 新媒体以SQL映射指向云对象，旧local记录保留原文件、校验与路径边界；不自动迁移、删除或覆盖旧资料。复制以新键建立独立媒体并核对引用后发布，不能依赖源项目的可变对象。
-- 本轮已修改业务源码、Compose及运维材料，但未填写真实地址/bucket、未访问真实OSS、未上传/下载/删除媒体、未连接环境数据库。外部联调交后续获准目标；不新增测试或自检代码。
+先运行services/server现有routes；执行Server和Web现有typecheck、根build:server及Web build:scenario、数据库运维包config-check及git diff --check。共享包未改，仅按真实公开类型依赖扩大必要检查；不执行根聚合typecheck来替代已知可靠包入口。
 
-## 当前实施与交接边界
+适用时在同页面隔离Scenario手动核对登录失败、本人改密和用户中心已无账号管理，记录浏览器可用性和未验范围。手动执行离线userSql输入/输出，不执行生成SQL，不声明真实账号/DB/OSS通过。
 
-当前按用户明确选择切换为 `wf-prod-implement-plus`，保留同一计划与独立只读审核、验真、修复复审；不因入口改变扩大环境操作权限。源码包括SQL账号/会话及个人配置、显式旧资料接管、HTTP云媒体映射、请求身份与CSRF、同账号CAS、前端真实账号、Scenario及原生local启动边界。受控FFmpeg及模型/公开网页出站限制覆盖间接用户文件入口。
-
-必要静态检查和构建按实际结果更新MR；数据库连接、DDL、业务接管、OSS传输、真实付费模型和目标机Compose操作均未执行，不能报告完整业务验收。双账号/断连/CAS/恢复反例等安排保持，项目不新增测试或自检代码。完整源码检查及独立审核完成后仍由人工审阅MR，不自动approve/merge或关闭Issue。
+按已选择wf-prod-implement-plus对本轮完整增量做隔离正确性和验证审核，验真并修复复审。复用旧合法成果，不重做历史原型或工程迁移。检查与审核闭合后提交推送原issue/7，更新唯一MR !7，保留真实环境及仍受基线限制的检查缺口；不进行实际部署或最终合并。

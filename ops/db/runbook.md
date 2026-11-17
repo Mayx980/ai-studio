@@ -1,6 +1,6 @@
 # MySQL 数据库操作手册
 
-本包归 `server` 数据域，协议目标为 [mysql 8.4](../../architecture/nfr.md)。版本1包含9张业务/迁移表及运维用 `backupCatalog`，精确结构见 [数据合同](../../contracts/data/database.md)。操作只通过本目录 `db-ops` 分派，不直接执行 `operations/*.py`。普通部署与初始管理员接管见 [数据库部署](../database.md)。不需要安装 Skill。
+本包归 `server` 数据域，协议目标为 [mysql 8.4](../../architecture/nfr.md)。版本1包含9张业务/迁移表及运维用 `backupCatalog`，精确结构见 [数据合同](../../contracts/data/database.md)。操作只通过本目录 `db-ops` 分派，不直接执行 `operations/*.py`。普通部署与SQL维护登录账号见 [数据库部署](../database.md)。不需要安装 Skill。
 
 ## 准备
 
@@ -49,7 +49,7 @@ python3 -B db-ops run --entity server --operation revokesessions --config /run/s
 python3 -B db-ops check --entity server --operation table-check --config /run/secrets/database.yaml --format human
 ```
 
-`revokesessions`只删除全部会话并核实为空；不删账号/项目/文件。DBA还须核对备份时点后的停用/改密事件，恢复相应账号状态或重设密码。重新开放前用旧Cookie验证401，再以管理员、普通账号检查各自项目/资产/模型状态。不能以“恢复后点退出”替代全体会话撤销。
+`revokesessions`只删除全部会话并核实为空；不删账号/项目/文件。DBA还须核对备份时点后的停用/改密事件，恢复相应账号状态或重设密码。重新开放前用旧Cookie验证401，再以两个独立普通账号检查各自项目/资产/模型状态及相互隔离。不能以“恢复后点退出”替代全体会话撤销。
 
 ## 结果与限制
 

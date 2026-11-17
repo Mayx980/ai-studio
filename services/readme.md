@@ -11,4 +11,4 @@
 
 独立账号方案见 [accountIsolation](server/designs/accountIsolation.md)，认证和数据合同见 [accounts](../contracts/data/accounts.md)、[database](../contracts/data/database.md)。多用户standalone使用SQL个人配置及加密Key、用户文件根和统一云媒体入口，原生local显式保留原本机模式。
 
-[运行步骤](../ops/database.md)包含MySQL/原卷、schema和本地管理员接管；[云存储](../ops/storage.md)包含后填配置及网络条件。当前已接入源码，真实数据库/OSS、双账号与原生平台尚未联调，不把类型/构建通过当业务验收。
+[运行步骤](../ops/database.md)包含现有MySQL连接、schema及离线账号SQL维护；[云存储](../ops/storage.md)包含后填配置及网络条件。当前已接入源码，真实数据库/OSS、双账号与原生平台尚未联调，不把类型/构建通过当业务验收。

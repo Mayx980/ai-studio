@@ -17,7 +17,7 @@ configureAccountsPort(createScenarioAccountsPort(scenario));
 configurePrototypePort({
   workspaceMode: false,
   supportsCreation: false,
-  requiresAccount: ["login", "accountPassword", "accountManagement"].includes(scenario),
+  requiresAccount: ["login", "initialPassword", "accountPassword"].includes(scenario),
   readLegacyState: () => null,
   readAccount: () => null,
   writeAccount: unavailableSync,

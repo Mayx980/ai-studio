@@ -37,7 +37,7 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, shallowRef } from "vue";
-import { accountsRequired, isAdministrator } from "@/stores/accounts";
+import { accountsRequired } from "@/stores/accounts";
 import { hasDesktopUpdate } from "@/stores/desktopUpdate";
 import {
   IconPalette,
@@ -74,7 +74,7 @@ const allPanels = [
   { id: "developer", label: "开发者选项", icon: IconCode, component: defineAsyncComponent(() => import("./panels/developer/index.vue")) },
   { id: "about", label: "关于", icon: IconInfoCircle, component: defineAsyncComponent(() => import("./panels/about.vue")) },
 ];
-const settingsPanels = computed(() => allPanels.filter(item => !accountsRequired.value || item.id !== "mcp" && (!["pluginMarket", "developer"].includes(item.id) || isAdministrator.value)));
+const settingsPanels = computed(() => allPanels.filter(item => !accountsRequired.value || !["mcp", "pluginMarket", "developer"].includes(item.id)));
 const activePanel = shallowRef(allPanels[0]!);
 const visible = defineModel<boolean>({ default: false });
 </script>

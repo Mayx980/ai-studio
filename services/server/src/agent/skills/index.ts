@@ -6,7 +6,7 @@ import type { SkillContext, SkillLocation, SkillScope } from "@toonflow/tools-sc
 import conf from "@/utils/conf";
 import { directory, isEnabled } from "@/utils/skills/files";
 import { isWithin, lockWorkspaceFiles, resolveWorkspacePath, writeWorkspaceFile } from "@/utils/workspace/files";
-import { requireAdmin } from "@/utils/accounts/context";
+import { requireLocal } from "@/utils/accounts/context";
 
 export function loadAgentSkills(cwd: string, scope?: SkillScope) {
   if (scope !== undefined && scope !== "workspace" && scope !== "global") throw new Error("技能范围无效");
@@ -33,7 +33,7 @@ export function createSkillContext(cwd: string): SkillContext {
     if (!skill && !create) throw new Error(t`技能不存在：${request.name}`);
     if (!skill && (request.name.length > 64 || !/^[a-z][a-zA-Z0-9]*$/.test(request.name))) throw new Error("新技能名称必须为不超过 64 字符的小驼峰");
     const targetScope = scope ?? skillScope(skill!.filePath);
-    if (targetScope === "global" && writing) requireAdmin();
+    if (targetScope === "global" && writing) requireLocal();
     const systemRead = targetScope === "global" && !writing;
     const root = await realpath(targetScope === "workspace" ? cwd : dirname(conf.path));
     const { path: scopeDirectory } = await resolveWorkspacePath(root, targetScope === "workspace" ? "skill" : "skills", true, systemRead);

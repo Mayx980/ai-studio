@@ -1,5 +1,5 @@
 import { StudioError } from "@/ports";
-import type { AccountsPort, AccountSession, UserAccount } from "@/ports/accounts";
+import type { AccountsPort, AccountSession } from "@/ports/accounts";
 
 let session: AccountSession = { mode: "local", user: null };
 let expired = false;
@@ -50,7 +50,7 @@ async function request<T>(path: string, method = "GET", data?: object, anonymous
 }
 
 function remember(value: AccountSession) {
-  if (!["local", "users"].includes(value.mode) || value.user && (typeof value.user.id !== "string" || !["admin", "user"].includes(value.user.role))
+  if (!["local", "users"].includes(value.mode) || value.user && (typeof value.user.id !== "string" || value.user.role !== "user")
     || value.user && !/^[a-f0-9]{64}$/.test(value.csrf ?? "")) throw new Error("服务端返回的账号状态无效");
   session = value;
   expired = false;
@@ -65,9 +65,5 @@ export function createAccountsPort(): AccountsPort {
     login: async (username, password) => remember(await request<AccountSession>("auth/login", "POST", { username, password }, true)),
     logout: async () => { await request("auth/logout", "POST"); },
     changePassword: async (previous, password) => { await request("auth/password", "PUT", { previous, password }); },
-    list: () => request<UserAccount[]>("accounts/list"),
-    create: async input => { await request("accounts/create", "POST", input); },
-    update: async (id, enabled) => { await request("accounts/update", "PUT", { id, enabled }); },
-    resetPassword: async (id, password) => { await request("accounts/resetPassword", "PUT", { id, password }); },
   };
 }

@@ -404,7 +404,6 @@
     "frontend/web/src/components/settings/panels/developer/index.vue",
     "frontend/web/src/components/settings/panels/personalization.vue",
     "frontend/web/src/components/settings/tfRechargeDialog.vue",
-    "frontend/web/src/components/accountManagement.vue",
     "frontend/web/src/components/personalAssetBrowser.vue",
     "frontend/web/src/components/creativeCases.vue",
     "frontend/web/src/components/templateReview.vue",
@@ -460,8 +459,7 @@
     "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue",
     "frontend/web/src/components/settings/panels/mediaModel/addCustomProviderDialog.vue",
     "frontend/web/src/components/settings/panels/languageModel/addProviderDialog.vue",
-    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue",
-    "frontend/web/src/components/accountManagement.vue"
+    "frontend/web/src/components/settings/panels/languageModel/addCustomProviderDialog.vue"
   ],
   "模型显示名称": [
     "frontend/web/src/components/settings/panels/mediaModel/modelEditorDialog.vue",
@@ -957,8 +955,7 @@
     "frontend/web/src/components/settings/panels/general/nodeMenuSettings.vue"
   ],
   "停用": [
-    "frontend/web/src/components/settings/panels/general/nodeMenuSettings.vue",
-    "frontend/web/src/components/accountManagement.vue"
+    "frontend/web/src/components/settings/panels/general/nodeMenuSettings.vue"
   ],
   "编辑{0}": [
     "frontend/web/src/components/settings/panels/general/nodeMenuSettings.vue"
@@ -1834,13 +1831,13 @@
   "放弃修改": [
     "frontend/web/src/components/settings/panels/pluginMarket/skillEditorDialog.vue",
     "frontend/web/src/components/settings/panels/pluginMarket/agentEditorDialog.vue",
-    "frontend/web/src/components/accountManagement.vue"
+    "frontend/web/src/components/accountPassword.vue"
   ],
   "继续编辑": [
     "frontend/web/src/components/settings/panels/pluginMarket/skillEditorDialog.vue",
     "frontend/web/src/components/settings/panels/pluginMarket/agentEditorDialog.vue",
     "frontend/web/src/components/settings/panels/personalization.vue",
-    "frontend/web/src/components/accountManagement.vue"
+    "frontend/web/src/components/accountPassword.vue"
   ],
   "保存文件失败": [
     "frontend/web/src/components/settings/panels/pluginMarket/skillEditorDialog.vue",
@@ -2401,8 +2398,7 @@
     "frontend/web/src/components/settings/panels/developer/index.vue"
   ],
   "刷新列表": [
-    "frontend/web/src/components/settings/panels/developer/index.vue",
-    "frontend/web/src/components/accountManagement.vue"
+    "frontend/web/src/components/settings/panels/developer/index.vue"
   ],
   "（空键名）": [
     "frontend/web/src/components/settings/panels/developer/index.vue"
@@ -2925,110 +2921,41 @@
     "frontend/web/src/lib/providerBilling.ts"
   ],
   "修改密码": [
-    "frontend/web/src/components/accountManagement.vue",
-    "frontend/web/src/components/accountMenu.vue"
-  ],
-  "账号管理": [
-    "frontend/web/src/components/accountManagement.vue",
-    "frontend/web/src/components/accountMenu.vue"
+    "frontend/web/src/components/accountMenu.vue",
+    "frontend/web/src/components/accountPassword.vue"
   ],
   "当前密码": [
-    "frontend/web/src/components/accountManagement.vue"
+    "frontend/web/src/components/accountPassword.vue"
   ],
   "新密码（15–128字符）": [
-    "frontend/web/src/components/accountManagement.vue",
-    "frontend/web/src/pages/login/index.vue"
+    "frontend/web/src/pages/login/index.vue",
+    "frontend/web/src/components/accountPassword.vue"
   ],
   "再次输入新密码": [
-    "frontend/web/src/components/accountManagement.vue",
-    "frontend/web/src/pages/login/index.vue"
+    "frontend/web/src/pages/login/index.vue",
+    "frontend/web/src/components/accountPassword.vue"
   ],
   "修改并重新登录": [
-    "frontend/web/src/components/accountManagement.vue",
-    "frontend/web/src/pages/login/index.vue"
-  ],
-  "创建普通账号": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "正在读取账号…": [
-    "frontend/web/src/components/accountManagement.vue"
+    "frontend/web/src/pages/login/index.vue",
+    "frontend/web/src/components/accountPassword.vue"
   ],
   "管理员": [
-    "frontend/web/src/components/accountManagement.vue",
     "frontend/web/src/components/templateReview.vue"
   ],
   "普通用户": [
-    "frontend/web/src/components/accountManagement.vue",
     "frontend/web/src/components/templateReview.vue"
   ],
-  "启用": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "重置密码": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "保留初始管理员账号": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "重置密码：{0}": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "用户名（3–64位字母、数字或点）": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "初始密码（15–128字符，首次登录须修改）": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "再次输入初始密码": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "创建账号": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "尚未提交的账号信息或密码将被清空。": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
   "放弃本次修改？": [
-    "frontend/web/src/components/accountManagement.vue"
+    "frontend/web/src/components/accountPassword.vue"
   ],
   "密码须为15–128字符": [
-    "frontend/web/src/components/accountManagement.vue"
+    "frontend/web/src/components/accountPassword.vue"
   ],
   "两次密码不一致": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "将重置“{0}”的密码并撤销其全部登录会话。": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "重置账号密码": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "密码已重置": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "请填写有效的用户名和显示名称": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "账号已创建": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "将{0}“{1}”，其原登录会话将失效。": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "修改账号状态": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "停用账号": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "启用账号": [
-    "frontend/web/src/components/accountManagement.vue"
-  ],
-  "账号状态已更新": [
-    "frontend/web/src/components/accountManagement.vue"
+    "frontend/web/src/components/accountPassword.vue"
   ],
   "请输入当前密码": [
-    "frontend/web/src/components/accountManagement.vue"
+    "frontend/web/src/components/accountPassword.vue"
   ],
   "对话历史侧边栏": [
     "frontend/web/src/components/agentHistorySidebar.vue"
@@ -6512,9 +6439,6 @@
   "登录": [
     "frontend/web/src/pages/login/index.vue"
   ],
-  "请先修改管理员提供的初始密码。": [
-    "frontend/web/src/pages/login/index.vue"
-  ],
   "初始密码": [
     "frontend/web/src/pages/login/index.vue"
   ],
@@ -9053,7 +8977,8 @@
     "services/server/src/utils/accounts/index.ts"
   ],
   "多用户Web服务不开放此本机或未绑定用户的能力": [
-    "services/server/src/utils/accounts/index.ts"
+    "services/server/src/utils/accounts/index.ts",
+    "services/server/src/utils/accounts/context.ts"
   ],
   "该接口尚未归入用户授权范围": [
     "services/server/src/utils/accounts/index.ts"
@@ -9064,16 +8989,7 @@
   "用户名或密码错误": [
     "services/server/src/utils/accounts/index.ts"
   ],
-  "账号数超过当前管理入口上限1000，未截断列表": [
-    "services/server/src/utils/accounts/index.ts"
-  ],
-  "当前单实例最多管理1000个账号": [
-    "services/server/src/utils/accounts/index.ts"
-  ],
   "账号不存在": [
-    "services/server/src/utils/accounts/index.ts"
-  ],
-  "不能停用最后一个有效管理员": [
     "services/server/src/utils/accounts/index.ts"
   ],
   "当前密码错误": [
@@ -9083,9 +8999,6 @@
     "services/server/src/utils/accounts/index.ts"
   ],
   "请先登录": [
-    "services/server/src/utils/accounts/context.ts"
-  ],
-  "此操作需要管理员权限": [
     "services/server/src/utils/accounts/context.ts"
   ],
   "没有权限访问这个工作目录": [
@@ -10900,5 +10813,11 @@
   ],
   "FFmpeg 已取消": [
     "packages/ffmpeg/src/remote.ts"
+  ],
+  "请先修改初始密码。": [
+    "frontend/web/src/pages/login/index.vue"
+  ],
+  "尚未提交的密码将被清空。": [
+    "frontend/web/src/components/accountPassword.vue"
   ]
 }

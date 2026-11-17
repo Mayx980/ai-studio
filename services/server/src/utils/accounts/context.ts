@@ -1,8 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { resolve, relative, isAbsolute, sep } from "node:path";
 
-export type Account = { id: string; username: string; name: string; role: "admin" | "user"; enabled: boolean;
-  authVersion: number; mustChangePassword: boolean; legacyRoot: boolean };
+export type Account = { id: string; username: string; name: string; role: "user"; enabled: boolean;
+  authVersion: number; mustChangePassword: boolean };
 export type AccountContext = { user: Account; root: string; session: string; csrf: string;
   configuration: Record<string, unknown>; configurationRevision: number; background?: boolean };
 const context = new AsyncLocalStorage<AccountContext>();
@@ -20,8 +20,8 @@ export function requireAccount() {
 export function runAs<T>(value: AccountContext, operation: () => T) { return context.run(value, operation); }
 export function systemRoot() { return instanceRoot || process.env.TOONFLOW_DATA_DIR!; }
 export function userRoot() { return usesAccounts() ? requireAccount().root : systemRoot(); }
-export function requireAdmin() {
-  if (usesAccounts() && requireAccount().user.role !== "admin") throw Object.assign(new Error("此操作需要管理员权限"), { status: 403 });
+export function requireLocal() {
+  if (usesAccounts()) throw Object.assign(new Error("多用户Web服务不开放此本机或未绑定用户的能力"), { status: 403 });
 }
 export function ownerId() { return usesAccounts() ? requireAccount().user.id : "local"; }
 
@@ -31,10 +31,6 @@ export function authorizePath(path: string, systemRead = false) {
     const offset = relative(resolve(systemRoot(), "skills"), resolve(path));
     if (offset !== ".." && !offset.startsWith(`..${sep}`) && !isAbsolute(offset)) return;
   }
-  if (requireAccount().user.role === "admin" && ["tools", "nodes", "providers", "ext", "skills", "agents", "ffmpeg"].some(name => {
-    const offset = relative(resolve(systemRoot(), name), resolve(path));
-    return offset !== ".." && !offset.startsWith(`..${sep}`) && !isAbsolute(offset);
-  })) return;
   const root = requireAccount().root;
   const allowed = path === resolve(root, "AGENTS.md") || ["workspaces", "assets", "templates", "singleAgent", "ai", "personalization", "memories"].some(name => {
     const offset = relative(resolve(root, name), resolve(path));

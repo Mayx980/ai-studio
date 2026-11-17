@@ -12,7 +12,7 @@
         <el-button type="primary" nativeType="submit" :loading="busy">登录</el-button>
       </form>
       <form v-else @submit.prevent="changePassword">
-        <p>请先修改管理员提供的初始密码。</p>
+        <p>请先修改初始密码。</p>
         <label for="previousPassword">初始密码</label>
         <el-input id="previousPassword" v-model="password" type="password" autocomplete="current-password" :maxlength="128" showPassword />
         <label for="newPassword">新密码（15–128字符）</label>

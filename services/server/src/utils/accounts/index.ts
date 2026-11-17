@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { join } from "node:path";
 import type { SQL } from "bun";
 import type { Request, Response, NextFunction } from "express";
@@ -6,9 +6,9 @@ import { z } from "zod";
 import { errorFromCause } from "@/lib/responseFormat";
 import * as database from "@/utils/database";
 import * as secrets from "@/utils/database/secrets";
-import { currentAccount, requireAccount, requireAdmin, runAs, systemRoot, usesAccounts, type Account, type AccountContext } from "./context";
+import { currentAccount, requireAccount, requireLocal, runAs, systemRoot, usesAccounts, type Account, type AccountContext } from "./context";
 
-export { currentAccount, requireAccount, requireAdmin, usesAccounts } from "./context";
+export { currentAccount, requireAccount, requireLocal, usesAccounts } from "./context";
 export const passwordSchema = z.string().min(15).max(128);
 export const usernameSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9.]{2,63}$/);
 const cookieName = "afxenSession";
@@ -50,8 +50,10 @@ function verifyPassword(password: string, hash: string) {
   });
 }
 function account(row: Record<string, any>): Account {
-  return { id: row.id, username: row.username, name: row.name, role: row.role, enabled: Number(row.enabled) === 1,
-    authVersion: Number(row.authVersion), mustChangePassword: Number(row.mustChangePassword) === 1, legacyRoot: Number(row.legacyRoot) === 1 };
+  if (!z.uuid().safeParse(row.id).success) throw database.unavailable();
+  // ACT: schema v1保留旧role/legacyRoot列；所有Web账号只拥有自己的用户根。
+  return { id: row.id, username: row.username, name: row.name, role: "user", enabled: Number(row.enabled) === 1,
+    authVersion: Number(row.authVersion), mustChangePassword: Number(row.mustChangePassword) === 1 };
 }
 export function publicAccount(value: Account) {
   return { id: value.id, username: value.username, name: value.name, role: value.role, enabled: Number(value.enabled) === 1, mustChangePassword: Number(value.mustChangePassword) === 1 };
@@ -128,7 +130,7 @@ export async function authenticate(request: Request) {
       WHERE s.tokenHash = ${digest(token)} AND s.expiresAt > ${Date.now()} AND s.authVersion = u.authVersion AND u.enabled = 1`;
     if (!row) throw denied();
     const user = account(row);
-    const root = user.legacyRoot ? systemRoot() : join(systemRoot(), "users", user.id);
+    const root = join(systemRoot(), "users", user.id);
     return { user, root, session: row.tokenHash, csrf: row.csrf, ...await readConfiguration(transaction, user.id) } satisfies AccountContext;
   }));
 }
@@ -148,12 +150,12 @@ export async function middleware(request: Request, response: Response, next: Nex
     if (value.user.mustChangePassword && !["/auth/password", "/auth/logout"].includes(request.path)) throw denied(403, "请先修改初始密码");
     runAs(value, () => {
       const path = request.path;
-      if (/^\/(desktop|mobileLink|browser|connection)(\/|$)/.test(path) || /^\/agents\/(a2a|connect)(\/|$)/.test(path)
+      if (/^\/(accounts|desktop|mobileLink|browser|connection)(\/|$)/.test(path) || /^\/agents\/(a2a|connect)(\/|$)/.test(path)
         || /^\/mcp(\/|$)/.test(path)) throw denied(403, "多用户Web服务不开放此本机或未绑定用户的能力");
       if (/^\/(tools|nodes|ext|skills|agents)\/(install|uninstall|save|create|move|order|setEnabled)(\/|$)/.test(path)
         || /^\/providers\/(debug|media\/(add|delete|validate))(\/|$)/.test(path) || path === "/plugins/export"
-        || /^\/ffmpeg\/(download|cancel)$/.test(path)) requireAdmin();
-      if (!/^\/(auth|accounts|agent|agents|ai|assets|ext|ffmpeg|marketplace|mcp|nodes|plugins|providers|settings|singleAgent|skills|studio|tools|workspaces)(\/|$)/.test(path)) {
+        || /^\/ffmpeg\/(download|cancel)$/.test(path)) requireLocal();
+      if (!/^\/(auth|agent|agents|ai|assets|ext|ffmpeg|marketplace|mcp|nodes|plugins|providers|settings|singleAgent|skills|studio|tools|workspaces)(\/|$)/.test(path)) {
         throw denied(403, "该接口尚未归入用户授权范围");
       }
       next();
@@ -196,17 +198,23 @@ export async function login(request: Request, response: Response, username: stri
     for (const key of sources) { const value = failures.get(key); failures.set(key, { count: (value?.count ?? 0) + 1, expires: value?.expires ?? now + 15 * 60_000 }); }
     throw denied(401, "用户名或密码错误");
   }
+  const identity = account(user);
   const token = randomBytes(32).toString("hex");
   const csrf = randomBytes(32).toString("hex");
   await database.run(sql => sql.begin(async transaction => {
     const [current] = await transaction`SELECT enabled, authVersion FROM users WHERE id = ${user.id} FOR UPDATE`;
     if (!current?.enabled || Number(current.authVersion) !== Number(user.authVersion)) throw denied();
+    // SQL只需创建users记录；同一用户行锁协调首次登录，不覆盖已有个人资料。
+    await transaction`INSERT INTO userSettings (userId, payload, revision) VALUES (${user.id}, '{"settings":{}}', 1)
+      ON DUPLICATE KEY UPDATE userId = userId`;
+    await transaction`INSERT INTO creationStates (userId, payload, revision) VALUES (${user.id}, '{}', ${digest("{}")})
+      ON DUPLICATE KEY UPDATE userId = userId`;
     await transaction`DELETE FROM sessions WHERE expiresAt <= ${now}`;
     await transaction`INSERT INTO sessions (tokenHash, userId, authVersion, csrf, expiresAt)
       VALUES (${digest(token)}, ${user.id}, ${user.authVersion}, ${csrf}, ${now + sessionLifetime})`;
   }));
   setCookie(request, response, token, sessionLifetime);
-  return { user: publicAccount(account(user)), csrf, mode: "users" };
+  return { user: publicAccount(identity), csrf, mode: "users" };
 }
 
 export async function logout(request: Request, response: Response) {
@@ -215,65 +223,18 @@ export async function logout(request: Request, response: Response) {
   setCookie(request, response, "", 0);
 }
 
-export async function listAccounts() {
-  requireAdmin();
-  return database.run(async sql => {
-    const rows = await sql`SELECT id, username, name, role, enabled, mustChangePassword FROM users ORDER BY createdAt, id LIMIT 1001`;
-    if (rows.length > 1000) throw denied(413, "账号数超过当前管理入口上限1000，未截断列表");
-    return rows.map(publicAccount);
-  });
-}
-
-export async function createAccount(username: string, name: string, password: string) {
-  requireAdmin();
-  const title = z.string().min(1).max(80).parse(name.trim());
-  const hash = await hashPassword(passwordSchema.parse(password));
-  const id = randomUUID();
-  await database.run(sql => sql.begin(async transaction => {
-    await transaction`SELECT id FROM users WHERE role = 'admin' ORDER BY id FOR UPDATE`;
-    await assertSession(transaction);
-    const [count] = await transaction`SELECT COUNT(*) AS total FROM users`;
-    if (Number(count.total) >= 1000) throw denied(409, "当前单实例最多管理1000个账号");
-    await transaction`INSERT INTO users (id, username, name, role, enabled, passwordHash, authVersion, mustChangePassword, legacyRoot, createdAt)
-      VALUES (${id}, ${usernameSchema.parse(username).toLowerCase()}, ${title}, 'user', 1, ${hash}, 1, 1, 0, ${Date.now()})`;
-    await writeConfiguration(transaction, id, { settings: {} });
-    const state = "{}";
-    await transaction`INSERT INTO creationStates (userId, payload, revision) VALUES (${id}, ${state}, ${digest(state)})`;
-  }));
-  return { id };
-}
-
-export async function updateAccount(id: string, enabled: boolean) {
-  requireAdmin();
-  await database.run(sql => sql.begin(async transaction => {
-    // ACT: 当前只支持初始管理员和普通账号；按管理员行串行化管理，不修改迁移标记。
-    await transaction`SELECT id FROM users WHERE role = 'admin' ORDER BY id FOR UPDATE`;
-    await assertSession(transaction);
-    const [row] = await transaction`SELECT role, enabled FROM users WHERE id = ${id} FOR UPDATE`;
-    if (!row) throw denied(404, "账号不存在");
-    if (!enabled && row.role === "admin") {
-      const [count] = await transaction`SELECT COUNT(*) AS total FROM users WHERE role = 'admin' AND enabled = 1`;
-      if (Number(count.total) <= 1) throw denied(409, "不能停用最后一个有效管理员");
-    }
-    await transaction`UPDATE users SET enabled = ${enabled ? 1 : 0}, authVersion = authVersion + 1 WHERE id = ${id}`;
-    await transaction`DELETE FROM sessions WHERE userId = ${id}`;
-  }));
-}
-
-export async function changePassword(password: string, previous?: string, targetId?: string) {
+export async function changePassword(password: string, previous: string) {
   const value = requireAccount();
-  if (targetId) requireAdmin();
-  const id = targetId ?? value.user.id;
+  const id = value.user.id;
   const [row] = await database.run(sql => sql`SELECT passwordHash, authVersion FROM users WHERE id = ${id}`);
   if (!row) throw denied(404, "账号不存在");
-  if (!targetId && (!previous || !await verifyPassword(previous, row.passwordHash))) throw denied(403, "当前密码错误");
+  if (!previous || !await verifyPassword(previous, row.passwordHash)) throw denied(403, "当前密码错误");
   const hash = await hashPassword(passwordSchema.parse(password));
   await database.run(sql => sql.begin(async transaction => {
-    if (targetId) await transaction`SELECT id FROM users WHERE role = 'admin' ORDER BY id FOR UPDATE`;
     await assertSession(transaction);
     const [current] = await transaction`SELECT authVersion FROM users WHERE id = ${id} FOR UPDATE`;
     if (Number(current?.authVersion) !== Number(row.authVersion)) throw denied(409, "账号已变更，请重新操作");
-    await transaction`UPDATE users SET passwordHash = ${hash}, authVersion = authVersion + 1, mustChangePassword = ${targetId ? 1 : 0} WHERE id = ${id}`;
+    await transaction`UPDATE users SET passwordHash = ${hash}, authVersion = authVersion + 1, mustChangePassword = 0 WHERE id = ${id}`;
     await transaction`DELETE FROM sessions WHERE userId = ${id}`;
   }));
 }

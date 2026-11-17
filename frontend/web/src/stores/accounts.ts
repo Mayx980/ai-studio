@@ -1,10 +1,9 @@
-import { ref, computed } from "vue";
+import { ref } from "vue";
 import { accounts, type UserAccount } from "@/ports/accounts";
 
 export const currentUser = ref<UserAccount | null>(null);
 export const accountsRequired = ref(false);
 export const sessionExpired = ref(false);
-export const isAdministrator = computed(() => currentUser.value?.role === "admin");
 let channel: BroadcastChannel | undefined;
 
 export async function loadAccountSession() {
