@@ -18,7 +18,7 @@
               <div v-else-if="!rows.length" class="mentionStatus" role="status">{{ emptyText }}</div>
               <div v-if="groupedMedia" class="mentionGroups">
                 <section v-for="group in mediaGroups" :key="group.type" class="mentionGroup" role="group" :aria-label="group.label">
-                  <div class="mentionGroupTitle">{{ group.label }} · {{ group.items.length }}</div>
+                  <div class="mentionGroupTitle">{{ group.label }}<span class="mentionGroupCount"> · {{ group.items.length }}</span></div>
                   <button v-for="{ row, index } in group.items" :id="`${listId}-${index}`" :key="row.id" class="mentionGroupItem mentionItem" :class="{ active: keyboardNavigation && index === activeIndex }" type="button" role="option" :aria-selected="index === activeIndex" @mouseenter="keyboardNavigation = false; activeIndex = index" @mousedown.prevent @click="chooseRow(row)">
                     <attachmentPreview class="groupThumbnail" hideNativeTitle hoverPreview :previewTarget="popupElement" :attachment="attachments![Number(row.id)]!" :directory="directory" />
                     <icon-player-play v-if="row.dataType === 'video'" class="groupVideoMark" :size="9" aria-hidden="true" />
@@ -498,7 +498,7 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
         :deep(.el-scrollbar__bar.is-vertical) { width: 4px; right: 2px; }
       }
       .mentionList { padding: 0 10px 5px; }
-      .mentionFooter { padding-top: 7px; padding-bottom: 7px; color: var(--el-text-color-secondary); }
+      .mentionFooter { padding-top: 7px; padding-bottom: 7px; color: #92969f; }
     }
     min-width: 0;
     box-sizing: border-box;
@@ -614,13 +614,16 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
           padding: 0 6px 6px;
           border: 1px solid rgb(255 255 255 / 14%);
           border-radius: 10px;
-          background: #000;
+          background: #111214;
           .mentionGroupTitle {
             margin: 0 -6px 6px;
             padding: 5px 13px;
-            border-bottom: 1px solid rgb(255 255 255 / 8%);
-            color: var(--el-text-color-secondary);
+            border-bottom: 1px solid rgb(255 255 255 / 5%);
+            border-radius: 9px 9px 0 0;
+            background: #1a1c20;
+            color: #c4c7ce;
             font-size: 12px;
+            .mentionGroupCount { color: #92969f; }
           }
           .mentionGroupItem {
             position: relative;
@@ -638,7 +641,7 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
             text-align: left;
             font: inherit;
             cursor: pointer;
-            &:hover { background: var(--el-fill-color-light); }
+            &:hover { background: #292c32; }
             &.active, &:focus-visible { outline: 1px solid var(--el-color-primary); outline-offset: -1px; }
             .groupVideoMark { position: absolute; left: 27px; top: 26px; padding: 1px; border-radius: 2px; color: #fff; background: #000b; pointer-events: none; }
             .groupThumbnail {
@@ -648,7 +651,7 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
               :deep(.thumbnailImage), :deep(.thumbnailButton) { width: 30px; height: 30px; box-sizing: border-box; border-radius: 4px; border-color: rgb(255 255 255 / 12%); }
               :deep(.videoDuration), :deep(.videoIcon) { display: none; }
             }
-            .mentionGroupName { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .mentionGroupName { color: #eceef2; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           }
         }
       }
