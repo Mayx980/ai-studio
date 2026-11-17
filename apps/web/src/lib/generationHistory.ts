@@ -18,7 +18,7 @@ export function readGenerationSettings(value: unknown): GenerationSettings | und
   return parsed.data;
 }
 
-export type GenerationRecord = { id: string; kind: "image" | "video" | "audio"; path: string; mimeType?: string; name?: string; createdAt?: number; prompt?: string; model?: string; settings?: GenerationSettings; origin?: GenerationOrigin; references?: { path: string; mimeType: string; name?: string; referenceRole?: string }[] };
+export type GenerationRecord = { id: string; batchId?: string; kind: "image" | "video" | "audio"; path: string; mimeType?: string; name?: string; createdAt?: number; prompt?: string; model?: string; settings?: GenerationSettings; origin?: GenerationOrigin; references?: { path: string; mimeType: string; name?: string; referenceRole?: string }[] };
 const pendingSaves = new Map<string, Promise<void>>();
 export async function recordGenerationResults(directory: string, records: GenerationRecord[]) {
   const previous = pendingSaves.get(directory) ?? Promise.resolve();

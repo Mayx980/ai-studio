@@ -7,7 +7,7 @@
         <el-alert v-if="error" :title="error" type="error" :closable="false" />
         <p v-if="loading" role="status">正在读取生成历史…</p>
         <div v-for="group in groups" :key="group.date" class="historyGroup"><h3>{{ group.date }}</h3><div class="historyGrid"><article v-for="item in group.items" :key="item.key" class="historyCard" :class="{ selected: selected.includes(item.key) }">
-          <button class="mediaPreview" type="button" :aria-label="'预览 ' + item.name" @click="preview = item"><img v-if="item.kind === 'image'" :src="item.url" :alt="item.name" /><assetVideoPreview v-else-if="item.kind === 'video'" :src="item.url" /><icon-volume v-else :size="36" /></button>
+          <button class="mediaPreview" type="button" :title="item.name" :aria-label="'预览 ' + item.name" @click="preview = item"><img v-if="item.kind === 'image'" :src="item.url" :alt="item.name" /><assetVideoPreview v-else-if="item.kind === 'video'" :src="item.url" /><icon-volume v-else :size="36" /></button>
           <input v-model="selected" type="checkbox" :value="item.key" :aria-label="'选择 ' + item.name" :disabled="busy" />
           <div class="hoverActions"><el-tooltip content="去画布/对话编辑" placement="top"><el-button :disabled="busy" aria-label="去画布/对话编辑" @click="run('canvas', [item])"><icon-edit :size="16" /></el-button></el-tooltip><el-tooltip content="保存到个人资产" placement="top"><el-button :disabled="busy" :aria-label="'保存到个人资产 ' + item.name" title="保存到个人资产" @click="run('save', [item])"><icon-folder-plus :size="16" /></el-button></el-tooltip><el-tooltip content="下载素材" placement="top"><el-button :disabled="busy" :aria-label="'下载 ' + item.name" title="下载素材" @click="run('download', [item])"><icon-download :size="16" /></el-button></el-tooltip><el-tooltip content="删除历史" placement="top"><el-button :disabled="busy" :aria-label="'删除 ' + item.name" title="删除历史" @click="run('delete', [item])"><icon-trash :size="16" /></el-button></el-tooltip></div>
         </article></div></div>
@@ -19,7 +19,7 @@
     <el-dialog :modelValue="!!preview" class="generationDetail" width="min(1200px, 96vw)" alignCenter appendToBody destroyOnClose :showClose="false" @update:modelValue="preview = undefined">
       <div v-if="preview" class="generationPreview">
         <div class="previewMedia"><img v-if="preview.kind === 'image'" :src="preview.url" :alt="preview.name" /><video v-else-if="preview.kind === 'video'" :src="preview.url" controls playsinline /><audio v-else :src="preview.url" controls /></div>
-        <aside class="previewInformation"><header><strong>{{ { image: '图片', video: '视频', audio: '音频' }[preview.kind] }}</strong><el-button text circle aria-label="关闭素材详情" @click="preview = undefined"><icon-x :size="17" /></el-button></header>
+        <aside class="previewInformation"><header><strong>{{ preview.name }}</strong><el-button text circle aria-label="关闭素材详情" @click="preview = undefined"><icon-x :size="17" /></el-button></header>
           <dl><template v-if="preview.createdAt"><dt>创建于</dt><dd>{{ new Date(preview.createdAt).toLocaleString() }}</dd></template></dl>
           <div class="promptHeading"><span>生成信息</span><el-tooltip content="复制生成信息"><el-button text circle aria-label="复制生成信息" :disabled="!preview.prompt" @click="copyPrompt"><icon-copy :size="16" /></el-button></el-tooltip></div>
           <p class="generationPrompt">{{ preview.prompt || '未记录提示词' }}</p>
@@ -67,7 +67,7 @@ const groups = computed(() => {
   return [...result].map(([date, entries]) => ({ date, items: entries }));
 });
 onMounted(() => history.load());
-async function fileFor(item: HistoryItem) { return new File([await useWorkspaceFiles(item.directory).read(item.path)], item.name, { type: item.mimeType }); }
+async function fileFor(item: HistoryItem) { return new File([await useWorkspaceFiles(item.directory).read(item.path)], item.fileName, { type: item.mimeType }); }
 async function run(action: "canvas" | "newCanvas" | "save" | "download" | "delete", targets = items.value.filter(item => selected.value.includes(item.key))) {
   if (busy.value || !targets.length) return;
   busy.value = true;
@@ -82,7 +82,7 @@ async function run(action: "canvas" | "newCanvas" | "save" | "download" | "delet
       return;
     }
     if (action === "save") {
-      await saveDialog.value?.open(await Promise.all(targets.map(async item => ({ file: await fileFor(item), metadata: { source: "生成历史", prompt: item.prompt, model: item.model, origin: await resolveGenerationOrigin(item.directory, item) } }))));
+      await saveDialog.value?.open(await Promise.all(targets.map(async item => ({ file: await fileFor(item), name: item.name, metadata: { source: "生成历史", prompt: item.prompt, model: item.model, origin: await resolveGenerationOrigin(item.directory, item) } }))));
       return;
     }
     if (action === "delete") {

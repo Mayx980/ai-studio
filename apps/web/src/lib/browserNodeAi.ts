@@ -92,7 +92,8 @@ async function saveAssets(assets: { type: string; data?: string | Uint8Array; ur
     await files.write(path, blob, true);
     return { path, mimeType, mediaType: kind };
   }));
-  const records = saved.map(item => ({ id: crypto.randomUUID(), kind, path: item.path, mimeType: item.mimeType, name: item.path.split("/").at(-1), createdAt: Date.now(), prompt: input.prompt, model: input.modelId, settings: input.settings, origin: readGenerationOrigin(input.origin), references: [...(input.images ?? []), ...(input.videos ?? []), ...[input.firstFrame, input.lastFrame].filter((item): item is { path: string; mimeType: string } => !!item)] }));
+  const batchId = crypto.randomUUID();
+  const records = saved.map(item => ({ id: crypto.randomUUID(), batchId, kind, path: item.path, mimeType: item.mimeType, name: item.path.split("/").at(-1), createdAt: Date.now(), prompt: input.prompt, model: input.modelId, settings: input.settings, origin: readGenerationOrigin(input.origin), references: [...(input.images ?? []), ...(input.videos ?? []), ...[input.firstFrame, input.lastFrame].filter((item): item is { path: string; mimeType: string } => !!item)] }));
   if (input.origin?.type === "canvas" && input.outputDirectory !== `assets/${input.origin.nodeId}`) deferCanvasGeneration(input.origin, records);
   else {
     await recordGenerationResults(input.directory, records);

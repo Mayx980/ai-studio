@@ -350,7 +350,7 @@ async function runPickerAction(action: PickerAction) {
   if (action === "tags") { editTags(); return; }
   busy.value = true;
   try {
-    const sources = await Promise.all(items.map(async item => ({ file: await fileFor(item), metadata: { source: "生成历史", prompt: item.history?.prompt, model: item.history?.model, origin: item.history?.origin } })));
+    const sources = await Promise.all(items.map(async item => ({ file: await fileFor(item), name: item.name, metadata: { source: "生成历史", prompt: item.history?.prompt, model: item.history?.model, origin: item.history?.origin } })));
     savingEntries.clear();
     sources.forEach((source, index) => savingEntries.set(source.file, items[index]!.path));
     await saveDialog.value?.open(sources);
@@ -368,7 +368,7 @@ function assetSaved(file: File) {
 }
 async function fileFor(item: Entry) {
   const bytes = item.history ? await useWorkspaceFiles(item.history.directory).read(item.history.path) : await browserAssetFiles().read(item.path);
-  return new File([bytes], item.name, { type: item.history?.mimeType ?? browserAssetMimeType(item.path) });
+  return new File([bytes], item.history?.fileName ?? item.name, { type: item.history?.mimeType ?? browserAssetMimeType(item.path) });
 }
 async function editOrigin(item: Entry) {
   if (busy.value) return;
@@ -389,7 +389,7 @@ async function download(items: Entry[]) {
   try {
     for (const [index, item] of items.entries()) {
       try {
-        if (!await saveFile(await fileFor(item), item.name)) { failed.push(...items.slice(index)); break; }
+        if (!await saveFile(await fileFor(item), item.history?.fileName ?? item.name)) { failed.push(...items.slice(index)); break; }
         completed++;
       } catch { failed.push(item); }
     }
