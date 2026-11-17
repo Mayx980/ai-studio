@@ -3,7 +3,7 @@
     <el-button v-if="!hideTrigger" class="mentionButton" text circle :disabled="disabled" :aria-expanded="visible" :aria-controls="listId" aria-label="选择参考素材" title="选择参考素材" @mousedown.prevent @click="visible ? closeMenu() : openMenu($event.currentTarget as HTMLElement)"><icon-at :size="16" /></el-button>
     <teleport to="body">
       <div v-if="visible" ref="popupElement" class="mentionMenu mentionOverlay" tabindex="-1" :style="popupStyle" @keydown.capture="handleKeydown">
-        <el-card class="mentionPopup" shadow="always" :bodyStyle="{ padding: '0', maxHeight: `${Math.max(0, popupHeight - 2)}px` }" :style="{ maxHeight: `${popupHeight}px` }">
+        <el-card class="mentionPopup" :class="{ groupedMediaPopup: groupedMedia }" shadow="always" :bodyStyle="{ padding: '0', maxHeight: `${Math.max(0, popupHeight - 2)}px` }" :style="{ maxHeight: `${popupHeight}px` }">
           <div class="mentionHeader"><strong>选择参考素材</strong><div class="mentionScopes" aria-label="素材范围"><button v-for="item in visibleScopes" :key="item.id" type="button" :class="{ selected: scope === item.id }" :aria-pressed="scope === item.id" @click="changeScope(item.id)">{{ item.name }}<span v-if="attachmentsOnly"> · {{ mediaAttachments.length }}个素材</span></button></div><el-button text circle size="small" aria-label="关闭素材选择" @click="closeMenu"><icon-x :size="14" /></el-button></div>
           <div v-if="selectedNode || selectedCanvas || assetPath" class="mentionBreadcrumb">
             <el-button text circle size="small" aria-label="返回上一级" @click="goBack"><icon-chevron-left :size="15" /></el-button>
@@ -490,6 +490,7 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
   .mentionButton { width: 24px; height: 24px; padding: 0; }
 
   .mentionPopup {
+    &.groupedMediaPopup { background: #000; }
     min-width: 0;
     box-sizing: border-box;
     overflow: hidden;
@@ -604,7 +605,7 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
           padding: 0 6px 6px;
           border: 1px solid var(--el-border-color);
           border-radius: 10px;
-          background: var(--el-fill-color-darker);
+          background: #000;
           .mentionGroupTitle {
             margin: 0 -6px 6px;
             padding: 8px 13px;
@@ -630,9 +631,9 @@ defineExpose({ handleKeydown, openMenu, closeMenu });
             &.active, &:focus-visible { outline: 1px solid var(--el-color-primary); outline-offset: -1px; }
             .groupThumbnail {
               flex: none;
-              width: 15px;
-              height: 15px;
-              :deep(.thumbnailImage), :deep(.thumbnailButton) { width: 15px; height: 15px; box-sizing: border-box; border-radius: 3px; }
+              width: 30px;
+              height: 30px;
+              :deep(.thumbnailImage), :deep(.thumbnailButton) { width: 30px; height: 30px; box-sizing: border-box; border-radius: 3px; }
               :deep(.videoDuration), :deep(.videoIcon) { display: none; }
             }
             .mentionGroupName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
