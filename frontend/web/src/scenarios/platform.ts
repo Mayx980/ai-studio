@@ -64,7 +64,7 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
     result.accounts = result.accounts.filter(item => !item.deletedAt);
     result.recipientAccounts = result.accounts.filter(item => validRecipient(item) && (actor.role === "platformAdmin" || actor.role === "customerAdmin" && item.customerId === actor.customerId)).map(({ id, name, username, role, customerId }) => ({ id, name, username, role, customerId }));
     result.sentNotices = result.notices.filter(item => item.senderId === actor.id || actor.role === "platformAdmin" && (!item.senderRole || item.senderRole === "platformAdmin"));
-    result.notices = result.notices.filter(item => receives(item, actor)).map(item => ({ ...item, read: item.readBy?.includes(actor.id) ?? false, readBy: item.readBy?.filter(id => id === actor.id), ...(actor.role === "user" ? { accountIds: [actor.id], customerIds: [actor.customerId!] } : {}) }));
+    result.notices = result.notices.filter(item => receives(item, actor) || actor.role === "platformAdmin" && item.senderId === actor.id).map(item => ({ ...item, read: item.readBy?.includes(actor.id) ?? false, readBy: item.readBy?.filter(id => id === actor.id), ...(actor.role === "user" ? { accountIds: [actor.id], customerIds: [actor.customerId!] } : {}) }));
     if (actor.role !== "platformAdmin") {
       result.customers = result.customers.filter(item => item.id === actor.customerId);
       result.accounts = actor.role === "customerAdmin" ? result.accounts.filter(item => item.customerId === actor.customerId && item.role === "user") : [];
@@ -125,13 +125,14 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
       state.notices.unshift(notice); return;
     }
     if (command.type === "resetPassword") { const item = account(command.id); if (command.password.length < 6 || command.password.length > 15) throw new Error("临时密码须为6–15字符"); await setScenarioTemporaryPassword({ id: item.id, username: item.username, name: item.name, role: item.role, customerId: item.customerId, enabled: item.enabled, mustChangePassword: true }, command.password); item.mustChangePassword = true; return; }
-    admin();
     if (command.type === "deleteAccount") {
       const item = account(command.id);
       if (item.id === actor.id) throw new Error("不能删除当前登录账号");
-      item.deletedAt = new Date().toISOString(); item.enabled = false;
+      if (actor.role !== "platformAdmin" && item.disabledBy === "platformAdmin") throw new Error("该账号已被平台管理员禁用，请联系平台管理员处理");
+      item.deletedAt = new Date().toISOString(); item.deletedBy = { id: actor.id, role: actor.role }; item.enabled = false;
       updateScenarioAccount(item.username, { enabled: false }); return;
     }
+    admin();
     if (command.type === "customerStatus") {
       const customer = state.customers.find(item => item.id === command.id && !item.deletedAt);
       if (!customer) throw new Error("客户不存在或已删除");

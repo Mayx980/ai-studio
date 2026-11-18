@@ -2,7 +2,7 @@
   <section class="customerAccounts">
     <header><div><h2>{{ isPlatformAdmin ? '账号管理' : '本客户账号管理' }}</h2><p>仅展示账号状态和资产概况，私人项目与资产保持个人隔离</p></div><el-button type="primary" :disabled="!customerId" @click="openCreate">创建账号</el-button></header>
     <div class="filters"><el-input v-model="search" placeholder="搜索账号或姓名" aria-label="搜索账号或姓名" clearable /><el-select v-model="status" aria-label="账号状态"><el-option label="全部状态" value="all" /><el-option label="已启用" value="enabled" /><el-option label="已禁用" value="disabled" /></el-select></div>
-    <el-table :data="filtered" emptyText="暂无符合条件的账号" tableLayout="auto"><el-table-column prop="username" label="账号" /><el-table-column prop="name" label="姓名" /><el-table-column label="角色"><template #default="{ row }">{{ roleLabels[row.role as PlatformRole] }}</template></el-table-column><el-table-column label="状态"><template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '已启用' : row.disabledBy === 'platformAdmin' ? '平台禁用' : '客户管理员禁用' }}</el-tag><small v-if="row.mustChangePassword">待修改临时密码</small></template></el-table-column><el-table-column label="操作" minWidth="300"><template #default="{ row }"><el-button text @click="detail = row as ManagedAccount">详情</el-button><el-button text @click="openReset(row as ManagedAccount)">重置密码</el-button><el-button text :type="row.enabled ? 'danger' : 'primary'" @click="toggleAccount(row as ManagedAccount)">{{ row.enabled ? '禁用' : '启用' }}</el-button><el-button v-if="isPlatformAdmin" text @click="toggleRole(row as ManagedAccount)">{{ row.role === 'customerAdmin' ? '撤销管理员' : '任命管理员' }}</el-button><el-button v-if="isPlatformAdmin" text type="danger" :disabled="busy" @click="deleteAccount(row as ManagedAccount)">删除</el-button></template></el-table-column></el-table>
+    <el-table :data="filtered" emptyText="暂无符合条件的账号" tableLayout="auto"><el-table-column prop="username" label="账号" /><el-table-column prop="name" label="姓名" /><el-table-column label="角色"><template #default="{ row }">{{ roleLabels[row.role as PlatformRole] }}</template></el-table-column><el-table-column label="状态"><template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '已启用' : row.disabledBy === 'platformAdmin' ? '平台禁用' : '客户管理员禁用' }}</el-tag><small v-if="row.mustChangePassword">待修改临时密码</small></template></el-table-column><el-table-column label="操作" minWidth="300"><template #default="{ row }"><el-button text @click="detail = row as ManagedAccount">详情</el-button><el-button text @click="openReset(row as ManagedAccount)">重置密码</el-button><el-button text :type="row.enabled ? 'danger' : 'primary'" @click="toggleAccount(row as ManagedAccount)">{{ row.enabled ? '禁用' : '启用' }}</el-button><el-button v-if="isPlatformAdmin" text @click="toggleRole(row as ManagedAccount)">{{ row.role === 'customerAdmin' ? '撤销管理员' : '任命管理员' }}</el-button><el-button v-if="isPlatformAdmin" text type="danger" :disabled="busy" @click="deleteAccount(row as ManagedAccount)">删除</el-button><el-dropdown v-else trigger="click" @command="deleteAccount(row as ManagedAccount)"><el-button text :disabled="busy" aria-label="更多账号操作">更多</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="delete"><span class="deleteAction">删除账号</span></el-dropdown-item></el-dropdown-menu></template></el-dropdown></template></el-table-column></el-table>
     <el-dialog v-model="editor" :title="resetId ? '重置临时密码' : '创建普通账号'" width="min(480px, 94vw)" :closeOnClickModal="false" :beforeClose="closeEditor" @closed="password = ''">
       <form class="accountForm" @submit.prevent="submit"><template v-if="!resetId"><label for="managedUsername">账号</label><el-input id="managedUsername" v-model="username" :maxlength="64" autocomplete="off" /><label for="managedName">姓名</label><el-input id="managedName" v-model="name" :maxlength="64" /></template><p v-else>为 {{ resetName }} 设置新的临时密码</p><label for="temporaryPassword">临时密码（6–15字符）</label><el-input id="temporaryPassword" v-model="password" type="password" showPassword :maxlength="15" autocomplete="new-password"><template #append><el-button @click="copyPassword">复制</el-button></template></el-input><p>默认123456，可自行修改。用户下次登录必须先修改密码。</p><p v-if="failure" class="failure" role="alert">{{ failure }}</p><el-button type="primary" nativeType="submit" :loading="busy">{{ resetId ? '确认重置' : '创建账号' }}</el-button></form>
     </el-dialog>
@@ -38,11 +38,20 @@ async function toggleAccount(item: ManagedAccount) {
   try { await savePlatform({ type: "accountStatus", id: item.id, enabled: !item.enabled }); } catch (cause) { ElMessage.error(cause instanceof Error ? cause.message : "操作失败"); }
 }
 async function deleteAccount(item: ManagedAccount) {
-  const result = await ElMessageBox.prompt("删除后账号无法登录，已有会话失效。项目、资产和历史记录保留，归属不变。请输入账号名确认。", "删除账号", { inputValidator: value => value === item.username || "账号名不匹配", confirmButtonText: "删除", cancelButtonText: "取消", type: "warning" }).catch(() => undefined);
-  if (!result) return;
-  busy.value = true;
-  try { await savePlatform({ type: "deleteAccount", id: item.id }); ElMessage.success("账号已删除，历史内容保留"); }
-  catch (cause) { ElMessage.error(cause instanceof Error ? cause.message : "删除失败"); } finally { busy.value = false; }
+  if (busy.value) return;
+  if (!isPlatformAdmin.value && item.disabledBy === "platformAdmin") { ElMessage.warning("该账号已被平台管理员禁用，请联系平台管理员处理"); return; }
+  const result = await ElMessageBox.prompt("删除后，该账号将无法登录，当前会话失效。项目、资产及历史记录保留，归属不变；删除不会移交内容或释放存储空间。请输入完整账号名确认。", "删除账号", {
+    inputValidator: value => value === item.username || "账号名不匹配", confirmButtonText: "确认删除", cancelButtonText: "取消", type: "warning",
+    beforeClose: async (action, instance, done) => {
+      if (busy.value) return;
+      if (action !== "confirm") { done(); return; }
+      busy.value = true; instance.confirmButtonLoading = true;
+      try { await savePlatform({ type: "deleteAccount", id: item.id }); done(); }
+      catch (cause) { ElMessage.error(cause instanceof Error ? cause.message : "删除失败"); }
+      finally { busy.value = false; instance.confirmButtonLoading = false; }
+    },
+  }).catch(() => undefined);
+  if (result) ElMessage.success("账号已删除，历史内容保留");
 }
 async function toggleRole(item: ManagedAccount) {
   const role = item.role === "customerAdmin" ? "user" : "customerAdmin";
@@ -51,5 +60,6 @@ async function toggleRole(item: ManagedAccount) {
 }
 </script>
 <style scoped lang="scss">
+.deleteAction { color:var(--el-color-danger); }
 .customerAccounts { header { display:flex; justify-content:space-between; gap:16px; align-items:center; h2 { margin:0; font-size:20px; } p { color:var(--el-text-color-secondary); font-size:14px; } } .filters { display:flex; gap:12px; margin:20px 0; .el-input { max-width:320px; } .el-select { width:160px; } } small { display:block; color:var(--el-text-color-secondary); } dl { display:grid; grid-template-columns:100px 1fr; gap:16px; dd { margin:0; } } .accountForm { display:grid; gap:12px; p { color:var(--el-text-color-secondary); line-height:1.6; } .failure { color:var(--el-color-danger); } } }
 </style>
