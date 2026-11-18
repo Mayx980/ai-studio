@@ -36,21 +36,48 @@ export async function setScenarioTemporaryPassword(user: UserAccount, password: 
   if (index < 0) values.push(value); else values[index] = value;
   localStorage.setItem(storageKey, JSON.stringify(values));
 }
+export const scenarioManagementKey = "afxen.uiux.platformManagement";
+export function getScenarioAccountSummaries() { return readAccounts().map(item => ({ ...item.user })); }
+export function updateScenarioAccount(username: string, patch: Partial<UserAccount>) {
+  const values = readAccounts();
+  const account = values.find(item => item.user.username === username);
+  if (!account) return;
+  Object.assign(account.user, patch);
+  localStorage.setItem(storageKey, JSON.stringify(values));
+}
+export function scenarioAccountRestriction(user: UserAccount) {
+  if (user.role === "platformAdmin") return;
+  const raw = localStorage.getItem(scenarioManagementKey);
+  if (!raw) return;
+  const state = JSON.parse(raw) as import("@/ports/platform").PlatformState;
+  const customer = state.customers.find(item => item.id === user.customerId);
+  if (customer?.deletedAt) return "所属客户已删除";
+  if (customer?.enabled === false) return "所属客户已被平台管理员禁用";
+  const account = state.accounts.find(item => item.id === user.id);
+  if (account?.deletedAt) return "账号已删除";
+  if (account && !account.enabled) return account.disabledBy === "platformAdmin" ? "平台管理员禁用该账号" : "账号已被客户管理员禁用";
+}
 // ACT: 仅隔离预览使用标签页会话与独立的浏览器加盐摘要；不存明文密码、不读取生产会话。
 export function createScenarioAccountsPort(scenario: ScenarioName): AccountsPort {
   const preset = scenario === "platformAdmin" || scenario === "platformError" ? "platform" : scenario === "customerAdmin" ? "customer" : ["initialPassword", "accountPassword", "cloudUser"].includes(scenario) ? "user" : undefined;
   let user: UserAccount | null = null;
+  window.addEventListener("storage", event => {
+    if (event.key === scenarioManagementKey && user && scenarioAccountRestriction(user)) window.dispatchEvent(new Event("afxenSessionExpired"));
+  });
   const session = () => ({ mode: "users" as const, user: user ? { ...user } : null });
   return { scope: "scenario", session: async () => {
     const values = await initialAccounts();
     const username = sessionStorage.getItem(sessionKey) ?? preset;
-    user = values.find(item => item.user.username === username)?.user ?? null;
+    user = values.find(item => item.user.username === username && item.user.enabled)?.user ?? null;
+    if (user && scenarioAccountRestriction(user)) user = null;
     if (user && preset && !sessionStorage.getItem(sessionKey)) user = { ...user, mustChangePassword: scenario === "initialPassword" };
     return session();
   },
     login: async (username, password) => {
       const account = (await initialAccounts()).find(item => item.user.username === username);
       if (!account || !account.user.enabled || await hashPassword(password, account.salt) !== account.passwordHash) throw new Error("账号或密码不正确");
+      const restriction = scenarioAccountRestriction(account.user);
+      if (restriction) throw new Error(restriction);
       sessionStorage.setItem(sessionKey, username);
       user = { ...account.user };
       return session();

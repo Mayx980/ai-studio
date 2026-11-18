@@ -1,17 +1,20 @@
 export type PlatformRole = "platformAdmin" | "customerAdmin" | "user";
-export type Customer = { id: string; name: string; modelIds: string[]; defaults: Record<string, string>; limit: number };
-export type ManagedAccount = { id: string; username: string; name: string; customerId: string; role: PlatformRole; enabled: boolean; mustChangePassword: boolean; projects: number; assets: number; storage: string };
+export type Customer = { id: string; name: string; modelIds: string[]; defaults: Record<string, string>; limit: number; enabled?: boolean; deletedAt?: string };
+export type ManagedAccount = { id: string; username: string; name: string; customerId: string; role: PlatformRole; enabled: boolean; mustChangePassword: boolean; projects: number; assets: number; storage: string; disabledBy?: "platformAdmin" | "customerAdmin"; deletedAt?: string };
 export type ServiceConnection = { id: string; name: string; protocol: string; endpoint: string; enabled: boolean; verifiedAt?: string; verification?: string };
 export type ModelParameter = { key: string; name: string; options: string[]; value: string; exposed: boolean; required: boolean };
 export type PlatformModel = { id: string; name: string; kind: "text" | "image" | "video" | "audio"; connectionId: string; enabled: boolean; verified: boolean; description: string; parameters: ModelParameter[] };
-export type PlatformNotice = { id: string; title: string; modelId: string; content: string; effectiveAt: string; impact: string; customerIds: string[]; createdAt: string; read: boolean };
+export type PlatformNotice = { id: string; title: string; modelId: string; content: string; effectiveAt: string; impact: string; customerIds: string[]; createdAt: string; read: boolean; kind?: "platform" | "model" | "customer"; accountIds?: string[]; senderId?: string; senderRole?: PlatformRole; readBy?: string[] };
 export type PlatformTask = { id: string; name: string; kind: string; modelId: string; status: "waiting" | "running" | "saving" | "completed" | "failed" | "unknown"; createdAt: string; accountId: string; customerId: string; elapsed: string; usage: string; failure?: string; directory?: string; canvasPath?: string; conversationFile?: string; parameters: Record<string, string>; recoverable?: boolean };
 export type PlatformTemplate = { id: string; name: string; kind: "video" | "project"; description: string; customerIds: string[]; modelIds: string[]; enabled: boolean; sourceName?: string };
-export type PlatformState = { customers: Customer[]; accounts: ManagedAccount[]; connections: ServiceConnection[]; models: PlatformModel[]; notices: PlatformNotice[]; tasks: PlatformTask[]; templates: PlatformTemplate[] };
+export type PlatformState = { customers: Customer[]; accounts: ManagedAccount[]; connections: ServiceConnection[]; models: PlatformModel[]; notices: PlatformNotice[]; tasks: PlatformTask[]; templates: PlatformTemplate[]; sentNotices?: PlatformNotice[]; recipientAccounts?: Pick<ManagedAccount, "id" | "username" | "name" | "role" | "customerId">[] };
 export type PlatformCommand =
   | { type: "customer"; value: Customer }
   | { type: "account"; value: Pick<ManagedAccount, "username" | "name" | "customerId">; password: string }
   | { type: "accountStatus"; id: string; enabled: boolean }
+  | { type: "deleteAccount"; id: string }
+  | { type: "customerStatus"; id: string; enabled: boolean }
+  | { type: "deleteCustomer"; id: string }
   | { type: "accountRole"; id: string; role: "user" | "customerAdmin" }
   | { type: "resetPassword"; id: string; password: string }
   | { type: "connection"; value: ServiceConnection; credential: string }

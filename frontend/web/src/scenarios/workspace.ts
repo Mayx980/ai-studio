@@ -1,3 +1,4 @@
+import { scenarioAccountRestriction } from "./accounts";
 import { StudioError } from "@/ports";
 import { currentUser } from "@/stores/accounts";
 import { createLocalWorkspaceFiles } from "@/lib/localWorkspaceFiles";
@@ -6,6 +7,8 @@ import type { NativeWorkspaceReader } from "@/ports/prototype";
 function actor() {
   const user = currentUser.value;
   if (!user || !user.enabled || user.mustChangePassword) throw new Error("请先完成登录和修改密码");
+  const restriction = scenarioAccountRestriction(user);
+  if (restriction) throw new Error(restriction);
   return user.id;
 }
 function checkDirectory(directory: string) {

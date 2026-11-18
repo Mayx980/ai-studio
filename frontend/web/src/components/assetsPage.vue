@@ -5,7 +5,7 @@
         <header><h2>生成历史</h2><el-dropdown @command="descending = $event === 'descending'"><el-button text :aria-label="descending ? '时间倒序' : '时间正序'" :title="descending ? '时间倒序' : '时间正序'"><component :is="descending ? IconSortDescending : IconSortAscending" :size="20" /></el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="ascending">时间正序</el-dropdown-item><el-dropdown-item command="descending">时间倒序</el-dropdown-item></el-dropdown-menu></template></el-dropdown></header>
         <taskHistory />
         <el-alert v-if="error" :title="error" type="error" :closable="false" />
-        <p v-if="loading" role="status">正在读取生成历史…</p>
+        <p v-if="loading" role="status">正在读取生成历史…</p><p v-else-if="!error && !items.length" class="assetEmpty">暂无生成素材</p>
         <div v-for="group in groups" :key="group.date" class="historyGroup"><h3>{{ group.date }}</h3><div class="historyGrid"><article v-for="item in group.items" :key="item.key" class="historyCard" :class="{ selected: selected.includes(item.key) }">
           <button class="mediaPreview" type="button" :aria-label="'预览 ' + item.name" @click="preview = item"><img v-if="item.kind === 'image'" :src="item.url" :alt="item.name" /><video v-else-if="item.kind === 'video'" :src="item.url" muted playsinline preload="metadata" /><icon-volume v-else :size="36" /></button>
           <input v-model="selected" type="checkbox" :value="item.key" :aria-label="'选择 ' + item.name" :disabled="busy" />

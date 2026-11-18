@@ -143,6 +143,7 @@ declare module 'vue' {
     MobileConnect: typeof import('./../components/mobileConnect.vue')['default']
     ModelPopover: typeof import('./../components/modelPopover.vue')['default']
     NodeMenuSettings: typeof import('./../components/settings/panels/general/nodeMenuSettings.vue')['default']
+    NoticeComposer: typeof import('./../components/noticeComposer.vue')['default']
     PersonalAssetBrowser: typeof import('./../components/personalAssetBrowser.vue')['default']
     Personalization: typeof import('./../components/settings/panels/personalization.vue')['default']
     PluginMarket: typeof import('./../components/settings/panels/pluginMarket/index.vue')['default']
