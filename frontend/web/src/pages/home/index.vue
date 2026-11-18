@@ -10,7 +10,7 @@
         <creativeCases curated />
       </section>
       <creativeCases ref="templateCenter" v-show="homeSection === 'templates'" @apply="applyCase" />
-      <templateReview v-if="homeSection === 'reviews'" />
+      <section v-if="homeSection === 'messages' || homeSection === 'accounts'" class="cloudSection"><el-alert v-if="platformError" :title="platformError" type="error" :closable="false"><el-button text @click="loadPlatform">重试</el-button></el-alert><p v-if="platformLoading" role="status">正在读取…</p><messageCenter v-else-if="homeSection === 'messages' && !platformError" /><customerAccounts v-else-if="isCustomerAdmin && !platformError" :customerId="currentUser?.customerId || ''" /></section>
       <section v-if="homeSection === 'history'" class="homeHistory" aria-label="历史对话">
         <h2>历史对话</h2><el-input v-model="historySearch" placeholder="搜索对话名称或项目" aria-label="搜索历史对话" clearable />
         <p v-if="historyLoading" role="status">正在读取历史对话…</p><el-alert v-if="historyError" :title="historyError" type="error" :closable="false" />
@@ -22,7 +22,7 @@
         <div class="projectItems" :class="{ listView: viewMode === 'list' }"><el-card v-for="project in filteredProjects" :key="project.directory" class="projectCard" shadow="hover" :bodyStyle="{ padding: '0' }"><button class="projectEntry" type="button" :disabled="creating || opening" :aria-label="`打开项目 ${project.name}`" @click="openProject(project)"><projectThumbnail :key="`${project.directory}:${coverVersions[project.directory] ?? 0}`" :directory="project.directory" /><span class="projectInfo"><strong :title="project.name">{{ project.name }}</strong><small>最近打开 {{ formatTime(project.lastOpenedAt) }}</small></span></button><div class="projectActions"><el-dropdown trigger="click" placement="bottom-end" @command="command => projectAction(project, command)">
           <el-button text :disabled="creating || opening || projectBusy" :aria-label="`更多项目操作 ${project.name}`" title="更多操作"><icon-dots :size="20" /></el-button>
           <template #dropdown><el-dropdown-menu>
-            <el-dropdown-item command="open">打开</el-dropdown-item><el-dropdown-item command="rename">重命名</el-dropdown-item><el-dropdown-item command="cover">修改封面</el-dropdown-item><el-dropdown-item command="copy" :disabled="!studioCreationMode">创建副本</el-dropdown-item><el-dropdown-item v-if="studioCreationMode" command="template">制作模板</el-dropdown-item>
+            <el-dropdown-item command="open">打开</el-dropdown-item><el-dropdown-item command="rename">重命名</el-dropdown-item><el-dropdown-item command="cover">修改封面</el-dropdown-item><el-dropdown-item command="copy" :disabled="!studioCreationMode">创建副本</el-dropdown-item>
             <el-dropdown-item><el-popover trigger="hover" placement="right-start" :width="180" :showArrow="false"><template #reference><span class="projectMoveLabel">移动至文件夹 <icon-chevron-right :size="14" /></span></template><div class="projectFolders"><el-button text @click="moveProject(project, '')">根文件夹</el-button><el-button v-for="folder in projectFolders" :key="folder" text @click="moveProject(project, folder)">{{ folder }}</el-button><el-button text @click="createProjectFolder(project)">新建文件夹</el-button></div></el-popover></el-dropdown-item>
             <el-dropdown-item command="remove">删除项目</el-dropdown-item>
           </el-dropdown-menu></template>
@@ -57,11 +57,15 @@ import { navigationCollapsed, conversationHistoryOpen } from "@/stores/navigatio
 import workspacePicker from "./workspacePicker.vue";
 
 import studioSidebar from "@/components/studioSidebar.vue";
-import templateReview from "@/components/templateReview.vue";
+import messageCenter from "@/components/messageCenter.vue";
+import customerAccounts from "@/components/customerAccounts.vue";
+import { currentUser } from "@/stores/accounts";
+import { platformError, platformLoading, loadPlatform, isCustomerAdmin } from "@/stores/platform";
 const examplesReady = ref(false);
 onMounted(async () => { try { await ensureExampleProject(); } catch (error) { ElMessage.error(error instanceof Error ? error.message : "示例读取失败"); } finally { examplesReady.value = true; } });
 const workspaceStore = useWorkspaceStore(), router = useRouter(), route = useRoute();
-const homeSection = computed({ get: () => ["create", "templates", "history", "assets", "projects", "reviews"].includes(String(route.query.section)) ? String(route.query.section) : "create", set: section => { void router.replace({ path: "/home", query: { section } }); } });
+const homeSection = computed({ get: () => ["create", "templates", "history", "assets", "projects", "messages", "accounts"].includes(String(route.query.section)) ? String(route.query.section) : "create", set: section => { void router.replace({ path: "/home", query: { section } }); } });
+watch(homeSection, section => { if (["messages", "accounts"].includes(section)) void loadPlatform(); }, { immediate: true });
 const settingsVisible = ref(false), creating = ref(false), opening = ref(false), sortDescending = ref(true), viewMode = ref("grid"), projectSearch = ref("");
 const templateCenter = ref<InstanceType<typeof creativeCases>>(), relocationPicker = ref<InstanceType<typeof workspacePicker>>();
 const sortedProjects = computed(() => [...workspaceStore.projectList].sort((a, b) => sortDescending.value ? b.lastOpenedAt - a.lastOpenedAt : a.lastOpenedAt - b.lastOpenedAt));

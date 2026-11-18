@@ -13,21 +13,22 @@
   </aside>
 </template>
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import { navigationCollapsed } from "@/stores/navigation";
-import { IconLayoutSidebar, IconHome, IconPhoto, IconFolder, IconCheck } from "@tabler/icons-vue";
+import { IconLayoutSidebar, IconHome, IconPhoto, IconFolder, IconBell, IconUsers } from "@tabler/icons-vue";
 import type { Project } from "@/stores/workspace";
-import { prototype } from "@/ports/prototype";
-import { currentAccount } from "@/stores/prototypeAccount";
+import { isCustomerAdmin, unreadNotices, loadPlatform } from "@/stores/platform";
 import brandLogo from "@/components/brandLogo.vue";
 import accountMenu from "@/components/accountMenu.vue";
 
 defineProps<{ activeSection: string; disabled?: boolean }>();
 const emit = defineEmits<{ navigate: [section: string]; newAgent: []; openProject: [project: Project]; openSettings: [] }>();
+onMounted(loadPlatform);
 const sections = computed(() => [
   { value: "assets", label: "资产", icon: IconPhoto },
   { value: "projects", label: "我的项目", icon: IconFolder },
-  { value: "reviews", label: !prototype.requiresAccount ? "模板管理" : currentAccount.value?.role === "admin" ? "模板审核" : "我的模板提交", icon: IconCheck },
+  { value: "messages", label: unreadNotices.value ? `消息中心 · ${unreadNotices.value}` : "消息中心", icon: IconBell },
+  ...(isCustomerAdmin.value ? [{ value: "accounts", label: "账号管理", icon: IconUsers }] : []),
 ]);
 </script>
 <style scoped lang="scss">

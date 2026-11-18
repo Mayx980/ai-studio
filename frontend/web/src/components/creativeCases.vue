@@ -1,12 +1,12 @@
 <template>
   <section class="creativeCases" :class="{ compact, curated }">
-    <div class="caseHeader"><h2>{{ curated ? '创作优选' : '模板中心' }}</h2><el-button text type="primary" @click="professional ? projectPickerOpen = true : openUpload()">{{ professional ? '上传创作优选' : '上传模板' }}</el-button></div>
+    <div class="caseHeader"><h2>{{ curated ? '创作优选' : '模板中心' }}</h2><el-button v-if="canManageTemplates" text type="primary" @click="professional ? projectPickerOpen = true : openUpload()">{{ professional ? '上传创作优选' : '上传模板' }}</el-button></div>
     <div v-if="!curated" class="caseFilters"><div class="caseCategories"><button v-for="item in categories" :key="item" :aria-pressed="category === item" @click="category = item">{{ item }}</button></div>
     <form class="templateSearch" role="search" @submit.prevent="searchTemplates"><el-input v-model="query" clearable aria-label="搜索视频模板" placeholder="搜索关键词或描述想要的视频" @input="invalidateSearch"><template #append><el-button nativeType="submit" :loading="searching">搜索</el-button></template></el-input></form></div>
     <p v-if="searching" role="status" aria-live="polite">正在理解需求并查找相关模板…</p>
     <el-alert v-else-if="searchError || loadError" :title="searchError || loadError" type="error" :closable="false"><el-button text @click="loadError ? loadTemplates() : searchTemplates()">重试</el-button></el-alert>
     <p v-else-if="query.trim() && !rankedIds" role="status">按回车或点击搜索，查找语义相关的模板。</p>
-    <p v-else-if="!visibleCases.length" role="status">{{ query.trim() ? '没有找到相关模板，试试调整描述或分类。' : professional ? '当前分类暂无项目模板，可从“我的项目”制作模板。' : '当前分类暂无视频模板。' }}</p>
+    <p v-else-if="!visibleCases.length" role="status">{{ query.trim() ? '没有找到相关模板，试试调整描述或分类。' : professional ? '当前分类暂无可用项目模板。' : '当前分类暂无视频模板。' }}</p>
     <div v-else class="caseGrid" :aria-busy="searching"><article v-for="item in visibleCases" :key="item.id" @pointerenter="playPreview" @pointerleave="pausePreview" @focusin="playPreview" @focusout="pausePreview"><button class="caseCard" :aria-label="`${curated ? '播放作品' : '查看模板'} ${item.name}`" @click="openPreview(item)"><span class="casePreview"><templateMedia :ref="value => setCardMedia(item.id, value)" :media="item.media" /></span><span class="caseName" :title="item.name">{{ item.name }}</span></button><el-tooltip :content="curated ? '查看创作过程' : '一键同款'"><el-button class="cardAction" circle :icon="curated ? IconVector : IconCopy" :aria-label="`${curated ? '查看创作过程' : '一键同款'} ${item.name}`" :loading="!curated && applying" @click.stop="curated ? openPreview(item, true) : applyTemplate(item, cardMedia.get(item.id))" /></el-tooltip><el-tooltip v-if="canManageTemplates" content="删除"><el-button class="deleteCard" circle :icon="IconTrash" :aria-label="`删除 ${item.name}`" :loading="removingId === item.id" @click.stop="deleteCard(item)" /></el-tooltip></article></div>
     <el-dialog :modelValue="!!preview" :title="preview?.name" class="templateDetail" :class="{ processDetail: professional && previewMode === 'process' }" :fullscreen="professional && previewMode === 'process'" :width="professional && previewMode === 'process' ? 'min(1600px, 98vw)' : 'min(1120px, 96vw)'" alignCenter appendToBody destroyOnClose :closeOnClickModal="!copying" :closeOnPressEscape="!copying" :showClose="!copying" @opened="projectPreview?.fitView()" @update:modelValue="preview = undefined">
       <template v-if="professional" #header="{ titleId, titleClass }"><div v-if="previewMode === 'process'" class="detailHeader"><h3 :id="titleId" :class="titleClass">{{ preview?.name }}</h3><el-button type="primary" :loading="copying" @click="copyProject">复制项目</el-button></div></template>
@@ -117,6 +117,7 @@ async function searchTemplates() {
   finally { clearTimeout(timeout); if (searchRequest === request) { searching.value = false; searchRequest = undefined; } }
 }
 function openUpload(project?: Project) {
+  if (!canManageTemplates.value) return;
   sourceProject.value = project;
   Object.assign(draft, { name: project?.name ?? "", category: "产品展示", prompt: "", modelId: "", ratio: "", resolution: "" });
   uploadFile.value = undefined; uploadOpen.value = true;
@@ -182,6 +183,7 @@ async function createProjectCover(snapshot: Awaited<ReturnType<typeof captureTem
   return new File([blob], "项目编排.png", { type: "image/png" });
 }
 async function saveTemplate() {
+  if (!canManageTemplates.value) return;
   if (saving.value) return;
   if (!sourceProject.value && !uploadFile.value) { ElMessage.warning("请选择模板视频"); return; }
   if (!sourceProject.value && !uploadVideo.value) { ElMessage.warning("模板中心仅支持视频模板"); return; }

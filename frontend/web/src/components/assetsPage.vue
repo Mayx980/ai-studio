@@ -3,6 +3,7 @@
     <div class="assetContent">
       <template v-if="module === 'history'">
         <header><h2>生成历史</h2><el-dropdown @command="descending = $event === 'descending'"><el-button text :aria-label="descending ? '时间倒序' : '时间正序'" :title="descending ? '时间倒序' : '时间正序'"><component :is="descending ? IconSortDescending : IconSortAscending" :size="20" /></el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="ascending">时间正序</el-dropdown-item><el-dropdown-item command="descending">时间倒序</el-dropdown-item></el-dropdown-menu></template></el-dropdown></header>
+        <taskHistory />
         <el-alert v-if="error" :title="error" type="error" :closable="false" />
         <p v-if="loading" role="status">正在读取生成历史…</p>
         <div v-for="group in groups" :key="group.date" class="historyGroup"><h3>{{ group.date }}</h3><div class="historyGrid"><article v-for="item in group.items" :key="item.key" class="historyCard" :class="{ selected: selected.includes(item.key) }">
@@ -35,6 +36,7 @@
 import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import taskHistory from "@/components/taskHistory.vue";
 import saveAssetDialog from "@/components/saveAssetDialog.vue";
 import { IconCopy, IconSquarePlus, IconEdit, IconFolderPlus, IconSortAscending, IconSortDescending, IconDownload, IconTrash, IconX } from "@tabler/icons-vue";
 import { useRouter } from "vue-router";

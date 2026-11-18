@@ -1,5 +1,6 @@
 import { getWorkspaceFailure } from "@toonflow/nodes-scaffold/workspaceFiles";
 import { computed, ref } from "vue";
+import { isPlatformAdmin } from "@/stores/platform";
 import { prototype } from "@/ports/prototype";
 import { browserWorkspaceMode } from "./browserWorkspaceFiles";
 import { currentAccount } from "@/stores/prototypeAccount";
@@ -14,7 +15,7 @@ export type TemplateReview = { authorId: string; status: "pending" | "approved" 
 export type CreationTemplate = { sourceDirectory?: string; id: string; name: string; category: string; prompt: string; media: TemplateMedia; references: TemplateMedia[]; kind: "image" | "video"; modelId?: string; ratio?: string; resolution?: string; imageSize?: string; duration?: number; project?: TemplateProject; review?: TemplateReview };
 export type TemplateApplication = { prompt: string; references: File[]; template?: CreationTemplate };
 export const templateDirectory = browserWorkspaceMode ? "browser://personalTemplates" : "studio://templates";
-export const canManageTemplates = computed(() => !browserWorkspaceMode || !prototype.requiresAccount || currentAccount.value?.role === "admin");
+export const canManageTemplates = computed(() => isPlatformAdmin.value);
 const personal = ref<CreationTemplate[]>([]);
 const removedTemplateIds = ref<string[]>([]);
 export function templateIsRemoved(item: CreationTemplate) { return removedTemplateIds.value.includes(item.id) || item.id === "creatorRecommendationProject" || (item.name === "达人种草" && item.kind === "image" && (item.media.name === "项目编排.png" || item.media.path.endsWith("/preview.png"))); }
@@ -77,8 +78,8 @@ export async function readTemplateFile(item: TemplateMedia) {
   return new File([blob], item.name || "模板素材", { type: item.mimeType });
 }
 export async function saveCreationTemplate(template: Omit<CreationTemplate, "id" | "media" | "references" | "project" | "review">, preview: File, references: File[], projectSnapshot?: { files: Map<string, ArrayBuffer>; project: TemplateProject }) {
+  if (!canManageTemplates.value) throw new Error("仅平台管理员可提交模板");
   const account = currentAccount.value;
-  if (prototype.requiresAccount && !account) throw new Error("请先登录再提交模板");
   await loadCreationTemplates();
   if (template.kind !== "video" && !projectSnapshot) throw new Error("模板中心仅支持视频模板");
   if (!template.name.trim() || !template.prompt.trim()) throw new Error("请填写模板名称和提示词");

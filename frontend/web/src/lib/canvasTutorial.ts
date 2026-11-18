@@ -40,7 +40,7 @@ export function createCanvasTutorialSteps(nodes: Node[], edges: Edge[]): CanvasT
     steps.push({ nodeId: node.id, selector: ".promptInputWrap, .promptCard", title: `查看「${label}」的提示词`, description: typeof node.data?.prompt === "string" && node.data.prompt.trim() ? "输入框保留了该节点原有的创作要求。阅读并修改提示词，理解它与上方素材之间的关系，不需要重新抄写示例内容。" : "点击输入框填写该节点的创作要求，描述你希望生成的内容、画面或动作，再结合参考素材继续创作。" });
     if (edges.some(edge => edge.target === node.id) || node.data?.localReferences?.length) steps.push({ nodeId: node.id, selector: ".referenceCovers, .referenceList, .promptCard", title: "理解参考素材与连线", description: `${edges.some(edge => edge.target === node.id) ? "画布连线表示上游节点向当前节点提供参考。" : "这些参考素材直接保存在当前节点中。"}输入框上方显示实际引用的素材；点击缩略图查看，使用 @ 按钮将对应素材插入提示词。` });
     else if (type === "remote-videoGenerationNode" && items.some(source => source.id !== node.id && /image/i.test(source.type ?? ""))) steps.push({ nodeId: node.id, selector: '.vue-flow__handle[data-handleid="in"]', title: "连接参考图片", description: "需要参考图时，从已有图片节点右侧的输出连接点拖线到当前节点左侧输入点。引用成功后，输入框上方会出现素材缩略图，再使用 @ 按钮插入引用。" });
-    steps.push({ nodeId: node.id, selector: ".promptFooter", title: `配置并生成「${label}」`, description: "选择已接入且支持当前参考素材的模型，核对参数，再点击输入框右下角上箭头生成。没有可用模型时先到设置的 API 配置中接入。教学不会自动调用模型，生成失败时可修改当前节点后重试。" });
+    steps.push({ nodeId: node.id, selector: ".promptFooter", title: `配置并生成「${label}」`, description: "选择已接入且支持当前参考素材的模型，核对参数，再点击输入框右下角上箭头生成。没有可用模型时请联系平台管理员。教学不会自动调用模型，生成失败时可修改当前节点后重试。" });
   }
   steps.push({ nodeId: "", selector: ".vue-flow", title: "继续你的创作", description: "回看节点之间的素材传递关系，继续调整提示词、引用与连线，生成自己的作品。修改会保存到当前项目；重新打开引导只会讲解现有节点，不会重置素材或提示词。" });
   return steps.length <= 8 ? steps : [...steps.slice(0, 7), steps.at(-1)!];
@@ -52,7 +52,7 @@ function createPortraitTutorialSteps(female: Node, male: Node, video: Node, edge
     { nodeId: "", area: "toolbar", selector: ".addNodeButton", title: "创建女主图片节点", description: "点击底部“＋”，选择“图片”创建女主节点。教学已放好“图1 女大学生”示例，下一步会打开其输入框，可直接对照练习，无需重复添加。" },
     { nodeId: female.id, selector: ".promptCard", title: "填写提示词并生成女主图片", description: "在女主输入框填写人物、服装和画面风格，完整示例提示词已保留。选择图片模型、比例和清晰度，点击右下角上箭头生成。已有图片是示例；引导不会自动调用模型。" },
     { nodeId: "", area: "toolbar", selector: ".addNodeButton", title: "创建男主图片节点", description: "再次点击“＋”并选择“图片”，创建“图2 男主播”。教学已准备对应节点，点击下一步查看男主提示词。" },
-    { nodeId: male.id, selector: ".promptCard", title: "填写提示词并生成男主图片", description: "输入男主的外貌、服装和影棚风格。完整提示词已保留；选择已接入的图片模型和参数，点击右下角上箭头生成，确认两个人物图片都可用。没有模型时先到设置的 API 配置接入。" },
+    { nodeId: male.id, selector: ".promptCard", title: "填写提示词并生成男主图片", description: "输入男主的外貌、服装和影棚风格。完整提示词已保留；选择已接入的图片模型和参数，点击右下角上箭头生成，确认两个人物图片都可用。没有模型时请联系平台管理员。" },
     { nodeId: "", area: "toolbar", selector: ".addNodeButton", title: "添加视频节点", description: "点击“＋”选择“视频”，在人物图片旁添加视频节点。教学已放好“新手教学 · 10秒人像剧情”，空白区域用于展示之后生成的视频。" },
     { nodeId: "", selector: `.vue-flow__node[data-id="${CSS.escape(video.id)}"] .vue-flow__handle[data-handleid="in"]`, title: "将两个人物图片连接到视频", description: `分别从女主、男主图片右侧的输出圆点拖线，到高亮的视频左侧输入点松开，让两张图片同时作为参考。${connected(female) && connected(male) ? "当前两条示例连线已存在，可直接核对，无需重复连接。" : "连接后点击视频节点，确认输入框上方出现两张参考图。"}` },
     { nodeId: video.id, selector: ".promptCard", title: "填写视频提示词并配置模型", description: "核对图1女主、图2男主的参考图，按需要用 @ 插入引用。输入框已保留完整10秒分镜提示词，可修改剧情和镜头；选择支持当前参考图的视频模型，核对比例、清晰度及10秒时长。" },

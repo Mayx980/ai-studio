@@ -1,6 +1,6 @@
 <template>
   <el-dropdown v-if="currentAccount" class="accountMenu" @command="handleCommand">
-    <el-button class="userCenterButton" text aria-label="用户中心"><icon-user :size="20" /><span class="userCenterText"><strong class="userCenterLabel">用户中心</strong><small class="accountName">{{ currentAccount.name }}</small></span></el-button>
+    <el-button class="userCenterButton" text aria-label="用户中心"><icon-user :size="20" /><span class="userCenterText"><strong class="userCenterLabel">用户中心</strong><small class="accountName">{{ currentAccount.name }}</small><small v-if="currentUser">{{ roleLabels[currentUser.role] }}<template v-if="currentUser.role !== 'platformAdmin' && currentUser.customerName"> · {{ currentUser.customerName }}</template></small></span></el-button>
     <template #dropdown><el-dropdown-menu><el-dropdown-item command="settings">外观与设置</el-dropdown-item><el-dropdown-item v-if="accountsRequired" command="password">修改密码</el-dropdown-item><el-dropdown-item command="switch">切换账号</el-dropdown-item><el-dropdown-item command="logout">退出登录</el-dropdown-item></el-dropdown-menu></template>
   </el-dropdown>
   <el-button v-else-if="!prototype.requiresAccount" text aria-label="共享工作区设置" @click="emit('openSettings')"><icon-settings :size="20" /><span>设置</span></el-button>
@@ -12,7 +12,9 @@ import { ElMessage } from "element-plus";
 import { prototype } from "@/ports/prototype";
 import { currentAccount, signOutPrototype } from "@/stores/prototypeAccount";
 import { ref } from "vue";
-import { accountsRequired, signOut } from "@/stores/accounts";
+import { roleLabels } from "@/ports/platform";
+import { accounts } from "@/ports/accounts";
+import { accountsRequired, signOut, currentUser } from "@/stores/accounts";
 import { flushSharedState } from "@/stores/sharedState";
 import { flushSettings } from "@/stores/settings";
 import accountPassword from "./accountPassword.vue";
@@ -30,8 +32,10 @@ async function logout() {
   leaving = true;
   try {
     if (accountsRequired.value) {
-      await router.push("/home");
-      if (router.currentRoute.value.path !== "/home") return;
+      if (accounts.scope === "scenario") { await signOut(); await router.push("/login"); return; }
+      const home = currentUser.value?.role === "platformAdmin" ? "/admin" : "/home";
+      await router.push(home);
+      if (router.currentRoute.value.path !== home) return;
       await flushSharedState();
       await flushSettings();
       await signOut();

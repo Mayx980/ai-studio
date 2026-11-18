@@ -40,8 +40,8 @@ export function configuredBrowserModels(kind: ModelKind): ConfiguredModel[] {
 }
 export function resolveBrowserModel(kind: ModelKind, providerId?: string, modelId?: string) {
   const models = configuredBrowserModels(kind);
-  const model = providerId ? models.find(model => model.providerId === providerId && model.modelId === modelId) : models.find(model => model.id === browserModelSelection[kind]) ?? models[0];
-  if (!model) throw new Error("请先在设置 → API 配置中接入并选择对应模型");
+  const model = providerId ? models.find(model => model.providerId === providerId && model.modelId === modelId) : browserModelSelection[kind] ? models.find(model => model.id === browserModelSelection[kind]) : models[0];
+  if (!model) throw new Error("当前没有可用的对应模型，请联系平台管理员授权或检查模型状态");
   return model;
 }
 export const generationBusy = ref(false);
@@ -115,17 +115,17 @@ export function inferGenerationKind(prompt: string): ModelKind {
 
 export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "", referenceRoles?: ("firstFrame" | "reference" | "middleFrame" | "lastFrame" | undefined)[]) {
   if (generationBusy.value) return false;
-  if (!browserConfig.enabled) { generationError.value = "请先在设置 → API 配置中接入可用模型"; return false; }
+  if (!browserConfig.enabled) { generationError.value = "当前没有可用模型，请联系平台管理员"; return false; }
   const kind: ModelKind = requestedKind ?? inferGenerationKind(prompt);
   browserConfig.kind = kind;
-  const chosen = configuredBrowserModels(kind).find(model => model.id === browserModelSelection[kind]) ?? configuredBrowserModels(kind)[0];
+  const chosen = browserModelSelection[kind] ? configuredBrowserModels(kind).find(model => model.id === browserModelSelection[kind]) : configuredBrowserModels(kind)[0];
   const { ratio, duration, resolution, imageSize, count, generateAudio } = browserConfig;
   if (!Number.isInteger(count) || count < 1 || count > 6) { generationError.value = "图片生成数量须为 1–6 张"; return false; }
   if (kind === "image" && generationStyles[style]) prompt += `\n图片风格要求：${style}。${generationStyles[style]}保留用户指定的主体、产品特征与构图要求，不额外添加文字或水印。`;
   const endpoint = chosen?.endpoint || browserConfig.endpoint;
   const apiKey = chosen?.apiKey.trim() ?? "";
   generationError.value = "";
-  if (!chosen || (browserWorkspaceMode && !apiKey) || !prompt.trim()) { generationError.value = "请填写提示词，并在设置 → API 配置中接入对应模型。"; return false; }
+  if (!chosen || (browserWorkspaceMode && !apiKey) || !prompt.trim()) { generationError.value = "请填写提示词；没有可用模型时请联系平台管理员。"; return false; }
   if (browserWorkspaceMode && !/^https:\/\//i.test(endpoint)) { generationError.value = "接口地址必须使用 HTTPS。"; return false; }
   if ((kind === "text" || kind === "audio") && references.length) { generationError.value = "当前文字／音频适配器仅支持文字输入，请移除引用素材；输入与素材已保留。"; return false; }
   if (references.some(file => !/^(image|video)\//.test(file.type))) { generationError.value = "参考素材仅支持图片或视频。"; return false; }

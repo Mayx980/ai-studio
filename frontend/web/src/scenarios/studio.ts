@@ -1,6 +1,6 @@
 import { StudioError, type StudioAction, type StudioPort, type StudioNoticeFeed, type StudioResponse } from "@/ports";
 
-export const scenarioNames = ["empty", "loading", "error", "permission", "formValidation", "login", "initialPassword", "accountPassword"] as const;
+export const scenarioNames = ["empty", "loading", "error", "permission", "formValidation", "login", "initialPassword", "accountPassword", "platformAdmin", "customerAdmin", "cloudUser", "platformError"] as const;
 export type ScenarioName = typeof scenarioNames[number];
 
 const unavailable = async () => { throw new StudioError("隔离预览不执行此操作，请使用真实开发服务", { message: "隔离预览不执行此操作，请使用真实开发服务" }, 403); };
