@@ -16,6 +16,7 @@ function checkDirectory(directory: string) {
   return directory;
 }
 export function createScenarioWorkspaceFiles(getDirectory: () => string, nativeFiles: NativeWorkspaceReader) {
+  if (currentUser.value?.role === "platformAdmin") throw new Error("平台端账号不具备用户端创作权限");
   const id = actor();
   return createLocalWorkspaceFiles(() => checkDirectory(getDirectory()), nativeFiles, {
     databaseName: `afxen.uiux.workspaces.${id}`, nativeImport: false,

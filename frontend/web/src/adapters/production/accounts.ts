@@ -64,6 +64,6 @@ export function createAccountsPort(): AccountsPort {
     session: async () => remember(await request<AccountSession>("auth/session", "GET", undefined, true)),
     login: async (username, password) => remember(await request<AccountSession>("auth/login", "POST", { username, password }, true)),
     logout: async () => { await request("auth/logout", "POST"); },
-    changePassword: async (previous, password) => { await request("auth/password", "PUT", { previous, password }); },
+    changePassword: async () => { throw new Error("当前后端尚未接通免旧密码修改接口"); },
   };
 }

@@ -61,7 +61,8 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
     const actor = user();
     const result = structuredClone(state);
     result.customers = result.customers.filter(item => !item.deletedAt);
-    result.accounts = result.accounts.filter(item => !item.deletedAt);
+    result.accounts = result.accounts.filter(item => !item.deletedAt && item.role !== "platformAdmin");
+    for (const customer of result.customers) customer.modelIds = result.models.filter(item => item.enabled && item.verified).map(item => item.id);
     result.recipientAccounts = result.accounts.filter(item => validRecipient(item) && (actor.role === "platformAdmin" || actor.role === "customerAdmin" && item.customerId === actor.customerId)).map(({ id, name, username, role, customerId }) => ({ id, name, username, role, customerId }));
     result.sentNotices = result.notices.filter(item => item.senderId === actor.id || actor.role === "platformAdmin" && (!item.senderRole || item.senderRole === "platformAdmin"));
     result.notices = result.notices.filter(item => receives(item, actor) || actor.role === "platformAdmin" && item.senderId === actor.id).map(item => ({ ...item, read: item.readBy?.includes(actor.id) ?? false, readBy: item.readBy?.filter(id => id === actor.id), ...(actor.role === "user" ? { accountIds: [actor.id], customerIds: [actor.customerId!] } : {}) }));
@@ -69,10 +70,11 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
       result.customers = result.customers.filter(item => item.id === actor.customerId);
       result.accounts = actor.role === "customerAdmin" ? result.accounts.filter(item => item.customerId === actor.customerId && item.role === "user") : [];
       result.connections = [];
-      result.models = result.models.filter(item => item.enabled && result.customers.some(customer => customer.modelIds.includes(item.id)));
+      result.models = result.models.filter(item => item.enabled && item.verified);
       result.tasks = result.tasks.filter(item => item.accountId === actor.id);
       result.templates = result.templates.filter(item => item.enabled && (!item.customerIds.length || item.customerIds.includes(actor.customerId ?? "")));
     }
+    result.notices = []; result.sentNotices = [];
     return result;
   }, async execute(command) {
     restore(); syncAccounts();
@@ -82,6 +84,7 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
   } };
   async function apply(command: PlatformCommand) {
     const actor = user();
+    if (["notice", "readNotice", "connection", "verifyConnection", "model", "verifyModel"].includes(command.type)) throw new Error("本版不提供消息和模型管理功能");
     if (command.type === "readNotice") {
       const item = state.notices.find(item => item.id === command.id && (receives(item, actor) || item.senderId === actor.id || actor.role === "platformAdmin" && (!item.senderRole || item.senderRole === "platformAdmin")));
       if (!item) throw new Error("消息不存在或无权访问"); item.readBy = [...new Set([...(item.readBy ?? []), actor.id])]; return;
@@ -90,6 +93,7 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
       const task = state.tasks.find(item => item.id === command.id && item.accountId === actor.id);
       if (!task || !task.recoverable) throw new Error("当前任务不支持恢复保存"); task.status = "saving"; task.recoverable = false; delete task.failure; return;
     }
+    if ((command.type === "account" || command.type === "resetPassword") && command.password !== "123456") throw new Error("初始和重置密码统一为123456");
     if (command.type === "account") {
       if (!state.customers.some(item => item.id === command.value.customerId && !item.deletedAt && item.enabled !== false)) throw new Error("请选择有效客户");
       if (actor.role !== "platformAdmin" && !(actor.role === "customerAdmin" && actor.customerId === command.value.customerId)) throw new Error("无权创建此客户账号");

@@ -1,3 +1,4 @@
+import { acceptsPortalRole, portalName } from "@/lib/portal";
 import { ref } from "vue";
 import { accounts, type UserAccount } from "@/ports/accounts";
 
@@ -9,7 +10,7 @@ let channel: BroadcastChannel | undefined;
 export async function loadAccountSession() {
   const session = await accounts.session();
   if (!channel && accounts.scope === "production" && typeof BroadcastChannel === "function") {
-    channel = new BroadcastChannel("afxenAccounts");
+    channel = new BroadcastChannel(`afxenAccounts.${portalName}`);
     channel.onmessage = () => {
       if (accountsRequired.value && currentUser.value) {
         sessionExpired.value = true;
@@ -17,12 +18,13 @@ export async function loadAccountSession() {
       }
     };
   }
-  currentUser.value = session.user;
+  currentUser.value = session.user && acceptsPortalRole(session.user.role) ? session.user : null;
   accountsRequired.value = session.mode === "users";
 }
 export async function signIn(username: string, password: string) {
   const session = await accounts.login(username, password);
-  currentUser.value = session.user;
+  if (session.user && !acceptsPortalRole(session.user.role)) throw new Error("该账号不能登录当前端");
+  currentUser.value = session.user && acceptsPortalRole(session.user.role) ? session.user : null;
   accountsRequired.value = session.mode === "users";
   channel?.postMessage("changed");
 }

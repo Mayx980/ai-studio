@@ -1,12 +1,13 @@
 <template>
   <el-dropdown v-if="currentAccount" class="accountMenu" @command="handleCommand">
     <el-button class="userCenterButton" text :title="accountDescription" aria-label="用户中心"><icon-user :size="20" /><span class="userCenterText"><strong class="userCenterLabel">{{ currentAccount.name }}</strong><small v-if="currentUser" class="accountRole">{{ roleLabels[currentUser.role] }}<template v-if="currentUser.role !== 'platformAdmin' && currentUser.customerName"> · {{ currentUser.customerName }}</template></small></span></el-button>
-    <template #dropdown><el-dropdown-menu><el-dropdown-item command="settings">外观与设置</el-dropdown-item><el-dropdown-item v-if="accountsRequired" command="password">修改密码</el-dropdown-item><el-dropdown-item command="switch">切换账号</el-dropdown-item><el-dropdown-item command="logout">退出登录</el-dropdown-item></el-dropdown-menu></template>
+    <template #dropdown><el-dropdown-menu><el-dropdown-item v-if="!isPlatformPortal" command="settings">外观与设置</el-dropdown-item><el-dropdown-item v-if="accountsRequired" command="password">修改密码</el-dropdown-item><el-dropdown-item command="switch">切换账号</el-dropdown-item><el-dropdown-item command="logout">退出登录</el-dropdown-item></el-dropdown-menu></template>
   </el-dropdown>
   <el-button v-else-if="!prototype.requiresAccount" text aria-label="共享工作区设置" @click="emit('openSettings')"><icon-settings :size="20" /><span>设置</span></el-button>
   <accountPassword v-if="accountsRequired" v-model="passwordVisible" />
 </template>
 <script setup lang="ts">
+import { portalHome, isPlatformPortal } from "@/lib/portal";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { prototype } from "@/ports/prototype";
@@ -33,7 +34,7 @@ async function logout() {
   leaving = true;
   try {
     if (accountsRequired.value) {
-      const home = "/home";
+      const home = portalHome;
       await router.push(home);
       if (router.currentRoute.value.path !== home) return;
       await flushSharedState();

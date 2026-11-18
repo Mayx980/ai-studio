@@ -1,3 +1,4 @@
+import { isPlatformPortal } from "@/lib/portal";
 import { studio } from "@/ports";
 import { createApp, h, nextTick, ref } from "vue";
 import { ElButton, ElResult } from "element-plus";
@@ -41,7 +42,7 @@ async function notifyDesktopReady(failed = false) {
   : loadAccountSession().then(async () => {
     if (accountsRequired.value && (!currentUser.value || currentUser.value.mustChangePassword)) return;
     await loadSettings();
-    await (await import("@/stores/browserGeneration")).loadServerModels();
+    if (!isPlatformPortal) await (await import("@/stores/browserGeneration")).loadServerModels();
   })).then(async () => {
   app.use(createPinia().use(createPersistedState({ storage: settingsStorage })));
   app.use(router);

@@ -23,11 +23,12 @@ const builtinNodeAliases = ["nodes/textNode", "nodes/imageGenerationNode", "node
 export default defineConfig(({ mode }) => ({
   css: { postcss: postcssConfig },
   define: {
+    "import.meta.env.VITE_PLATFORM_PORTAL": mode.startsWith("platform"),
     "import.meta.env.VITE_STUDIO_RELAY": mode === "studio",
     "import.meta.env.appVersion": JSON.stringify(desktopConfig.app.version),
   },
   server: {
-    proxy: mode === "scenario" ? undefined : {
+    proxy: ["scenario", "platformScenario"].includes(mode) ? undefined : {
       "/mcp": { target: "http://127.0.0.1:3000", changeOrigin: false },
       "/a2a": { target: "http://127.0.0.1:3000", changeOrigin: false },
       "/api": {
@@ -49,7 +50,7 @@ export default defineConfig(({ mode }) => ({
     ],
   },
   build: {
-    outDir: mode === "scenario" ? "../../build/scenario" : "../../build/web",
+    outDir: mode === "platformScenario" ? "../../build/platformScenario" : mode === "platform" ? "../../build/platform" : mode === "scenario" ? "../../build/scenario" : "../../build/web",
     emptyOutDir: true,
   },
   plugins: [
@@ -57,7 +58,7 @@ export default defineConfig(({ mode }) => ({
       name: "experienceComposition",
       transformIndexHtml: {
         order: "pre",
-        handler: html => mode === "scenario" ? html.replace("/src/composition/production.ts", "/src/composition/scenario.ts") : html,
+        handler: html => ["scenario", "platformScenario"].includes(mode) ? html.replace("/src/composition/production.ts", "/src/composition/scenario.ts") : html,
       },
     },
     ...(mode === "studio" ? [studioRelay()] : []),

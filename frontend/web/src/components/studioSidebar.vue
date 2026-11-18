@@ -29,8 +29,8 @@ onMounted(loadPlatform);
 const sections = computed(() => [
   { value: "assets", label: "资产", icon: IconPhoto },
   { value: "projects", label: "我的项目", icon: IconFolder },
-  { value: "messages", label: "消息中心", icon: IconBell },
-  ...(isPlatformAdmin.value ? [{ value: "platform", label: "平台管理", icon: IconLayoutGrid }] : []),
+
+
   ...(isCustomerAdmin.value ? [{ value: "accounts", label: "账号管理", icon: IconUsers }] : []),
 ]);
 </script>

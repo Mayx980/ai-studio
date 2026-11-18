@@ -5,7 +5,7 @@ export interface AccountsPort {
   session(): Promise<AccountSession>;
   login(username: string, password: string): Promise<AccountSession>;
   logout(): Promise<void>;
-  changePassword(previous: string, password: string): Promise<void>;
+  changePassword(password: string): Promise<void>;
 }
 export let accounts: AccountsPort;
 export function configureAccountsPort(port: AccountsPort) { accounts = port; }

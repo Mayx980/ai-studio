@@ -2,8 +2,6 @@
   <el-dialog v-model="visible" title="修改密码" width="min(480px, 94vw)" :beforeClose="beforeClose" :closeOnClickModal="false" :closeOnPressEscape="!busy" :showClose="!busy" destroyOnClose>
     <form class="accountPassword" :aria-busy="busy" @submit.prevent="changePassword">
       <p v-if="failure" class="failure" role="alert">{{ failure }}</p>
-      <label for="accountPreviousPassword">当前密码</label>
-      <el-input id="accountPreviousPassword" v-model="previousPassword" type="password" autocomplete="current-password" showPassword :maxlength="128" />
       <label for="accountNewPassword">新密码（6–15字符）</label>
       <el-input id="accountNewPassword" v-model="password" type="password" autocomplete="new-password" showPassword :maxlength="15" />
       <label for="accountPasswordConfirmation">再次输入新密码</label>
@@ -22,11 +20,11 @@ import { notifyPasswordChanged, signOut } from "@/stores/accounts";
 const router = useRouter();
 const visible = defineModel<boolean>({ default: false });
 const busy = ref(false), failure = ref("");
-const previousPassword = ref(""), password = ref(""), confirmation = ref("");
+const password = ref(""), confirmation = ref("");
 
 async function beforeClose(done: () => void) {
   if (busy.value) return;
-  if (previousPassword.value || password.value || confirmation.value) {
+  if (password.value || confirmation.value) {
     const discard = await ElMessageBox.confirm("尚未提交的密码将被清空。", "放弃本次修改？", { confirmButtonText: "放弃修改", cancelButtonText: "继续编辑", type: "warning" }).then(() => true, () => false);
     if (!discard) return;
   }
@@ -38,10 +36,9 @@ async function changePassword() {
   busy.value = true;
   failure.value = "";
   try {
-    if (!previousPassword.value) throw new Error("请输入当前密码");
     if (password.value.length < 6 || password.value.length > 15) throw new Error("密码须为6–15字符");
     if (password.value !== confirmation.value) throw new Error("两次密码不一致");
-    await accounts.changePassword(previousPassword.value, password.value);
+    await accounts.changePassword(password.value);
     notifyPasswordChanged();
     if (accounts.scope === "scenario") { await signOut(); visible.value = false; await router.push("/login"); window.location.reload(); } else { window.location.hash = "/login"; window.location.reload(); }
   } catch (cause) { failure.value = cause instanceof Error ? cause.message : "修改失败，请重试"; }
@@ -50,7 +47,6 @@ async function changePassword() {
 
 watch(visible, value => {
   if (!value) {
-    previousPassword.value = "";
     password.value = "";
     confirmation.value = "";
     failure.value = "";

@@ -1,3 +1,4 @@
+import { isPlatformPortal, portalHome, acceptsPortalRole } from "@/lib/portal";
 import { prototype } from "@/ports/prototype";
 import { createRouter, createWebHashHistory } from "vue-router";
 import { useHelloStore } from "@/stores/hello";
@@ -7,9 +8,9 @@ import { accountsRequired, currentUser } from "@/stores/accounts";
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    { path: "/admin", component: () => import("@/pages/admin/index.vue") },
+    ...(isPlatformPortal ? [{ path: "/admin", component: () => import("@/pages/admin/index.vue") }] : []),
     { path: "/login", component: () => import("@/pages/login/index.vue") },
-    {
+    ...(!isPlatformPortal ? [{
       path: "/",
       redirect: "/hello",
     },
@@ -36,15 +37,18 @@ const router = createRouter({
         return true;
       },
       component: () => import("@/pages/workspace/index.vue"),
-    },
+    }] : [{ path: "/", redirect: "/admin" }]),
   ],
 });
 router.beforeEach(to => {
   if (accountsRequired.value) {
-    if ((!currentUser.value || currentUser.value.mustChangePassword) && to.path !== "/login") return { path: "/login", replace: true };
-    if (currentUser.value && !currentUser.value.mustChangePassword && to.path === "/login") return { path: "/home", replace: true };
+    if ((!currentUser.value || !acceptsPortalRole(currentUser.value.role) || currentUser.value.mustChangePassword) && to.path !== "/login") return { path: "/login", replace: true };
+    if (currentUser.value && !currentUser.value.mustChangePassword && to.path === "/login") return { path: portalHome, replace: true };
+    if (isPlatformPortal && !["/login", "/admin"].includes(to.path)) return { path: "/admin", replace: true };
+    if (!isPlatformPortal && to.path === "/admin") return { path: "/home", replace: true };
+    if (to.query.section === "messages") return { path: portalHome, replace: true };
     if (to.path === "/admin" && !isPlatformAdmin.value) return { path: "/home", replace: true };
-    if (to.query.section === "accounts" && !isCustomerAdmin.value) return { path: "/home", replace: true };
+    if (to.path === "/home" && to.query.section === "accounts" && !isCustomerAdmin.value) return { path: "/home", replace: true };
     return true;
   }
   if (to.path === "/admin" || to.query.section === "accounts") return { path: "/login", replace: true };
