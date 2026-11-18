@@ -1,6 +1,6 @@
 <template>
   <main class="adminPage">
-    <aside class="adminSidebar"><brandLogo /><span class="endLabel">平台管理</span><el-button text @click="router.push('/home')">← 返回创作</el-button><nav aria-label="平台管理导航"><button v-for="item in sections" :key="item.id" type="button" :aria-current="section === item.id ? 'page' : undefined" @click="section = item.id"><component :is="item.icon" :size="18" />{{ item.label }}</button></nav><accountMenu @openSettings="settingsVisible = true" /></aside>
+    <aside class="adminSidebar"><brandLogo /><span class="endLabel">平台管理</span><el-button text @click="router.push('/home')">← 返回创作</el-button><nav aria-label="平台管理导航"><el-tooltip v-for="item in sections" :key="item.id" :content="item.label" placement="right" :showAfter="200"><button type="button" :aria-label="item.label" :aria-current="section === item.id ? 'page' : undefined" @click="section = item.id"><component :is="item.icon" :size="18" />{{ item.label }}</button></el-tooltip></nav><accountMenu @openSettings="settingsVisible = true" /></aside>
     <section class="adminContent">
       <header class="pageHeader"><div><span class="eyebrow">AFXEN / 平台管理</span><h1>{{ sections.find(item => item.id === section)?.label }}</h1></div><el-tag v-if="platform.scope === 'scenario'" type="warning">隔离预览 · 非真实业务数据</el-tag></header>
       <el-alert v-if="platformError" :title="platformError" type="error" :closable="false"><el-button text @click="loadPlatform">重试读取</el-button></el-alert>

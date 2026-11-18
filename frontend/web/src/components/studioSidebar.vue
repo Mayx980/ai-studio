@@ -3,9 +3,9 @@
     <button class="collapseButton" type="button" :aria-expanded="!navigationCollapsed" :aria-label="navigationCollapsed ? '展开导航栏' : '折叠导航栏'" @click="navigationCollapsed = !navigationCollapsed"><icon-layout-sidebar :size="16" /></button><div class="sidebarScroll" @click.self="navigationCollapsed = false">
       <button class="studioBrand" type="button" aria-label="AFXEN 首页" @click="emit('navigate', 'create')"><brandLogo class="fullBrand" /><brandLogo class="compactBrand" compact /></button>
       <nav @click.self="navigationCollapsed = false">
-        <button type="button" :aria-current="activeSection === 'create' ? 'page' : undefined" title="首页" @click="emit('navigate', 'create')"><icon-home :size="20" /><span>首页</span></button>
-        <button type="button" :disabled="disabled" :aria-current="activeSection === 'agent' ? 'page' : undefined" title="Agent 助手" @click="emit('newAgent')"><icon-sparkles :size="20" /><span>Agent 助手</span></button>
-        <button v-for="item in sections" :key="item.value" type="button" :aria-current="activeSection === item.value ? 'page' : undefined" :title="item.label" @click="item.value === 'platform' ? router.push('/admin') : emit('navigate', item.value)" :aria-label="item.value === 'messages' && unreadNotices ? `消息中心，${unreadNotices}条未读消息` : item.label"><div class="navIcon"><component :is="item.icon" :size="20" /><i v-if="item.value === 'messages' && unreadNotices" class="unreadDot" aria-hidden="true" /></div><span>{{ item.label }}</span></button>
+        <el-tooltip content="首页" placement="right" :showAfter="200"><button type="button" :aria-current="activeSection === 'create' ? 'page' : undefined" aria-label="首页" @click="emit('navigate', 'create')"><icon-home :size="20" /><span>首页</span></button></el-tooltip>
+        <el-tooltip content="Agent 助手" placement="right" :showAfter="200"><button type="button" :disabled="disabled" :aria-current="activeSection === 'agent' ? 'page' : undefined" aria-label="Agent 助手" @click="emit('newAgent')"><icon-sparkles :size="20" /><span>Agent 助手</span></button></el-tooltip>
+        <el-tooltip v-for="item in sections" :key="item.value" :content="item.label" placement="right" :showAfter="200"><button type="button" :aria-current="activeSection === item.value ? 'page' : undefined" @click="item.value === 'platform' ? router.push('/admin') : emit('navigate', item.value)" :aria-label="item.value === 'messages' && unreadNotices ? `消息中心，${unreadNotices}条未读消息` : item.label"><div class="navIcon"><component :is="item.icon" :size="20" /><i v-if="item.value === 'messages' && unreadNotices" class="unreadDot" aria-hidden="true" /></div><span>{{ item.label }}</span></button></el-tooltip>
       </nav>
 
     </div>
@@ -16,7 +16,7 @@
 import { useRouter } from "vue-router";
 import { computed, onMounted } from "vue";
 import { navigationCollapsed } from "@/stores/navigation";
-import { IconLayoutSidebar, IconHome, IconPhoto, IconFolder, IconBell, IconUsers, IconSettings } from "@tabler/icons-vue";
+import { IconLayoutSidebar, IconHome, IconPhoto, IconFolder, IconBell, IconUsers, IconLayoutGrid } from "@tabler/icons-vue";
 import type { Project } from "@/stores/workspace";
 import { isCustomerAdmin, isPlatformAdmin, unreadNotices, loadPlatform } from "@/stores/platform";
 import brandLogo from "@/components/brandLogo.vue";
@@ -30,7 +30,7 @@ const sections = computed(() => [
   { value: "assets", label: "资产", icon: IconPhoto },
   { value: "projects", label: "我的项目", icon: IconFolder },
   { value: "messages", label: "消息中心", icon: IconBell },
-  ...(isPlatformAdmin.value ? [{ value: "platform", label: "平台管理", icon: IconSettings }] : []),
+  ...(isPlatformAdmin.value ? [{ value: "platform", label: "平台管理", icon: IconLayoutGrid }] : []),
   ...(isCustomerAdmin.value ? [{ value: "accounts", label: "账号管理", icon: IconUsers }] : []),
 ]);
 </script>
