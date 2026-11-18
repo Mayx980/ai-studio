@@ -12,8 +12,8 @@ import { createScenarioAccountsPort } from "@/scenarios/accounts";
 import { configurePlatformPort } from "@/ports/platform";
 import { createScenarioPlatformPort } from "@/scenarios/platform";
 
-const selected = new URLSearchParams(window.location.search).get("scenario") ?? import.meta.env.VITE_EXPERIENCE_SCENARIO ?? "empty";
-const scenario = scenarioNames.find(name => name === selected) ?? "empty";
+const selected = new URLSearchParams(window.location.search).get("scenario") ?? import.meta.env.VITE_EXPERIENCE_SCENARIO ?? "login";
+const scenario = scenarioNames.find(name => name === selected) ?? "login";
 const unavailable = async (): Promise<never> => { throw new Error("隔离预览不连接真实工作区或模型服务"); };
 const unavailableSync = (): never => { throw new Error("隔离预览不连接浏览器项目或原型账号"); };
 configureAccountsPort(createScenarioAccountsPort(scenario));
@@ -21,7 +21,7 @@ configurePlatformPort(createScenarioPlatformPort(scenario));
 configurePrototypePort({
   workspaceMode: false,
   supportsCreation: false,
-  requiresAccount: ["login", "initialPassword", "accountPassword"].includes(scenario),
+  requiresAccount: true,
   readLegacyState: () => null,
   readAccount: () => null,
   writeAccount: unavailableSync,
