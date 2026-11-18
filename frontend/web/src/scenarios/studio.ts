@@ -1,5 +1,7 @@
 import { StudioError, type StudioAction, type StudioPort, type StudioNoticeFeed, type StudioResponse } from "@/ports";
 
+import { createScenarioProject, scenarioFiles, loadScenarioCreationState, saveScenarioCreationState } from "./workspace";
+
 export const scenarioNames = ["empty", "loading", "error", "permission", "formValidation", "login", "initialPassword", "accountPassword", "platformAdmin", "customerAdmin", "cloudUser", "platformError"] as const;
 export type ScenarioName = typeof scenarioNames[number];
 
@@ -45,9 +47,9 @@ export function createScenarioPort(scenario: ScenarioName): StudioPort {
     loadPluginSource: unavailable,
     loadToolComponent: async () => undefined,
     createAssistantSession: unavailable,
-    createWorkspace: unavailable,
-    loadCreationState: value({ revision: "0".repeat(64), stores: { "toonflow.projectList": { project: null, projectList: [] } } }),
-    saveCreationState: unavailable,
+    createWorkspace: async <T>(...inputs: unknown[]) => value({ directory: await createScenarioProject((inputs[0] as { name: string }).name) })<T>(),
+    loadCreationState: async <T>() => value(await loadScenarioCreationState())<T>(),
+    saveCreationState: async <T>(...inputs: unknown[]) => value(await saveScenarioCreationState(inputs[0] as { revision: string; stores: Record<string, unknown> }))<T>(),
     controlAssistantSession: unavailable,
     completeAssistantTool: unavailable,
     addMediaProvider: unavailable,
@@ -69,14 +71,16 @@ export function createScenarioPort(scenario: ScenarioName): StudioPort {
     exportPlugin: unavailable,
     importWorkspaceImage: unavailable,
     inspectProviderDocument: unavailable,
-    inspectWorkspace: unavailable,
+    inspectWorkspace: async <T>(...inputs: unknown[]) => { const directory = (inputs[0] as { params: { directory: string } }).params.directory; await scenarioFiles(directory).list(); return value({ directory })<T>(); },
     installLocalPlugin: unavailable,
     installPlugin: unavailable,
     listAssets: value([]),
     listConversationSkills: value([]),
     listConversations: value([]),
     listDocumentEditors: value([]),
-    listInstalledNodes: value([]),
+    listInstalledNodes: value([
+      ...[["textNode", "文字"], ["imageGenerationNode", "图片"], ["videoGenerationNode", "视频"], ["audioGenerationNode", "音频"], ["imageNode", "图片素材"], ["videoNode", "视频素材"], ["audioNode", "音频素材"]].map(([name, displayName]) => ({ name, displayName, url: `/api/nodes/files?name=${name}`, enabled: true })),
+    ]),
     listInstalledPlugins: async (category) => value(category === "tools" ? { tools: [], canManage: false } : category === "agents" ? { agents: [], canManage: false } : [])(),
     listInstalledTools: value({ tools: [], canManage: false }),
     listMediaProviders: value([]),

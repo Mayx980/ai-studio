@@ -43,7 +43,7 @@ async function changePassword() {
     if (password.value !== confirmation.value) throw new Error("两次密码不一致");
     await accounts.changePassword(previousPassword.value, password.value);
     notifyPasswordChanged();
-    if (accounts.scope === "scenario") { await signOut(); visible.value = false; await router.push("/login"); } else { window.location.hash = "/login"; window.location.reload(); }
+    if (accounts.scope === "scenario") { await signOut(); visible.value = false; await router.push("/login"); window.location.reload(); } else { window.location.hash = "/login"; window.location.reload(); }
   } catch (cause) { failure.value = cause instanceof Error ? cause.message : "修改失败，请重试"; }
   finally { busy.value = false; }
 }

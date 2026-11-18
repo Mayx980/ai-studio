@@ -47,7 +47,7 @@ async function login() {
   try {
     if (!username.value.trim() || !password.value) throw new Error("请输入用户名和密码");
     await signIn(username.value.trim(), password.value);
-    if (accounts.scope === "scenario") { await router.push(currentUser.value?.mustChangePassword ? "/login" : "/home"); }
+    if (accounts.scope === "scenario") { if (currentUser.value?.mustChangePassword) await router.push("/login"); else { window.location.hash = "/home"; window.location.reload(); } }
     else { window.location.hash = currentUser.value?.mustChangePassword ? "/login" : "/home"; window.location.reload(); }
   } catch (cause) { failure.value = cause instanceof Error ? cause.message : "登录失败，请重试"; }
   finally { busy.value = false; }
@@ -62,7 +62,7 @@ async function changePassword() {
     if (confirmation.value !== nextPassword.value) throw new Error("两次新密码不一致");
     await accounts.changePassword(password.value, nextPassword.value);
     notifyPasswordChanged();
-    if (accounts.scope === "scenario") { await loadAccountSession(); password.value = ""; nextPassword.value = ""; confirmation.value = ""; await router.push("/home"); } else window.location.reload();
+    if (accounts.scope === "scenario") { await loadAccountSession(); password.value = ""; nextPassword.value = ""; confirmation.value = ""; window.location.hash = "/home"; window.location.reload(); } else window.location.reload();
   } catch (cause) { failure.value = cause instanceof Error ? cause.message : "修改失败，请重试"; }
   finally { busy.value = false; }
 }

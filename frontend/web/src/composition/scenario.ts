@@ -7,6 +7,7 @@ import { configureBrowserViewPort } from "@toonflow/tool-browser-ui/ports";
 import { configureQuestionPort } from "@toonflow/tool-ask-user-ui/ports";
 import { configurePrototypePort } from "@/ports/prototype";
 import { configureAccountsPort } from "@/ports/accounts";
+import { createScenarioWorkspaceFiles } from "@/scenarios/workspace";
 import { createScenarioAccountsPort } from "@/scenarios/accounts";
 
 import { configurePlatformPort } from "@/ports/platform";
@@ -20,13 +21,13 @@ configureAccountsPort(createScenarioAccountsPort(scenario));
 configurePlatformPort(createScenarioPlatformPort(scenario));
 configurePrototypePort({
   workspaceMode: false,
-  supportsCreation: false,
+  supportsCreation: true,
   requiresAccount: true,
   readLegacyState: () => null,
   readAccount: () => null,
   writeAccount: unavailableSync,
   clearAccount: unavailableSync,
-  createWorkspaceFiles: () => undefined,
+  createWorkspaceFiles: createScenarioWorkspaceFiles,
   nodeAi: { getModels: async () => [], getMediaModels: async () => [], generate: unavailable, generateImage: unavailable, generateVideo: unavailable, generateAudio: unavailable },
   generateText: unavailable,
   generateMedia: unavailable,

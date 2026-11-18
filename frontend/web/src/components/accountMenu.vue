@@ -32,7 +32,6 @@ async function logout() {
   leaving = true;
   try {
     if (accountsRequired.value) {
-      if (accounts.scope === "scenario") { await signOut(); await router.push("/login"); return; }
       const home = "/home";
       await router.push(home);
       if (router.currentRoute.value.path !== home) return;
