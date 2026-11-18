@@ -10,7 +10,7 @@
         <creativeCases curated />
       </section>
       <creativeCases ref="templateCenter" v-show="homeSection === 'templates'" @apply="applyCase" />
-      <section v-if="homeSection === 'messages' || homeSection === 'accounts'" class="cloudSection"><el-alert v-if="platformError" :title="platformError" type="error" :closable="false"><el-button text @click="loadPlatform">重试</el-button></el-alert><p v-if="platformLoading" role="status">正在读取…</p><messageCenter v-else-if="homeSection === 'messages' && !platformError" /><customerAccounts v-else-if="isCustomerAdmin && !platformError" :customerId="currentUser?.customerId || ''" /></section>
+      <section v-if="homeSection === 'messages' || homeSection === 'accounts'" class="cloudSection"><el-alert v-if="platformError" :title="platformError" type="error" :closable="false"><el-button text @click="loadPlatform">重试</el-button></el-alert><p v-if="platformLoading" role="status">正在读取…</p><messageCenter v-if="homeSection === 'messages' && !platformError" /><customerAccounts v-else-if="isCustomerAdmin && !platformError" :customerId="currentUser?.customerId || ''" /></section>
       <section v-if="homeSection === 'history'" class="homeHistory" aria-label="历史对话">
         <h2>历史对话</h2><el-input v-model="historySearch" placeholder="搜索对话名称或项目" aria-label="搜索历史对话" clearable />
         <p v-if="historyLoading" role="status">正在读取历史对话…</p><el-alert v-if="historyError" :title="historyError" type="error" :closable="false" />

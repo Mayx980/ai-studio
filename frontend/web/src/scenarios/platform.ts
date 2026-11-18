@@ -1,5 +1,6 @@
 import type { PlatformPort, PlatformState } from "@/ports/platform";
 import type { ScenarioName } from "./studio";
+import { setScenarioTemporaryPassword } from "./accounts";
 import { currentUser } from "@/stores/accounts";
 export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort {
   const now = new Date().toISOString();
@@ -17,7 +18,6 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
     tasks: ["waiting", "running", "saving", "completed", "failed", "unknown"].map((status, i) => ({ id: `taskPreview${i}`, name: `图片创作 · ${i + 1}`, kind: "image", modelId: "qwen-image-3.0-pro", status: status as PlatformState["tasks"][number]["status"], createdAt: now, accountId: "scenarioAccount", customerId: "customerPreview", elapsed: "未提供", usage: "待确认", parameters: { 尺寸: "1K", 数量: "1" }, ...(status === "failed" ? { failure: "结果保存失败，请恢复保存，无需重新生成", recoverable: true } : {}) })),
     templates: [],
   };
-  const passwords = new Map<string, string>();
   function user() { if (!currentUser.value || currentUser.value.mustChangePassword) throw new Error("请先完成登录和修改密码"); return currentUser.value; }
   function admin() { if (user().role !== "platformAdmin") throw new Error("仅平台管理员可操作"); }
   function account(id: string) {
@@ -55,13 +55,14 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
     if (command.type === "account") {
       if (!state.customers.some(item => item.id === command.value.customerId)) throw new Error("请选择有效客户");
       if (actor.role !== "platformAdmin" && !(actor.role === "customerAdmin" && actor.customerId === command.value.customerId)) throw new Error("无权创建此客户账号");
-      if (!command.value.username.trim() || !command.value.name.trim() || command.password.length < 6 || command.password.length > 128) throw new Error("请填写账号、姓名和6–128字符的临时密码");
+      if (!command.value.username.trim() || !command.value.name.trim() || command.password.length < 6 || command.password.length > 15) throw new Error("请填写账号、姓名和6–15字符的临时密码");
       if (state.accounts.some(item => item.username === command.value.username)) throw new Error("账号已存在");
-      const id = crypto.randomUUID(); passwords.set(id, command.password);
+      const id = crypto.randomUUID();
+      await setScenarioTemporaryPassword({ ...command.value, id, role: "user", enabled: true, mustChangePassword: true }, command.password);
       state.accounts.push({ ...command.value, id, enabled: true, role: "user", mustChangePassword: true, projects: 0, assets: 0, storage: "0 B" }); return;
     }
     if (command.type === "accountStatus") { account(command.id).enabled = command.enabled; return; }
-    if (command.type === "resetPassword") { const item = account(command.id); if (command.password.length < 6 || command.password.length > 128) throw new Error("临时密码须为6–128字符"); passwords.set(item.id, command.password); item.mustChangePassword = true; return; }
+    if (command.type === "resetPassword") { const item = account(command.id); if (command.password.length < 6 || command.password.length > 15) throw new Error("临时密码须为6–15字符"); await setScenarioTemporaryPassword({ id: item.id, username: item.username, name: item.name, role: item.role, customerId: item.customerId, enabled: item.enabled, mustChangePassword: true }, command.password); item.mustChangePassword = true; return; }
     admin();
     if (command.type === "accountRole") { account(command.id).role = command.role; return; }
     if (command.type === "customer") {

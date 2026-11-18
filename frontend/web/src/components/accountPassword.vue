@@ -4,10 +4,10 @@
       <p v-if="failure" class="failure" role="alert">{{ failure }}</p>
       <label for="accountPreviousPassword">当前密码</label>
       <el-input id="accountPreviousPassword" v-model="previousPassword" type="password" autocomplete="current-password" showPassword :maxlength="128" />
-      <label for="accountNewPassword">新密码（15–128字符）</label>
-      <el-input id="accountNewPassword" v-model="password" type="password" autocomplete="new-password" showPassword :maxlength="128" />
+      <label for="accountNewPassword">新密码（6–15字符）</label>
+      <el-input id="accountNewPassword" v-model="password" type="password" autocomplete="new-password" showPassword :maxlength="15" />
       <label for="accountPasswordConfirmation">再次输入新密码</label>
-      <el-input id="accountPasswordConfirmation" v-model="confirmation" type="password" autocomplete="new-password" showPassword :maxlength="128" />
+      <el-input id="accountPasswordConfirmation" v-model="confirmation" type="password" autocomplete="new-password" showPassword :maxlength="15" />
       <el-button nativeType="submit" type="primary" :loading="busy">修改并重新登录</el-button>
     </form>
   </el-dialog>
@@ -16,8 +16,10 @@
 import { ref, watch } from "vue";
 import { ElMessageBox } from "element-plus";
 import { accounts } from "@/ports/accounts";
-import { notifyPasswordChanged } from "@/stores/accounts";
+import { useRouter } from "vue-router";
+import { notifyPasswordChanged, signOut } from "@/stores/accounts";
 
+const router = useRouter();
 const visible = defineModel<boolean>({ default: false });
 const busy = ref(false), failure = ref("");
 const previousPassword = ref(""), password = ref(""), confirmation = ref("");
@@ -37,12 +39,11 @@ async function changePassword() {
   failure.value = "";
   try {
     if (!previousPassword.value) throw new Error("请输入当前密码");
-    if (password.value.length < 15 || password.value.length > 128) throw new Error("密码须为15–128字符");
+    if (password.value.length < 6 || password.value.length > 15) throw new Error("密码须为6–15字符");
     if (password.value !== confirmation.value) throw new Error("两次密码不一致");
     await accounts.changePassword(previousPassword.value, password.value);
     notifyPasswordChanged();
-    window.location.hash = "/login";
-    window.location.reload();
+    if (accounts.scope === "scenario") { await signOut(); visible.value = false; await router.push("/login"); } else { window.location.hash = "/login"; window.location.reload(); }
   } catch (cause) { failure.value = cause instanceof Error ? cause.message : "修改失败，请重试"; }
   finally { busy.value = false; }
 }

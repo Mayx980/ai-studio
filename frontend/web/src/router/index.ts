@@ -42,8 +42,7 @@ const router = createRouter({
 router.beforeEach(to => {
   if (accountsRequired.value) {
     if ((!currentUser.value || currentUser.value.mustChangePassword) && to.path !== "/login") return { path: "/login", replace: true };
-    if (currentUser.value && !currentUser.value.mustChangePassword && to.path === "/login") return { path: isPlatformAdmin.value ? "/admin" : "/home", replace: true };
-    if (currentUser.value && !currentUser.value.mustChangePassword && isPlatformAdmin.value && to.path !== "/admin") return { path: "/admin", replace: true };
+    if (currentUser.value && !currentUser.value.mustChangePassword && to.path === "/login") return { path: "/home", replace: true };
     if (to.path === "/admin" && !isPlatformAdmin.value) return { path: "/home", replace: true };
     if (to.query.section === "accounts" && !isCustomerAdmin.value) return { path: "/home", replace: true };
     return true;
