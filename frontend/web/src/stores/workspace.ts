@@ -117,6 +117,12 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       ?? [...projectList.value, ...draftProjects.value].filter(item => item.creationMode === "simple" && !item.historyArchived).sort((a, b) => b.lastOpenedAt - a.lastOpenedAt)[0];
     if (existing) await openProject(existing.directory);
     else if (project.value?.creationMode !== "simple" || project.value.historyArchived) await createProject("未命名项目", "simple");
+    if (studioCreationMode && project.value) {
+      const { listBrowserConversations, createBrowserConversation } = await import("@/components/agent/browserConversations");
+      const sessions = await listBrowserConversations(project.value.directory);
+      const session = sessions[0] ?? await createBrowserConversation(project.value.directory);
+      pendingAgentSession.value = { directory: project.value.directory, file: session.file };
+    }
     creationMode.value = "simple";
   }
 
