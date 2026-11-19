@@ -16,7 +16,7 @@
 import { computed, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { currentUser } from "@/stores/accounts";
-import { isPlatformAdmin, isCustomerAdmin, platformState, savePlatform } from "@/stores/platform";
+import { isPlatformAdmin, platformState, savePlatform } from "@/stores/platform";
 import type { PlatformNotice } from "@/ports/platform";
 const visible = ref(false), busy = ref(false), search = ref(""), failure = ref("");
 const draft = ref<PlatformNotice>(), selected = ref<string[]>([]);
@@ -24,7 +24,7 @@ const recipients = computed(() => isPlatformAdmin.value ? platformState.value.cu
 const filteredRecipients = computed(() => recipients.value.filter(item => item.label.includes(search.value.trim())));
 const selectedLabels = computed(() => recipients.value.filter(item => selected.value.includes(item.id)).map(item => item.label));
 function open(modelId = "") {
-  if (!isPlatformAdmin.value && !isCustomerAdmin.value) return;
+  if (!isPlatformAdmin.value) return;
   const now = new Date().toISOString();
   draft.value = { id: crypto.randomUUID(), kind: isPlatformAdmin.value ? modelId ? "model" : "platform" : "customer", title: "", content: "", modelId, effectiveAt: modelId ? "" : now, impact: "", customerIds: [], accountIds: [], createdAt: now, read: false };
   selected.value = recipients.value.map(item => item.id); search.value = ""; failure.value = ""; visible.value = true;

@@ -4,7 +4,7 @@
       <brandLogo />
       <h1>{{ currentUser?.mustChangePassword ? "设置新密码" : `登录 AFXEN ${portalName}` }}</h1><p v-if="accounts.scope === 'scenario'" class="previewHint">隔离预览：首次登录临时密码123456；已修改后请使用新密码。</p>
       <form v-if="!currentUser?.mustChangePassword" @submit.prevent="login">
-        <el-radio-group v-if="accounts.scope === 'scenario'" v-model="previewRole" aria-label="选择演示角色" @change="username = previewRole"><el-radio-button v-if="isPlatformPortal" value="platform">平台管理员</el-radio-button><el-radio-button v-if="!isPlatformPortal" value="customer">客户管理员</el-radio-button><el-radio-button v-if="!isPlatformPortal" value="user">普通用户</el-radio-button></el-radio-group>
+        <el-radio-group v-if="accounts.scope === 'scenario'" v-model="previewRole" aria-label="选择演示角色" @change="username = previewRole"><el-radio-button v-if="isPlatformPortal" value="platform">平台管理员</el-radio-button><el-radio-button v-if="!isPlatformPortal" value="user">普通用户</el-radio-button></el-radio-group>
         <label for="afxenUsername">用户名</label>
         <el-input id="afxenUsername" v-model="username" autocomplete="username" :maxlength="64" autofocus />
         <label for="afxenPassword">密码</label>
@@ -32,7 +32,7 @@ const router = useRouter();
 import brandLogo from "@/components/brandLogo.vue";
 import { currentUser, signIn, signOut, loadAccountSession, notifyPasswordChanged } from "@/stores/accounts";
 import { accounts } from "@/ports/accounts";
-const previewRole = ref(isPlatformPortal ? "platform" : "customer");
+const previewRole = ref(isPlatformPortal ? "platform" : "user");
 const username = ref(accounts.scope === "scenario" ? previewRole.value : "");
 const password = ref("");
 const nextPassword = ref("");

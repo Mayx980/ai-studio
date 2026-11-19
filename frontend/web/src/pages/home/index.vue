@@ -10,7 +10,6 @@
         <creativeCases curated />
       </section>
       <creativeCases ref="templateCenter" v-show="homeSection === 'templates'" @apply="applyCase" />
-      <section v-if="homeSection === 'accounts'" class="cloudSection"><el-alert v-if="platformError" :title="platformError" type="error" :closable="false"><el-button text @click="loadPlatform">重试</el-button></el-alert><p v-if="platformLoading" role="status">正在读取…</p><customerAccounts v-if="isCustomerAdmin && !platformError" :customerId="currentUser?.customerId || ''" /></section>
       <section v-if="homeSection === 'history'" class="homeHistory" aria-label="历史对话">
         <h2>历史对话</h2><el-input v-model="historySearch" placeholder="搜索对话名称或项目" aria-label="搜索历史对话" clearable />
         <p v-if="historyLoading" role="status">正在读取历史对话…</p><el-alert v-if="historyError" :title="historyError" type="error" :closable="false" />
@@ -57,14 +56,10 @@ import { navigationCollapsed, conversationHistoryOpen } from "@/stores/navigatio
 import workspacePicker from "./workspacePicker.vue";
 
 import studioSidebar from "@/components/studioSidebar.vue";
-import customerAccounts from "@/components/customerAccounts.vue";
-import { currentUser } from "@/stores/accounts";
-import { platformError, platformLoading, loadPlatform, isCustomerAdmin } from "@/stores/platform";
 const examplesReady = ref(false);
 onMounted(async () => { try { await ensureExampleProject(); } catch (error) { ElMessage.error(error instanceof Error ? error.message : "示例读取失败"); } finally { examplesReady.value = true; } });
 const workspaceStore = useWorkspaceStore(), router = useRouter(), route = useRoute();
-const homeSection = computed({ get: () => ["create", "templates", "history", "assets", "projects", "accounts"].includes(String(route.query.section)) ? String(route.query.section) : "create", set: section => { void router.replace({ path: "/home", query: { section } }); } });
-watch(homeSection, section => { if (["messages", "accounts"].includes(section)) void loadPlatform(); }, { immediate: true });
+const homeSection = computed({ get: () => ["create", "templates", "history", "assets", "projects"].includes(String(route.query.section)) ? String(route.query.section) : "create", set: section => { void router.replace({ path: "/home", query: { section } }); } });
 const settingsVisible = ref(false), creating = ref(false), opening = ref(false), sortDescending = ref(true), viewMode = ref("grid"), projectSearch = ref("");
 const templateCenter = ref<InstanceType<typeof creativeCases>>(), relocationPicker = ref<InstanceType<typeof workspacePicker>>();
 const sortedProjects = computed(() => [...workspaceStore.projectList].sort((a, b) => sortDescending.value ? b.lastOpenedAt - a.lastOpenedAt : a.lastOpenedAt - b.lastOpenedAt));

@@ -18,7 +18,7 @@ import { computed, onMounted } from "vue";
 import { navigationCollapsed } from "@/stores/navigation";
 import { IconLayoutSidebar, IconHome, IconPhoto, IconFolder, IconBell, IconUsers, IconLayoutGrid } from "@tabler/icons-vue";
 import type { Project } from "@/stores/workspace";
-import { isCustomerAdmin, isPlatformAdmin, unreadNotices, loadPlatform } from "@/stores/platform";
+import { isPlatformAdmin, unreadNotices, loadPlatform } from "@/stores/platform";
 import brandLogo from "@/components/brandLogo.vue";
 import accountMenu from "@/components/accountMenu.vue";
 
@@ -31,7 +31,6 @@ const sections = computed(() => [
   { value: "projects", label: "我的项目", icon: IconFolder },
 
 
-  ...(isCustomerAdmin.value ? [{ value: "accounts", label: "账号管理", icon: IconUsers }] : []),
 ]);
 </script>
 <style scoped lang="scss">

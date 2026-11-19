@@ -1,6 +1,6 @@
 <template>
   <section class="messageCenter">
-    <header v-if="!management"><h1>消息中心</h1><div class="messageTools"><el-button v-if="isPlatformAdmin || isCustomerAdmin" type="primary" :disabled="platformLoading" @click="composer?.open()">发布消息</el-button><el-radio-group v-model="filter" aria-label="消息筛选"><el-radio-button value="all">全部</el-radio-button><el-radio-button value="unread">未读</el-radio-button></el-radio-group></div></header>
+    <header v-if="!management"><h1>消息中心</h1><div class="messageTools"><el-button v-if="isPlatformAdmin" type="primary" :disabled="platformLoading" @click="composer?.open()">发布消息</el-button><el-radio-group v-model="filter" aria-label="消息筛选"><el-radio-button value="all">全部</el-radio-button><el-radio-button value="unread">未读</el-radio-button></el-radio-group></div></header>
     <div class="messageList" role="list" aria-label="通知列表">
       <div v-for="notice in notices" :key="notice.id" role="listitem"><button type="button" :class="{ unread: !notice.read && !management }" :aria-current="selected?.id === notice.id ? 'true' : undefined" :aria-label="`${!notice.read && !management ? '未读，' : ''}${notice.title}`" @click="openNotice(notice)"><i v-if="!notice.read && !management" class="unreadDot" aria-label="未读" /><div class="messageText"><div class="messageMeta"><span>{{ notice.kind === 'customer' ? '客户通知' : notice.kind === 'platform' ? '平台通知' : modelName(notice.modelId) }}</span><time :datetime="notice.createdAt" :title="new Date(notice.createdAt).toLocaleString()">{{ formatTime(notice.createdAt) }}</time></div><strong>{{ notice.title }}</strong><p>{{ notice.content }}</p></div></button></div>
       <p v-if="!notices.length && !platformLoading" class="emptyMessages">暂无{{ filter === 'unread' ? '未读' : '' }}消息</p>
@@ -16,7 +16,7 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import noticeComposer from "@/components/noticeComposer.vue";
-import { isPlatformAdmin, isCustomerAdmin, platformState, platformLoading, savePlatform } from "@/stores/platform";
+import { isPlatformAdmin, platformState, platformLoading, savePlatform } from "@/stores/platform";
 import type { PlatformNotice } from "@/ports/platform";
 const composer = ref<InstanceType<typeof noticeComposer>>();
 const props = defineProps<{ management?: boolean }>();

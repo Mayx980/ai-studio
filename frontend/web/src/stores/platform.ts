@@ -2,7 +2,6 @@ import { computed, ref, watch } from "vue";
 import { currentUser } from "./accounts";
 import { platform, type PlatformCommand, type PlatformState } from "@/ports/platform";
 export const isPlatformAdmin = computed(() => currentUser.value?.role === "platformAdmin");
-export const isCustomerAdmin = computed(() => currentUser.value?.role === "customerAdmin");
 export const platformState = ref<PlatformState>({ customers: [], accounts: [], connections: [], models: [], notices: [], tasks: [], templates: [] });
 export const platformLoading = ref(false), platformError = ref("");
 let pending: Promise<void> | undefined;

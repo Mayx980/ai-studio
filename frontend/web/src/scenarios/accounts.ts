@@ -2,15 +2,27 @@ import { isPlatformPortal, acceptsPortalRole } from "@/lib/portal";
 import type { AccountsPort, UserAccount } from "@/ports/accounts";
 import type { ScenarioName } from "./studio";
 
-type PreviewAccount = { user: UserAccount; salt: string; passwordHash: string };
+type PreviewAccount = { user: UserAccount; salt: string; passwordHash: string; sessionVersion?: string };
 const userStorageKey = "afxen.uiux.userAccounts";
 const platformStorageKey = "afxen.uiux.platformAccounts";
 const sessionKey = isPlatformPortal ? "afxen.uiux.platformSession" : "afxen.uiux.userSession";
-const roles = { platform: "platformAdmin", customer: "customerAdmin", user: "user" } as const;
+const roles = { platform: "platformAdmin", user: "user" } as const;
 async function hashPassword(password: string, salt: string) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: new TextEncoder().encode(salt), iterations: 100000 }, key, 256);
   return Array.from(new Uint8Array(bits), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+function normalizeAccounts(values: PreviewAccount[], platform: boolean) {
+  let changed = false;
+  for (const account of values) {
+    if (String(account.user.role) !== "customerAdmin") continue;
+    account.user.role = "user";
+    account.sessionVersion = crypto.randomUUID();
+    changed = true;
+    if (sessionStorage.getItem("afxen.uiux.userSession") === account.user.username) sessionStorage.removeItem("afxen.uiux.userSession");
+  }
+  if (changed) localStorage.setItem(platform ? platformStorageKey : userStorageKey, JSON.stringify(values));
+  return values;
 }
 function readAccounts(platform = false): PreviewAccount[] {
   const raw = localStorage.getItem(platform ? platformStorageKey : userStorageKey);
@@ -21,11 +33,11 @@ function readAccounts(platform = false): PreviewAccount[] {
     if (!Array.isArray(values) || values.some(item => !item?.user || typeof item.user.username !== "string" || !["user", "customerAdmin", "platformAdmin"].includes(item.user.role) || typeof item.salt !== "string" || !/^[a-f0-9]{64}$/.test(item.passwordHash))) throw new Error("旧演示账号状态无效，请保留数据后检查");
     const migrated = values.filter(item => (item.user.role === "platformAdmin") === platform);
     localStorage.setItem(platform ? platformStorageKey : userStorageKey, JSON.stringify(migrated));
-    return migrated;
+    return normalizeAccounts(migrated, platform);
   }
   const values: unknown = JSON.parse(raw);
   if (!Array.isArray(values) || values.some(item => !item?.user || typeof item.user.username !== "string" || !["user", "customerAdmin", "platformAdmin"].includes(item.user.role) || typeof item.salt !== "string" || !/^[a-f0-9]{64}$/.test(item.passwordHash))) throw new Error("演示账号状态无效，请清除当前浏览器的演示状态后重试");
-  return values.filter(item => (item.user.role === "platformAdmin") === platform);
+  return normalizeAccounts(values.filter(item => (item.user.role === "platformAdmin") === platform), platform);
 }
 async function initialAccounts(platform = false) {
   if (platform) await initialAccounts(false);
@@ -33,7 +45,7 @@ async function initialAccounts(platform = false) {
   if (values.length) return values;
   values = await Promise.all(Object.entries(roles).filter(([, role]) => (role === "platformAdmin") === platform).map(async ([username, role]) => {
     const salt = crypto.randomUUID();
-    return { user: { id: username === "user" ? "scenarioAccount" : `preview${username}`, username, name: { platform: "平台管理员", customer: "客户管理员", user: "普通用户" }[username]!, role, customerId: "customerPreview", customerName: "演示客户", enabled: true, mustChangePassword: true }, salt, passwordHash: await hashPassword("123456", salt) };
+    return { user: { id: username === "user" ? "scenarioAccount" : `preview${username}`, username, name: { platform: "平台管理员", user: "普通用户" }[username]!, role, customerId: "customerPreview", customerName: "演示客户", enabled: true, mustChangePassword: true }, salt, passwordHash: await hashPassword("123456", salt) };
   }));
   localStorage.setItem(platform ? platformStorageKey : userStorageKey, JSON.stringify(values));
   return values;
@@ -43,7 +55,7 @@ export async function setScenarioTemporaryPassword(user: UserAccount, password: 
   if (user.role === "platformAdmin") throw new Error("本版不管理平台端账号");
   const values = await initialAccounts();
   const salt = crypto.randomUUID();
-  const value = { user: { ...user, mustChangePassword: true }, salt, passwordHash: await hashPassword(password, salt) };
+  const value = { user: { ...user, mustChangePassword: true }, sessionVersion: crypto.randomUUID(), salt, passwordHash: await hashPassword(password, salt) };
   const index = values.findIndex(item => item.user.username === user.username);
   if (index < 0) values.push(value); else values[index] = value;
   localStorage.setItem(userStorageKey, JSON.stringify(values));
@@ -67,21 +79,23 @@ export function scenarioAccountRestriction(user: UserAccount) {
   if (customer?.enabled === false) return "所属客户已被平台管理员禁用";
   const account = state.accounts.find(item => item.id === user.id);
   if (account?.deletedAt) return "账号已删除";
-  if (account && (account.username !== user.username || account.role !== user.role || account.customerId !== user.customerId)) return "账号信息已变更，请重新登录";
-  if (account && !account.enabled) return account.disabledBy === "platformAdmin" ? "平台管理员禁用该账号" : "账号已被客户管理员禁用";
+  if (account && (account.username !== user.username || (String(account.role) === "customerAdmin" ? "user" : account.role) !== user.role || account.customerId !== user.customerId)) return "账号信息已变更，请重新登录";
+  if (account && !account.enabled) return account.disabledBy === "platformAdmin" ? "平台管理员禁用该账号" : "账号已禁用";
 }
 // ACT: 仅隔离预览使用标签页会话与独立的浏览器加盐摘要；不存明文密码、不读取生产会话。
 export function createScenarioAccountsPort(scenario: ScenarioName): AccountsPort {
-  const preset = isPlatformPortal ? ["platformAdmin", "platformError"].includes(scenario) ? "platform" : undefined : scenario === "customerAdmin" ? "customer" : ["initialPassword", "accountPassword", "cloudUser"].includes(scenario) ? "user" : undefined;
+  const preset = isPlatformPortal ? ["platformAdmin", "platformError"].includes(scenario) ? "platform" : undefined : ["initialPassword", "accountPassword", "cloudUser"].includes(scenario) ? "user" : undefined;
   let user: UserAccount | null = null;
   window.addEventListener("storage", event => {
-    if (event.key === scenarioManagementKey && user && scenarioAccountRestriction(user)) window.dispatchEvent(new Event("afxenSessionExpired"));
+    if (!user) return;
+    if (event.key === scenarioManagementKey && scenarioAccountRestriction(user) || event.key === userStorageKey && !isPlatformPortal && readAccounts().find(item => item.user.id === user?.id)?.user.role !== user.role) window.dispatchEvent(new Event("afxenSessionExpired"));
   });
   const session = () => ({ mode: "users" as const, user: user ? { ...user } : null });
   return { scope: "scenario", session: async () => {
     const values = await initialAccounts(isPlatformPortal);
     const username = sessionStorage.getItem(sessionKey) ?? preset;
-    user = values.find(item => item.user.username === username && item.user.enabled)?.user ?? null;
+    const account = values.find(item => item.user.username === username && item.user.enabled);
+    user = account && (!account.sessionVersion || sessionStorage.getItem(`${sessionKey}.version`) === account.sessionVersion) ? account.user : null;
     if (user && scenarioAccountRestriction(user)) user = null;
     if (user && preset && !sessionStorage.getItem(sessionKey)) user = { ...user, mustChangePassword: scenario === "initialPassword" };
     return session();
@@ -93,10 +107,11 @@ export function createScenarioAccountsPort(scenario: ScenarioName): AccountsPort
       const restriction = scenarioAccountRestriction(account.user);
       if (restriction) throw new Error(restriction);
       sessionStorage.setItem(sessionKey, username);
+      sessionStorage.setItem(`${sessionKey}.version`, account.sessionVersion ?? "");
       user = { ...account.user };
       return session();
     },
-    logout: async () => { sessionStorage.removeItem(sessionKey); user = null; },
+    logout: async () => { sessionStorage.removeItem(sessionKey); sessionStorage.removeItem(`${sessionKey}.version`); user = null; },
     changePassword: async (password) => {
       if (!user) throw new Error("请先登录");
       const values = await initialAccounts(isPlatformPortal);

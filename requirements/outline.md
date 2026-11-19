@@ -4,7 +4,8 @@
 
 | ID | 端名 | 形态 | 主要用户 | PRD 章节 | 生命周期 |
 | --- | --- | --- | --- | --- | --- |
-| SF-creation-workbench | 创作工作台 | other | 内部运营人员与短视频创作新手 | 3. 创作工作台能力 | active |
+| SF-creation-workbench | 用户端 | web | 普通用户 | 3. 创作工作台能力、4. 双端与账号管理 | active |
+| SF-platform | 平台端 | web | 平台管理员 | 4. 双端与账号管理 | active |
 
 ## 主要业务对象 + 分类
 
@@ -38,9 +39,15 @@
 | BR-template-snapshot | 模板只读预览与独立复制 | 3.9 模板与创作优选 | SC-template-copy |
 | BR-onboarding-controls | 八步教学与原项目保护 | 3.10 教学、设置与操作辅助 | SC-onboarding |
 | BR-ui-preferences | 品牌、偏好及操作一致性 | 3.10 教学、设置与操作辅助 | SC-workbench-controls |
-| BR-account-login | 真实账号及会话生命周期 | 4. 独立账号修订 | SC-account-session |
-| BR-user-isolation | 用户资料、凭据与任务隔离 | 4. 独立账号修订 | SC-user-isolation, SC-conflicting-save |
-| BR-sql-account | SQL维护账号与空工作区 | 4. 独立账号修订 | SC-sql-account |
+| BR-user-group | 用户组管理和整体启停 | 4. 双端与账号管理 | SC-platform-management |
+| BR-platform-account-management | 平台集中管理普通账号 | 4. 双端与账号管理 | SC-platform-management |
+| BR-account-password | 固定初始密码及本人改密 | 4. 双端与账号管理 | SC-account-password |
+| BR-role-retirement | 旧角色降级及会话撤销 | 4. 双端与账号管理 | SC-role-retirement |
+| BR-account-login | 真实账号及会话生命周期 | 4. 双端与账号管理 | SC-platform-management | SF-platform | 平台管理员／普通用户 | 平台集中管理，拒绝普通用户的管理调用 | 4. 双端与账号管理 |
+| SC-role-retirement | SF-creation-workbench | 原客户管理员账号 | 原密码重新登录为普通用户，旧权限失效、数据保留 | 4. 双端与账号管理 |
+| SC-account-password | SF-creation-workbench、SF-platform | 本人账号 | 固定初始密码、首次改密及本人改密 | 4. 双端与账号管理 |
+| SC-account-session |
+| BR-user-isolation | 用户资料、凭据与任务隔离 | 4. 双端与账号管理 | SC-user-isolation, SC-conflicting-save |
 
 ## 场景
 
@@ -62,13 +69,15 @@
 | SC-onboarding | SF-creation-workbench | 使用者 | 首次及手动教学可见且不覆盖原项目 | 3.10 教学、设置与操作辅助 |
 | SC-workbench-controls | SF-creation-workbench | 使用者 | 偏好、快捷键与侧栏会话保持一致 | 3.10 教学、设置与操作辅助 |
 
-账号验收（按note 132070修订）：
+账号验收（按当前双角色改版修订）：
 
 | ID | 端 | 角色 | 场景 | PRD 章节 |
 | --- | --- | --- | --- | --- |
-| SC-account-session | SF-creation-workbench | 登录用户 | 登录、刷新、退出及改密后会话与用户状态一致 | 4. 独立账号修订 |
-| SC-user-isolation | SF-creation-workbench | 两个独立账号 | 分别保存/调用模型且拒绝跨用户访问、订阅和停止 | 4. 独立账号修订 |
-| SC-sql-account | SF-creation-workbench | 运维与登录用户 | SQL建号后可登录且个人数据独立，首次初始化不覆盖已有内容 | 4. 独立账号修订 |
+| SC-platform-management | SF-platform | 平台管理员／普通用户 | 平台集中管理，拒绝普通用户的管理调用 | 4. 双端与账号管理 |
+| SC-role-retirement | SF-creation-workbench | 原客户管理员账号 | 原密码重新登录为普通用户，旧权限失效、数据保留 | 4. 双端与账号管理 |
+| SC-account-password | SF-creation-workbench、SF-platform | 本人账号 | 固定初始密码、首次改密及本人改密 | 4. 双端与账号管理 |
+| SC-account-session | SF-creation-workbench | 登录用户 | 登录、刷新、退出及改密后会话与用户状态一致 | 4. 双端与账号管理 |
+| SC-user-isolation | SF-creation-workbench | 两个独立账号 | 分别保存/调用模型且拒绝跨用户访问、订阅和停止 | 4. 双端与账号管理 |
 
 原跨浏览器场景按同账号解释，其他创作规则与验收继续保留。
 
@@ -83,3 +92,5 @@
 | --- | --- | --- |
 | 2026-11-06 | #7 | 建立共享实例创作规则和验收场景索引 |
 | 2026-11-12 | #7 | 新增独立账号、用户隔离和旧资料归属验收；2026-11-16按note 131807确认实施，环境验收待执行 |
+
+| 2026-11-19 | #7 | 仅保留平台管理员与普通用户，新增集中管理、角色降级与密码验收，移除普通账号仅SQL维护的旧目标 |

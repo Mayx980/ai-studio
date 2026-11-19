@@ -22,3 +22,5 @@ Ctrl+C 回收本次进程组。停止后可执行 `python3 frontend/preview/clea
 双端采用同源独立地址进行Scenario演示，使平台端创建的用户账号能在用户端验证登录；两端认证账号及会话分别存储。新演示账号初始密码123456，旧演示账号按角色迁入各自集合，保留已改密码。生产数据库及跨域认证不由此浏览器机制实现。
 
 分别构建：`node node_modules/.bin/vite build` 生成用户端 `build/web`；`node node_modules/.bin/vite build --mode platform` 生成平台端 `build/platform`。独立Scenario产物为mode `scenario`的`build/scenario`及mode `platformScenario`的`build/platformScenario`。平台端构建固定平台身份，可独立部署，不需要在用户端暴露管理页面；域名及真实双端后端尚未配置，生产管理／免旧密码改密仍明确提示未接通。
+
+客户管理员角色已取消；旧演示账号转为普通用户，原账号名和密码仍可登录，但旧管理会话失效。用户端不再有账号管理入口，平台端不展示角色筛选／选择。该转换仅为独立演示存储，真实生产账号迁移未执行。

@@ -2,7 +2,7 @@ import { isPlatformPortal, portalHome, acceptsPortalRole } from "@/lib/portal";
 import { prototype } from "@/ports/prototype";
 import { createRouter, createWebHashHistory } from "vue-router";
 import { useHelloStore } from "@/stores/hello";
-import { isPlatformAdmin, isCustomerAdmin } from "@/stores/platform";
+import { isPlatformAdmin } from "@/stores/platform";
 import { currentAccount } from "@/stores/prototypeAccount";
 import { accountsRequired, currentUser } from "@/stores/accounts";
 const router = createRouter({
@@ -48,7 +48,7 @@ router.beforeEach(to => {
     if (!isPlatformPortal && to.path === "/admin") return { path: "/home", replace: true };
     if (to.query.section === "messages") return { path: portalHome, replace: true };
     if (to.path === "/admin" && !isPlatformAdmin.value) return { path: "/home", replace: true };
-    if (to.path === "/home" && to.query.section === "accounts" && !isCustomerAdmin.value) return { path: "/home", replace: true };
+    if (to.path === "/home" && to.query.section === "accounts") return { path: "/home", replace: true };
     return true;
   }
   if (to.path === "/admin" || to.query.section === "accounts") return { path: "/login", replace: true };
