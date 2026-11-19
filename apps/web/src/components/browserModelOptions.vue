@@ -18,11 +18,12 @@
         <template #reference><button class="inlineParameter" type="button" :disabled="controlsDisabled || kind === 'video'" :title="kind === 'video' ? '每次默认生成一条视频' : '生成数量'" :aria-expanded="countVisible" aria-label="生成数量"><icon-layers-subtract :size="19" /><span>{{ generationCount }} {{ kind === 'video' ? '条' : '张' }}</span></button></template>
         <div class="parameterForm"><div class="parameterHeader">生成数量</div><div class="parameterStack"><div class="segmentedOptions" role="group" aria-label="图片生成数量"><button v-for="item in 6" :key="item" type="button" :disabled="controlsDisabled" :aria-pressed="generationCount === item" @click="generationCount = item">{{ item }}</button></div></div></div>
       </el-popover>
-      <el-popover v-if="kind === 'video'" v-model:visible="durationVisible" trigger="click" placement="top" :width="360" :showArrow="false" :disabled="controlsDisabled" :popperStyle="popoverStyle" popperClass="generationParameters">
+      <el-popover v-if="kind === 'video'" v-model:visible="durationVisible" trigger="click" placement="top" :width="240" :showArrow="false" :disabled="controlsDisabled" :popperStyle="popoverStyle" popperClass="generationParameters">
         <template #reference><button class="inlineParameter" type="button" :disabled="controlsDisabled" :aria-expanded="durationVisible" aria-label="生成时长"><icon-clock :size="19" /><span>{{ videoDuration }}s</span></button></template>
-        <div class="parameterForm"><div class="parameterHeader">生成时长</div><div class="parameterStack"><div class="durationControls">
-          <el-slider v-model="durationPosition" :min="0" :max="Math.max(1, videoDurations.length - 1)" :step="1" :marks="durationMarks" :formatValueText="value => `${videoDurations[value] ?? 0} 秒`" :showTooltip="false" :disabled="controlsDisabled || videoDurations.length < 2" aria-label="视频生成时长" />
-          <el-input-number v-model="durationValue" :min="videoDurations[0] ?? 1" :max="videoDurations.at(-1) ?? 1" :precision="0" controlsPosition="right" :disabled="controlsDisabled || !videoDurations.length" aria-label="视频时长秒数" :title="`支持时长：${videoDurations.join('、')} 秒`"><template #suffix>s</template></el-input-number>
+        <div class="parameterForm" @keydown.esc.stop="durationVisible = false"><div class="parameterHeader">生成时长</div><div class="parameterStack"><div class="durationControls">
+          <el-input-number v-if="continuousDuration" v-model="durationValue" :min="videoDurations[0] ?? 1" :max="videoDurations.at(-1) ?? 1" :step="1" :precision="0" :valueOnClear="videoDurations[0] ?? 1" controlsPosition="right" :disabled="controlsDisabled || !videoDurations.length" aria-label="视频时长秒数"><template #suffix>秒</template></el-input-number>
+          <el-select v-else v-model="videoDuration" :disabled="controlsDisabled || !videoDurations.length" aria-label="视频生成时长"><el-option v-for="duration in videoDurations" :key="duration" :value="duration" :label="`${duration} 秒`" /></el-select>
+          <small>{{ continuousDuration ? `支持 ${videoDurations[0]}–${videoDurations.at(-1)} 秒，每次调整 1 秒` : `支持 ${videoDurations.join('、')} 秒` }}</small>
         </div></div></div>
       </el-popover>
     </template>
@@ -30,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { ElSlider, ElInputNumber } from "element-plus";
+import { ElInputNumber } from "element-plus";
 import { IconClock, IconLayersSubtract } from "@tabler/icons-vue";
 import { imageClaritySizes, imageDimensions } from "@toonflow/node-shared/generationDefaults";
 import { useWorkspaceStore } from "@/stores/workspace";
@@ -56,20 +57,11 @@ const videoCapability = computed(() => kind.value === "video" ? browserModels.vi
 const videoDuration = computed({ get: () => kind.value === "video" ? Number(browserConfig.duration) || 5 : undefined, set: value => { if (value !== undefined && kind.value === "video") browserConfig.duration = String(value); } });
 const videoDurations = computed(() => [...new Set(videoCapability.value?.durationResolutionMap.flatMap(item => item.duration) ?? [])].sort((a, b) => a - b));
 const controlsDisabled = computed(() => props.disabled || generationBusy.value || !selectedModelId.value);
-const durationPosition = computed({
-  get: () => Math.max(0, videoDurations.value.indexOf(videoDuration.value!)),
-  set: value => { const duration = videoDurations.value[value]; if (duration !== undefined) videoDuration.value = duration; },
-});
-const durationMarks = computed(() => Object.fromEntries(videoDurations.value.map((value, index) => [index, String(value)])));
+const continuousDuration = computed(() => videoDurations.value.length > 1 && videoDurations.value.every((duration, index, values) => !index || duration === values[index - 1]! + 1));
 const durationValue = computed({
   get: () => videoDuration.value ?? 5,
   set: (value: number | undefined) => {
-    if (value === undefined || !videoDurations.value.length) return;
-    // ACT: 加减跨过不支持的秒数到相邻档位；其他输入吸附最近档位，不扩展模型能力。
-    const current = videoDuration.value ?? 5;
-    const adjacent = value === current + 1 ? videoDurations.value.find(duration => duration > current)
-      : value === current - 1 ? [...videoDurations.value].reverse().find(duration => duration < current) : undefined;
-    videoDuration.value = adjacent ?? videoDurations.value.reduce((nearest, duration) => Math.abs(duration - value) < Math.abs(nearest - value) ? duration : nearest);
+    if (value !== undefined && videoDurations.value.includes(value)) videoDuration.value = value;
   },
 });
 function ratioStyle(value: string) {
@@ -109,9 +101,10 @@ watch(kind, () => { parametersVisible.value = false; durationVisible.value = fal
       button { display: flex; flex: 1; min-width: 0; align-items: center; justify-content: center; gap: 7px; height: 38px; padding: 5px; border: 1px solid transparent; border-radius: 9px; background: var(--agent-input-bg, #1b1b1b); color: #aaa6b5; font: inherit; font-size: 13px; cursor: pointer; transition: background 180ms, color 180ms, border-color 180ms; &[aria-pressed="true"] { background: #303030; border-color: transparent; color: #f2edf9; } &:hover:enabled { background: #303030; color: #e8def7; } &:focus-visible { outline: 2px solid #a28ae9; outline-offset: -2px; } &:disabled { cursor: not-allowed; opacity: .55; } }
     }
     .ratioSegments button { flex-direction: column; height: 62px; gap: 8px; font-size: 12px; .ratioIcon { display: block; box-sizing: border-box; border: 2px solid currentColor; border-radius: 3px; flex: none; } }
-    .durationControls { display: flex; align-items: flex-start; gap: 20px; width: 100%; padding-bottom: 12px;
-      .el-slider { flex: 1; min-width: 0; margin: 0 6px; --el-slider-main-bg-color: #a48cdb; --el-slider-runway-bg-color: #37343e; --el-slider-button-size: 14px; --el-slider-height: 7px; :deep(.el-slider__marks-text) { font-size: 10px; color: #96909f; margin-top: 10px; } }
-      .el-input-number { width: 90px; flex: none; --el-input-bg-color: #292831; :deep(.el-input__wrapper) { border-radius: 10px; } }
+    .durationControls { display: flex; flex-direction: column; gap: 10px; width: 100%;
+      .el-input-number { width: 140px; --el-input-bg-color: #292831; :deep(.el-input__wrapper) { border-radius: 10px; } }
+      .el-select { width: 100%; }
+      small { color: #aaa4b8; font-size: 11px; line-height: 1.5; }
     }
   }
   .parameterDetails { display: flex; flex-direction: column; align-items: stretch; gap: 14px; margin-top: 18px; color: #aaa4b8; font-size: 11px; label { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid #ffffff0d; color: #bdb8ca; font-size: 12px; } }
