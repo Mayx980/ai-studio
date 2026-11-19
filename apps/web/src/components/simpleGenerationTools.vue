@@ -1,20 +1,20 @@
 <template>
   <div class="simpleGenerationTools">
-    <div v-if="controls !== 'style'" class="outputTabs" role="tablist" aria-label="创作类型" @keydown.right.prevent="moveOutput($event, 1)" @keydown.left.prevent="moveOutput($event, -1)"><button type="button" role="tab" :disabled="disabled || !!lockedKind && lockedKind !== 'image'" :tabindex="browserConfig.outputKind === 'image' ? 0 : -1" :aria-selected="browserConfig.outputKind === 'image'" @click="selectOutput('image')"><icon-photo :size="16" />图片生成</button><button v-if="!imageOnly" type="button" role="tab" :disabled="disabled || !!lockedKind && lockedKind !== 'video'" :tabindex="browserConfig.outputKind === 'video' ? 0 : -1" :aria-selected="browserConfig.outputKind === 'video'" @click="selectOutput('video')"><icon-movie :size="16" />视频生成</button></div>
-    <el-popover v-if="controls !== 'tabs' && browserConfig.outputKind === 'image'" v-model:visible="styleVisible" trigger="click" placement="bottom-start" :fallbackPlacements="['top-start', 'bottom-end', 'top-end']" :popperOptions="stylePopoverOptions" :width="180" :hideAfter="0" :disabled="disabled" :popperStyle="{ background: '#262626', padding: '12px 0' }">
+    <div v-if="controls !== 'style'" class="outputTabs" role="tablist" aria-label="创作类型" @keydown.right.prevent="moveOutput($event, 1)" @keydown.left.prevent="moveOutput($event, -1)"><button type="button" role="tab" :disabled="disabled || !!lockedKind && lockedKind !== 'image'" :tabindex="!motion && browserConfig.outputKind === 'image' ? 0 : -1" :aria-selected="!motion && browserConfig.outputKind === 'image'" @click="selectOutput('image')"><icon-photo :size="16" />图片生成</button><button v-if="!imageOnly" type="button" role="tab" :disabled="disabled || !!lockedKind && lockedKind !== 'video'" :tabindex="!motion && browserConfig.outputKind === 'video' ? 0 : -1" :aria-selected="!motion && browserConfig.outputKind === 'video'" @click="selectOutput('video')"><icon-movie :size="16" />视频生成</button><button v-if="!imageOnly && allowMotion" type="button" role="tab" :disabled="disabled || !!lockedKind" :tabindex="motion ? 0 : -1" :aria-selected="motion" @click="selectOutput('motion')"><icon-walk :size="16" />动作模仿</button></div>
+    <el-popover v-if="controls !== 'tabs' && !motion && browserConfig.outputKind === 'image'" v-model:visible="styleVisible" trigger="click" placement="bottom-start" :fallbackPlacements="['top-start', 'bottom-end', 'top-end']" :popperOptions="stylePopoverOptions" :width="180" :hideAfter="0" :disabled="disabled" :popperStyle="{ background: '#262626', padding: '12px 0' }">
       <template #reference><el-button class="styleSelect" :aria-expanded="styleVisible" :class="{ selected: !!browserConfig.style }" plain :disabled="disabled" title="选择图片风格" aria-label="选择风格"><icon-palette :size="16" />{{ browserConfig.style || '风格' }}</el-button></template>
       <div class="styleList" role="listbox" aria-label="视觉风格"><button type="button" role="option" :aria-selected="!browserConfig.style" @click="browserConfig.style = ''">不指定风格</button><button v-for="(style, index) in styles" :key="style" type="button" role="option" :aria-selected="browserConfig.style === style" @click="browserConfig.style = browserConfig.style === style ? '' : style"><span class="stylePreview" aria-hidden="true" :style="{ backgroundPosition: `${index % 4 / 3 * 100}% ${Math.floor(index / 4) / 7 * 100}%` }" />{{ style }}</button></div>
     </el-popover>
   </div>
 </template>
 <script setup lang="ts">
-import { IconPalette, IconPhoto, IconMovie } from "@tabler/icons-vue";
+import { IconPalette, IconPhoto, IconMovie, IconWalk } from "@tabler/icons-vue";
 import { inject, onMounted, ref } from "vue";
 import { generationStyles } from "@/lib/generationStyles";
 import { browserConfig as defaultBrowserConfig } from "@/stores/browserGeneration";
 const browserConfig = inject("generationConfig", defaultBrowserConfig);
-const props = withDefaults(defineProps<{ imageOnly?: boolean; lockedKind?: "image" | "video"; disabled?: boolean; controls?: "all" | "tabs" | "style" }>(), { controls: "all" });
-const emit = defineEmits<{ select: [kind: "image" | "video"] }>();
+const props = withDefaults(defineProps<{ imageOnly?: boolean; motion?: boolean; allowMotion?: boolean; lockedKind?: "image" | "video"; disabled?: boolean; controls?: "all" | "tabs" | "style" }>(), { controls: "all" });
+const emit = defineEmits<{ select: [kind: "image" | "video" | "motion"] }>();
 const styleVisible = ref(false);
 const stylePopoverOptions = { modifiers: [{ name: "preventOverflow", options: { padding: 12, altAxis: true, tether: false } }] };
 const styles = Object.keys(generationStyles);
@@ -27,8 +27,8 @@ function moveOutput(event: KeyboardEvent, direction: number) {
   next?.click(); next?.focus();
 }
 function selectOutput(kind: string | number | boolean) {
-  if (props.disabled || kind !== "image" && kind !== "video" || props.lockedKind && props.lockedKind !== kind) return;
-  browserConfig.outputKind = kind; browserConfig.outputChosen = true; emit("select", kind);
+  if (props.disabled || kind !== "image" && kind !== "video" && kind !== "motion" || props.lockedKind && props.lockedKind !== kind) return;
+  emit("select", kind);
 }
 </script>
 <style scoped lang="scss">

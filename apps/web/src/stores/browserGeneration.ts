@@ -1,3 +1,4 @@
+import { clipReferenceVideo } from "@toonflow/node-video/referenceClip";
 import { readGenerationOrigin, rememberFileOrigin, type GenerationOrigin } from "@/lib/generationOrigin";
 import { recordGenerationResults, readGenerationSettings, type GenerationSettings, type GenerationRecord } from "@/lib/generationHistory";
 import { saveProjectCover } from "@/lib/projectCover";
@@ -49,6 +50,13 @@ export function configuredBrowserModels(kind: ModelKind, config = browserConfig)
     ...adapter.models.map(model => ({ id: adapter.id, kind, label: model.label, modelId: model.id, endpoint: config.endpoint, apiKey: config.keys[kind] })),
     ...additionalBrowserModels.filter(model => model.kind === kind),
   ].filter(model => model.apiKey.trim() && model.modelId.trim() && model.label.trim());
+}
+// 仅使用已声明的能力；自定义模型不能借用默认模型的视频参考能力。
+export function browserVideoCapability(modelId?: string) {
+  return videoModel.models.find(model => model.id === modelId) as (typeof videoModel.models)[number] & { motionImitation?: boolean } | undefined;
+}
+export function supportsVideoReference(modelId?: string) {
+  return browserVideoCapability(modelId)?.mode.some(mode => Array.isArray(mode) && mode.some(value => value.startsWith("videoReference:"))) ?? false;
 }
 export function resolveBrowserModel(kind: ModelKind, providerId?: string, modelId?: string) {
   const models = configuredBrowserModels(kind);
@@ -125,7 +133,7 @@ export function inferGenerationKind(prompt: string): ModelKind {
   return browserConfig.outputChosen ? browserConfig.outputKind : kind ?? browserConfig.outputKind;
 }
 
-export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "", referenceRoles?: ("firstFrame" | "reference" | "middleFrame" | "lastFrame" | undefined)[], options?: { config?: typeof browserConfig; tags?: string[]; origin?: GenerationOrigin; references?: GenerationRecord["references"]; modelSelection?: typeof browserModelSelection; queue?: boolean; cancelled?: () => boolean; onStart?: () => void; onTask?: (id: string) => void }) {
+export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "", referenceRoles?: ("firstFrame" | "reference" | "middleFrame" | "lastFrame" | undefined)[], options?: { config?: typeof browserConfig; tags?: string[]; origin?: GenerationOrigin; references?: GenerationRecord["references"]; modelSelection?: typeof browserModelSelection; queue?: boolean; cancelled?: () => boolean; onStart?: () => void; onTask?: (id: string) => void; onPreparing?: () => void; onPrepared?: () => void }) {
   while (options?.queue && generationBusy.value) await new Promise<void>(resolve => { const stop = watch(generationBusy, busy => { if (!busy) { stop(); resolve(); } }); });
   if (options?.cancelled?.()) { generationError.value = "已取消等待生成"; return false; }
   const config = options?.config ?? browserConfig;
@@ -148,6 +156,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   if ((kind === "text" || kind === "audio") && references.length) { generationError.value = "当前文字／音频适配器仅支持文字输入，请移除引用素材；输入与素材已保留。"; return false; }
   if (references.some(file => !/^(image|video)\//.test(file.type))) { generationError.value = "参考素材仅支持图片或视频。"; return false; }
   if (kind === "image" && references.some(file => file.type.startsWith("video/"))) { generationError.value = "当前图片模型不支持参考视频，请切换视频生成或移除视频。素材已保留。"; return false; }
+  if (kind === "video" && references.some(file => file.type.startsWith("video/")) && !supportsVideoReference(chosen?.modelId)) { generationError.value = "当前模型未声明视频参考能力，请切换模型；素材已保留。"; return false; }
   let firstFrameIndex: number | undefined;
   if (referenceRoles && (referenceRoles.length !== references.length || referenceRoles.some(role => role !== undefined && !["firstFrame", "reference", "middleFrame", "lastFrame"].includes(role)))) { generationError.value = "素材用途与图片不匹配，请重新选择素材"; return false; }
   const selectedFirstFrame = referenceRoles?.indexOf("firstFrame") ?? -1;
@@ -181,7 +190,18 @@ export async function generateInBrowser(prompt: string, references: File[], dire
       generationResults.value.push({ id: crypto.randomUUID(), kind, text, directory });
       return true;
     }
-    const media = await Promise.all(references.map(async file => ({ type: "binary" as const, data: new Uint8Array(await file.arrayBuffer()), mimeType: file.type, name: file.name })));
+    const referenceDetails = options?.references?.filter(item => /^(image|video)\//.test(item.mimeType));
+    const media = await Promise.all(references.map(async (file, index) => {
+      const range = referenceDetails?.[index]?.videoClip;
+      let prepared = file;
+      if (file.type.startsWith("video/") && range) {
+        if (!directory || !Number.isFinite(range.duration) || range.duration <= 0 || !Number.isFinite(range.start) || !Number.isFinite(range.end) || range.start < 0 || range.end <= range.start || range.end > range.duration + 0.05) throw new Error("视频片段范围无效，请重新选择");
+        if (range.outputDuration !== Number(duration)) throw new Error("生成时长已变化，请重新确认参考片段");
+        if (range.start > 0 || range.end < range.duration - 0.05) { options?.onPreparing?.(); prepared = await clipReferenceVideo(file, range, signal); }
+      }
+      return { type: "binary" as const, data: new Uint8Array(await prepared.arrayBuffer()), mimeType: prepared.type, name: prepared.name };
+    }));
+    options?.onPrepared?.();
     const images = media.filter(item => item.mimeType.startsWith("image/")), videos = media.filter(item => item.mimeType.startsWith("video/"));
     const generationFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const response = await studioFetch(input, init);

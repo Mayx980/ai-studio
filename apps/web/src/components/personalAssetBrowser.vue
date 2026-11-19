@@ -88,7 +88,7 @@ import { useWorkspaceStore } from "@/stores/workspace";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
 import useGenerationHistory, { type HistoryItem } from "@/lib/useGenerationHistory";
 import saveFile from "@/lib/saveFile";
-const props = withDefaults(defineProps<{ selectable?: boolean; selectionLimit?: number; imagesOnly?: boolean }>(), { selectionLimit: 10 });
+const props = withDefaults(defineProps<{ selectable?: boolean; selectionLimit?: number; imagesOnly?: boolean; videosOnly?: boolean }>(), { selectionLimit: 10 });
 const emit = defineEmits<{ select: [files: File[]] }>();
 const adding = ref(false), matching = ref(false);
 const collapsedFolders = ref<string[]>([]);
@@ -125,14 +125,15 @@ function toggleFolder(path: string) {
 }
 const breadcrumbs = computed(() => folder.value.split("/").filter(Boolean).map((name, index, parts) => ({ name, path: parts.slice(0, index + 1).join("/") })));
 const historyEntries = computed<Entry[]>(() => history.items.value.map(item => ({ path: `history:${item.key}`, name: item.name, type: "file", history: item })));
+const availableMediaFilters = computed(() => mediaFilters.filter(filter => !props.imagesOnly && !props.videosOnly || filter.value === (props.imagesOnly ? "image" : "video")));
 const visibleMediaFilters = computed(() => source.value === "history"
-  ? [...mediaFilters, { value: "audio", label: "音频" }].map(filter => ({ ...filter, count: history.items.value.filter(item => history.matchesTag(item, historyTag.value) && (filter.value === "all" || item.kind === filter.value)).length }))
-  : mediaFilters.map(filter => ({ ...filter, count: 0 })));
+  ? [...availableMediaFilters.value, ...(!props.imagesOnly && !props.videosOnly ? [{ value: "audio", label: "音频" }] : [])].map(filter => ({ ...filter, count: history.items.value.filter(item => history.matchesTag(item, historyTag.value) && (filter.value === "all" || item.kind === filter.value)).length }))
+  : availableMediaFilters.value.map(filter => ({ ...filter, count: 0 })));
 const pickerEntries = computed<Entry[]>(() => [...all.value, ...historyEntries.value]);
 const displayed = computed<Entry[]>(() => {
   if (props.selectable) {
     const items: Entry[] = source.value === "history" ? [...historyEntries.value].sort((a, b) => (b.history?.createdAt ?? 0) - (a.history?.createdAt ?? 0)) : folder.value ? all.value.find(item => item.path === folder.value)?.children ?? [] : all.value;
-    return items.filter(item => item.type === "file" && (source.value === "history" ? !!item.history && history.matchesTag(item.history, historyTag.value) : props.imagesOnly ? kind(item) === "image" : ["image", "video"].includes(kind(item))) && (mediaFilter.value === "all" || kind(item) === mediaFilter.value) && item.name.toLowerCase().includes(search.value.trim().toLowerCase()));
+    return items.filter(item => item.type === "file" && (props.imagesOnly || props.videosOnly ? canSelect(item) : source.value === "history" || ["image", "video"].includes(kind(item))) && (source.value !== "history" || !!item.history && history.matchesTag(item.history, historyTag.value)) && (mediaFilter.value === "all" || kind(item) === mediaFilter.value) && item.name.toLowerCase().includes(search.value.trim().toLowerCase()));
   }
   const items = searchVisible.value && search.value.trim() ? all.value.filter(item => item.path.startsWith(folder.value ? folder.value + "/" : "") && item.name.toLowerCase().includes(search.value.trim().toLowerCase())) : folder.value ? all.value.find(item => item.path === folder.value)?.children ?? [] : entries.value;
   return items.filter(item => item.type === "directory" || kind(item));
@@ -271,9 +272,9 @@ async function linkDuplicateAssets() {
     selected.value = selected.value.filter(path => { const key = next[path] ?? path; if (seen.has(key)) return false; seen.add(key); return true; });
   } finally { matching.value = false; }
 }
-watch(() => props.imagesOnly, value => { if (value && mediaFilter.value === "video") mediaFilter.value = "image"; });
+watch([() => props.imagesOnly, () => props.videosOnly], ([images, videos]) => { mediaFilter.value = images ? "image" : videos ? "video" : "all"; }, { immediate: true });
 function kind(item: Entry) { if (item.history) return item.history.kind; const type = item.type === "file" ? browserAssetMimeType(item.path).split("/")[0] : ""; return type && ["image", "video", "audio"].includes(type) ? type : ""; }
-function canSelect(item: Entry) { return props.imagesOnly ? kind(item) === "image" : ["image", "video"].includes(kind(item)); }
+function canSelect(item: Entry) { return props.imagesOnly ? kind(item) === "image" : props.videosOnly ? kind(item) === "video" : ["image", "video"].includes(kind(item)); }
 function toggleSelection(item: Entry, event?: Event) {
   if (event?.target instanceof HTMLInputElement) event.target.checked = isSelected(item);
   if (busy.value || adding.value || matching.value || props.selectable && !canSelect(item)) return;
@@ -288,7 +289,7 @@ async function addSelected(items = selectedEntries.value) {
   adding.value = true;
   try {
     const files = await Promise.all(items.map(async item => {
-      if (item.type !== "file" || !(props.imagesOnly ? kind(item) === "image" : ["image", "video"].includes(kind(item)))) throw new Error("请选择支持的图片或视频");
+      if (item.type !== "file" || !canSelect(item)) throw new Error("请选择支持的图片或视频");
       const file = await fileFor(item);
       if (!file.size || file.size > 100 * 1024 * 1024) throw new Error(`${item.name}：请选择非空且不超过100 MB的素材`);
       return rememberFileOrigin(file, readGenerationOrigin(metadataFor(item)?.origin), item.history ? undefined : item.path);

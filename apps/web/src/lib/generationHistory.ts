@@ -18,7 +18,7 @@ export function readGenerationSettings(value: unknown): GenerationSettings | und
   return parsed.data;
 }
 
-export type GenerationRecord = { id: string; batchId?: string; tags?: string[]; kind: "image" | "video" | "audio"; path: string; mimeType?: string; name?: string; createdAt?: number; prompt?: string; model?: string; settings?: GenerationSettings; origin?: GenerationOrigin; references?: { path: string; mimeType: string; name?: string; referenceRole?: string }[] };
+export type GenerationRecord = { id: string; batchId?: string; tags?: string[]; kind: "image" | "video" | "audio"; path: string; mimeType?: string; name?: string; createdAt?: number; prompt?: string; model?: string; settings?: GenerationSettings; origin?: GenerationOrigin; references?: { path: string; mimeType: string; name?: string; referenceRole?: string; videoClip?: { duration: number; start: number; end: number; outputDuration: number } }[] };
 export function readGenerationTags(value: unknown): string[] {
   if (value === undefined) return [];
   return z.array(z.string().trim().min(1).max(20)).parse(value);

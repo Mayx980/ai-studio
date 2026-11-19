@@ -111,14 +111,14 @@
         @lostpointercapture="stopSenderResize"
         @keydown.up.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) + 16)"
         @keydown.down.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) - 16)" />
-      <simpleReferenceSlots :hideAdd="sourceConversationScope" ref="referenceSlotsRef" v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" v-model:mode="referenceMode" :showFrames="browserConfig.outputKind === 'video'" :tabsTarget="referenceTabsTarget" :directory="directory" :disabled="locked" @edit="editReferenceAttachment" />
+      <simpleReferenceSlots :hideAdd="sourceConversationScope" ref="referenceSlotsRef" v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" v-model:mode="referenceMode" :showFrames="browserConfig.outputKind === 'video' && !motionMode" :motion="motionMode" :videoMode="browserConfig.outputKind === 'video'" :motionAvailable="motionModels.length > 0" :allowVideos="allowReferenceVideos" :duration="Number(browserConfig.duration) || 5" :durations="videoDurations" :tabsTarget="referenceTabsTarget" :directory="directory" :disabled="locked" @edit="editReferenceAttachment" />
       <attachmentList v-if="unassignedAttachments.length" class="draftAttachments" :class="{ materialReferences: props.materialEditor }" numbered :attachments="unassignedAttachments" :directory="directory" removable restorable :disabled="locked" @remove="removeVisibleAttachment($event)" @restore="restoreVisibleAttachment" />
       <div ref="senderElement" class="senderEditor" @pointerdown.capture="inputStarted = true" @input.capture="inputStarted = true" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
       <mentionContent ref="draftMentionPreview" :attachments="draftAttachments" :mentions="draftMentions" :directory="directory" removable @remove="removeDraftMention" />
       <div class="senderActions" :class="{ simpleToolbar: props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple') }">
-        <simpleGenerationTools v-if="props.creationModes && !imageOnlyMaterial && workspaceStore.creationMode === 'simple'" controls="tabs" :lockedKind="lockedGenerationKind" :disabled="locked" />
-        <browserModelOptions :disabled="locked" :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="imageOnlyMaterial ? 'image' : lockedGenerationKind" :hideCount="imageOnlyMaterial" :prompt="draftPrompt"><template #afterModel><div v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" ref="referenceTabsTarget" class="referenceTabsTarget" /><simpleGenerationTools v-if="props.materialEditor || workspaceStore.creationMode === 'simple'" controls="style" :disabled="locked" /></template></browserModelOptions><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
+        <simpleGenerationTools v-if="props.creationModes && !imageOnlyMaterial && workspaceStore.creationMode === 'simple'" controls="tabs" :lockedKind="lockedGenerationKind" :disabled="locked || switchingMode" :allowMotion="!props.materialEditor" :motion="motionMode" @select="switchSimpleMode" />
+        <browserModelOptions :motionOnly="motionMode" :disabled="locked || switchingMode" :belowInput="props.creationModes && workspaceStore.creationMode === 'simple'" v-if="props.creationModes && (browserConfig.enabled || browserWorkspaceMode)" :fixedKind="imageOnlyMaterial ? 'image' : lockedGenerationKind" :hideCount="imageOnlyMaterial" :prompt="draftPrompt"><template #afterModel><div v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" ref="referenceTabsTarget" class="referenceTabsTarget" /><simpleGenerationTools v-if="props.materialEditor || workspaceStore.creationMode === 'simple'" controls="style" :disabled="locked" /></template></browserModelOptions><modelPopover v-else v-model="selectedModel" v-model:reasoningEffort="reasoningEffort" :active="active" :disabled="disabled" />
         <el-button v-if="props.creationModes && (props.materialEditor || workspaceStore.creationMode === 'simple')" class="quickMention" text :disabled="locked || !directory" aria-label="提及参考素材" title="提及参考素材" @mousedown.prevent @click="mentionMenuRef?.openMenu($event.currentTarget as HTMLElement)"><icon-at :size="19" /></el-button>
         <el-tooltip v-if="props.materialEditor || sourceConversationScope" content="上传" :showArrow="false"><button class="materialUpload" type="button" :disabled="locked" aria-label="上传" @click="attachmentInput?.click()"><icon-upload :size="19" /></button></el-tooltip>
         <input ref="attachmentInput" type="file" :accept="attachmentAccept" multiple hidden :disabled="locked" @change="selectAttachments" />
@@ -158,7 +158,7 @@
             </div>
           </div>
         </el-popover>
-        <el-button class="sendButton" :class="{ emptyDraft: !sending && !draftPrompt.trim() && !activeDraftAttachments.length && !draftMentions.length }" type="primary" circle :disabled="!sending && locked" :aria-label="sending ? '停止生成' : editingId ? '重发消息' : '发送消息'" :title="sending ? '停止生成' : editingId ? '重发消息' : '发送消息'" @click="sending ? stopGeneration() : submitMessage()">
+        <el-button class="sendButton" :class="{ emptyDraft: !sending && !draftPrompt.trim() && !activeDraftAttachments.length && !draftMentions.length }" type="primary" circle :disabled="!sending && (locked || switchingMode || motionMode && !motionReady)" :aria-label="sending ? '停止生成' : editingId ? '重发消息' : '发送消息'" :title="sending ? '停止生成' : editingId ? '重发消息' : '发送消息'" @click="sending ? stopGeneration() : submitMessage()">
           <generationTaskRing v-if="sending && props.materialEditor" :size="16" /><el-icon v-else-if="sending" class="is-loading"><icon-loader-2 :size="16" /></el-icon>
           <icon-arrow-up v-else :size="16" />
         </el-button>
@@ -187,7 +187,7 @@ import {
 import { ElMessage, ElMessageBox } from "element-plus";
 import { getReadableFileExtension, getReadableFileMimeType, readableFileAccept } from "@toonflow/server/documentFormats";
 import brandLogo from "@/components/brandLogo.vue";
-import { browserConfig as defaultBrowserConfig, configuredBrowserModels, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, browserResultFile, type ModelKind, type BrowserConversationImport } from "@/stores/browserGeneration";
+import { browserConfig as defaultBrowserConfig, configuredBrowserModels, browserModelSelection, browserVideoCapability, supportsVideoReference, generateInBrowser, generationBusy, generationError, generationResults, stopBrowserGeneration, explicitGenerationKind, browserResultFile, type ModelKind, type BrowserConversationImport } from "@/stores/browserGeneration";
 import professionalCreation from "./professionalCreation.vue";
 import simpleReferenceSlots from "@/components/simpleReferenceSlots.vue";
 import { fileGenerationOrigin, rememberFileOrigin } from "@/lib/generationOrigin";
@@ -238,7 +238,39 @@ const draftAttachments = ref<AgentAttachment[]>(props.initialDraft?.attachments.
 const referenceMode = ref<"reference" | "frames">("reference");
 const referenceTabsTarget = ref<HTMLElement>();
 const referenceSlotsRef = ref<InstanceType<typeof simpleReferenceSlots>>();
-const activeDraftAttachments = computed(() => !props.creationModes || props.materialEditor || workspaceStore.creationMode !== "simple" ? draftAttachments.value : draftAttachments.value.filter(item => !item.referenceRole || (referenceMode.value === "reference" ? item.referenceRole === "reference" : item.referenceRole !== "reference")));
+const simpleMode = ref<"image" | "video" | "motion">(browserConfig.outputKind);
+const switchingMode = ref(false);
+const motionMode = computed(() => props.creationModes && !props.materialEditor && workspaceStore.creationMode === "simple" && simpleMode.value === "motion");
+const selectedVideo = computed(() => configuredBrowserModels("video", browserConfig).find(model => model.id === (generationModelSelection ?? browserModelSelection).video) ?? configuredBrowserModels("video", browserConfig)[0]);
+const videoDurations = computed(() => [...new Set(browserVideoCapability(selectedVideo.value?.modelId)?.durationResolutionMap.flatMap(item => item.duration) ?? [])].sort((a, b) => a - b));
+const motionModels = computed(() => configuredBrowserModels("video", browserConfig).filter(model => browserVideoCapability(model.modelId)?.motionImitation === true));
+const motionReady = computed(() => motionModels.value.length > 0 && draftAttachments.value.filter(item => item.mimeType.startsWith("image/")).length === 1 && draftAttachments.value.filter(item => item.mimeType.startsWith("video/") && item.videoClip).length === 1);
+const allowReferenceVideos = computed(() => browserConfig.outputKind === "video" && supportsVideoReference(selectedVideo.value?.modelId));
+type SimpleDraft = { model?: ReturnType<xSender["getModel"]>; prompt: string; attachments: AgentAttachment[]; mentions: AgentMention[]; referenceMode: "reference" | "frames"; parameters: { ratio: string; resolution: string; imageResolution: string; imageSize: string; duration: string; count: number; style: string; generateAudio: boolean }; selection: typeof browserModelSelection };
+const modeDrafts = new Map<string, SimpleDraft>();
+async function switchSimpleMode(mode: "image" | "video" | "motion") {
+  if (locked.value || switchingMode.value || mode === simpleMode.value) return;
+  switchingMode.value = true;
+  const { ratio, resolution, imageResolution, imageSize, duration, count, style, generateAudio } = browserConfig;
+  modeDrafts.set(simpleMode.value, { model: sender?.getModel(), prompt: sender?.getText() ?? draftPrompt.value, attachments: [...draftAttachments.value], mentions: [...draftMentions.value], referenceMode: referenceMode.value, parameters: { ratio, resolution, imageResolution, imageSize, duration, count, style, generateAudio }, selection: { ...(generationModelSelection ?? browserModelSelection) } });
+  try {
+    const saved = modeDrafts.get(mode);
+    simpleMode.value = mode;
+    browserConfig.outputKind = mode === "motion" ? "video" : mode;
+    browserConfig.outputChosen = true;
+    if (saved) { Object.assign(browserConfig, saved.parameters); Object.assign(generationModelSelection ?? browserModelSelection, saved.selection); }
+    draftAttachments.value = saved?.attachments ?? [];
+    draftMentions.value = saved?.mentions ?? [];
+    referenceMode.value = saved?.referenceMode ?? "reference";
+    draftPrompt.value = saved?.prompt ?? "";
+    if (sender) await sender.reset({ clearHistory: false, ...(saved?.model ? { chatNode: saved.model } : {}) });
+  } finally { switchingMode.value = false; }
+}
+watch(() => browserConfig.outputKind, value => {
+  if (!props.active || switchingMode.value || motionMode.value && value === "video") return;
+  simpleMode.value = value;
+});
+const activeDraftAttachments = computed(() => !props.creationModes || props.materialEditor || motionMode.value || workspaceStore.creationMode !== "simple" ? draftAttachments.value : draftAttachments.value.filter(item => !item.referenceRole || (referenceMode.value === "reference" ? item.referenceRole === "reference" : item.referenceRole !== "reference")));
 const unassignedAttachments = computed(() => props.creationModes && !props.materialEditor && workspaceStore.creationMode === "simple" ? draftAttachments.value.filter(item => !item.referenceRole) : draftAttachments.value);
 function removeVisibleAttachment(index: number) { const item = unassignedAttachments.value[index]; draftAttachments.value = draftAttachments.value.filter(value => value !== item); }
 function restoreVisibleAttachment(index: number) { void restoreTextAttachment(draftAttachments.value.indexOf(unassignedAttachments.value[index]!)); }
@@ -249,7 +281,7 @@ watch([draftPrompt, draftAttachments], () => { if (props.materialEditor) emit("d
 const attachmentInput = ref<HTMLInputElement>();
 const draggingAttachments = ref(false);
 let attachmentDragDepth = 0;
-const attachmentAccept = `image/*,video/*,${readableFileAccept}`;
+const attachmentAccept = computed(() => `${allowReferenceVideos.value || motionMode.value ? "image/*,video/*" : "image/*"},${readableFileAccept}`);
 const createCanvasContext = inject<(() => CanvasContext | undefined) | undefined>("canvas", undefined);
 const sessionMode = ref(props.initialSession?.creationMode);
 watch(() => props.active, active => { if (active && !props.materialEditor && sessionMode.value) workspaceStore.creationMode = sessionMode.value; }, { immediate: true });
@@ -584,6 +616,23 @@ async function persistBrowserMessages() {
   return save;
 }
 
+watch(draftAttachments, async (current, previous) => {
+  if (!motionMode.value || switchingMode.value || sending.value || !sender || !previous.some(item => !current.includes(item))) return;
+  const model = sender.getModel();
+  for (const line of model) {
+    for (let index = line.length - 1; index >= 0; index--) {
+      const tag = line[index]!;
+      if (tag.type !== "Mention") continue;
+      const match = /^attachment(\d+)$/.exec(tag.id);
+      if (!match) continue;
+      const next = current.indexOf(previous[Number(match[1])]!);
+      if (next < 0) line.splice(index, 1);
+      else tag.id = `attachment${next}`;
+    }
+  }
+  await sender.reset({ clearHistory: false, chatNode: model });
+});
+
 watch(() => props.initialDraft, draft => {
   if (!draft) return;
   draftAttachments.value = draft.attachments.map(item => ({ ...item }));
@@ -664,10 +713,12 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
   if (props.materialEditor && !browserConfig.enabled) { ElMessage.warning("请先在设置 → API 配置中启用图片模型并填写 Key"); return; }
   if (browserWorkspaceMode && !browserConfig.enabled && workspaceStore.creationMode !== "professional") { ElMessage.warning("请先在设置 → API 配置中启用模型联调并输入 Key"); return; }
   if (props.creationModes && (props.materialEditor || browserWorkspaceMode || browserConfig.enabled)) {
+    if (motionMode.value && !motionReady.value) { ElMessage.warning(motionModels.value.length ? "请添加角色参考图和动作参考视频" : "尚未配置支持动作模仿的模型"); return; }
+    if (activeDraftAttachments.value.some(item => item.mimeType.startsWith("video/") && !item.videoClip) && workspaceStore.creationMode === "simple" && !props.materialEditor) { ElMessage.warning("请等待视频时长读取完成，读取失败时请替换视频"); return; }
     const input = choice?.prompt ?? sender?.getText() ?? "";
-    if (!input.trim()) return;
+    if (!input.trim() && !motionMode.value) return;
     const pending = !choice ? messages.value.findLast(item => item.creationChoice && !item.creationChoice.resolved) : undefined;
-    const prompt = pending?.creationChoice ? `${pending.creationChoice.prompt}\n补充要求：${input}` : input;
+    const prompt = pending?.creationChoice ? `${pending.creationChoice.prompt}\n补充要求：${input}` : motionMode.value ? `让角色1模仿动作1的动作，保留角色身份和服装，不加速动作。${input}` : input;
     const sourceAttachments = pending ? messages.value.find(item => item.id === pending.replyTo)?.attachments ?? [] : [];
     const attachments = [...sourceAttachments, ...(choice?.attachments ?? activeDraftAttachments.value)];
     if (attachments.filter(item => /^(image|video)\//.test(item.mimeType)).length > 10) { ElMessage.warning("最多添加10个参考图片/视频"); return; }
@@ -680,7 +731,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
     browserConfig.kind = kind ?? "image";
     browserCancelled = false;
     browserSubmitting.value = true;
-    const generationConfig = { ...browserConfig, keys: { ...browserConfig.keys }, ...(imageOnlyMaterial.value ? { count: 1 } : {}) };
+    const generationConfig = { ...browserConfig, keys: { ...browserConfig.keys }, ...(imageOnlyMaterial.value ? { count: 1 } : {}), ...(motionMode.value ? { duration: String(attachments.find(item => item.mimeType.startsWith("video/"))?.videoClip?.outputDuration ?? browserConfig.duration) } : {}) };
     const generationSelection = generationModelSelection ? { ...generationModelSelection } : undefined;
     const taskId = crypto.randomUUID();
     if (props.materialEditor) emit("generationState", { status: "queued", taskId });
@@ -718,7 +769,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       const textReferences = await Promise.all(files.filter(file => file.type.startsWith("text/") || file.type === "application/json").map(async file => { const text = await file.text(); if (text.length > 100000) throw new Error("文字引用最多支持 100000 字符，请缩小内容"); return `${file.name}：\n${text}`; }));
       const referenceDescriptions = attachments.filter(item => item.mimeType.startsWith("image/")).flatMap((item, index) => item.referenceRole === "reference" && item.referenceCategory ? [`图${index + 1}为${({ character: "角色", scene: "场景", prop: "道具", other: "其他" })[item.referenceCategory]}参考（${item.referenceName || "分类参考图"}），保持对应主体特征。`] : []);
       const generationPrompt = isStoryboard ? `${prompt}\n${scriptGenerationInstruction}` : !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
-      const success = await generateInBrowser([generationPrompt, ...referenceDescriptions, ...textReferences].join("\n\n"), files.filter(file => /^(image|video)\//.test(file.type)), directory, outputKind, browserConfig.style, attachments.filter(item => /^(image|video)\//.test(item.mimeType)).map(item => item.referenceRole), { config: generationConfig, tags: props.materialCategory ? ({ character: ["角色"], scene: ["场景"], prop: ["物品"], other: [] })[props.materialCategory] : [], origin: browserSessionFile && directory ? { type: "conversation", directory, sessionFile: browserSessionFile, messageId: userId } : undefined, references: attachments.map(({ path, mimeType, name, referenceRole }) => ({ path, mimeType, name, referenceRole })), modelSelection: generationSelection, queue: true, cancelled: () => browserCancelled, onStart: () => { previousIds = new Set(generationResults.value.map(item => item.id)); ownsBrowserGeneration = true; if (props.materialEditor) emit("generationState", { status: "generating", taskId }); }, onTask: vendorTaskId => { if (props.materialEditor) emit("generationState", { status: "generating", taskId, vendorTaskId }); } });
+      const success = await generateInBrowser([generationPrompt, ...referenceDescriptions, ...textReferences].join("\n\n"), files.filter(file => /^(image|video)\//.test(file.type)), directory, outputKind, browserConfig.style, attachments.filter(item => /^(image|video)\//.test(item.mimeType)).map(item => item.referenceRole), { config: generationConfig, tags: props.materialCategory ? ({ character: ["角色"], scene: ["场景"], prop: ["物品"], other: [] })[props.materialCategory] : [], origin: browserSessionFile && directory ? { type: "conversation", directory, sessionFile: browserSessionFile, messageId: userId } : undefined, references: attachments.map(({ path, mimeType, name, referenceRole, videoClip }) => ({ path, mimeType, name, referenceRole, videoClip })), modelSelection: generationSelection, onPreparing: () => { if (reply) reply.content = "正在准备参考片段…"; }, onPrepared: () => { if (reply) reply.content = ""; }, queue: true, cancelled: () => browserCancelled, onStart: () => { previousIds = new Set(generationResults.value.map(item => item.id)); ownsBrowserGeneration = true; if (props.materialEditor) emit("generationState", { status: "generating", taskId }); }, onTask: vendorTaskId => { if (props.materialEditor) emit("generationState", { status: "generating", taskId, vendorTaskId }); } });
       const results = generationResults.value.filter(item => !previousIds.has(item.id) && item.directory === directory);
       reply.browserResultIds = results.filter(item => item.kind !== "text").map(item => item.id);
       if (props.materialEditor && success && (outputKind === "image" || outputKind === "video")) { browserConfig.outputKind = outputKind; browserConfig.outputChosen = true; }
@@ -730,7 +781,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
     } catch (error) {
       const message = error instanceof Error ? error.message : "生成失败，输入已保留";
       if (props.materialEditor) emit("generationState", { status: "failed", taskId, error: message });
-      if (reply) reply.error = message;
+      if (reply) { reply.content = ""; reply.error = message; }
       else ElMessage.error(message);
       await sender?.reset({ clearHistory: false, chatNode: templatePromptModel(prompt) });
       draftAttachments.value = attachments;
@@ -1145,6 +1196,9 @@ function dropAttachments(event: DragEvent) {
 
 function addAttachments(files: File[], fromMaterialResult = false) {
   if (locked.value && !(fromMaterialResult && props.materialEditor && materialResultBusy.value && !sending.value && !props.disabled)) return;
+  if (imageOnlyMaterial.value && files.some(file => file.type.startsWith("video/"))) { ElMessage.warning("图片生成仅支持参考图片"); return; }
+  if (motionMode.value) { referenceSlotsRef.value?.addMotionFiles(files); return; }
+  if (props.creationModes && workspaceStore.creationMode === "simple" && !props.materialEditor && files.some(file => file.type.startsWith("video/")) && !allowReferenceVideos.value) { ElMessage.warning(browserConfig.outputKind === "image" ? "图片生成仅支持参考图片" : "当前模型不支持视频参考，请先切换模型"); return; }
   for (const file of files) {
     const readableMimeType = getReadableFileMimeType(file.name, file.type);
     const mimeType = readableMimeType ?? file.type.split(";")[0]!.trim().toLowerCase();

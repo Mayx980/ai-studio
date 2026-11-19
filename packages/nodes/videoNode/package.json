@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./referenceClip": "./src/referenceClip.ts",
     "./videoActions": "./src/components/videoActions.vue",
     "./videoPlayer": "./src/components/videoPlayer.vue",
     "./component": "./src/index.vue"

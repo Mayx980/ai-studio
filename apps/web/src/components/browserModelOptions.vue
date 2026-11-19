@@ -1,7 +1,7 @@
 <template>
   <template v-if="browserConfig.enabled || browserWorkspaceMode">
     <el-select v-if="workspace.creationMode === 'professional' && !fixedKind" class="parameterKindSelect" v-model="parameterKind" :disabled="disabled || generationBusy" aria-label="参数类型"><el-option v-for="(label, value) in kindLabels" :key="value" :label="label" :value="value" /></el-select>
-    <el-select class="inlineModelSelect" popperClass="generationModelMenu" v-model="selectedModelId" :disabled="disabled || generationBusy" placeholder="选择已接入模型" :noDataText="`未接入${kindLabels[kind]}模型，请在 API 配置中添加对应类型`" aria-label="生成模型" :title="selectedModel?.label"><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.id" /></el-select>
+    <el-select class="inlineModelSelect" popperClass="generationModelMenu" v-model="selectedModelId" :disabled="disabled || generationBusy" placeholder="选择已接入模型" :noDataText="motionOnly ? '尚未配置支持动作模仿的模型' : `未接入${kindLabels[kind]}模型，请在 API 配置中添加对应类型`" aria-label="生成模型" :title="selectedModel?.label"><el-option v-for="model in models" :key="model.id" :label="model.label" :value="model.id" /></el-select>
     <slot name="afterModel" />
     <template v-if="kind === 'image' || kind === 'video'">
       <el-popover v-model:visible="parametersVisible" trigger="click" placement="bottom-start" :fallbackPlacements="['top-start', 'bottom-end', 'top-end']" :width="360" :showArrow="false" :hideAfter="0" :disabled="controlsDisabled" :popperOptions="popoverOptions" popperClass="generationParameters" :popperStyle="popoverStyle">
@@ -18,7 +18,7 @@
         <template #reference><button class="inlineParameter" type="button" :disabled="controlsDisabled || kind === 'video'" :title="kind === 'video' ? '每次默认生成一条视频' : '生成数量'" :aria-expanded="countVisible" aria-label="生成数量"><icon-layers-subtract :size="19" /><span>{{ generationCount }} {{ kind === 'video' ? '条' : '张' }}</span></button></template>
         <div class="parameterForm"><div class="parameterHeader">生成数量</div><div class="parameterStack"><div class="segmentedOptions" role="group" aria-label="图片生成数量"><button v-for="item in 6" :key="item" type="button" :disabled="controlsDisabled" :aria-pressed="generationCount === item" @click="generationCount = item">{{ item }}</button></div></div></div>
       </el-popover>
-      <el-popover v-if="kind === 'video'" v-model:visible="durationVisible" trigger="click" placement="top" :width="240" :showArrow="false" :disabled="controlsDisabled" :popperStyle="popoverStyle" popperClass="generationParameters">
+      <el-popover v-if="kind === 'video' && !motionOnly" v-model:visible="durationVisible" trigger="click" placement="top" :width="240" :showArrow="false" :disabled="controlsDisabled" :popperStyle="popoverStyle" popperClass="generationParameters">
         <template #reference><button class="inlineParameter" type="button" :disabled="controlsDisabled" :aria-expanded="durationVisible" aria-label="生成时长"><icon-clock :size="19" /><span>{{ videoDuration }}s</span></button></template>
         <div class="parameterForm" @keydown.esc.stop="durationVisible = false"><div class="parameterHeader">生成时长</div><div class="parameterStack"><div class="durationControls">
           <el-input-number v-if="continuousDuration" v-model="durationValue" :min="videoDurations[0] ?? 1" :max="videoDurations.at(-1) ?? 1" :step="1" :precision="0" :valueOnClear="videoDurations[0] ?? 1" controlsPosition="right" :disabled="controlsDisabled || !videoDurations.length" aria-label="视频时长秒数"><template #suffix>秒</template></el-input-number>
@@ -37,10 +37,10 @@ import { imageClaritySizes, imageDimensions } from "@toonflow/node-shared/genera
 import { useWorkspaceStore } from "@/stores/workspace";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { computed, inject, ref, watch } from "vue";
-import { browserConfig as defaultBrowserConfig, browserModels, browserModelSelection as defaultBrowserModelSelection, configuredBrowserModels, generationBusy, inferGenerationKind, type ModelKind } from "@/stores/browserGeneration";
+import { browserConfig as defaultBrowserConfig, browserModelSelection as defaultBrowserModelSelection, configuredBrowserModels, browserVideoCapability, generationBusy, inferGenerationKind, type ModelKind } from "@/stores/browserGeneration";
 const browserConfig = inject("generationConfig", defaultBrowserConfig);
 const browserModelSelection = inject("generationModelSelection", defaultBrowserModelSelection);
-const props = withDefaults(defineProps<{ belowInput?: boolean; prompt?: string; hideCount?: boolean; fixedKind?: ModelKind; disabled?: boolean }>(), { prompt: "" });
+const props = withDefaults(defineProps<{ belowInput?: boolean; prompt?: string; hideCount?: boolean; motionOnly?: boolean; fixedKind?: ModelKind; disabled?: boolean }>(), { prompt: "" });
 const parametersVisible = ref(false), durationVisible = ref(false);
 const popoverOptions = { modifiers: [{ name: "preventOverflow", options: { padding: 12, altAxis: true, tether: false } }] };
 const countVisible = ref(false);
@@ -49,11 +49,11 @@ const workspace = useWorkspaceStore();
 const parameterKind = ref<ModelKind>("text");
 const kindLabels = { text: "文字", image: "图片", video: "视频", audio: "音频" };
 const kind = computed(() => props.fixedKind ?? (generationBusy.value ? browserConfig.kind : browserConfig !== defaultBrowserConfig ? browserConfig.outputKind : workspace.creationMode === "professional" ? parameterKind.value : inferGenerationKind(props.prompt)));
-const models = computed(() => configuredBrowserModels(kind.value, browserConfig));
+const models = computed(() => configuredBrowserModels(kind.value, browserConfig).filter(model => !props.motionOnly || browserVideoCapability(model.modelId)?.motionImitation === true));
 const selectedModelId = computed({ get: () => models.value.find(model => model.id === browserModelSelection[kind.value])?.id ?? models.value[0]?.id ?? "", set: value => { browserModelSelection[kind.value] = value; } });
 const selectedModel = computed(() => models.value.find(model => model.id === selectedModelId.value));
-// ACT: 已接入的自定义模型沿用对应供应商适配器协议；不根据显示名称猜测新能力。
-const videoCapability = computed(() => kind.value === "video" ? browserModels.video.models.find(model => model.id === selectedModel.value?.modelId) ?? browserModels.video.models[0] : undefined);
+// ACT: 能力按型号声明匹配，未声明型号不继承默认型号的参考能力。
+const videoCapability = computed(() => kind.value === "video" ? browserVideoCapability(selectedModel.value?.modelId) : undefined);
 const videoDuration = computed({ get: () => kind.value === "video" ? Number(browserConfig.duration) || 5 : undefined, set: value => { if (value !== undefined && kind.value === "video") browserConfig.duration = String(value); } });
 const videoDurations = computed(() => [...new Set(videoCapability.value?.durationResolutionMap.flatMap(item => item.duration) ?? [])].sort((a, b) => a - b));
 const controlsDisabled = computed(() => props.disabled || generationBusy.value || !selectedModelId.value);
