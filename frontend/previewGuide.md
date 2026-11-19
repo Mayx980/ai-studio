@@ -24,3 +24,5 @@ Ctrl+C 回收本次进程组。停止后可执行 `python3 frontend/preview/clea
 分别构建：`node node_modules/.bin/vite build` 生成用户端 `build/web`；`node node_modules/.bin/vite build --mode platform` 生成平台端 `build/platform`。独立Scenario产物为mode `scenario`的`build/scenario`及mode `platformScenario`的`build/platformScenario`。平台端构建固定平台身份，可独立部署，不需要在用户端暴露管理页面；域名及真实双端后端尚未配置，生产管理／免旧密码改密仍明确提示未接通。
 
 客户管理员角色已取消；旧演示账号转为普通用户，原账号名和密码仍可登录，但旧管理会话失效。用户端不再有账号管理入口，平台端不展示角色筛选／选择。该转换仅为独立演示存储，真实生产账号迁移未执行。
+
+常规登录页与正式界面一致，不显示演示说明或角色标签，不预填账号。隔离预览初始普通账号为user、平台账号为platform，初始密码123456，首次登录需设置新密码；若当前浏览器已改密，使用已设置的密码。历史降级账号保留其原账号名和密码。
