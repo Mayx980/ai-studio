@@ -1,6 +1,6 @@
 <template>
   <section class="customerAccounts">
-    <div class="filters"><el-input v-model="search" placeholder="搜索账号名或姓名" aria-label="搜索账号名或姓名" clearable @keyup.enter="query" /><el-button @click="query">查询</el-button><el-select v-model="groupFilter" clearable placeholder="全部用户组" aria-label="用户组筛选"><el-option v-for="group in platformState.customers" :key="group.id" :label="group.name" :value="group.id" /></el-select><el-select v-model="status" aria-label="状态筛选"><el-option label="全部状态" value="all" /><el-option label="已启用" value="enabled" /><el-option label="已禁用" value="disabled" /></el-select><el-button @click="resetFilters">重置</el-button><el-button class="createAccount" type="primary" @click="openCreate">创建账号</el-button></div>
+    <div class="filters"><el-input v-model="search" placeholder="搜索账号名或姓名" aria-label="搜索账号名或姓名" clearable @clear="query" @keyup.enter="query"><template #suffix><el-tooltip content="搜索" :showAfter="200"><button class="searchButton" type="button" aria-label="搜索账号名或姓名" @click="query"><icon-search :size="18" /></button></el-tooltip></template></el-input><el-select v-model="groupFilter" clearable placeholder="全部用户组" aria-label="用户组筛选"><el-option v-for="group in platformState.customers" :key="group.id" :label="group.name" :value="group.id" /></el-select><el-select v-model="status" aria-label="状态筛选"><el-option label="全部状态" value="all" /><el-option label="已启用" value="enabled" /><el-option label="已禁用" value="disabled" /></el-select><el-button @click="resetFilters">重置</el-button><el-button class="createAccount" type="primary" @click="openCreate">创建账号</el-button></div>
     <el-table :data="pagedAccounts" emptyText="暂无符合条件的账号" height="calc(100dvh - 220px)"><el-table-column type="index" label="序号" :index="(index: number) => (page - 1) * pageSize + index + 1" :width="70" /><el-table-column prop="username" label="账号名" :minWidth="130" /><el-table-column prop="name" label="姓名" :minWidth="120" /><el-table-column label="用户组" :minWidth="130"><template #default="{ row }">{{ groupName(row.customerId) }}</template></el-table-column><el-table-column label="状态" :minWidth="100"><template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '已启用' : '已禁用' }}</el-tag></template></el-table-column><el-table-column label="操作" :width="300" fixed="right"><template #default="{ row }"><div class="accountActions"><el-button text @click="openDetail(row as ManagedAccount)">编辑</el-button><el-button text @click="openReset(row as ManagedAccount)">重置密码</el-button><el-button text :type="row.enabled ? 'danger' : 'primary'" @click="toggleAccount(row as ManagedAccount)">{{ row.enabled ? '禁用' : '启用' }}</el-button><el-button text type="danger" :disabled="busy" @click="deleteAccount(row as ManagedAccount)">删除</el-button></div></template></el-table-column></el-table>
     <div class="pagination"><el-pagination v-model:currentPage="page" v-model:pageSize="pageSize" :pageSizes="[10,20,50]" :total="filtered.length" layout="total, sizes, prev, pager, next" /></div>
     <el-drawer v-model="editor" :title="detail ? '账号详情' : '创建账号'" size="min(480px, 100vw)" appendToBody :closeOnClickModal="false" :closeOnPressEscape="!busy" :showClose="!busy" :beforeClose="closeEditor">
@@ -12,6 +12,7 @@
 <script setup lang="ts">
 import { computed, h, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { IconSearch } from "@tabler/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { platformState, savePlatform } from "@/stores/platform";
 import { type ManagedAccount } from "@/ports/platform";
@@ -89,6 +90,7 @@ async function deleteAccount(item: ManagedAccount) {
 </script>
 <style scoped lang="scss">
 .customerAccounts {
+  .searchButton { display:flex; align-items:center; justify-content:center; width:28px; height:28px; padding:0; border:0; border-radius:4px; background:transparent; color:var(--el-text-color-secondary); cursor:pointer; &:hover { color:var(--el-color-primary); } &:focus-visible { outline:2px solid var(--el-color-primary); outline-offset:-2px; } }
   .filters { position:sticky; top:0; z-index:5; display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:12px 0; margin-bottom:12px; background:var(--el-bg-color-page); border-bottom:1px solid var(--el-border-color); > .el-input { width:220px; } > .el-select { width:150px; } .el-button { margin:0; height:32px; } .createAccount { margin-left:auto; } }
   .pagination { display:flex; justify-content:flex-end; margin:16px 0; overflow-x:auto; }
   .accountActions { display:flex; gap:8px; white-space:nowrap; .el-button { margin:0; padding:6px; font-size:13px; flex:none; } }
