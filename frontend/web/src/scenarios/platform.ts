@@ -5,7 +5,7 @@ import { currentUser } from "@/stores/accounts";
 export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort {
   const now = new Date().toISOString();
   const state: PlatformState = {
-    customers: [{ id: "customerPreview", name: "演示客户", modelIds: ["qwen3.8-flash", "qwen-image-3.0-pro", "wan3Video", "seed-audio-1.0"], defaults: { text: "qwen3.8-flash", image: "qwen-image-3.0-pro", video: "wan3Video", audio: "seed-audio-1.0" }, limit: 2 }],
+    customers: [{ id: "customerPreview", name: "演示客户", modelIds: ["qwen3.8-flash", "qwen-image-3.0-pro", "wan3Video", "seed-audio-1.0"], defaults: { text: "qwen3.8-flash", image: "qwen-image-3.0-pro", video: "wan3Video", audio: "seed-audio-1.0" } }],
     accounts: [{ id: "previewMember", username: "member", name: "演示普通账号", customerId: "customerPreview", role: "user", enabled: true, mustChangePassword: true, projects: 0, assets: 0, storage: "0 B" }],
     connections: [ { id: "bailianText", name: "百炼文字", protocol: "OpenAI Chat Completions", endpoint: "https://dashscope.aliyuncs.com/compatible-mode/v1", enabled: true }, { id: "bailianMedia", name: "百炼媒体", protocol: "DashScope 原生媒体", endpoint: "https://dashscope.aliyuncs.com", enabled: true }, { id: "seed", name: "火山音频", protocol: "Seed Audio", endpoint: "https://openspeech.bytedance.com", enabled: true } ],
     models: [
@@ -150,7 +150,7 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
     }
     if (command.type === "accountRole") { const item = account(command.id); item.role = command.role; updateScenarioAccount(item.username, { role: command.role }); return; }
     if (command.type === "customer") {
-      if (!command.value.name.trim() || command.value.limit < 1) throw new Error("请填写客户名称和有效并发限制");
+      if (!command.value.name.trim()) throw new Error("请填写客户名称");
       if (Object.values(command.value.defaults).some(id => id && !command.value.modelIds.includes(id))) throw new Error("默认模型必须属于已授权模型");
       const index = state.customers.findIndex(item => item.id === command.value.id); if (index < 0) state.customers.push(structuredClone(command.value)); else state.customers[index] = structuredClone(command.value); return;
     }

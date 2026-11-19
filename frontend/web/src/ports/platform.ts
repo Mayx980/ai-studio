@@ -1,5 +1,5 @@
 export type PlatformRole = "platformAdmin" | "customerAdmin" | "user";
-export type Customer = { id: string; name: string; modelIds: string[]; defaults: Record<string, string>; limit: number; enabled?: boolean; deletedAt?: string };
+export type Customer = { id: string; name: string; modelIds: string[]; defaults: Record<string, string>; enabled?: boolean; deletedAt?: string };
 export type ManagedAccount = { id: string; username: string; name: string; customerId: string; role: PlatformRole; enabled: boolean; mustChangePassword: boolean; projects: number; assets: number; storage: string; disabledBy?: "platformAdmin" | "customerAdmin"; deletedAt?: string; deletedBy?: { id: string; role: PlatformRole } };
 export type ServiceConnection = { id: string; name: string; protocol: string; endpoint: string; enabled: boolean; verifiedAt?: string; verification?: string };
 export type ModelParameter = { key: string; name: string; options: string[]; value: string; exposed: boolean; required: boolean };
