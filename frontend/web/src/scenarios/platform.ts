@@ -68,7 +68,7 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
     result.notices = result.notices.filter(item => receives(item, actor) || actor.role === "platformAdmin" && item.senderId === actor.id).map(item => ({ ...item, read: item.readBy?.includes(actor.id) ?? false, readBy: item.readBy?.filter(id => id === actor.id), ...(actor.role === "user" ? { accountIds: [actor.id], customerIds: [actor.customerId!] } : {}) }));
     if (actor.role !== "platformAdmin") {
       result.customers = result.customers.filter(item => item.id === actor.customerId);
-      result.accounts = actor.role === "customerAdmin" ? result.accounts.filter(item => item.customerId === actor.customerId && item.role === "user") : [];
+      result.accounts = actor.role === "customerAdmin" ? result.accounts.filter(item => item.customerId === actor.customerId && item.role === "user").map(({ changes, ...item }) => item) : [];
       result.connections = [];
       result.models = result.models.filter(item => item.enabled && item.verified);
       result.tasks = result.tasks.filter(item => item.accountId === actor.id);
@@ -84,7 +84,7 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
   } };
   async function apply(command: PlatformCommand) {
     const actor = user();
-    if (["notice", "readNotice", "connection", "verifyConnection", "model", "verifyModel"].includes(command.type)) throw new Error("本版不提供消息和模型管理功能");
+    if (["notice", "readNotice", "connection", "verifyConnection", "model", "verifyModel", "template"].includes(command.type)) throw new Error("本版不提供消息和模型管理功能");
     if (command.type === "readNotice") {
       const item = state.notices.find(item => item.id === command.id && (receives(item, actor) || item.senderId === actor.id || actor.role === "platformAdmin" && (!item.senderRole || item.senderRole === "platformAdmin")));
       if (!item) throw new Error("消息不存在或无权访问"); item.readBy = [...new Set([...(item.readBy ?? []), actor.id])]; return;
@@ -103,9 +103,23 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
       await setScenarioTemporaryPassword({ ...command.value, id, role: "user", enabled: true, mustChangePassword: true }, command.password);
       state.accounts.push({ ...command.value, id, enabled: true, role: "user", mustChangePassword: true, projects: 0, assets: 0, storage: "0 B" }); return;
     }
+    if (command.type === "updateAccount") {
+      const item = account(command.id);
+      const value = { ...command.value, username: command.value.username.trim(), name: command.value.name.trim() };
+      if (!value.username || !value.name || value.username.length > 64 || value.name.length > 64) throw new Error("请填写1–64个字符的账号和姓名");
+      if (!["user", "customerAdmin"].includes(value.role)) throw new Error("请选择有效角色");
+      if (actor.role !== "platformAdmin" && (value.customerId !== item.customerId || value.role !== item.role)) throw new Error("无权修改用户组和角色");
+      const customer = state.customers.find(group => group.id === value.customerId && !group.deletedAt);
+      if (!customer || value.customerId !== item.customerId && customer.enabled === false) throw new Error("请选择有效用户组");
+      if (state.accounts.some(other => other.id !== item.id && other.username === value.username) || getScenarioAccountSummaries().some(other => other.id !== item.id && other.username === value.username)) throw new Error("账号已存在");
+      const previous = { username: item.username, name: item.name, customerId: item.customerId, role: item.role };
+      updateScenarioAccount(item.username, { ...value, customerName: customer.name });
+      item.changes = [...(item.changes ?? []), { actorId: actor.id, at: new Date().toISOString(), previous, next: value }];
+      Object.assign(item, value);
+      return;
+    }
     if (command.type === "accountStatus") {
       const item = account(command.id);
-      if (actor.role === "customerAdmin" && item.disabledBy === "platformAdmin") throw new Error("平台管理员禁用该账号");
       if (command.enabled && state.customers.some(customer => customer.id === item.customerId && customer.enabled === false)) throw new Error("所属客户已被平台管理员禁用");
       item.enabled = command.enabled;
       item.disabledBy = command.enabled ? undefined : actor.role === "platformAdmin" ? "platformAdmin" : "customerAdmin";
@@ -132,7 +146,6 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
     if (command.type === "deleteAccount") {
       const item = account(command.id);
       if (item.id === actor.id) throw new Error("不能删除当前登录账号");
-      if (actor.role !== "platformAdmin" && item.disabledBy === "platformAdmin") throw new Error("该账号已被平台管理员禁用，请联系平台管理员处理");
       item.deletedAt = new Date().toISOString(); item.deletedBy = { id: actor.id, role: actor.role }; item.enabled = false;
       updateScenarioAccount(item.username, { enabled: false }); return;
     }
@@ -152,7 +165,9 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
     if (command.type === "customer") {
       if (!command.value.name.trim()) throw new Error("请填写客户名称");
       if (Object.values(command.value.defaults).some(id => id && !command.value.modelIds.includes(id))) throw new Error("默认模型必须属于已授权模型");
-      const index = state.customers.findIndex(item => item.id === command.value.id); if (index < 0) state.customers.push(structuredClone(command.value)); else state.customers[index] = structuredClone(command.value); return;
+      const index = state.customers.findIndex(item => item.id === command.value.id); if (index < 0) state.customers.push(structuredClone(command.value)); else state.customers[index] = structuredClone(command.value);
+      for (const item of state.accounts.filter(item => item.customerId === command.value.id)) updateScenarioAccount(item.username, { customerName: command.value.name });
+      return;
     }
     if (command.type === "connection") {
       const url = new URL(command.value.endpoint); if (url.protocol !== "https:") throw new Error("服务地址须为HTTPS");

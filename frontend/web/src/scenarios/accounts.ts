@@ -67,6 +67,7 @@ export function scenarioAccountRestriction(user: UserAccount) {
   if (customer?.enabled === false) return "所属客户已被平台管理员禁用";
   const account = state.accounts.find(item => item.id === user.id);
   if (account?.deletedAt) return "账号已删除";
+  if (account && (account.username !== user.username || account.role !== user.role || account.customerId !== user.customerId)) return "账号信息已变更，请重新登录";
   if (account && !account.enabled) return account.disabledBy === "platformAdmin" ? "平台管理员禁用该账号" : "账号已被客户管理员禁用";
 }
 // ACT: 仅隔离预览使用标签页会话与独立的浏览器加盐摘要；不存明文密码、不读取生产会话。

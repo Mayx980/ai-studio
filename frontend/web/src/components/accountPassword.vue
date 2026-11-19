@@ -1,13 +1,13 @@
 <template>
-  <el-dialog v-model="visible" class="accountPasswordDialog" title="修改密码" appendToBody width="min(440px, 94vw)" :beforeClose="beforeClose" :closeOnClickModal="false" :closeOnPressEscape="!busy" :showClose="!busy" destroyOnClose>
+  <el-drawer v-model="visible" class="accountPasswordDrawer" title="修改密码" appendToBody size="min(480px, 100vw)" :beforeClose="beforeClose" :closeOnClickModal="false" :closeOnPressEscape="!busy" :showClose="!busy" destroyOnClose>
     <form class="accountPassword" :aria-busy="busy" @submit.prevent="changePassword">
       <div class="passwordField"><label for="accountNewPassword">新密码（6–15字符）</label><el-input id="accountNewPassword" ref="passwordInput" v-model="password" type="password" autocomplete="new-password" showPassword :maxlength="15" :disabled="busy" :aria-invalid="!!passwordFailure" :aria-describedby="passwordFailure ? 'accountNewPasswordError' : undefined" @input="passwordFailure = ''" /><p v-if="passwordFailure" id="accountNewPasswordError" class="failure" role="alert">{{ passwordFailure }}</p></div>
       <div class="passwordField"><label for="accountPasswordConfirmation">确认新密码</label><el-input id="accountPasswordConfirmation" ref="confirmationInput" v-model="confirmation" type="password" autocomplete="new-password" showPassword :maxlength="15" :disabled="busy" :aria-invalid="!!confirmationFailure" :aria-describedby="confirmationFailure ? 'accountPasswordConfirmationError' : undefined" @input="confirmationFailure = ''" /><p v-if="confirmationFailure" id="accountPasswordConfirmationError" class="failure" role="alert">{{ confirmationFailure }}</p></div>
       <p class="passwordHint">修改成功后，请使用新密码重新登录</p>
       <p v-if="failure" class="failure" role="alert">{{ failure }}</p>
-      <div class="passwordActions"><el-button nativeType="submit" type="primary" :loading="busy">确定</el-button></div>
     </form>
-  </el-dialog>
+    <template #footer><el-button :disabled="busy" @click="beforeClose(() => { visible = false; })">取消</el-button><el-button type="primary" :loading="busy" @click="changePassword">确定</el-button></template>
+  </el-drawer>
 </template>
 <script setup lang="ts">
 import { ref, watch } from "vue";
@@ -59,14 +59,10 @@ watch(visible, value => {
 });
 </script>
 <style scoped lang="scss">
-:global(.accountPasswordDialog) { padding:24px; }
-:global(.accountPasswordDialog .el-dialog__header) { padding:0 28px 24px 0; }
-:global(.accountPasswordDialog .el-dialog__title) { font-size:20px; line-height:28px; }
-.accountPassword { display:grid; max-height:72dvh; overflow:auto;
+.accountPassword { display:grid;
   .passwordField { display:grid; gap:8px; + .passwordField { margin-top:20px; } label { font-size:14px; line-height:20px; } :deep(.el-input__wrapper) { min-height:40px; box-sizing:border-box; border-radius:8px; } }
   .passwordHint { margin:16px 0 0; color:var(--el-text-color-secondary); font-size:12px; line-height:18px; }
   .failure { color:var(--el-color-danger); margin:0; font-size:12px; line-height:18px; }
   > .failure { margin-top:8px; }
-  .passwordActions { display:flex; justify-content:center; margin-top:24px; .el-button { width:140px; height:40px; border-radius:8px; } }
 }
 </style>
