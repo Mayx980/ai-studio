@@ -4,10 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AFXEN</title>
+    <style>
+      .pageLoading { position: fixed; inset: 0; z-index: 3010; display: grid; place-items: center; background: var(--el-bg-color-page, #131313); }
+      .pageLoadingIcon { width: 28px; height: 28px; box-sizing: border-box; border: 2px solid #353941; border-top-color: #c9cdd5; border-radius: 50%; animation: pageLoadingTurn .8s linear infinite; }
+      @keyframes pageLoadingTurn { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .pageLoadingIcon { animation-duration: 2s; } }
+    </style>
     <link rel="icon" type="image/svg+xml" href="/afxenMark.svg" />
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app"><div class="pageLoading" role="status" aria-label="加载中"><span class="pageLoadingIcon" aria-hidden="true"></span></div></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

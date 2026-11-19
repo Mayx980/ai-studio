@@ -23,7 +23,7 @@ async function logout() {
   leaving = true;
   try {
     await router.push(portalHome);
-    if (router.currentRoute.value.path !== portalHome) return;
+    if (router.currentRoute.value.path !== (isPlatformPortal ? portalHome : "/workspace")) return;
     await signOut();
     window.location.hash = "/login";
     window.location.reload();

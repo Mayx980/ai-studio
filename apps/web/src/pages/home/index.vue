@@ -2,13 +2,8 @@
   <el-container class="home" :class="{ navigationCollapsed, assetWorkspace: homeSection === 'assets' }">
 
     <studioSidebar :activeSection="homeSection" :disabled="creating || opening" @navigate="navigateSection" @newAgent="startAgent" @openProject="openProject" @openSettings="settingsVisible = true" />
+    <div v-if="!examplesReady" class="pageLoading" role="status" aria-label="加载中"><span class="pageLoadingIcon" aria-hidden="true" /></div>
     <el-main v-if="examplesReady" class="pageContent">
-      <section v-if="homeSection === 'create'" class="homeLanding" aria-label="首页">
-        <button class="newCanvasEntry" type="button" :disabled="creating || opening" @click="createCanvas()"><span class="canvasPlus"><icon-plus :size="28" /></span><strong>新建画布创作</strong></button>
-        <div class="nodeShortcuts" aria-label="节点快捷创作"><button v-for="item in nodeShortcuts" :key="item.type" type="button" :disabled="creating || opening" :aria-label="`新建${item.label}节点项目`" @click="createCanvas(item.type)"><span><component :is="item.icon" :size="26" /></span>{{ item.label }}</button></div>
-        <section class="recentSection" aria-label="最近项目"><div class="sectionHeader"><h2>最近项目</h2><el-button text @click="homeSection = 'projects'">查看全部</el-button></div><div class="recentCards"><button v-for="item in recentProjects" :key="item.directory" type="button" class="recentCard" :disabled="creating || opening" :aria-label="`打开项目 ${item.name}`" @click="openProject(item)"><projectThumbnail :directory="item.directory" /><span><strong>{{ item.name }}</strong><small>最近编辑 {{ formatTime(item.lastEditedAt ?? item.lastOpenedAt) }}</small></span></button></div></section>
-        <creativeCases curated @apply="applyCase" />
-      </section>
       <creativeCases ref="templateCenter" v-show="homeSection === 'templates'" @apply="applyCase" />
       <templateReview v-if="homeSection === 'reviews'" />
       <section v-if="homeSection === 'history'" class="homeHistory" aria-label="历史对话">
@@ -44,7 +39,7 @@ import { ensureExampleProject } from "@/lib/exampleProjects";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { IconPlus, IconFolderOpen, IconTrash, IconDots, IconChevronRight, IconSortAscending, IconSortDescending, IconFileText, IconMovie, IconPhoto, IconVideo, IconVolume } from "@tabler/icons-vue";
+import { IconPlus, IconFolderOpen, IconTrash, IconDots, IconChevronRight, IconSortAscending, IconSortDescending } from "@tabler/icons-vue";
 import { browserWorkspaceMode } from "@/lib/browserWorkspaceFiles";
 import { useWorkspaceStore, type Project } from "@/stores/workspace";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
@@ -73,8 +68,6 @@ const activeFolder = ref("");
 const dragFolder = ref("");
 const filteredProjects = computed(() => sortedProjects.value.filter(item => (item.folder || "") === activeFolder.value && item.name.toLowerCase().includes(projectSearch.value.trim().toLowerCase())));
 const visibleFolders = computed(() => activeFolder.value ? [] : projectFolders.value.filter(folder => folder.toLowerCase().includes(projectSearch.value.trim().toLowerCase())));
-const recentProjects = computed(() => [...workspaceStore.projectList].sort((a, b) => (b.lastEditedAt ?? b.lastOpenedAt) - (a.lastEditedAt ?? a.lastOpenedAt)).slice(0, 4));
-const nodeShortcuts = [{ type: "remote-textNode", label: "文本", icon: IconFileText }, { type: "scriptNode", label: "脚本", icon: IconMovie }, { type: "remote-imageGenerationNode", label: "图片", icon: IconPhoto }, { type: "remote-videoGenerationNode", label: "视频", icon: IconVideo }, { type: "remote-audioGenerationNode", label: "音频", icon: IconVolume }];
 function formatTime(value: number) { return new Date(value).toLocaleString(locale.value, { hour12: false }); }
 async function createCanvas(nodeType?: string) {
   if (creating.value || opening.value) return;
@@ -269,9 +262,6 @@ async function openHistory(item: ConversationHistory) {
   .pageContent { padding: 28px clamp(20px, 3vw, 48px) 40px; min-width: 0;
     h2 { margin: 0; font-size: 17px; }
     .sectionHeader { .projectSearch { margin-left: auto; } display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
-    .newCanvasEntry { width: 100%; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; border: 1px solid var(--el-border-color); border-radius: 14px; color: var(--el-text-color-primary); background: radial-gradient(circle, var(--el-border-color) 1px, transparent 1px) 0 0 / 18px 18px, linear-gradient(var(--el-fill-color-extra-light),var(--el-fill-color)); cursor: pointer; strong { font-size: 15px; } .canvasPlus { display: grid; place-items: center; width: 74px; height: 50px; border-radius: 14px; color: var(--el-bg-color); background: var(--el-text-color-primary); } }
-    .nodeShortcuts { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 20px; margin: 26px 0 36px; button { display: grid; justify-items: center; gap: 10px; padding: 0; border: 0; background: transparent; color: var(--el-text-color-primary); font: inherit; font-size: 13px; cursor: pointer; span { display: grid; place-items: center; width: 100%; height: 64px; border: 1px solid var(--el-border-color-light); border-radius: 16px; background: var(--el-fill-color-light); } &:hover span { border-color: var(--el-color-primary); } } }
-    .recentCards { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 12px; .recentCard { min-width: 0; display: flex; align-items: center; gap: 12px; padding: 6px; border: 1px solid var(--el-border-color-light); border-radius: 18px; background: var(--el-bg-color); color: var(--el-text-color-primary); text-align: left; cursor: pointer; :deep(.projectThumbnail) { flex: none; width: 78px; height: 66px; border-radius: 13px; } > span { display: grid; gap: 9px; min-width: 0; } strong { font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } small { font-size: 10px; color: var(--el-text-color-secondary); } } }
     .folderBreadcrumb { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; font-size: 13px; button { padding: 6px 8px; border: 0; border-radius: 6px; color: #d9d9df; background: transparent; cursor: pointer; &:hover { background: #ffffff12; } } }
     .startCreationCard { align-self: start; width: 100%; aspect-ratio: 16 / 9; }
     .projectFolderCard { position: relative; align-self: start; border: 0; border-radius: 12px; background: transparent; overflow: hidden;
@@ -288,7 +278,7 @@ async function openHistory(item: ConversationHistory) {
   }
   &.assetWorkspace { height: 100dvh; overflow: hidden; background: #131313; .pageContent { height: 100%; box-sizing: border-box; overflow-y: auto; } .pageBackground { display: none; } }
   &.navigationCollapsed { padding-left: 68px; }
-  @media(max-width:700px) { padding-left: 68px; .pageContent { padding: 16px; .nodeShortcuts { gap: 8px; button span { height: 52px; } } } }
+  @media(max-width:700px) { padding-left: 68px; .pageContent { padding: 16px; } }
 }
 </style>
 

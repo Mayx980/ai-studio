@@ -1,3 +1,4 @@
+import { pageLoading } from "@/lib/pageLoading";
 import { createRouter, createWebHashHistory } from "vue-router";
 import { useHelloStore } from "@/stores/hello";
 import { currentUser, sessionExpired } from "@/stores/accounts";
@@ -31,12 +32,20 @@ const router = createRouter({
     },
   ],
 });
-router.beforeEach(to => {
+router.beforeEach(async to => {
+  pageLoading.value = true;
   const user = currentUser.value;
   if ((!user || !acceptsPortalRole(user.role) || user.mustChangePassword || sessionExpired.value) && to.path !== "/login") return { path: "/login", replace: true };
   if (user && !user.mustChangePassword && !sessionExpired.value && to.path === "/login") return { path: portalHome, replace: true };
   if (isPlatformPortal && !["/login", "/admin"].includes(to.path)) return { path: "/admin", replace: true };
   if (!isPlatformPortal && to.path === "/admin") return { path: "/home", replace: true };
+  if (!isPlatformPortal && to.path === "/home" && !["templates", "history", "assets", "projects", "reviews"].includes(String(to.query.section))) {
+    const { useWorkspaceStore } = await import("@/stores/workspace");
+    await useWorkspaceStore().resumeSimpleConversation();
+    return { path: "/workspace", query: { returnSection: "create" }, replace: true };
+  }
   return true;
 });
+router.afterEach(() => { pageLoading.value = false; });
+router.onError(() => { pageLoading.value = false; });
 export default router;

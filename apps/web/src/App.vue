@@ -1,7 +1,7 @@
 <template>
   <el-config-provider :locale="elementLocale">
     <config-provider :globalConfig="tdesignLocale">
-      <div v-show="!sessionExpired">
+      <div v-show="!sessionExpired && !pageLoading">
       <router-view v-slot="{ Component: currentComponent }">
         <transition name="el-fade-in">
           <component :is="currentComponent" />
@@ -38,6 +38,7 @@
         </template>
       </el-dialog>
       </div>
+      <div v-if="pageLoading && !sessionExpired" class="pageLoading" role="status" aria-label="加载中"><span class="pageLoadingIcon" aria-hidden="true" /></div>
       <section v-if="sessionExpired" class="accountSessionNotice" role="alert">
         <h1>账号状态已改变</h1><p>请重新登录。重新登录将关闭本页，请先保留尚未保存的内容。</p>
         <el-button type="primary" @click="reloadAccount">重新登录</el-button>
@@ -47,6 +48,7 @@
 </template>
 
 <script setup lang="ts">
+import { pageLoading } from "@/lib/pageLoading";
 import { isPlatformPortal } from "@/lib/portal";
 import { currentUser, sessionExpired, signOut } from "@/stores/accounts";
 import sourceEditReturn from "@/components/sourceEditReturn.vue";
