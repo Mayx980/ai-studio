@@ -53,7 +53,7 @@ async function submit() {
 async function toggleAccount(item: ManagedAccount) {
   if (!item.enabled && !isPlatformAdmin.value && item.disabledBy === "platformAdmin") { ElMessage.warning("平台管理员禁用该账号"); return; }
   if (!item.enabled && platformState.value.customers.some(customer => customer.id === item.customerId && customer.enabled === false)) { ElMessage.warning("所属客户已被平台管理员禁用"); return; }
-  const confirmed = await ElMessageBox.confirm(item.enabled ? "禁用后已有登录将失效，项目、资产及归属保留。" : "启用后可继续访问原有个人内容。", `${item.enabled ? '禁用' : '启用'} ${item.username}？`, { type: "warning", confirmButtonText: "确认", cancelButtonText: "取消" }).then(() => true, () => false);
+  const confirmed = await ElMessageBox.confirm(item.enabled ? "禁用后已有登录将失效，项目、资产及归属保留。" : "启用后可继续访问原有个人内容。", item.enabled ? "禁用" : `启用 ${item.username}？`, { type: "warning", confirmButtonText: "确认", cancelButtonText: "取消" }).then(() => true, () => false);
   if (!confirmed) return;
   try { await savePlatform({ type: "accountStatus", id: item.id, enabled: !item.enabled }); } catch (cause) { ElMessage.error(cause instanceof Error ? cause.message : "操作失败"); }
 }
