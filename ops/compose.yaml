@@ -1,0 +1,37 @@
+name: afxen
+
+services:
+  app:
+    image: ${AFXEN_IMAGE:-afxenapp:local}
+    build:
+      context: ..
+      dockerfile: ops/Dockerfile
+    init: true
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      TOONFLOW_DATA_DIR: /app/data
+      AFXEN_DATABASE_CONFIG: /run/secrets/database.json
+      AFXEN_CREDENTIAL_KEY_FILE: /run/secrets/credentialKey.json
+      AFXEN_STORAGE_BASE_URL: ${AFXEN_STORAGE_BASE_URL:-}
+      AFXEN_STORAGE_BUCKET: ${AFXEN_STORAGE_BUCKET:-}
+      AFXEN_STORAGE_PREFIX: ${AFXEN_STORAGE_PREFIX:-afxen}
+      AFXEN_PUBLIC_ORIGIN: ${AFXEN_PUBLIC_ORIGIN:-}
+      AFXEN_MODEL_ALLOWED_BASES: ${AFXEN_MODEL_ALLOWED_BASES:-[]}
+    ports:
+      - "${AFXEN_BIND_ADDRESS:-127.0.0.1}:${AFXEN_PORT:-3000}:3000"
+    volumes:
+      - ${AFXEN_DATA_DIR:-../data}:/app/data
+      - ${AFXEN_SECRETS_DIR:-../secrets}/database.json:/run/secrets/database.json:ro
+      - ${AFXEN_SECRETS_DIR:-../secrets}/credentialKey.json:/run/secrets/credentialKey.json:ro
+    healthcheck:
+      test: ["CMD", "bun", "-e", "process.exit((await fetch('http://127.0.0.1:3000/api/health')).ok ? 0 : 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

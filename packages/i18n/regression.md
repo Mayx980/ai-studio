@@ -36,7 +36,7 @@ bun run --cwd packages/i18n extract
 bun run typecheck
 bun run build
 bun run build:nodes
-bun run --cwd apps/server routes
+bun run --cwd services/server routes
 git -c core.safecrlf=false diff --check
 ```
 
@@ -58,7 +58,7 @@ git -c core.safecrlf=false diff --check
 
 ## 范围调整后的追加验证
 
-- 精确撤销子包改动，`packages/providers`、`packages/tools`、`packages/nodes`、`packages/nodeScaffold` 相对 HEAD 无内容差异。
+- 精确撤销子包改动，`packages/providers`、`packages/tools`、`frontend/nodes`、`frontend/nodeScaffold` 相对 HEAD 无内容差异。
 - 删除 Web 的插件名称翻译及节点专用语言运行时导出，移除供应商宿主的 `tool.error` 接口；保留应用层管理和配置提示。
 - 重新抽取并裁剪八份字典，移除 381 条仅用于排除范围的词条；类型检查、产物检查和构建重新执行，不沿用撤回前的节点翻译验证结论。
 - 全仓类型检查、Web/服务端构建、7 个节点与 8 个工具构建全部通过；产物不含节点宿主语言接口及语言字典，中文插件文案保留。新的转换边界断言及 1600 组 ICU 校验通过。

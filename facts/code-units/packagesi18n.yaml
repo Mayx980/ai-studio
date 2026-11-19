@@ -1,0 +1,1 @@
+{"binding":"project_observed","code_unit_id":"packagesi18n","dependencies":["packagesfile"],"entity_id":null,"entrypoints":["packages/i18n/src/index.ts"],"excluded_paths":[],"paths":["packages/i18n/"],"provider":null,"schema":"wf-prod.project_facts_code_unit","schema_version":1,"toolchains":["bun","typescript"]}

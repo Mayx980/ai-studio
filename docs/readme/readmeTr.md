@@ -299,7 +299,7 @@ Daha fazla bilgi için [Kullanıcı Kılavuzu’na](https://qcn7xdsqgc4z.feishu.
 
 ### 4.2 Docker Kurulumu
 
-Önce Git, [Docker Engine](https://docs.docker.com/engine/install/) ve Docker Compose’u kurun. Windows ve macOS üzerinde Docker Desktop’ı Linux konteyner modunda kullanabilirsiniz. Depoda [Dockerfile](../../Dockerfile), [Compose yapılandırması](../../compose.yaml) ve [derleme dışında tutulan dosyaların listesi](../../.dockerignore) bulunur. İmaj Bun 1.3.14 ile oluşturulur ve FFmpeg içerir.
+Önce Git, [Docker Engine](https://docs.docker.com/engine/install/) ve Docker Compose’u kurun. Windows ve macOS üzerinde Docker Desktop’ı Linux konteyner modunda kullanabilirsiniz. Depoda [Dockerfile](../../ops/Dockerfile), [Compose yapılandırması](../../ops/compose.yaml) ve [derleme dışında tutulan dosyaların listesi](../../.dockerignore) bulunur. İmaj Bun 1.3.14 ile oluşturulur ve FFmpeg içerir.
 
 <details>
 <summary><strong>Docker kurulum adımlarını göster</strong></summary>

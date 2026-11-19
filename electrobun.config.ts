@@ -12,7 +12,7 @@ export default {
   build: {
     mainProcess: "bun",
     // ACT: Photon 与 anydoc 按包所在目录读取 WASM/原生文件，保留原包，避免引用构建机路径。
-    bun: { entrypoint: "apps/desktop/src/index.ts", minify: true, external: ["@silvia-odwyer/photon-node", "@firecrawl/anydoc", "@firecrawl/anydoc-wasm"] },
+    bun: { entrypoint: "frontend/desktop/src/index.ts", minify: true, external: ["@silvia-odwyer/photon-node", "@firecrawl/anydoc", "@firecrawl/anydoc-wasm"] },
     copy: {
       "build/desktop/photon": "bun/node_modules/@silvia-odwyer/photon-node",
       "build/desktop/node_modules/@firecrawl": "bun/node_modules/@firecrawl",
@@ -32,17 +32,17 @@ export default {
       "build/ext": "ext",
       "packages/providers/src": "providers",
       "packages/skills": "skills",
-      "packages/startup/assets/startup.json": "startup/startup.json",
-      "packages/startup/assets/license.txt": "startup/license.txt",
-      [`packages/startup/assets/${startupTarget}`]: `startup/${startupTarget}`,
+      "frontend/startup/assets/startup.json": "startup/startup.json",
+      "frontend/startup/assets/license.txt": "startup/license.txt",
+      [`frontend/startup/assets/${startupTarget}`]: `startup/${startupTarget}`,
     },
     buildFolder: "build/desktop/app",
     artifactFolder: process.platform === "darwin" ? `build/desktop/artifacts/${process.arch === "x64" ? "macX64" : "macArm64"}` : "build/desktop/artifacts",
     win: {
-      icon: "packages/assets/logo.ico",
+      icon: "frontend/assets/logo.ico",
     },
     mac: {
-      icons: "packages/assets/logo.iconset",
+      icons: "frontend/assets/logo.iconset",
       // ACT: CI 为 ARM 同时开启签名与公证；本地未配置凭据时仍可构建测试包。
       codesign: process.env.macCodesign === "1",
       notarize: process.env.macCodesign === "1",
@@ -56,8 +56,8 @@ export default {
   },
   ...(process.platform === "darwin" ? {
     scripts: {
-      postBuild: "apps/desktop/scripts/localizeMac.ts",
-      postWrap: "apps/desktop/scripts/localizeMac.ts",
+      postBuild: "frontend/desktop/scripts/localizeMac.ts",
+      postWrap: "frontend/desktop/scripts/localizeMac.ts",
     },
   } : {}),
 } satisfies ElectrobunConfig;

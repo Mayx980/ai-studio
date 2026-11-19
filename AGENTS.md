@@ -1,5 +1,11 @@
 本规范适用于整个仓库。
 
+产品需求入口见 [requirements/readme.md](requirements/readme.md)；修改产品规则时同步维护产品规格与验收索引。
+
+按任务读取适用板块：[系统边界](architecture/readme.md)、[接口与数据](contracts/readme.md)、[前端与 Preview](frontend/readme.md)、[Server](services/readme.md)、[公共包](packages/readme.md)、[构建与运行](ops/readme.md)。环境与命令见[源码手册](docs/sourceDevelopment.md)，协作与审核见[开发指南](governance/development.md)。Project Facts 的技术登记见 [facts/project.yaml](facts/project.yaml)；不把工程接入当作产品验收。
+
+页面、状态及共享交互组件仅通过 Port 消费数据；Web 生产传输放在 `frontend/web/src/adapters/production/`，Scenario 直接提供内存展示模型。生产与场景复用同一页面，构建时选择入口，场景不得连接真实工作区、供应商或市场。
+
 # 开发规范说明
 
 ## 代码风格要求
@@ -13,6 +19,8 @@
 7. 所有新建文件、文件夹名称必须统一使用小驼峰**，无任何例外，例如 `userStore.ts`、`fileTree.ts`、`apiHelper.ts`、`editorPanel/`、`contextMenu/`。
 8. **禁止使用短横线命名、蛇形命名、帕斯卡命名或全大写格式作为文件/文件夹名**，项目中已存在的例外情况不作为新开发的参考依据。
 9. **组件文件名同样严格遵循小驼峰规则**，例如 `tabHeader.ts`、`splitPane.ts`、`loginForm.ts`，禁止使用 `TabHeader.ts` 或 `tab-header.ts` 这类格式。
+   - Issue #7 工程接入的限定例外：工具固定要求的 `facts/code-units/` 和 `uiux_manifest.md` 保留规定名称；此例外不适用于其他新文件、目录或组件。
+   - Issue #7 数据库工具限定例外（notes 131807、131814）：`ops/db/db-ops`、`ops/db/README.md`、`ops/db/.gitignore`、`ops/db/database.template.yaml`、`ops/db/fixed-files.json`、`ops/db/lib/db_ops.py`、`ops/db/operations/check.input.schema.json`、`ops/db/profiles/mysql-8.4.json`、固定本地 `ops/db/.runtime/`、`ops/db/.local/`、`ops/db/database.dev.yaml`、`ops/db/database.test.yaml`、`ops/db/database.prod.yaml`，以及 `ops/db/operations/table_check.py`、`ops/db/operations/table_check.input.schema.json`、`ops/db/operations/table_check.example.json` 保留工具固定名称。仅限这些精确路径，其余新增源码与文件仍小驼峰。
 10. **自有组件（项目内自己编写的组件）的文件名、本地绑定名和模板标签必须使用小驼峰**，例如 `showBox.vue`、`import showBox from "./showBox.vue"`、`<showBox />`，不得使用 `<show-box />`。
 11. **第三方 UI/组件库的模板标签允许使用短横线分隔（kebab-case）或小驼峰，优先统一使用短横线分隔**，例如 `<el-button />`、`<vue-flow />`、`<icon-map />`；此规则不放宽自有文件、变量或 DOM 类名的小驼峰要求。
 12. **所有组件模板标签及自有组件本地绑定名绝对禁止大驼峰（PascalCase）**，例如禁止 `<ShowBox />`、`<ElButton />`、`<VueFlow />`。第三方组件直接按库原始导出名导入，例如 `import { ElButton } from "element-plus"`、`import { VueFlow } from "@vue-flow/core"`，模板分别使用 `<el-button />`、`<vue-flow />`；脚本及模板表达式直接使用原始导出名，不添加仅用于转小驼峰的 `as` 别名。类型名、库导出名及工具自动生成的声明不属于模板标签，不手工改写自动生成文件。
@@ -23,8 +31,8 @@
 ## 插件与脚手架边界
 
 - 插件专属的组件、交互、提示词、预设和业务逻辑放在所属插件中；打光、图片编辑、视频播放器等功能通过所属插件的公开导出复用。
-- 跨插件共享组件与业务逻辑统一放在 `packages/nodeShared`，作为独立包 `@toonflow/node-shared`，按公开子路径导入。
-- `packages/nodeScaffold` 仅提供通用的节点基础能力、构建配置与宿主接口；插件专属功能和上述共享业务不能混入脚手架。
+- 跨插件共享组件与业务逻辑统一放在 `frontend/nodeShared`，作为独立包 `@toonflow/node-shared`，按公开子路径导入。
+- `frontend/nodeScaffold` 仅提供通用的节点基础能力、构建配置与宿主接口；插件专属功能和上述共享业务不能混入脚手架。
 
 ## 统一文件操作入口
 
@@ -35,7 +43,7 @@
 
 ## 前端工作区文件操作
 
-- `apps/web/src/lib/workspaceFiles.ts` 默认导出 `useWorkspaceFiles`。组件与前端工具统一复用此入口，不重复封装 Axios 或直接拼接 `/api/workspaces/files/*` 请求。
+- `frontend/web/src/lib/workspaceFiles.ts` 默认导出 `useWorkspaceFiles`。组件与前端工具统一复用此入口，不重复封装 Axios 或直接拼接 `/api/workspaces/files/*` 请求。
 - 方法中的 `path`、`target` 均为工作区内的相对路径，例如 `画布1.json`、`assets/image.png`；目录参数使用绝对路径。
 - 不传目录时，使用 Pinia 中当前项目的工作目录，每次操作重新读取；在 Pinia 初始化后的组件 `setup` 中创建实例。未选择工作目录时操作报错。
 
@@ -92,7 +100,7 @@ async function renameJsonFile(path: string, target: string) {
 
 ## Server 开发规范
 
-以下规则适用于 `apps/server`，与上面的通用代码规范同时遵守。
+以下规则适用于 `services/server`，与上面的通用代码规范同时遵守。
 
 ### 技术栈与职责
 
@@ -104,7 +112,7 @@ async function renameJsonFile(path: string, target: string) {
 ### 目录结构
 
 ```text
-apps/server/
+services/server/
   package.json
   tsconfig.json
   src/
@@ -142,13 +150,13 @@ apps/server/
 | `src/routes/settings/get.ts` | `GET` | `/api/settings/get` |
 | `src/routes/settings/save.ts` | `PUT` | `/api/settings/save` |
 
-- **不要手工维护 `src/router.ts` 的 imports、注册项或 hash。** 新增、移动、重命名或删除接口文件后，在 `apps/server` 执行 `bun run routes`。
+- **不要手工维护 `src/router.ts` 的 imports、注册项或 hash。** 新增、移动、重命名或删除接口文件后，在 `services/server` 执行 `bun run routes`。
 - 自动生成的 `route1` 等名称由生成器维护，不手工重命名。`createApp` 仅在 `NODE_ENV === "dev"` 时自动生成路由，不假定启动、监听文件变化或构建会自动补齐路由。
 - 改动路径或 HTTP 方法前搜索所有调用方，同步更新调用；文件归档不应意外改变配置文件、静态资源等磁盘路径。
 
 ### 引用与代码风格
 
-- server 的 `@/` 指向 `apps/server/src/`，业务代码优先使用该别名，例如 `@/utils`、`@/lib/middleware`。不要把 `@/` 当作仓库根目录，也不要使用本机绝对路径或长串 `../../` 引用业务模块。
+- server 的 `@/` 指向 `services/server/src/`，业务代码优先使用该别名，例如 `@/utils`、`@/lib/middleware`。不要把 `@/` 当作仓库根目录，也不要使用本机绝对路径或长串 `../../` 引用业务模块。
 - 通用工具统一使用 `import u from "@/utils"`，例如 `u.conf`；具体工具的引入与导出由 `utils.ts` 管理，接口不绕过统一入口重复初始化工具。
 - 跨工作区包使用包名及其声明的 exports，例如 `@toonflow/server/app`，不要直接穿透其他包的 `src/` 路径。
 - 第三方库使用包名导入，新增 Node 内置模块引用使用 `node:` 前缀；仅用于类型的引用使用 `import type`。
@@ -167,6 +175,7 @@ apps/server/
 
 - `conf` 只在 `src/utils/conf/index.ts` 初始化，通过 `src/utils.ts` 统一导出，接口使用 `u.conf`。不要在每个接口或每次请求中创建实例。
 - 配置统一存为数据目录下的 `settings.json`，保持 `configName: "settings"`、`configFileMode: 0o600`。开发环境使用仓库根目录 `data/`，该目录必须被 Git 忽略；生产环境使用安装目录下的 `data/`，不再使用默认用户配置目录。
+  - Issue #7 已确认的多用户Web采用SQL个人配置和加密凭据，原生local及实例资源仍复用该conf单例；请求上下文读取个人配置，缺上下文不借用管理员数据。具体分工见 [账号隔离设计](services/server/designs/accountIsolation.md) 与 [数据库合同](contracts/data/database.md)，不另建个人conf或故障回退JSON。
 - 启动入口通过 `createApp` 在路由加载前确定 `TOONFLOW_DATA_DIR`，读写必须使用同一目录。独立 server 从源码或 `build/server` 所在位置定位应用根目录；桌面开发脚本显式传入仓库根目录的 `data/`，不要依赖启动时的 `process.cwd()`。
 - Windows 桌面使用实际安装根目录的 `data/`（与可更新的 `app/` 同级），macOS 使用 `.app` 所在目录的 `data/`。不要写入可被更新替换的程序资源或应用包内部。
 - 当前保存接口接收 `{ settings: { ... } }`，使用 `z.record(z.string(), z.json())` 校验设置对象；完整覆盖保存，读取时返回 `settings`，未保存时返回 `{}`。
@@ -174,7 +183,7 @@ apps/server/
 
 ### 验证要求
 
-- 在 `apps/server` 执行命令：路由文件变更后先 `bun run routes`，按改动执行 `bun run typecheck`、`bun run build` 和必要的实际 HTTP 验证。
+- 在 `services/server` 执行命令：路由文件变更后先 `bun run routes`，按改动执行 `bun run typecheck`、`bun run build` 和必要的实际 HTTP 验证。
 - 涉及配置读写的验证使用临时配置目录，检查保存、读取及非法输入，避免覆盖真实用户配置。
 - 测试代码与检查入口遵守下方全仓「测试与检查边界」。只报告实际完成的验证，构建通过不等于接口或持久化行为已经验证。
 

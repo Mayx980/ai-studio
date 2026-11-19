@@ -299,7 +299,7 @@ sudo spctl --master-disable
 
 ### 4.2 Docker でのインストール
 
-まず Git、[Docker Engine](https://docs.docker.com/engine/install/)、Docker Compose をインストールしてください。Windows / macOS では Docker Desktop の Linux コンテナモードを利用できます。リポジトリには [Dockerfile](../../Dockerfile)、[Compose 設定](../../compose.yaml)、[ビルド除外設定](../../.dockerignore)が含まれています。Bun 1.3.14 を使用してビルドし、イメージには FFmpeg も含まれます。
+まず Git、[Docker Engine](https://docs.docker.com/engine/install/)、Docker Compose をインストールしてください。Windows / macOS では Docker Desktop の Linux コンテナモードを利用できます。リポジトリには [Dockerfile](../../ops/Dockerfile)、[Compose 設定](../../ops/compose.yaml)、[ビルド除外設定](../../.dockerignore)が含まれています。Bun 1.3.14 を使用してビルドし、イメージには FFmpeg も含まれます。
 
 <details>
 <summary><strong>Docker のインストール手順を開く</strong></summary>

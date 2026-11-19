@@ -299,7 +299,7 @@ Untuk petunjuk lebih lanjut, lihat [Panduan Pengguna](https://qcn7xdsqgc4z.feish
 
 ### 4.2 Instalasi Docker
 
-Instal Git, [Docker Engine](https://docs.docker.com/engine/install/), dan Docker Compose terlebih dahulu. Di Windows dan macOS, Anda dapat menggunakan Docker Desktop dalam mode kontainer Linux. Repositori ini menyertakan [Dockerfile](../../Dockerfile), [konfigurasi Compose](../../compose.yaml), dan [daftar pengecualian build](../../.dockerignore). Image dibangun dengan Bun 1.3.14 dan sudah menyertakan FFmpeg.
+Instal Git, [Docker Engine](https://docs.docker.com/engine/install/), dan Docker Compose terlebih dahulu. Di Windows dan macOS, Anda dapat menggunakan Docker Desktop dalam mode kontainer Linux. Repositori ini menyertakan [Dockerfile](../../ops/Dockerfile), [konfigurasi Compose](../../ops/compose.yaml), dan [daftar pengecualian build](../../.dockerignore). Image dibangun dengan Bun 1.3.14 dan sudah menyertakan FFmpeg.
 
 <details>
 <summary><strong>Tampilkan langkah instalasi Docker</strong></summary>

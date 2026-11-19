@@ -16,11 +16,10 @@ function parseUrl(value: string, base?: URL) {
   return url;
 }
 
-async function fetchText(value: string, signal: AbortSignal) {
+async function fetchText(value: string, signal: AbortSignal, request: typeof fetch) {
   let url = parseUrl(value);
   for (let redirects = 0; ; redirects++) {
-    // ACT: 交给运行环境处理 DNS/代理以兼容 Fake-IP；本工具不提供内网隔离，需由部署环境限制网络边界。
-    const response = await fetch(url, {
+    const response = await request(url, {
       redirect: "manual",
       signal,
       headers: { "user-agent": "Toonflow/2.0", accept: "text/html, text/plain, application/json, application/xml;q=0.9, */*;q=0.5" },
@@ -104,7 +103,7 @@ const plugin: ToolPlugin = {
       async execute(_id, params, signal) {
         const { url } = fetchSchema.parse(params);
         const timeout = AbortSignal.timeout(config.timeoutMs);
-        const result = await fetchText(url, signal ? AbortSignal.any([signal, timeout]) : timeout);
+        const result = await fetchText(url, signal ? AbortSignal.any([signal, timeout]) : timeout, context.fetch ?? fetch);
         const text = result.html ? htmlText(result.content) : result.content;
         const truncated = result.truncated || text.length > config.maxChars;
         return {

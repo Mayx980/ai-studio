@@ -24,6 +24,7 @@ export const listMediaModelsSchema = z.strictObject({});
 export const imageGenerationSchema = z.strictObject({
   ...sharedFields,
   size: z.string().trim().min(1).max(64).optional(),
+  n: z.number().int().min(1).max(6).optional(),
 });
 export const videoGenerationSchema = z.strictObject({
   ...sharedFields,

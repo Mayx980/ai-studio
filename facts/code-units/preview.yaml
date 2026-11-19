@@ -1,0 +1,1 @@
+{"binding":"project_observed","code_unit_id":"preview","dependencies":[],"entity_id":null,"entrypoints":["frontend/preview/start.py"],"excluded_paths":[],"paths":["frontend/preview/","frontend/previewGuide.md","frontend/readme.md"],"provider":null,"schema":"wf-prod.project_facts_code_unit","schema_version":1,"toolchains":["docker","python"]}

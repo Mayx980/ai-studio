@@ -299,7 +299,7 @@ sudo spctl --master-disable
 
 ### 4.2 نصب با Docker
 
-ابتدا Git، ‏[Docker Engine](https://docs.docker.com/engine/install/) و Docker Compose را نصب کنید. در Windows و macOS می‌توانید Docker Desktop را در حالت کانتینرهای Linux به کار ببرید. مخزن شامل [Dockerfile](../../Dockerfile)، ‏[پیکربندی Compose](../../compose.yaml) و [موارد مستثنا از ساخت](../../.dockerignore) است. ایمیج با Bun 1.3.14 ساخته می‌شود و FFmpeg را در خود دارد.
+ابتدا Git، ‏[Docker Engine](https://docs.docker.com/engine/install/) و Docker Compose را نصب کنید. در Windows و macOS می‌توانید Docker Desktop را در حالت کانتینرهای Linux به کار ببرید. مخزن شامل [Dockerfile](../../ops/Dockerfile)، ‏[پیکربندی Compose](../../ops/compose.yaml) و [موارد مستثنا از ساخت](../../.dockerignore) است. ایمیج با Bun 1.3.14 ساخته می‌شود و FFmpeg را در خود دارد.
 
 <details>
 <summary><strong>نمایش مراحل نصب با Docker</strong></summary>

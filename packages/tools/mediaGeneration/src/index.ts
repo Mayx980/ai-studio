@@ -44,7 +44,7 @@ const plugin: ToolPlugin = {
         const text = result.map(asset => {
           const url = asset.path.replaceAll("\\", "/").split("/").map(encodeURIComponent).join("/");
           const preview = asset.mediaType === "image" ? `![生成图片](<${url}>)` : `[${asset.mediaType === "audio" ? "播放生成音频" : "查看生成视频"}](<${url}>)`;
-          return `${preview}\n工作区文件：${asset.path}`;
+          return `${preview}\n工作区文件：${asset.path}${asset.warning ? `\n部分结果未保存：${asset.warning}` : ""}`;
         }).join("\n\n");
         return { content: [{ type: "text", text }], details: result };
       },

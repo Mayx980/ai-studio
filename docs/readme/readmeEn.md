@@ -322,7 +322,7 @@ For more instructions, see the [User Guide](https://qcn7xdsqgc4z.feishu.cn/docx/
 
 ### 4.2 Docker Installation
 
-Install Git, [Docker Engine](https://docs.docker.com/engine/install/), and Docker Compose first. On Windows and macOS, you can use Docker Desktop in Linux container mode. The repository includes a [Dockerfile](../../Dockerfile), [Compose configuration](../../compose.yaml), and [build exclusions](../../.dockerignore). The image is built with Bun 1.3.14 and includes FFmpeg.
+Install Git, [Docker Engine](https://docs.docker.com/engine/install/), and Docker Compose first. On Windows and macOS, you can use Docker Desktop in Linux container mode. The repository includes a [Dockerfile](../../ops/Dockerfile), [Compose configuration](../../ops/compose.yaml), and [build exclusions](../../.dockerignore). The image is built with Bun 1.3.14 and includes FFmpeg.
 
 <details>
 <summary><strong>Expand Docker installation steps</strong></summary>

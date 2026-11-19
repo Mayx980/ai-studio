@@ -1,0 +1,1 @@
+{"binding":"project_observed","code_unit_id":"frontenddesktop","dependencies":["frontendstartup","packagesfile","packagesi18n","servicesserver"],"entity_id":"desktophost","entrypoints":["frontend/desktop/src/index.ts"],"excluded_paths":[],"paths":["frontend/desktop/"],"provider":null,"schema":"wf-prod.project_facts_code_unit","schema_version":1,"toolchains":["bun","typescript"]}
