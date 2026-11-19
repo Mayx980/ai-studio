@@ -60,7 +60,7 @@ async function toggleAccount(item: ManagedAccount) {
 async function deleteAccount(item: ManagedAccount) {
   if (busy.value) return;
   if (!isPlatformAdmin.value && item.disabledBy === "platformAdmin") { ElMessage.warning("该账号已被平台管理员禁用，请联系平台管理员处理"); return; }
-  const result = await ElMessageBox.prompt(h("div", [h("p", "删除后，该账号将无法登录。"), h("p", ["请输入账号名 ", h("strong", item.username), " 确认删除。"])]), "删除账号", {
+  const result = await ElMessageBox.prompt(h("div", [h("p", "删除后，该账号将无法登录。"), h("p", "请输入账号名确认删除。")]), "删除账号", {
     inputPlaceholder: "输入完整账号名",
     inputValidator: value => value === item.username || "账号名不匹配", confirmButtonText: "确认删除", cancelButtonText: "取消", type: "warning",
     beforeClose: async (action, instance, done) => {
