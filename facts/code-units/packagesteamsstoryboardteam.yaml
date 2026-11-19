@@ -1,1 +1,0 @@
-{"binding":"project_observed","code_unit_id":"packagesteamsstoryboardteam","dependencies":["packagesteamscaffold"],"entity_id":null,"entrypoints":["packages/teams/storyboardTeam/build.ts"],"excluded_paths":[],"paths":["packages/teams/storyboardTeam/"],"provider":null,"schema":"wf-prod.project_facts_code_unit","schema_version":1,"toolchains":["bun","typescript"]}

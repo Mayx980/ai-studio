@@ -1,7 +1,0 @@
-/.runtime/
-/.local/
-/database.yaml
-/database.json
-/database.dev.yaml
-/database.test.yaml
-/database.prod.yaml

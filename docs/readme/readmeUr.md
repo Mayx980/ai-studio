@@ -299,7 +299,7 @@ sudo spctl --master-disable
 
 ### 4.2 Docker کے ذریعے تنصیب
 
-پہلے Git، ‏[Docker Engine](https://docs.docker.com/engine/install/) اور Docker Compose نصب کریں۔ Windows اور macOS پر Docker Desktop کو Linux کنٹینر موڈ میں استعمال کیا جا سکتا ہے۔ ریپوزٹری میں [Dockerfile](../../ops/Dockerfile)، ‏[Compose کی ترتیب](../../ops/compose.yaml) اور [بلڈ سے خارج فائلوں کی فہرست](../../.dockerignore) موجود ہیں۔ امیج Bun 1.3.14 سے بنتی ہے اور اس میں FFmpeg شامل ہے۔
+پہلے Git، ‏[Docker Engine](https://docs.docker.com/engine/install/) اور Docker Compose نصب کریں۔ Windows اور macOS پر Docker Desktop کو Linux کنٹینر موڈ میں استعمال کیا جا سکتا ہے۔ ریپوزٹری میں [Dockerfile](../../Dockerfile)، ‏[Compose کی ترتیب](../../compose.yaml) اور [بلڈ سے خارج فائلوں کی فہرست](../../.dockerignore) موجود ہیں۔ امیج Bun 1.3.14 سے بنتی ہے اور اس میں FFmpeg شامل ہے۔
 
 <details>
 <summary><strong>Docker کی تنصیب کے مراحل کھولیں</strong></summary>

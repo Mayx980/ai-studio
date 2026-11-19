@@ -21,7 +21,7 @@ async function scan(directory: string) {
     if (item.isDirectory()) { if (!["node_modules", "installer", "locales", "dist"].includes(item.name)) await scan(path); continue; }
     if (!/\.(ts|vue)$/.test(item.name) || /(?:\.d\.ts|providerPrompt|systemPrompt)\./i.test(item.name) || /packages[\\/]ffmpeg[\\/]src[\\/]browser\.ts$/.test(path)) continue;
     const source = await readFile(path, "utf8");
-    if (/frontend[\\/]web/.test(path)) {
+    if (/apps[\\/]web/.test(path)) {
       for (const message of collectMessages(source, path)) add(message, path);
     }
     const scripts = item.name.endsWith(".vue")
@@ -29,7 +29,7 @@ async function scan(directory: string) {
       : [source];
     for (const script of scripts) {
       const ast = parse(script, { sourceType: "module", plugins: ["typescript"] });
-      const backend = /(?:services[\\/]server|frontend[\\/](?:desktop|mobile)|packages[\\/](?:mcp|ffmpeg))/.test(path);
+      const backend = /(?:apps[\\/](?:server|desktop|mobile)|packages[\\/](?:mcp|ffmpeg))/.test(path);
       const visit = (node: Node, parents: Node[] = []) => {
         const owner = [...parents].reverse().find(parent => parent.type === "VariableDeclarator" || parent.type === "ObjectProperty");
         const name = owner?.type === "VariableDeclarator" && owner.id.type === "Identifier" ? owner.id.name
@@ -54,7 +54,7 @@ async function scan(directory: string) {
     }
   }
 }
-for (const path of ["frontend/web/src", "services/server/src", "frontend/desktop/src", "frontend/mobile/src", "packages/mcp/src", "packages/ffmpeg/src"]) await scan(resolve(root, path));
+for (const path of ["apps/web/src", "apps/server/src", "apps/desktop/src", "apps/mobile/src", "packages/mcp/src", "packages/ffmpeg/src"]) await scan(resolve(root, path));
 const messages = Object.fromEntries([...catalog].sort(([left], [right]) => left.localeCompare(right, "zh-CN")).map(([message]) => [message, message]));
 await mkdir(resolve(import.meta.dirname, "locales"), { recursive: true });
 await writeAtomic(resolve(import.meta.dirname, "locales/zhCn.json"), JSON.stringify(messages, null, 2) + "\n");

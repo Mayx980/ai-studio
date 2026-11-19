@@ -156,8 +156,6 @@ Toonflow 是面向短剧、漫剧和短视频创作者的开源 AI 创作工具�
 
 ---
 
-本仓Web的独立账号、MySQL及公司HTTP云媒体部署见 [运行手册](ops/database.md)；复用现有MySQL和HTTP OSS，仅部署应用容器；登录用户由SQL维护，不需要网站管理员。源码和静态检查不代表目标环境联调通过。
-
 ## 1. 💛 赞助与支持
 
 感谢以下合作伙伴对 Toonflow 开源项目的支持。
@@ -326,7 +324,7 @@ sudo spctl --master-disable
 
 ### 4.2 Docker 安装
 
-先安装 Git、[Docker Engine](https://docs.docker.com/engine/install/) 和 Docker Compose；Windows / macOS 可使用 Docker Desktop 的 Linux 容器模式。仓库提供 [Dockerfile](./ops/Dockerfile)、[Compose 配置](./ops/compose.yaml) 和 [构建排除规则](.dockerignore)，基于 Bun 1.3.14 构建，镜像内包含 FFmpeg。
+先安装 Git、[Docker Engine](https://docs.docker.com/engine/install/) 和 Docker Compose；Windows / macOS 可使用 Docker Desktop 的 Linux 容器模式。仓库提供 [Dockerfile](./Dockerfile)、[Compose 配置](./compose.yaml) 和 [构建排除规则](./.dockerignore)，基于 Bun 1.3.14 构建，镜像内包含 FFmpeg。
 
 <details>
 <summary><strong>展开 Docker 安装步骤</strong></summary>
@@ -336,32 +334,32 @@ sudo spctl --master-disable
 ```sh
 git clone https://github.com/HBAI-Ltd/Toonflow-app.git
 cd Toonflow-app
-docker compose -f ops/compose.yaml up -d --build
+docker compose up -d --build
 ```
 
 首次构建会安装依赖并编译内置节点、工具、Web 与 Server。启动后访问 `http://127.0.0.1:3000`；远程主机可按下方“访问与数据说明”通过 SSH 隧道访问。首次启动会初始化内置插件，并提供 `myProject` 工作目录。
 
-配置、插件和项目文件保存在 Docker 命名卷 `toonflowData` 中，挂载至容器的 `/app/data/`。卷的实际名称带有 Compose 项目前缀；停止或重建容器会保留数据，**请勿使用 `docker compose -f ops/compose.yaml down -v`，该命令会删除数据卷**。
+配置、插件和项目文件保存在 Docker 命名卷 `toonflowData` 中，挂载至容器的 `/app/data/`。卷的实际名称带有 Compose 项目前缀；停止或重建容器会保留数据，**请勿使用 `docker compose down -v`，该命令会删除数据卷**。
 
 ```sh
-docker compose -f ops/compose.yaml logs -f toonflow  # 查看日志
-docker compose -f ops/compose.yaml stop             # 停止服务
-docker compose -f ops/compose.yaml start            # 再次启动
-docker compose -f ops/compose.yaml down             # 删除容器，保留数据卷
+docker compose logs -f toonflow  # 查看日志
+docker compose stop             # 停止服务
+docker compose start            # 再次启动
+docker compose down             # 删除容器，保留数据卷
 ```
 
 需要增加项目目录时，可在页面的“选择服务器工作目录”弹窗中点击“新建文件夹”。弹窗也支持文件和文件夹的重命名、删除。也可在服务运行期间通过命令行创建：
 
 ```sh
-docker compose -f ops/compose.yaml exec toonflow mkdir -p /app/data/workspaces/newProject
+docker compose exec toonflow mkdir -p /app/data/workspaces/newProject
 ```
 
 备份时先停止服务，复制完成后再启动：
 
 ```sh
-docker compose -f ops/compose.yaml stop
-docker compose -f ops/compose.yaml cp toonflow:/app/data ./toonflowBackup
-docker compose -f ops/compose.yaml start
+docker compose stop
+docker compose cp toonflow:/app/data ./toonflowBackup
+docker compose start
 ```
 
 </details>
@@ -580,16 +578,9 @@ Copyright © 2026 北京爱阿科技有限公司
 
 ## 当前仓库开发
 
-本仓库基于固定上游版本开发，在 `issue/7` 进行工程结构接入：UI 和原生宿主位于 `frontend/`，服务位于 `services/`，非 UI 公共包与工具位于 `packages/`，聚合构建位于 `ops/`。保留现有业务、包名、插件和用户数据格式；Issue #7 的产品功能仍按需求继续实施。
+本仓库基于固定上游版本接入，保留上游目录、UI 与业务实现。[来源与接入边界](governance/upstream.md) · [使用 wf-prod 开发](governance/development.md)。
 
-[需求](requirements/readme.md) · [系统](architecture/readme.md) · [接口](contracts/readme.md) · [前端与 Preview](frontend/readme.md) · [服务端](services/readme.md) · [公共包](packages/readme.md) · [构建运行](ops/readme.md) · [Project Facts](facts/project.yaml)。
 
-本地环境使用 Bun 1.3.14；在根目录显式执行 `bun install --frozen-lockfile` 后，按[源码手册](docs/sourceDevelopment.md)运行开发和构建。隔离预览还需要 Node 24+、Python 3.10+，入口与未覆盖范围见 [Preview](frontend/previewGuide.md)。现有类型检查、构建与手动验证分别执行，不新增测试模块；实际验证结果见本次 MR，不把命令存在当作已通过。
+## ai-studio 创作原型
 
-[来源与接入边界](governance/upstream.md) · [使用 wf-prod 开发](governance/development.md)。
-
-[产品需求与验收场景](requirements/readme.md)记录当前创作工作台的产品边界；实现与验证进度见 [Issue #7 实施计划](.wf-prod/plans/issue-7/plan.md)。
-
-## AFXEN 创作原型
-
-Issue #7 的浏览器创作原型已合入当前 Web 工程，见 [创作原型设计](frontend/web/designs/creationExperience.md)。项目和素材仍保存在当前站点浏览器中，真实供应商调用需要用户在页面输入 Key；演示账号不提供服务端权限。共享工作区服务端版仍待实施，设计合入和工程接入不代表产品交付。运行前提与原型中转入口见[源码手册](docs/sourceDevelopment.md)。
+Issue #7 的浏览器创作预览及共享交互方案见 [创作原型设计](apps/web/designs/creationExperience.md)。原型沿用原生 Web 与节点插件，真实供应商调用需要用户在浏览器内输入 Key；设计分支不代表生产交付。

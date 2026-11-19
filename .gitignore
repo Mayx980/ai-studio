@@ -7,11 +7,11 @@ dist/
 .playwright-mcp/
 playwright-report/
 test-results/
-/frontend/compat/macIntel/generated/
-/frontend/startup/assets/macX64/
-/frontend/startup/assets/macArm64/
-/services/updateServer/public/
-/services/updateServer/releases/
+/compat/macIntel/generated/
+/packages/startup/assets/macX64/
+/packages/startup/assets/macArm64/
+/apps/updateServer/public/
+/apps/updateServer/releases/
 /.hutch/
 /.cottontail-tmp/
 coverage/
@@ -23,7 +23,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
-/services/updateServer/build/
+/apps/updateServer/build/
 .vscode
 *.p12
 *.pfx
@@ -31,6 +31,3 @@ Thumbs.db
 *.keychain
 *.keychain-db
 .tmp/
-/frontend/preview/runtime/
-/secrets/
-/dbRuntime/

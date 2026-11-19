@@ -21,10 +21,8 @@ interface ProviderModel {
   audio?: "optional" | boolean;
   imageSizes?: string[];
   imageRatios?: string[];
-  imageCounts?: number[];
   durationResolutionMap?: { duration: number[]; resolution: string[] }[];
   voices?: { title: string; voice: string }[];
-  languages?: string[];
 }
 
 interface ProviderFormRule {

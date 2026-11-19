@@ -106,11 +106,11 @@
 以下为本技能创建时当前仓库的迁移依据，**不是 v1.1.8 文件**；执行时仍以工具实时 schema 为准：
 
 - `packages/tools/canvas/src/runtime.ts`：画布、节点、连线工具参数。
-- `frontend/web/src/pages/workspace/panels/canvas/useCanvasTools.ts`、`canvasHost.vue`、`components/canvasMenu.vue`：本轮上下文、画布切换与文件树操作协调。
+- `apps/web/src/pages/workspace/panels/canvas/useCanvasTools.ts`、`canvasHost.vue`、`components/canvasMenu.vue`：本轮上下文、画布切换与文件树操作协调。
 - `packages/tools/workspace/src/index.ts`：内置工作区文件工具范围。
 - `packages/tools/mediaGeneration/src/index.ts`：生成节点创建前可用的只读模型能力查询。
-- `frontend/nodes/textNode/src/index.vue`、`imageNode/src/index.vue`、`imageGenerationNode/src/index.vue`、`videoGenerationNode/src/index.vue`：节点公开函数和输出。
-- `services/server/src/agent/assets.ts`、`services/server/src/utils/assets/index.ts`：全局资产导入与工作区路径。
-- `services/server/src/agent/skills/index.ts`、`services/server/src/utils/skills/files.ts`：技能读取、新建及编辑契约。
+- `packages/nodes/textNode/src/index.vue`、`imageNode/src/index.vue`、`imageGenerationNode/src/index.vue`、`videoGenerationNode/src/index.vue`：节点公开函数和输出。
+- `apps/server/src/agent/assets.ts`、`apps/server/src/utils/assets/index.ts`：全局资产导入与工作区路径。
+- `apps/server/src/agent/skills/index.ts`、`apps/server/src/utils/skills/files.ts`：技能读取、新建及编辑契约。
 
 技能保留当前目录与 frontmatter 名称 `v118workflow`，所有知识都位于该包的 `references/knowledge/`，不依赖另一个已安装的旧版技能包。

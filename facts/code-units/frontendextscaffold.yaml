@@ -1,1 +1,0 @@
-{"binding":"project_observed","code_unit_id":"frontendextscaffold","dependencies":["packagesfile","packagesi18n"],"entity_id":null,"entrypoints":["frontend/extScaffold/index.ts"],"excluded_paths":[],"paths":["frontend/extScaffold/"],"provider":null,"schema":"wf-prod.project_facts_code_unit","schema_version":1,"toolchains":["bun","typescript"]}

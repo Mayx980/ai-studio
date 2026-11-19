@@ -20,7 +20,6 @@
   "devDependencies": {
     "@toonflow/tools-scaffold": "workspace:*",
     "typescript": "~6.0.3",
-    "vue-tsc": "^3.3.11",
-    "@toonflow/tool-ask-user-ui": "workspace:*"
+    "vue-tsc": "^3.3.11"
   }
 }

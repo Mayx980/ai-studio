@@ -160,14 +160,14 @@ jobs:
         run: bun install --frozen-lockfile
       - name: 安装 Intel Mac 兼容 SDK
         if: matrix.target == 'macX64'
-        working-directory: frontend/compat/macIntel
+        working-directory: compat/macIntel
         run: bun install --frozen-lockfile
       - name: 准备 Electrobun SDK
         if: matrix.target != 'macX64' && matrix.target != 'androidArm64'
-        run: bun frontend/desktop/node_modules/electrobun/bin/electrobun.cjs prepare
+        run: bun apps/desktop/node_modules/electrobun/bin/electrobun.cjs prepare
       - name: 编译 macOS 原生启动库
         if: runner.os == 'macOS'
-        run: bun frontend/startup/scripts/buildMac.ts
+        run: bun packages/startup/scripts/buildMac.ts
       - name: 准备 NSIS
         if: matrix.target == 'windowsX64'
         shell: pwsh
@@ -187,13 +187,13 @@ jobs:
       - name: 准备 Android Bun、GeckoView 与构建依赖
         if: matrix.target == 'androidArm64'
         shell: pwsh
-        run: bun run --cwd frontend/mobile setup
+        run: bun run --cwd apps/mobile setup
       - name: 构建 Android APK
         if: matrix.target == 'androidArm64'
         shell: pwsh
         env:
           androidRelease: ${{ inputs.androidRelease && '1' || '0' }}
-        run: bun run --cwd frontend/mobile build
+        run: bun run --cwd apps/mobile build
       - name: 准备 ARM 签名与公证凭据
         if: matrix.target == 'macArm64'
         id: signing
@@ -256,7 +256,7 @@ jobs:
           mkdirSync(directory, { recursive: true });
           const target = join(directory, "xcrun");
           // ACT: 无扩展名入口保持 JavaScript 语法，并统一 LF，保证 macOS shebang 可执行。
-          writeFileSync(target, readFileSync("frontend/desktop/scripts/macXcrun.ts", "utf8").replace(/\r\n/g, "\n"));
+          writeFileSync(target, readFileSync("apps/desktop/scripts/macXcrun.ts", "utf8").replace(/\r\n/g, "\n"));
           chmodSync(target, 0o755);
           writeFileSync(process.env.GITHUB_PATH, `${directory}\n`, { flag: "a" });
           '

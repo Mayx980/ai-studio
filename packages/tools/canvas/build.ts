@@ -17,5 +17,5 @@ deleteNodes、moveNodes、renameNodes、connectNodes、deleteEdges 均一次接�
   components: Object.fromEntries([
     "addNode", "moveNodes", "renameNodes", "nodeTools", "connectNodes",
     "deleteEdges", "selectNodes", "arrangeCanvas", "fitCanvas",
-  ].map(name => [name, Bun.resolveSync("@toonflow/tool-canvas-ui", import.meta.dir)])),
+  ].map(name => [name, "src/nodeFocusCard.vue"])),
 }, import.meta.url);

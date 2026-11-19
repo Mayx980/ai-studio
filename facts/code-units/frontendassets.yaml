@@ -1,1 +1,0 @@
-{"binding":"project_observed","code_unit_id":"frontendassets","dependencies":[],"entity_id":null,"entrypoints":[],"excluded_paths":[],"paths":["frontend/assets/"],"provider":null,"schema":"wf-prod.project_facts_code_unit","schema_version":1,"toolchains":["bun","typescript"]}

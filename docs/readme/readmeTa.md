@@ -299,7 +299,7 @@ sudo spctl --master-disable
 
 ### 4.2 Docker நிறுவல்
 
-முதலில் Git, [Docker Engine](https://docs.docker.com/engine/install/) மற்றும் Docker Compose-ஐ நிறுவவும். Windows மற்றும் macOS-இல் Docker Desktop-இன் Linux container முறையைப் பயன்படுத்தலாம். இந்தக் களஞ்சியத்தில் [Dockerfile](../../ops/Dockerfile), [Compose அமைப்பு](../../ops/compose.yaml) மற்றும் [உருவாக்கத்திலிருந்து விலக்கப்படும் கோப்புகளின் விதிகள்](../../.dockerignore) உள்ளன. இமேஜ் Bun 1.3.14-ஐக் கொண்டு உருவாக்கப்படுகிறது; FFmpeg-ஐயும் உள்ளடக்கியது.
+முதலில் Git, [Docker Engine](https://docs.docker.com/engine/install/) மற்றும் Docker Compose-ஐ நிறுவவும். Windows மற்றும் macOS-இல் Docker Desktop-இன் Linux container முறையைப் பயன்படுத்தலாம். இந்தக் களஞ்சியத்தில் [Dockerfile](../../Dockerfile), [Compose அமைப்பு](../../compose.yaml) மற்றும் [உருவாக்கத்திலிருந்து விலக்கப்படும் கோப்புகளின் விதிகள்](../../.dockerignore) உள்ளன. இமேஜ் Bun 1.3.14-ஐக் கொண்டு உருவாக்கப்படுகிறது; FFmpeg-ஐயும் உள்ளடக்கியது.
 
 <details>
 <summary><strong>Docker நிறுவல் படிகளை விரிவாக்கு</strong></summary>

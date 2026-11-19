@@ -299,7 +299,7 @@ Xem thêm trong [hướng dẫn sử dụng](https://qcn7xdsqgc4z.feishu.cn/docx
 
 ### 4.2 Cài đặt bằng Docker
 
-Trước tiên, cài Git, [Docker Engine](https://docs.docker.com/engine/install/) và Docker Compose. Trên Windows / macOS, có thể dùng chế độ container Linux của Docker Desktop. Kho mã cung cấp [Dockerfile](../../ops/Dockerfile), [cấu hình Compose](../../ops/compose.yaml) và [quy tắc loại trừ khi build](../../.dockerignore), sử dụng Bun 1.3.14 để build và tích hợp FFmpeg trong image.
+Trước tiên, cài Git, [Docker Engine](https://docs.docker.com/engine/install/) và Docker Compose. Trên Windows / macOS, có thể dùng chế độ container Linux của Docker Desktop. Kho mã cung cấp [Dockerfile](../../Dockerfile), [cấu hình Compose](../../compose.yaml) và [quy tắc loại trừ khi build](../../.dockerignore), sử dụng Bun 1.3.14 để build và tích hợp FFmpeg trong image.
 
 <details>
 <summary><strong>Mở các bước cài đặt bằng Docker</strong></summary>

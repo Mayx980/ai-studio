@@ -6,6 +6,7 @@
   "exports": {
     "./host": "./src/host.ts",
     "./protocol": "./src/protocol.ts",
+    "./panel": "./src/browserPanel.vue",
     "./client": "./src/client.ts"
   },
   "scripts": {

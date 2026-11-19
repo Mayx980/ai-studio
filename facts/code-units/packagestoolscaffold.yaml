@@ -1,1 +1,0 @@
-{"binding":"project_observed","code_unit_id":"packagestoolscaffold","dependencies":["packagesffmpeg","packagesfile","packagesproviders"],"entity_id":null,"entrypoints":["packages/toolScaffold/index.ts"],"excluded_paths":[],"paths":["packages/toolScaffold/"],"provider":null,"schema":"wf-prod.project_facts_code_unit","schema_version":1,"toolchains":["bun","typescript"]}

@@ -299,7 +299,7 @@ sudo spctl --master-disable
 
 ### 4.2 การติดตั้งด้วย Docker
 
-ติดตั้ง Git, [Docker Engine](https://docs.docker.com/engine/install/) และ Docker Compose ก่อน สำหรับ Windows / macOS สามารถใช้ Docker Desktop ในโหมดคอนเทนเนอร์ Linux ได้ ที่เก็บโค้ดมี [Dockerfile](../../ops/Dockerfile), [การกำหนดค่า Compose](../../ops/compose.yaml) และ[กฎยกเว้นไฟล์สำหรับการบิลด์](../../.dockerignore) โดยบิลด์ด้วย Bun 1.3.14 และมี FFmpeg รวมอยู่ในอิมเมจ
+ติดตั้ง Git, [Docker Engine](https://docs.docker.com/engine/install/) และ Docker Compose ก่อน สำหรับ Windows / macOS สามารถใช้ Docker Desktop ในโหมดคอนเทนเนอร์ Linux ได้ ที่เก็บโค้ดมี [Dockerfile](../../Dockerfile), [การกำหนดค่า Compose](../../compose.yaml) และ[กฎยกเว้นไฟล์สำหรับการบิลด์](../../.dockerignore) โดยบิลด์ด้วย Bun 1.3.14 และมี FFmpeg รวมอยู่ในอิมเมจ
 
 <details>
 <summary><strong>แสดงขั้นตอนการติดตั้งด้วย Docker</strong></summary>

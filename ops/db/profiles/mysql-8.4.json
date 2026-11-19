@@ -1,1 +1,0 @@
-{"compatibility":{"advisory_lock":true,"transactional_ddl":false},"driver":"pymysql","profile_id":"mysql-8.4","protocol_targets":[{"family":"mysql","version":"8.4"}],"schema":"wf-prod.database_operations_profile","schema_version":1}

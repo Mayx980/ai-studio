@@ -105,8 +105,8 @@ export async function createTeamConfig(configUrl: string, options: { sync?: "mis
   if (bytes + files["team.json"].byteLength > teamLimits.maxTotalBytes) throw new Error("团队资源总大小不能超过 20 MiB");
   const archive = zipSync(files, { level: 6 });
   if (archive.byteLength > teamLimits.maxTotalBytes) throw new Error("团队压缩包不能超过 20 MiB");
-  const buildRoot = fileURLToPath(new URL("../../build/agents", import.meta.url));
-  const dataRoot = fileURLToPath(new URL("../../data/agents", import.meta.url));
+  const buildRoot = fileURLToPath(new URL("../../build/agents/", import.meta.url));
+  const dataRoot = fileURLToPath(new URL("../../data/agents/", import.meta.url));
   await publishDirectory(buildRoot, manifest.name, files, true);
   const archivePath = join(buildRoot, `${manifest.name}.agent.zip`);
   await ensurePlainPath(archivePath);

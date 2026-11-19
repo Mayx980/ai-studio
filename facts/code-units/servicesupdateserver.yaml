@@ -1,1 +1,0 @@
-{"binding":"project_observed","code_unit_id":"servicesupdateserver","dependencies":["packagesfile"],"entity_id":"updateserver","entrypoints":["services/updateServer/src/app.ts","services/updateServer/src/index.ts"],"excluded_paths":[],"paths":["services/updateServer/"],"provider":null,"schema":"wf-prod.project_facts_code_unit","schema_version":1,"toolchains":["bun","typescript"]}

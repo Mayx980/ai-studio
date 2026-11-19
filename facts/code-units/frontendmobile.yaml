@@ -1,1 +1,0 @@
-{"binding":"project_observed","code_unit_id":"frontendmobile","dependencies":["frontendweb","packagesfile","servicesserver"],"entity_id":"mobilehost","entrypoints":["frontend/mobile/src/server.ts"],"excluded_paths":[],"paths":["frontend/mobile/"],"provider":null,"schema":"wf-prod.project_facts_code_unit","schema_version":1,"toolchains":["bun","typescript"]}

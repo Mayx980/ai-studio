@@ -1,1 +1,0 @@
-{"binding":"project_observed","code_unit_id":"frontendtoolscanvas","dependencies":["packagestoolscaffold"],"entity_id":null,"entrypoints":["frontend/tools/canvas/src/nodeFocusCard.vue"],"excluded_paths":[],"paths":["frontend/tools/canvas/"],"provider":null,"schema":"wf-prod.project_facts_code_unit","schema_version":1,"toolchains":["bun","typescript","vue"]}

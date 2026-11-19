@@ -1,6 +1,6 @@
 # Toonflow 多语言
 
-[返回项目首页](../../README.md) · [文档目录](../../docs/readme.md) · [开发与扩展指南](../../docs/sourceDevelopment.md)
+[返回项目首页](../../README.md) · [文档目录](../../docs/readme.md) · [开发与扩展指南](../../docs/development.md)
 
 语言字典集中在 `src/locales/`，共 21 种语言：简体中文、繁体中文、英语、日语、俄语、越南语、泰语、韩语、印地语，以及印尼语（`id`）、马来语（`ms`）、菲律宾语（`fil`）、孟加拉语（`bn`）、乌尔都语（`ur`）、泰米尔语（`ta`）、泰卢固语（`te`）、马拉地语（`mr`）、旁遮普语（`pa`，Gurmukhi 文字）、阿拉伯语（`ar`）、波斯语（`fa`）和土耳其语（`tr`）。`zhCn.json` 是抽取的中文源文案，其他语言使用同一消息键。
 
@@ -14,7 +14,7 @@ Web 设置和首次引导复用 `languageSelect.vue`：设置页直接展示语�
 
 Element Plus 使用 `src/elementPlus/` 中的 21 份完整语言 JSON，通过 `@toonflow/i18n/elementPlus` 接入全局 ConfigProvider；分页、日期、上传、筛选及无障碍提示随语言即时更新，不再因官方语言包缺失而回退英语。日期格式和星期名称使用 Web 已注册的 Day.js 语言包；菲律宾语映射为 `tl-ph`，Gurmukhi 旁遮普语映射为 `pa-in`。TDesign 缺少的语言仍使用英语基底，聊天控件由应用字典补齐；Zod 的 `fil/te/mr/pa` 通用校验提示仍回退英语。
 
-Web 静态文本和明确的展示属性由 `@toonflow/i18n/vite` 在 Vue 编译前转换，业务源码继续写中文。转换仅作用于 `frontend/web/src`；编译器只处理已知显示位置，不遍历 DOM，不调用在线翻译，不关闭 Vue 静态优化，也不通过重新挂载页面切换语言。
+Web 静态文本和明确的展示属性由 `@toonflow/i18n/vite` 在 Vue 编译前转换，业务源码继续写中文。转换仅作用于 `apps/web/src`；编译器只处理已知显示位置，不遍历 DOM，不调用在线翻译，不关闭 Vue 静态优化，也不通过重新挂载页面切换语言。
 
 动态文案可以使用原生 JavaScript 标签模板，无需 Babel 宏：
 
@@ -34,7 +34,7 @@ const countLabel = computed(() => t`已选择 ${selectedCount.value} 个节点`)
 
 `msg` 保留模板与参数，`t` 立即翻译。Vue 入口中的翻译函数读取响应式语言；模块初始化或 setup 中一次性得到的普通字符串不会自动更新。参数原样插入，不被当成新模板解析；花括号与引号由标签模板转义。需要复数时，译文可使用 ICU MessageFormat 的 `plural`，不要把句子拆开拼接。
 
-后端使用 `services/server/src/lib/i18n.ts` 的请求上下文。`success/error` 兼容旧中文字符串和消息描述；动态错误使用该模块的 `t`。FFmpeg 服务端错误可用 `@toonflow/i18n/errors` 的 `messageError`，传入 `msg` 标签模板生成的描述，保存原文和参数，到系统错误出口再翻译。后端不要调用 core 的 `setLocale` 切换全局语言。
+后端使用 `apps/server/src/lib/i18n.ts` 的请求上下文。`success/error` 兼容旧中文字符串和消息描述；动态错误使用该模块的 `t`。FFmpeg 服务端错误可用 `@toonflow/i18n/errors` 的 `messageError`，传入 `msg` 标签模板生成的描述，保存原文和参数，到系统错误出口再翻译。后端不要调用 core 的 `setLocale` 切换全局语言。
 
 语言来源按每个请求的 `Accept-Language`（含 q 权重）隔离；无支持的请求语言时使用保存的应用语言或系统语言。Zod 使用一次注册、按请求读取的语言分派器。SSE、MCP 和 FFmpeg 仅处理已识别的系统错误，模型正文、工具成功结果、供应商未知错误、用户内容和日志详情保持原样。
 

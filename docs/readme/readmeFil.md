@@ -299,7 +299,7 @@ Para sa iba pang tagubilin, tingnan ang [Gabay sa Paggamit](https://qcn7xdsqgc4z
 
 ### 4.2 Pag-install gamit ang Docker
 
-I-install muna ang Git, [Docker Engine](https://docs.docker.com/engine/install/), at Docker Compose. Sa Windows at macOS, maaaring gamitin ang Docker Desktop sa Linux container mode. Kasama sa repository ang [Dockerfile](../../ops/Dockerfile), [configuration ng Compose](../../ops/compose.yaml), at [mga hindi isinasama sa build](../../.dockerignore). Ginagamit ang Bun 1.3.14 sa pagbuo ng image, at kasama na ang FFmpeg.
+I-install muna ang Git, [Docker Engine](https://docs.docker.com/engine/install/), at Docker Compose. Sa Windows at macOS, maaaring gamitin ang Docker Desktop sa Linux container mode. Kasama sa repository ang [Dockerfile](../../Dockerfile), [configuration ng Compose](../../compose.yaml), at [mga hindi isinasama sa build](../../.dockerignore). Ginagamit ang Bun 1.3.14 sa pagbuo ng image, at kasama na ang FFmpeg.
 
 <details>
 <summary><strong>Tingnan ang mga hakbang sa pag-install gamit ang Docker</strong></summary>
