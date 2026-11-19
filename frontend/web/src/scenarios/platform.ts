@@ -97,7 +97,7 @@ export function createScenarioPlatformPort(scenario: ScenarioName): PlatformPort
     if (command.type === "account") {
       if (!state.customers.some(item => item.id === command.value.customerId && !item.deletedAt && item.enabled !== false)) throw new Error("请选择有效客户");
       if (actor.role !== "platformAdmin" && !(actor.role === "customerAdmin" && actor.customerId === command.value.customerId)) throw new Error("无权创建此客户账号");
-      if (!command.value.username.trim() || !command.value.name.trim() || command.password.length < 6 || command.password.length > 15) throw new Error("请填写账号、姓名和6–15字符的临时密码");
+      if (!command.value.username.trim() || !command.value.name.trim() || command.password.length < 6 || command.password.length > 15) throw new Error("请填写账号和姓名");
       if (state.accounts.some(item => item.username === command.value.username) || getScenarioAccountSummaries().some(item => item.username === command.value.username)) throw new Error("账号已存在");
       const id = crypto.randomUUID();
       await setScenarioTemporaryPassword({ ...command.value, id, role: "user", enabled: true, mustChangePassword: true }, command.password);
