@@ -39,7 +39,7 @@ router.beforeEach(async to => {
   if (user && !user.mustChangePassword && !sessionExpired.value && to.path === "/login") return { path: portalHome, replace: true };
   if (isPlatformPortal && !["/login", "/admin"].includes(to.path)) return { path: "/admin", replace: true };
   if (!isPlatformPortal && to.path === "/admin") return { path: "/home", replace: true };
-  if (!isPlatformPortal && to.path === "/home" && !["templates", "history", "assets", "projects", "reviews"].includes(String(to.query.section))) {
+  if (!isPlatformPortal && to.path === "/home" && !["templates", "history", "assets", "projects"].includes(String(to.query.section))) {
     const { useWorkspaceStore } = await import("@/stores/workspace");
     await useWorkspaceStore().resumeSimpleConversation();
     return { path: "/workspace", query: { returnSection: "create" }, replace: true };

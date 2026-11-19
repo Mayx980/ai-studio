@@ -12,21 +12,18 @@
   </aside>
 </template>
 <script setup lang="ts">
-import { computed } from "vue";
 import { navigationCollapsed } from "@/stores/navigation";
-import { IconLayoutSidebar, IconHome, IconPhoto, IconFolder, IconCheck } from "@tabler/icons-vue";
+import { IconLayoutSidebar, IconHome, IconPhoto, IconFolder } from "@tabler/icons-vue";
 import type { Project } from "@/stores/workspace";
-import { currentAccount } from "@/stores/prototypeAccount";
 import brandLogo from "@/components/brandLogo.vue";
 import accountMenu from "@/components/accountMenu.vue";
 
 defineProps<{ activeSection: string; disabled?: boolean }>();
 const emit = defineEmits<{ navigate: [section: string]; newAgent: []; openProject: [project: Project]; openSettings: [] }>();
-const sections = computed(() => [
+const sections = [
   { value: "assets", label: "资产", icon: IconPhoto },
   { value: "projects", label: "我的项目", icon: IconFolder },
-  { value: "reviews", label: currentAccount.value?.role === "admin" ? "模板审核" : "我的模板提交", icon: IconCheck },
-]);
+];
 </script>
 <style scoped lang="scss">
 .studioSidebar { position: fixed; inset: 0 auto 0 0; width: 230px; z-index: 6; display: flex; flex-direction: column; box-sizing: border-box; border-right: 0; background: #181818; color: #f2f2f2;
