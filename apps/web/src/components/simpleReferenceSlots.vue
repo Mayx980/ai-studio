@@ -58,7 +58,7 @@
         <el-tooltip content="添加参考素材" :showArrow="false"><button class="materialAdd" type="button" :disabled="disabled || opening" aria-label="添加参考素材" @click="openMenu($event, { role: mode === 'frames' ? 'middleFrame' : 'reference' })"><icon-plus :size="16" /></button></el-tooltip>
       </div>
     </div>
-    <p v-if="!motion && videoMode" class="videoCapabilityHint">{{ allowVideos ? '视频参考用于辅助创作；复刻角色动作请切换“动作模仿”。' : '当前模型不支持视频参考，请切换支持视频参考的模型后添加。' }}</p>
+    <p v-if="!motion && videoMode && !allowVideos" class="videoCapabilityHint">当前模型不支持视频参考，请切换支持视频参考的模型后添加。</p>
     <el-popover ref="sourcePopover" :visible="menuVisible" :trigger="[]" virtualTriggering :virtualRef="menuAnchor" placement="right-start" :width="180" :showArrow="false" :popperStyle="{ maxHeight: 'calc(100dvh - 24px)', overflowY: 'auto' }">
       <div v-click-outside:[menuExcludes]="closeMenu" class="referenceSourceMenu" @keydown.esc.stop.prevent="closeMenu" role="menu" :aria-label="menuStage === 'category' ? '选择素材类别' : '选择素材来源'">
         <template v-if="menuStage === 'category'"><button v-for="group in groups" :key="group.value" type="button" role="menuitem" @click="selectCategory(group.value)">上传{{ group.label }}</button></template>
