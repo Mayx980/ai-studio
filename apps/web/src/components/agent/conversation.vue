@@ -427,7 +427,7 @@ watch([() => props.active, messageList], async ([active, element]) => {
   messageListInitialized = true;
 }, { immediate: true, flush: "post" });
 let sender: xSender | undefined;
-const senderPlaceholder = computed(() => motionMode.value ? "补充动作要求（可选）" : translate("输入消息，@ 提及节点输出或全局素材…"));
+const senderPlaceholder = computed(() => motionMode.value ? "添加一张角色图和一个动作视频，可补充动作要求" : translate("输入消息，@ 提及节点输出或全局素材…"));
 watch([locale, motionMode], () => {
   if (!sender) return;
   sender.updateConfig({ placeholder: senderPlaceholder.value });

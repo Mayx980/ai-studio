@@ -160,7 +160,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   if (options?.motionImitation) {
     if (kind !== "video" || !browserVideoCapability(chosen?.modelId)?.motionImitation || references.filter(file => file.type.startsWith("image/")).length !== 1 || references.filter(file => file.type.startsWith("video/")).length !== 1) { generationError.value = "请选择支持动作模仿的万相3.0模型，并添加一张角色图和一个动作视频"; return false; }
     const requirements = prompt.trim();
-    prompt = "让图1中的角色模仿视频1的动作，保留角色外观和服装，保持原动作节奏。角色1对应图1，动作1对应视频1。" + (requirements ? `\n补充要求：${requirements}` : "");
+    prompt = "最终画面仅保留一个人物主体，即图1中的目标角色。视频1仅提供动作、姿态、表情、动作顺序和运动节奏参考，不保留视频1中的原人物。让图1角色完整执行参考动作，保持其外观、服装和画风一致，保持原动作节奏，不加速。不得出现两个角色同框、分屏、人物复制或原人物残留，不复制图1中的其他人物。角色1对应图1，动作1对应视频1。" + (requirements ? `\n补充要求：${requirements}` : "");
   }
   let firstFrameIndex: number | undefined;
   if (referenceRoles && (referenceRoles.length !== references.length || referenceRoles.some(role => role !== undefined && !["firstFrame", "reference", "middleFrame", "lastFrame"].includes(role)))) { generationError.value = "素材用途与图片不匹配，请重新选择素材"; return false; }
