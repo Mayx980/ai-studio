@@ -151,7 +151,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   const endpoint = chosen?.endpoint || config.endpoint;
   const apiKey = chosen?.apiKey.trim() ?? "";
   generationError.value = "";
-  if (!apiKey || !prompt.trim()) { generationError.value = "请填写提示词，并在设置 → API 配置中输入当前模型的 Key。"; return false; }
+  if (!apiKey || !prompt.trim() && !options?.motionImitation) { generationError.value = "请填写提示词，并在设置 → API 配置中输入当前模型的 Key。"; return false; }
   if (!/^https:\/\//i.test(endpoint)) { generationError.value = "接口地址必须使用 HTTPS。"; return false; }
   if ((kind === "text" || kind === "audio") && references.length) { generationError.value = "当前文字／音频适配器仅支持文字输入，请移除引用素材；输入与素材已保留。"; return false; }
   if (references.some(file => !/^(image|video)\//.test(file.type))) { generationError.value = "参考素材仅支持图片或视频。"; return false; }
@@ -159,7 +159,8 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   if (kind === "video" && references.some(file => file.type.startsWith("video/")) && !supportsVideoReference(chosen?.modelId)) { generationError.value = "当前模型未声明视频参考能力，请切换模型；素材已保留。"; return false; }
   if (options?.motionImitation) {
     if (kind !== "video" || !browserVideoCapability(chosen?.modelId)?.motionImitation || references.filter(file => file.type.startsWith("image/")).length !== 1 || references.filter(file => file.type.startsWith("video/")).length !== 1) { generationError.value = "请选择支持动作模仿的万相3.0模型，并添加一张角色图和一个动作视频"; return false; }
-    prompt = `动作模仿：图1（角色1）提供角色外观，视频1（动作1）仅提供动作参考。让图1中的角色模仿视频1中主体的动作、姿态与动作顺序，保留图1的身份、脸部特征和服装。按原始动作节奏生成，不加速动作，不复制视频1中人物的身份。补充要求：${prompt}`;
+    const requirements = prompt.trim();
+    prompt = "让图1中的角色模仿视频1的动作，保留角色外观和服装，保持原动作节奏。角色1对应图1，动作1对应视频1。" + (requirements ? `\n补充要求：${requirements}` : "");
   }
   let firstFrameIndex: number | undefined;
   if (referenceRoles && (referenceRoles.length !== references.length || referenceRoles.some(role => role !== undefined && !["firstFrame", "reference", "middleFrame", "lastFrame"].includes(role)))) { generationError.value = "素材用途与图片不匹配，请重新选择素材"; return false; }

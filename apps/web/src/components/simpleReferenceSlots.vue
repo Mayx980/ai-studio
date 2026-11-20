@@ -21,7 +21,7 @@
         <small v-if="!motionAttachment(slot.type)">{{ slot.hint }}</small>
         <videoReferenceInfo v-if="slot.type === 'video' && motionAttachment('video')" :attachment="motionAttachment('video')!" :directory="directory" :referenceVideoMaxDuration="referenceVideoMaxDuration" :durations="durations" motion />
       </div>
-      <p class="motionHint">添加一张角色图和一个动作视频，输入对应的动作指令</p><p v-if="!motionAvailable" class="motionHint" role="status">尚未配置可用的万相3.0模型，请先在 API 配置中接入。</p>
+      <p class="motionHint">添加一张角色图和一个动作视频，可补充动作要求</p><p v-if="!motionAvailable" class="motionHint" role="status">尚未配置可用的万相3.0模型，请先在 API 配置中接入。</p>
     </div>
     <div v-else :class="mode === 'reference' ? 'referenceDeck' : 'frameDeck'" aria-label="参考素材预览">
       <template v-if="mode === 'reference'">

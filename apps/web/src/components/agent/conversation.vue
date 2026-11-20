@@ -427,7 +427,7 @@ watch([() => props.active, messageList], async ([active, element]) => {
   messageListInitialized = true;
 }, { immediate: true, flush: "post" });
 let sender: xSender | undefined;
-const senderPlaceholder = computed(() => motionMode.value ? "描述需要模仿的动作，例如：让角色1模仿动作1中的转身动作，保留角色外观和服装。" : translate("输入消息，@ 提及节点输出或全局素材…"));
+const senderPlaceholder = computed(() => motionMode.value ? "补充动作要求（可选）" : translate("输入消息，@ 提及节点输出或全局素材…"));
 watch([locale, motionMode], () => {
   if (!sender) return;
   sender.updateConfig({ placeholder: senderPlaceholder.value });
@@ -719,7 +719,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
   if (browserWorkspaceMode && !browserConfig.enabled && workspaceStore.creationMode !== "professional") { ElMessage.warning("请先在设置 → API 配置中启用模型联调并输入 Key"); return; }
   if (props.creationModes && (props.materialEditor || browserWorkspaceMode || browserConfig.enabled)) {
     const input = choice?.prompt ?? sender?.getText() ?? "";
-    if (!input.trim()) { if (motionMode.value) ElMessage.warning("请输入动作指令"); return; }
+    if (!input.trim() && !motionMode.value) return;
     const referenceVideos = activeDraftAttachments.value.filter(item => item.mimeType.startsWith("video/"));
     if (workspaceStore.creationMode === "simple" && !props.materialEditor) {
       if (referenceVideos.some(item => !Number.isFinite(item.videoDuration) || item.videoDuration! <= 0)) { ElMessage.warning("请等待视频时长读取完成，读取失败时请替换视频"); return; }
@@ -779,7 +779,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       const textReferences = await Promise.all(files.filter(file => file.type.startsWith("text/") || file.type === "application/json").map(async file => { const text = await file.text(); if (text.length > 100000) throw new Error("文字引用最多支持 100000 字符，请缩小内容"); return `${file.name}：\n${text}`; }));
       const referenceDescriptions = attachments.filter(item => item.mimeType.startsWith("image/")).flatMap((item, index) => item.referenceRole === "reference" && item.referenceCategory ? [`图${index + 1}为${({ character: "角色", scene: "场景", prop: "道具", other: "其他" })[item.referenceCategory]}参考（${item.referenceName || "分类参考图"}），保持对应主体特征。`] : []);
       const generationPrompt = isStoryboard ? `${prompt}\n${scriptGenerationInstruction}` : !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
-      const success = await generateInBrowser([generationPrompt, ...referenceDescriptions, ...textReferences].join("\n\n"), files.filter(file => /^(image|video)\//.test(file.type)), directory, outputKind, browserConfig.style, attachments.filter(item => /^(image|video)\//.test(item.mimeType)).map(item => item.referenceRole), { config: generationConfig, motionImitation: motionMode.value, tags: props.materialCategory ? ({ character: ["角色"], scene: ["场景"], prop: ["物品"], other: [] })[props.materialCategory] : [], origin: browserSessionFile && directory ? { type: "conversation", directory, sessionFile: browserSessionFile, messageId: userId } : undefined, references: attachments.map(({ path, mimeType, name, referenceRole, videoDuration }) => ({ path, mimeType, name, referenceRole, videoDuration })), modelSelection: generationSelection, queue: true, cancelled: () => browserCancelled, onStart: () => { previousIds = new Set(generationResults.value.map(item => item.id)); ownsBrowserGeneration = true; if (props.materialEditor) emit("generationState", { status: "generating", taskId }); }, onTask: vendorTaskId => { if (props.materialEditor) emit("generationState", { status: "generating", taskId, vendorTaskId }); } });
+      const success = await generateInBrowser(motionMode.value ? prompt : [generationPrompt, ...referenceDescriptions, ...textReferences].join("\n\n"), files.filter(file => /^(image|video)\//.test(file.type)), directory, outputKind, browserConfig.style, attachments.filter(item => /^(image|video)\//.test(item.mimeType)).map(item => item.referenceRole), { config: generationConfig, motionImitation: motionMode.value, tags: props.materialCategory ? ({ character: ["角色"], scene: ["场景"], prop: ["物品"], other: [] })[props.materialCategory] : [], origin: browserSessionFile && directory ? { type: "conversation", directory, sessionFile: browserSessionFile, messageId: userId } : undefined, references: attachments.map(({ path, mimeType, name, referenceRole, videoDuration }) => ({ path, mimeType, name, referenceRole, videoDuration })), modelSelection: generationSelection, queue: true, cancelled: () => browserCancelled, onStart: () => { previousIds = new Set(generationResults.value.map(item => item.id)); ownsBrowserGeneration = true; if (props.materialEditor) emit("generationState", { status: "generating", taskId }); }, onTask: vendorTaskId => { if (props.materialEditor) emit("generationState", { status: "generating", taskId, vendorTaskId }); } });
       const results = generationResults.value.filter(item => !previousIds.has(item.id) && item.directory === directory);
       reply.browserResultIds = results.filter(item => item.kind !== "text").map(item => item.id);
       if (props.materialEditor && success && (outputKind === "image" || outputKind === "video")) { browserConfig.outputKind = outputKind; browserConfig.outputChosen = true; }
