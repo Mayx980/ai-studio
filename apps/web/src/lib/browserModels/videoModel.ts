@@ -21,7 +21,9 @@ export default {
       type: "video",
       mode: ["text", "singleImage", ["imageReference:10", "videoReference:5"]],
       audio: "optional",
-      durationResolutionMap: [{ duration: [2, 3, 5, 10, 15, 20, 30], resolution: ["480P", "720P", "1080P"] }],
+      motionImitation: true,
+      referenceVideoMaxDuration: 15,
+      durationResolutionMap: [{ duration: Array.from({ length: 29 }, (_, index) => index + 2), resolution: ["480P", "720P", "1080P"] }],
     },
   ],
 
@@ -154,6 +156,7 @@ export default {
       return `oss://${key}`;
     };
 
+    if (request.motionImitation && (modelName !== "wan3.0-video" || request.images?.length !== 1 || request.videos?.length !== 1 || request.firstFrame || request.lastFrame)) throw new Error("万相动作模仿需要一张角色图和一个动作视频，不能混用首尾帧。");
     const mode = request.mode;
     const images = Array.isArray(request.images) ? request.images : [];
     const videos = Array.isArray(request.videos) ? request.videos : [];

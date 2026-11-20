@@ -8,6 +8,7 @@
       <small v-if="motion && durations?.length">跟随动作视频 · 生成 {{ clip.outputDuration }} 秒</small><small v-else-if="motion">参考视频 {{ clip.duration.toFixed(1) }} 秒 · 待选择动作模型</small>
       <small v-if="(!motion || durations?.length) && clip.duration < clip.outputDuration">参考视频短于生成时长，剩余内容由模型生成，不循环或加速。</small>
       <small v-else-if="motion && durations?.length && clip.duration > clip.outputDuration">按模型支持时长默认选取开头片段，不加速动作。</small>
+      <small v-if="!motion && referenceLength < clip.outputDuration">当前模型参考视频合计最多 {{ referenceVideoMaxDuration }} 秒，输出仍为 {{ clip.outputDuration }} 秒。</small>
       <button type="button" :disabled="disabled || motion && !durations?.length" :title="motion && !durations?.length ? '请先配置支持动作模仿的模型' : undefined" @click="openClip">调整片段</button>
     </template>
     <el-dialog v-model="opened" title="选择参考片段" width="min(560px, 94vw)" appendToBody :closeOnClickModal="false" @closed="player?.pause()">
@@ -28,7 +29,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import type { AgentAttachment } from "@/components/agent/types";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
-const props = defineProps<{ attachment: AgentAttachment; directory?: string; duration: number; durations?: number[]; motion?: boolean; disabled?: boolean }>();
+const props = defineProps<{ attachment: AgentAttachment; directory?: string; duration: number; referenceVideoMaxDuration?: number; durations?: number[]; motion?: boolean; disabled?: boolean }>();
 const url = ref(""), loadError = ref(""), opened = ref(false), start = ref(0), player = ref<HTMLVideoElement>();
 const clip = computed(() => props.attachment.videoClip);
 const outputDuration = computed(() => {
@@ -36,8 +37,9 @@ const outputDuration = computed(() => {
   const target = Math.ceil(clip.value?.duration ?? props.duration);
   return props.durations?.find(value => value >= target) ?? props.durations?.at(-1) ?? target;
 });
-const maxStart = computed(() => Math.max(0, (clip.value?.duration ?? 0) - outputDuration.value));
-const end = computed(() => Math.min(clip.value?.duration ?? 0, start.value + outputDuration.value));
+const referenceLength = computed(() => Math.min(outputDuration.value, props.referenceVideoMaxDuration ?? Infinity));
+const maxStart = computed(() => Math.max(0, (clip.value?.duration ?? 0) - referenceLength.value));
+const end = computed(() => Math.min(clip.value?.duration ?? 0, start.value + referenceLength.value));
 function time(value: number) { return `${String(Math.floor(value / 60)).padStart(2, "0")}:${(value % 60).toFixed(1).padStart(4, "0")}`; }
 function readDuration(event: Event) {
   const duration = (event.target as HTMLVideoElement).duration;
@@ -49,10 +51,10 @@ function readDuration(event: Event) {
 function updateRange() {
   if (!clip.value) return;
   const nextStart = Math.min(clip.value.start, maxStart.value);
-  props.attachment.videoClip = { duration: clip.value.duration, start: nextStart, end: Math.min(clip.value.duration, nextStart + outputDuration.value), outputDuration: outputDuration.value };
+  props.attachment.videoClip = { duration: clip.value.duration, start: nextStart, end: Math.min(clip.value.duration, nextStart + referenceLength.value), outputDuration: outputDuration.value };
   start.value = nextStart;
 }
-watch(outputDuration, updateRange);
+watch([outputDuration, referenceLength], updateRange);
 function openClip() { start.value = clip.value?.start ?? 0; opened.value = true; }
 function seekSelection() { if (player.value) player.value.currentTime = start.value; }
 function startSelection() { if (player.value && (player.value.currentTime < start.value || player.value.currentTime >= end.value)) seekSelection(); }

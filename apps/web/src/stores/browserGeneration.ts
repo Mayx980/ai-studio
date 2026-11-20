@@ -53,7 +53,7 @@ export function configuredBrowserModels(kind: ModelKind, config = browserConfig)
 }
 // 仅使用已声明的能力；自定义模型不能借用默认模型的视频参考能力。
 export function browserVideoCapability(modelId?: string) {
-  return videoModel.models.find(model => model.id === modelId) as (typeof videoModel.models)[number] & { motionImitation?: boolean } | undefined;
+  return videoModel.models.find(model => model.id === modelId || model.id === "wan3Video" && modelId === "wan3.0-video");
 }
 export function supportsVideoReference(modelId?: string) {
   return browserVideoCapability(modelId)?.mode.some(mode => Array.isArray(mode) && mode.some(value => value.startsWith("videoReference:"))) ?? false;
@@ -133,7 +133,7 @@ export function inferGenerationKind(prompt: string): ModelKind {
   return browserConfig.outputChosen ? browserConfig.outputKind : kind ?? browserConfig.outputKind;
 }
 
-export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "", referenceRoles?: ("firstFrame" | "reference" | "middleFrame" | "lastFrame" | undefined)[], options?: { config?: typeof browserConfig; tags?: string[]; origin?: GenerationOrigin; references?: GenerationRecord["references"]; modelSelection?: typeof browserModelSelection; queue?: boolean; cancelled?: () => boolean; onStart?: () => void; onTask?: (id: string) => void; onPreparing?: () => void; onPrepared?: () => void }) {
+export async function generateInBrowser(prompt: string, references: File[], directory?: string, requestedKind?: ModelKind, style = "", referenceRoles?: ("firstFrame" | "reference" | "middleFrame" | "lastFrame" | undefined)[], options?: { config?: typeof browserConfig; tags?: string[]; origin?: GenerationOrigin; references?: GenerationRecord["references"]; modelSelection?: typeof browserModelSelection; queue?: boolean; cancelled?: () => boolean; onStart?: () => void; onTask?: (id: string) => void; onPreparing?: () => void; onPrepared?: () => void; motionImitation?: boolean }) {
   while (options?.queue && generationBusy.value) await new Promise<void>(resolve => { const stop = watch(generationBusy, busy => { if (!busy) { stop(); resolve(); } }); });
   if (options?.cancelled?.()) { generationError.value = "已取消等待生成"; return false; }
   const config = options?.config ?? browserConfig;
@@ -151,12 +151,21 @@ export async function generateInBrowser(prompt: string, references: File[], dire
   const endpoint = chosen?.endpoint || config.endpoint;
   const apiKey = chosen?.apiKey.trim() ?? "";
   generationError.value = "";
-  if (!apiKey || !prompt.trim()) { generationError.value = "请填写提示词，并在设置 → API 配置中输入当前模型的 Key。"; return false; }
+  if (!apiKey || !prompt.trim() && !options?.motionImitation) { generationError.value = "请填写提示词，并在设置 → API 配置中输入当前模型的 Key。"; return false; }
   if (!/^https:\/\//i.test(endpoint)) { generationError.value = "接口地址必须使用 HTTPS。"; return false; }
   if ((kind === "text" || kind === "audio") && references.length) { generationError.value = "当前文字／音频适配器仅支持文字输入，请移除引用素材；输入与素材已保留。"; return false; }
   if (references.some(file => !/^(image|video)\//.test(file.type))) { generationError.value = "参考素材仅支持图片或视频。"; return false; }
   if (kind === "image" && references.some(file => file.type.startsWith("video/"))) { generationError.value = "当前图片模型不支持参考视频，请切换视频生成或移除视频。素材已保留。"; return false; }
   if (kind === "video" && references.some(file => file.type.startsWith("video/")) && !supportsVideoReference(chosen?.modelId)) { generationError.value = "当前模型未声明视频参考能力，请切换模型；素材已保留。"; return false; }
+  if (options?.motionImitation) {
+    if (kind !== "video" || !browserVideoCapability(chosen?.modelId)?.motionImitation || references.filter(file => file.type.startsWith("image/")).length !== 1 || references.filter(file => file.type.startsWith("video/")).length !== 1 || !options.references?.find(item => item.mimeType.startsWith("video/"))?.videoClip) { generationError.value = "请选择支持动作模仿的万相3.0模型，并添加一张角色图和一个动作视频"; return false; }
+    prompt = `动作模仿：图1（角色1）提供角色外观，视频1（动作1）仅提供动作参考。让图1中的角色模仿视频1中主体的动作、姿态与动作顺序，保留图1的身份、脸部特征和服装。按原始动作节奏生成，不加速动作，不复制视频1中人物的身份。补充要求：${prompt}`;
+  }
+  if (kind === "video") {
+    const details = options?.references?.filter(item => item.mimeType.startsWith("video/")) ?? [];
+    const maximum = browserVideoCapability(chosen?.modelId)?.referenceVideoMaxDuration;
+    if (maximum && details.some(item => item.videoClip) && (details.length !== references.filter(file => file.type.startsWith("video/")).length || details.some(item => !item.videoClip) || details.reduce((total, item) => total + (item.videoClip ? item.videoClip.end - item.videoClip.start : 0), 0) > maximum + 0.001)) { generationError.value = `万相参考视频片段合计最多${maximum}秒，请减少视频数量或缩短参考范围。输入已保留。`; return false; }
+  }
   let firstFrameIndex: number | undefined;
   if (referenceRoles && (referenceRoles.length !== references.length || referenceRoles.some(role => role !== undefined && !["firstFrame", "reference", "middleFrame", "lastFrame"].includes(role)))) { generationError.value = "素材用途与图片不匹配，请重新选择素材"; return false; }
   const selectedFirstFrame = referenceRoles?.indexOf("firstFrame") ?? -1;
@@ -216,7 +225,7 @@ export async function generateInBrowser(prompt: string, references: File[], dire
     const context = { config: { apiKey, endpoint }, signal, tool };
     const settings: GenerationSettings = { providerId: chosen!.id, modelId: chosen!.modelId, label: chosen!.label, ratio, imageSize, n: count, style, duration: Number(duration) || 5, resolution, generateAudio, mode: firstFrameIndex !== undefined ? "singleImage" : references.length ? "reference" : "text" };
     const assets = kind === "audio" ? await audioModel.generateAudio.call(context, { model: chosen!.modelId, prompt }) : kind === "image" ? await imageModel.generateImage.call(context, { model: chosen!.modelId, prompt, images, ...(ratio ? { ratio } : {}), size: imageSize, n: count })
-      : await videoModel.generateVideo.call(context, { generateAudio, model: chosen!.modelId, prompt, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: media[firstFrameIndex!] } : { mode: images.length || videos.length ? ["imageReference:10", "videoReference:5"] : "text", images, videos }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
+      : await videoModel.generateVideo.call(context, { generateAudio, model: chosen!.modelId, prompt, motionImitation: options?.motionImitation, ...(firstFrameIndex !== undefined ? { mode: "singleImage", firstFrame: media[firstFrameIndex!] } : { mode: images.length || videos.length ? ["imageReference:10", "videoReference:5"] : "text", images, videos }), ...(ratio ? { ratio } : {}), ...(duration ? { duration: Number(duration) } : {}), ...(resolution ? { resolution } : {}) });
     signal.throwIfAborted();
     if (!assets.length) throw new Error("模型未返回生成素材");
     const batchId = crypto.randomUUID();
