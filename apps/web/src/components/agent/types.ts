@@ -4,7 +4,7 @@ import type { ProfessionalCreation } from "./professionalCreation";
 
 export type ReferenceRole = "firstFrame" | "reference" | "middleFrame" | "lastFrame";
 export type ReferenceCategory = "character" | "scene" | "prop" | "other";
-export type AgentAttachment = { name: string; path: string; mimeType: string; file?: File; referenceRole?: ReferenceRole; referenceCategory?: ReferenceCategory; referenceName?: string; videoClip?: { duration: number; start: number; end: number; outputDuration: number }; origin?: GenerationOrigin; assetPath?: string };
+export type AgentAttachment = { name: string; path: string; mimeType: string; file?: File; referenceRole?: ReferenceRole; referenceCategory?: ReferenceCategory; referenceName?: string; videoDuration?: number; origin?: GenerationOrigin; assetPath?: string };
 
 export type AgentMessagePart =
   | { id: string; type: "text"; content: string }

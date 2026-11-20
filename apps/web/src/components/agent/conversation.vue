@@ -111,7 +111,7 @@
         @lostpointercapture="stopSenderResize"
         @keydown.up.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) + 16)"
         @keydown.down.prevent="setSenderHeight((sender?.chatElement.rollBox.clientHeight ?? 44) - 16)" />
-      <simpleReferenceSlots :hideAdd="sourceConversationScope" ref="referenceSlotsRef" v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" v-model:mode="referenceMode" :showFrames="browserConfig.outputKind === 'video' && !motionMode" :motion="motionMode" :videoMode="browserConfig.outputKind === 'video'" :motionAvailable="motionModels.length > 0" :allowVideos="allowReferenceVideos" :duration="Number(browserConfig.duration) || 5" :durations="videoDurations" :referenceVideoMaxDuration="referenceVideoMaxDuration" :tabsTarget="referenceTabsTarget" :directory="directory" :disabled="locked" @edit="editReferenceAttachment" />
+      <simpleReferenceSlots :hideAdd="sourceConversationScope" ref="referenceSlotsRef" v-if="props.creationModes && !props.materialEditor && workspaceStore.creationMode === 'simple'" v-model="draftAttachments" v-model:mode="referenceMode" :showFrames="browserConfig.outputKind === 'video' && !motionMode" :motion="motionMode" :videoMode="browserConfig.outputKind === 'video'" :motionAvailable="motionModels.length > 0" :allowVideos="allowReferenceVideos" :durations="videoDurations" :referenceVideoMaxDuration="referenceVideoMaxDuration" :tabsTarget="referenceTabsTarget" :directory="directory" :disabled="locked" @edit="editReferenceAttachment" />
       <attachmentList v-if="unassignedAttachments.length" class="draftAttachments" :class="{ materialReferences: props.materialEditor }" numbered :attachments="unassignedAttachments" :directory="directory" removable restorable :disabled="locked" @remove="removeVisibleAttachment($event)" @restore="restoreVisibleAttachment" />
       <div ref="senderElement" class="senderEditor" @pointerdown.capture="inputStarted = true" @input.capture="inputStarted = true" @keydown.capture="handleSenderKeydown"></div>
       <teleport v-for="target in draftMentionTargets" :key="target.key" :to="target.element"><mentionThumbnail v-bind="mentionThumbnailProps(target.mention)" :directory="directory"><icon-photo :size="14" /></mentionThumbnail></teleport>
@@ -248,7 +248,7 @@ const selectedVideo = computed(() => {
 const referenceVideoMaxDuration = computed(() => browserVideoCapability(selectedVideo.value?.modelId)?.referenceVideoMaxDuration);
 const videoDurations = computed(() => [...new Set(browserVideoCapability(selectedVideo.value?.modelId)?.durationResolutionMap.flatMap(item => item.duration) ?? [])].filter(value => !motionMode.value || !referenceVideoMaxDuration.value || value <= referenceVideoMaxDuration.value).sort((a, b) => a - b));
 const motionModels = computed(() => configuredBrowserModels("video", browserConfig).filter(model => browserVideoCapability(model.modelId)?.motionImitation === true));
-const motionReady = computed(() => motionModels.value.length > 0 && draftAttachments.value.filter(item => item.mimeType.startsWith("image/")).length === 1 && draftAttachments.value.filter(item => item.mimeType.startsWith("video/") && item.videoClip).length === 1);
+const motionReady = computed(() => motionModels.value.length > 0 && draftAttachments.value.filter(item => item.mimeType.startsWith("image/")).length === 1 && draftAttachments.value.filter(item => item.mimeType.startsWith("video/") && Number.isFinite(item.videoDuration) && item.videoDuration! > 0 && (!referenceVideoMaxDuration.value || item.videoDuration! <= referenceVideoMaxDuration.value)).length === 1);
 const allowReferenceVideos = computed(() => browserConfig.outputKind === "video" && supportsVideoReference(selectedVideo.value?.modelId));
 type SimpleDraft = { model?: ReturnType<xSender["getModel"]>; prompt: string; attachments: AgentAttachment[]; mentions: AgentMention[]; referenceMode: "reference" | "frames"; parameters: { ratio: string; resolution: string; imageResolution: string; imageSize: string; duration: string; count: number; style: string; generateAudio: boolean }; selection: typeof browserModelSelection };
 const modeDrafts = new Map<string, SimpleDraft>();
@@ -427,9 +427,10 @@ watch([() => props.active, messageList], async ([active, element]) => {
   messageListInitialized = true;
 }, { immediate: true, flush: "post" });
 let sender: xSender | undefined;
-watch(locale, () => {
+const senderPlaceholder = computed(() => motionMode.value ? "描述需要模仿的动作，例如：让角色1模仿动作1中的转身动作，保留角色外观和服装。" : translate("输入消息，@ 提及节点输出或全局素材…"));
+watch([locale, motionMode], () => {
   if (!sender) return;
-  sender.updateConfig({ placeholder: translate("输入消息，@ 提及节点输出或全局素材…") });
+  sender.updateConfig({ placeholder: senderPlaceholder.value });
   sender.chatElement.richText.setAttribute("aria-label", translate("消息"));
   for (const line of sender.chatEditor.NODES) for (const tag of line.children) {
     if (tag.type === "Mention") tag.$el.setAttribute("aria-label", t`预览 ${tag.name}`);
@@ -717,12 +718,16 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
   if (props.materialEditor && !browserConfig.enabled) { ElMessage.warning("请先在设置 → API 配置中启用图片模型并填写 Key"); return; }
   if (browserWorkspaceMode && !browserConfig.enabled && workspaceStore.creationMode !== "professional") { ElMessage.warning("请先在设置 → API 配置中启用模型联调并输入 Key"); return; }
   if (props.creationModes && (props.materialEditor || browserWorkspaceMode || browserConfig.enabled)) {
-    if (motionMode.value && !motionReady.value) { ElMessage.warning(motionModels.value.length ? "请添加角色参考图和动作参考视频" : "尚未配置支持动作模仿的模型"); return; }
-    if (activeDraftAttachments.value.some(item => item.mimeType.startsWith("video/") && !item.videoClip) && workspaceStore.creationMode === "simple" && !props.materialEditor) { ElMessage.warning("请等待视频时长读取完成，读取失败时请替换视频"); return; }
     const input = choice?.prompt ?? sender?.getText() ?? "";
-    if (!input.trim() && !motionMode.value) return;
+    if (!input.trim()) { if (motionMode.value) ElMessage.warning("请输入动作指令"); return; }
+    const referenceVideos = activeDraftAttachments.value.filter(item => item.mimeType.startsWith("video/"));
+    if (workspaceStore.creationMode === "simple" && !props.materialEditor) {
+      if (referenceVideos.some(item => !Number.isFinite(item.videoDuration) || item.videoDuration! <= 0)) { ElMessage.warning("请等待视频时长读取完成，读取失败时请替换视频"); return; }
+      if (referenceVideoMaxDuration.value && referenceVideos.reduce((total, item) => total + item.videoDuration!, 0) > referenceVideoMaxDuration.value) { ElMessage.warning(`参考视频完整时长合计最多${referenceVideoMaxDuration.value}秒，请替换视频或减少视频数量`); return; }
+    }
+    if (motionMode.value && !motionReady.value) { ElMessage.warning(motionModels.value.length ? "请添加角色参考图和动作参考视频" : "尚未配置支持动作模仿的模型"); return; }
     const pending = !choice ? messages.value.findLast(item => item.creationChoice && !item.creationChoice.resolved) : undefined;
-    const prompt = pending?.creationChoice ? `${pending.creationChoice.prompt}\n补充要求：${input}` : motionMode.value ? `让角色1模仿动作1的动作，保留角色身份和服装，不加速动作。${input}` : input;
+    const prompt = pending?.creationChoice ? `${pending.creationChoice.prompt}\n补充要求：${input}` : input;
     const sourceAttachments = pending ? messages.value.find(item => item.id === pending.replyTo)?.attachments ?? [] : [];
     const attachments = [...sourceAttachments, ...(choice?.attachments ?? activeDraftAttachments.value)];
     if (attachments.filter(item => /^(image|video)\//.test(item.mimeType)).length > 10) { ElMessage.warning("最多添加10个参考图片/视频"); return; }
@@ -735,7 +740,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
     browserConfig.kind = kind ?? "image";
     browserCancelled = false;
     browserSubmitting.value = true;
-    const generationConfig = { ...browserConfig, keys: { ...browserConfig.keys }, ...(imageOnlyMaterial.value ? { count: 1 } : {}), ...(motionMode.value ? { duration: String(attachments.find(item => item.mimeType.startsWith("video/"))?.videoClip?.outputDuration ?? browserConfig.duration) } : {}) };
+    const generationConfig = { ...browserConfig, keys: { ...browserConfig.keys }, ...(imageOnlyMaterial.value ? { count: 1 } : {}), ...(motionMode.value ? { duration: String(videoDurations.value.find(value => value >= Math.ceil(attachments.find(item => item.mimeType.startsWith("video/"))?.videoDuration ?? 0)) ?? browserConfig.duration) } : {}) };
     const generationSelection = { ...(generationModelSelection ?? browserModelSelection) };
     if (motionMode.value) generationSelection.video = (motionModels.value.find(model => model.id === generationSelection.video) ?? motionModels.value[0])!.id;
     const taskId = crypto.randomUUID();
@@ -774,7 +779,7 @@ async function submitMessage(choice?: { prompt: string; kind: ModelKind; script:
       const textReferences = await Promise.all(files.filter(file => file.type.startsWith("text/") || file.type === "application/json").map(async file => { const text = await file.text(); if (text.length > 100000) throw new Error("文字引用最多支持 100000 字符，请缩小内容"); return `${file.name}：\n${text}`; }));
       const referenceDescriptions = attachments.filter(item => item.mimeType.startsWith("image/")).flatMap((item, index) => item.referenceRole === "reference" && item.referenceCategory ? [`图${index + 1}为${({ character: "角色", scene: "场景", prop: "道具", other: "其他" })[item.referenceCategory]}参考（${item.referenceName || "分类参考图"}），保持对应主体特征。`] : []);
       const generationPrompt = isStoryboard ? `${prompt}\n${scriptGenerationInstruction}` : !kind ? `${prompt}\n请围绕上述主题自行补充画面主体、场景、构图与光线，生成一张完整图片。` : prompt;
-      const success = await generateInBrowser([generationPrompt, ...referenceDescriptions, ...textReferences].join("\n\n"), files.filter(file => /^(image|video)\//.test(file.type)), directory, outputKind, browserConfig.style, attachments.filter(item => /^(image|video)\//.test(item.mimeType)).map(item => item.referenceRole), { config: generationConfig, motionImitation: motionMode.value, tags: props.materialCategory ? ({ character: ["角色"], scene: ["场景"], prop: ["物品"], other: [] })[props.materialCategory] : [], origin: browserSessionFile && directory ? { type: "conversation", directory, sessionFile: browserSessionFile, messageId: userId } : undefined, references: attachments.map(({ path, mimeType, name, referenceRole, videoClip }) => ({ path, mimeType, name, referenceRole, videoClip })), modelSelection: generationSelection, onPreparing: () => { if (reply) reply.content = "正在准备参考片段…"; }, onPrepared: () => { if (reply) reply.content = ""; }, queue: true, cancelled: () => browserCancelled, onStart: () => { previousIds = new Set(generationResults.value.map(item => item.id)); ownsBrowserGeneration = true; if (props.materialEditor) emit("generationState", { status: "generating", taskId }); }, onTask: vendorTaskId => { if (props.materialEditor) emit("generationState", { status: "generating", taskId, vendorTaskId }); } });
+      const success = await generateInBrowser([generationPrompt, ...referenceDescriptions, ...textReferences].join("\n\n"), files.filter(file => /^(image|video)\//.test(file.type)), directory, outputKind, browserConfig.style, attachments.filter(item => /^(image|video)\//.test(item.mimeType)).map(item => item.referenceRole), { config: generationConfig, motionImitation: motionMode.value, tags: props.materialCategory ? ({ character: ["角色"], scene: ["场景"], prop: ["物品"], other: [] })[props.materialCategory] : [], origin: browserSessionFile && directory ? { type: "conversation", directory, sessionFile: browserSessionFile, messageId: userId } : undefined, references: attachments.map(({ path, mimeType, name, referenceRole, videoDuration }) => ({ path, mimeType, name, referenceRole, videoDuration })), modelSelection: generationSelection, queue: true, cancelled: () => browserCancelled, onStart: () => { previousIds = new Set(generationResults.value.map(item => item.id)); ownsBrowserGeneration = true; if (props.materialEditor) emit("generationState", { status: "generating", taskId }); }, onTask: vendorTaskId => { if (props.materialEditor) emit("generationState", { status: "generating", taskId, vendorTaskId }); } });
       const results = generationResults.value.filter(item => !previousIds.has(item.id) && item.directory === directory);
       reply.browserResultIds = results.filter(item => item.kind !== "text").map(item => item.id);
       if (props.materialEditor && success && (outputKind === "image" || outputKind === "video")) { browserConfig.outputKind = outputKind; browserConfig.outputChosen = true; }
@@ -1235,7 +1240,7 @@ watch(senderElement, (element, _previous, onCleanup) => {
   if (!element) return;
   const instance = new xSender(element, {
     autoFocus: props.active,
-    placeholder: translate("输入消息，@ 提及节点输出或全局素材…"),
+    placeholder: senderPlaceholder.value,
     chatStyle: { minHeight: "44px", maxHeight: "50vh", fontSize: "14px", lineHeight: "24px" },
     keyboardSendFun: event => event.key === "Enter" && !event.shiftKey && !event.isComposing && event.keyCode !== 229,
     keyboardWrapFun: event => event.key === "Enter" && event.shiftKey && !event.isComposing,
