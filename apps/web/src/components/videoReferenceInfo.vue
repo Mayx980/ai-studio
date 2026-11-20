@@ -1,11 +1,10 @@
 <template>
-  <div class="videoReferenceInfo">
+  <div v-if="!motion || loading || loadError || exceedsLimit" class="videoReferenceInfo">
     <span v-if="loadError" class="videoError" role="alert">{{ loadError }}</span>
-    <span v-else-if="loading" role="status">正在读取视频时长…</span>
+    <span v-else-if="loading" role="status">{{ motion ? '正在读取视频…' : '正在读取视频时长…' }}</span>
     <template v-else-if="attachment.videoDuration">
-      <span>{{ motion ? '动作视频' : '参考视频' }} · {{ attachment.videoDuration.toFixed(1) }} 秒</span>
+      <span v-if="!motion">参考视频 · {{ attachment.videoDuration.toFixed(1) }} 秒</span>
       <small v-if="exceedsLimit" class="videoError" role="alert">参考视频最长 {{ referenceVideoMaxDuration }} 秒，请替换符合要求的视频。</small>
-      <small v-else-if="motion && durations?.length">生成时长 · {{ outputDuration }} 秒</small>
     </template>
   </div>
 </template>
@@ -14,10 +13,9 @@ import { computed, ref, watch } from "vue";
 import { readVideoDuration } from "@toonflow/node-video/videoMetadata";
 import type { AgentAttachment } from "@/components/agent/types";
 import useWorkspaceFiles from "@/lib/workspaceFiles";
-const props = defineProps<{ attachment: AgentAttachment; directory?: string; referenceVideoMaxDuration?: number; durations?: number[]; motion?: boolean }>();
+const props = defineProps<{ attachment: AgentAttachment; directory?: string; referenceVideoMaxDuration?: number; motion?: boolean }>();
 const loading = ref(false), loadError = ref("");
 const exceedsLimit = computed(() => !!props.referenceVideoMaxDuration && (props.attachment.videoDuration ?? 0) > props.referenceVideoMaxDuration);
-const outputDuration = computed(() => props.durations?.find(value => value >= Math.ceil(props.attachment.videoDuration ?? 0)));
 watch(() => [props.attachment.file, props.attachment.path, props.directory] as const, async ([file, path, directory], _, onCleanup) => {
   const controller = new AbortController();
   onCleanup(() => controller.abort());

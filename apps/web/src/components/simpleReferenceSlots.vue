@@ -18,7 +18,7 @@
           </template>
           <button v-else class="slotCard" type="button" :disabled="disabled || opening" :aria-label="slot.hint" @click="openMotionMenu($event, slot.type)"><icon-plus :size="24" /><span>{{ slot.label }}</span></button>
         </div>
-        <videoReferenceInfo v-if="slot.type === 'video' && motionAttachment('video')" :attachment="motionAttachment('video')!" :directory="directory" :referenceVideoMaxDuration="referenceVideoMaxDuration" :durations="durations" motion />
+        <videoReferenceInfo v-if="slot.type === 'video' && motionAttachment('video')" :attachment="motionAttachment('video')!" :directory="directory" :referenceVideoMaxDuration="referenceVideoMaxDuration" motion />
       </div>
       <p v-if="!motionAvailable" class="motionHint" role="status">尚未配置可用的万相3.0模型，请先在 API 配置中接入。</p>
     </div>
@@ -81,7 +81,7 @@ import personalAssetBrowser from "@/components/personalAssetBrowser.vue";
 import { IconPencil } from "@tabler/icons-vue";
 import { materialEditorState, materialWorkspaces, openMaterialWorkspace, minimizeMaterialWorkspace, type MaterialTarget, type MaterialWorkspace } from "@/stores/materialEditor";
 const emit = defineEmits<{ edit: [attachment: AgentAttachment] }>();
-const props = withDefaults(defineProps<{ hideAdd?: boolean; motion?: boolean; videoMode?: boolean; motionAvailable?: boolean; allowVideos?: boolean; referenceVideoMaxDuration?: number; durations?: number[]; showFrames?: boolean; tabsTarget?: HTMLElement; directory?: string; disabled?: boolean; ensureDirectory?: () => Promise<string | undefined> }>(), { showFrames: true });
+const props = withDefaults(defineProps<{ hideAdd?: boolean; motion?: boolean; videoMode?: boolean; motionAvailable?: boolean; allowVideos?: boolean; referenceVideoMaxDuration?: number; showFrames?: boolean; tabsTarget?: HTMLElement; directory?: string; disabled?: boolean; ensureDirectory?: () => Promise<string | undefined> }>(), { showFrames: true });
 const attachments = defineModel<AgentAttachment[]>({ required: true });
 const editableOrigins = ref(new Set<string>());
 watch([() => props.directory, () => attachments.value.map(item => item.origin)], async (_, __, onCleanup) => {
