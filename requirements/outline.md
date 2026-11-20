@@ -4,8 +4,8 @@
 
 | ID | 端名 | 形态 | 主要用户 | PRD 章节 | 生命周期 |
 | --- | --- | --- | --- | --- | --- |
-| SF-creation-workbench | 用户端 | web | 普通用户 | 3. 创作工作台能力、4. 双端与账号管理 | active |
-| SF-platform | 平台端 | web | 平台管理员 | 4. 双端与账号管理 | active |
+| SF-creation-workbench | 用户端 | web-customer | 普通用户 | 3. 创作工作台能力 | active |
+| SF-platform | 平台端 | web-admin | 平台管理员 | 4. 双端与账号管理 | active |
 
 ## 主要业务对象 + 分类
 
@@ -18,6 +18,7 @@
 | OBJ-storyboard | 分镜 | 镜头内容 | 单一 | 2.2 主要业务对象 |
 | OBJ-template | 模板 | 复用方式 | 视频模板/项目流程模板 | 2.2 主要业务对象 |
 | OBJ-model-configuration | 模型配置 | 生成能力 | 文字/图片/视频/音频 | 2.2 主要业务对象 |
+| OBJ-generation-task | 生成任务 | 执行状态 | 等待处理/生成中/结果保存中/已完成/失败/状态待确认 | 2.2 主要业务对象 |
 
 ## 业务规则
 
@@ -33,8 +34,8 @@
 | BR-canvas-dependencies | 画布编辑与内容依赖 | 3.6 画布与分镜 | SC-storyboard-editing |
 | BR-script-input | 脚本文字与有效参考输入边界 | 3.6 画布与分镜 | SC-script-input |
 | BR-storyboard-identity | 分镜稳定引用与导入导出 | 3.6 画布与分镜 | SC-storyboard-editing |
-| BR-model-credentials | 实例模型与服务凭据 | 3.7 模型配置与生成结果 | SC-model-configuration |
-| BR-generation-lifecycle | 生成归属、部分失败与停止 | 3.7 模型配置与生成结果 | SC-generation-navigation |
+| BR-model-credentials | 后台统一模型接入与凭据保护 | 3.7 模型配置与生成结果 | SC-model-configuration |
+| BR-generation-lifecycle | 生成归属、任务恢复与永久保留 | 3.7 模型配置与生成结果 | SC-generation-navigation, SC-task-recovery |
 | BR-asset-preservation | 素材和历史引用保护 | 3.8 素材与生成历史 | SC-asset-management |
 | BR-template-snapshot | 模板只读预览与独立复制 | 3.9 模板与创作优选 | SC-template-copy |
 | BR-onboarding-controls | 八步教学与原项目保护 | 3.10 教学、设置与操作辅助 | SC-onboarding |
@@ -43,10 +44,7 @@
 | BR-platform-account-management | 平台集中管理普通账号 | 4. 双端与账号管理 | SC-platform-management |
 | BR-account-password | 固定初始密码及本人改密 | 4. 双端与账号管理 | SC-account-password |
 | BR-role-retirement | 旧角色降级及会话撤销 | 4. 双端与账号管理 | SC-role-retirement |
-| BR-account-login | 真实账号及会话生命周期 | 4. 双端与账号管理 | SC-platform-management | SF-platform | 平台管理员／普通用户 | 平台集中管理，拒绝普通用户的管理调用 | 4. 双端与账号管理 |
-| SC-role-retirement | SF-creation-workbench | 原客户管理员账号 | 原密码重新登录为普通用户，旧权限失效、数据保留 | 4. 双端与账号管理 |
-| SC-account-password | SF-creation-workbench、SF-platform | 本人账号 | 固定初始密码、首次改密及本人改密 | 4. 双端与账号管理 |
-| SC-account-session |
+| BR-account-login | 真实账号及会话生命周期 | 4. 双端与账号管理 | SC-account-session |
 | BR-user-isolation | 用户资料、凭据与任务隔离 | 4. 双端与账号管理 | SC-user-isolation, SC-conflicting-save |
 
 ## 场景
@@ -62,17 +60,13 @@
 | SC-professional-creation | SF-creation-workbench | 使用者 | 修改剧情分镜后继续并恢复专业会话 | 3.5 专业创作与阶段确认 |
 | SC-storyboard-editing | SF-creation-workbench | 使用者 | 导入、排序改号、引用及导出分镜 | 3.6 画布与分镜 |
 | SC-script-input | SF-creation-workbench | 使用者 | 仅参考可生成、两者都空不调用模型 | 3.6 画布与分镜 |
-| SC-model-configuration | SF-creation-workbench | 使用者 | 保存无关设置不泄露或清空凭据 | 3.7 模型配置与生成结果 |
+| SC-model-configuration | SF-creation-workbench | 使用者 | 无需厂商配置使用可用模型，个人设置不改变或泄露后台凭据 | 3.7 模型配置与生成结果 |
 | SC-generation-navigation | SF-creation-workbench | 使用者 | 生成中切换项目且结果归属不变 | 3.7 模型配置与生成结果 |
+| SC-task-recovery | SF-creation-workbench | 使用者 | 重开及服务重启后查询原任务、恢复保存，未知状态不重复生成，拒绝跨账号恢复 | 3.7 模型配置与生成结果 |
 | SC-asset-management | SF-creation-workbench | 使用者 | 素材改名移动后恢复文件标签及来源 | 3.8 素材与生成历史 |
 | SC-template-copy | SF-creation-workbench | 使用者 | 跨浏览器只读预览并复制独立项目 | 3.9 模板与创作优选 |
 | SC-onboarding | SF-creation-workbench | 使用者 | 首次及手动教学可见且不覆盖原项目 | 3.10 教学、设置与操作辅助 |
 | SC-workbench-controls | SF-creation-workbench | 使用者 | 偏好、快捷键与侧栏会话保持一致 | 3.10 教学、设置与操作辅助 |
-
-账号验收（按当前双角色改版修订）：
-
-| ID | 端 | 角色 | 场景 | PRD 章节 |
-| --- | --- | --- | --- | --- |
 | SC-platform-management | SF-platform | 平台管理员／普通用户 | 平台集中管理，拒绝普通用户的管理调用 | 4. 双端与账号管理 |
 | SC-role-retirement | SF-creation-workbench | 原客户管理员账号 | 原密码重新登录为普通用户，旧权限失效、数据保留 | 4. 双端与账号管理 |
 | SC-account-password | SF-creation-workbench、SF-platform | 本人账号 | 固定初始密码、首次改密及本人改密 | 4. 双端与账号管理 |
@@ -92,5 +86,5 @@
 | --- | --- | --- |
 | 2026-11-06 | #7 | 建立共享实例创作规则和验收场景索引 |
 | 2026-11-12 | #7 | 新增独立账号、用户隔离和旧资料归属验收；2026-11-16按note 131807确认实施，环境验收待执行 |
-
 | 2026-11-19 | #7 | 仅保留平台管理员与普通用户，新增集中管理、角色降级与密码验收，移除普通账号仅SQL维护的旧目标 |
+| 2026-11-20 | #7 | 明确外部客户定位、后台统一模型配置及任务恢复与永久保留规则 |
